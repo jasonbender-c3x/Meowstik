@@ -92,3 +92,16 @@ echo -e "${GREEN}Done! secrets.json created with secure permissions (600)${NC}"
 echo ""
 echo -e "${YELLOW}Important: Keep this file secure and never commit it to git.${NC}"
 echo ""
+# @file export-secrets.sh
+# @brief Exports environment variables and sensitive credentials for the desktop application.
+# @details This script initializes the shell environment with necessary secrets, 
+# such as API keys, authentication tokens, and configuration variables required 
+# for the desktop application's build process or runtime execution.
+#
+# @usage
+#   source export-secrets.sh
+#
+# @note Ensure that the source file containing the actual secret values is 
+# properly secured and not committed to version control if it contains 
+# plaintext sensitive data.
+workspace/desktop-app/export-secrets.sh
