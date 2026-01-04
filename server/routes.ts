@@ -743,6 +743,9 @@ The user has voice output enabled. You MUST use the \`say\` tool to speak your r
       
       let loopIteration = 0;
       const MAX_LOOP_ITERATIONS = 10; // Safety limit to prevent infinite loops
+      const MAX_TOOLS_PER_TURN = 20; // Limit tool calls per turn to prevent runaway
+      let totalToolsExecuted = 0;
+      const MAX_TOTAL_TOOLS = 50; // Absolute limit across all turns
       let sendChatContent: string | null = null;
       let agenticHistory = [...history, { role: "user", parts: userParts }];
       
@@ -855,9 +858,14 @@ The user has voice output enabled. You MUST use the \`say\` tool to speak your r
         }
         console.log(`${"=".repeat(60)}\n`);
         
-        // Execute tools
-        const execResult = await executeToolsAndGetResults(parsedResponse.toolCalls, savedMessage.id);
+        // Execute tools (with per-turn limit)
+        const limitedToolCalls = parsedResponse.toolCalls.slice(0, MAX_TOOLS_PER_TURN);
+        if (parsedResponse.toolCalls.length > MAX_TOOLS_PER_TURN) {
+          console.warn(`[AGENTIC LOOP] Limiting ${parsedResponse.toolCalls.length} tool calls to ${MAX_TOOLS_PER_TURN}`);
+        }
+        const execResult = await executeToolsAndGetResults(limitedToolCalls, savedMessage.id);
         toolResults.push(...execResult.results);
+        totalToolsExecuted += limitedToolCalls.length;
         sendChatContent = execResult.sendChatContent;
         
         // Add model response with function calls to agentic history
@@ -869,7 +877,7 @@ The user has voice output enabled. You MUST use the \`say\` tool to speak your r
         });
         
         // AGENTIC LOOP: Continue if send_chat was NOT called
-        while (!sendChatContent && loopIteration < MAX_LOOP_ITERATIONS) {
+        while (!sendChatContent && loopIteration < MAX_LOOP_ITERATIONS && totalToolsExecuted < MAX_TOTAL_TOOLS) {
           loopIteration++;
           console.log(`\n${"═".repeat(60)}`);
           console.log(`[AGENTIC LOOP] Turn ${loopIteration} - Feeding tool results back to LLM`);
@@ -969,9 +977,14 @@ The user has voice output enabled. You MUST use the \`say\` tool to speak your r
               console.log(`  • ${tc.type}: ${JSON.stringify(tc.parameters).substring(0, 80)}`);
             }
             
-            // Execute tools
-            const loopExecResult = await executeToolsAndGetResults(toolCalls, savedMessage.id);
+            // Execute tools (with per-turn limit)
+            const limitedLoopToolCalls = toolCalls.slice(0, MAX_TOOLS_PER_TURN);
+            if (toolCalls.length > MAX_TOOLS_PER_TURN) {
+              console.warn(`[AGENTIC LOOP] Turn ${loopIteration}: Limiting ${toolCalls.length} tool calls to ${MAX_TOOLS_PER_TURN}`);
+            }
+            const loopExecResult = await executeToolsAndGetResults(limitedLoopToolCalls, savedMessage.id);
             toolResults.push(...loopExecResult.results);
+            totalToolsExecuted += limitedLoopToolCalls.length;
             sendChatContent = loopExecResult.sendChatContent;
             
             // Update history for next iteration - use proper function call format
@@ -991,10 +1004,17 @@ The user has voice output enabled. You MUST use the \`say\` tool to speak your r
           }
         }
         
-        if (loopIteration >= MAX_LOOP_ITERATIONS && !sendChatContent) {
-          console.warn(`[AGENTIC LOOP] Hit max iterations (${MAX_LOOP_ITERATIONS}), forcing termination`);
-          sendChatContent = "[Loop limit reached - response truncated]";
-          res.write(`data: ${JSON.stringify({ text: sendChatContent })}\n\n`);
+        if (!sendChatContent) {
+          if (loopIteration >= MAX_LOOP_ITERATIONS) {
+            console.warn(`[AGENTIC LOOP] Hit max iterations (${MAX_LOOP_ITERATIONS}), forcing termination`);
+            sendChatContent = "[Loop limit reached - response truncated]";
+          } else if (totalToolsExecuted >= MAX_TOTAL_TOOLS) {
+            console.warn(`[AGENTIC LOOP] Hit max total tools (${MAX_TOTAL_TOOLS}), forcing termination`);
+            sendChatContent = "[Tool execution limit reached - response truncated]";
+          }
+          if (sendChatContent) {
+            res.write(`data: ${JSON.stringify({ text: sendChatContent })}\n\n`);
+          }
         }
         
         // Update cleanContentForStorage with send_chat content if available
