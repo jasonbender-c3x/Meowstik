@@ -1,0 +1,87 @@
+ cd /tmp && rm -rf app-merge && git clone https://github.com/jasonbender-c3x/app.git app-merge && cd app-merge && git remote add meowstik-github https://github.com/jasonbender-c3x/Meowstik.git && git remote add meowstik-gitlab https://gitlab.com/jason627/Meowstik.git && git fetch meowstik-github && git fetch meowstik-gitlab && git merge meowstik-gitlab/main --allow-unrelated-histories -m "Merge GitLab Meowstik" && git merge meowstik-github/main --allow-unrelated-histories -m "Merge GitHub Meowstik" && git push origin main
+Cloning into 'app-merge'...
+remote: Enumerating objects: 2494, done.
+remote: Counting objects: 100% (177/177), done.
+remote: Compressing objects: 100% (80/80), done.
+remote: Total 2494 (delta 109), reused 131 (delta 95), pack-reused 2317 (from 1)
+Receiving objects: 100% (2494/2494), 39.87 MiB | 31.50 MiB/s, done.
+Resolving deltas: 100% (1639/1639), done.
+remote: Enumerating objects: 201, done.
+remote: Counting objects: 100% (49/49), done.
+remote: Total 201 (delta 49), reused 49 (delta 49), pack-reused 152 (from 1)
+Receiving objects: 100% (201/201), 1.54 MiB | 17.52 MiB/s, done.
+Resolving deltas: 100% (135/135), completed with 11 local objects.
+From https://github.com/jasonbender-c3x/Meowstik
+ * [new branch]      main       -> meowstik-github/main
+From https://gitlab.com/jason627/Meowstik
+ * [new branch]      main       -> meowstik-gitlab/main
+Updating ea53ac6..af51a96
+Fast-forward (no commit created; -m option ignored)
+ .gitignore                                           |   2 +-
+ .replit                                              |   5 +
+ .../Screenshot_2026-01-01_22.12.07_1767334402752.png | Bin 0 -> 556579 bytes
+ .../Screenshot_2026-01-03_06.27.25_1767450528406.png | Bin 0 -> 254626 bytes
+ .../ai-stack-e2a5f-72c8fed5d463_1767324141242.json   |  13 +
+ client/public/opengraph.jpg                          | Bin 79903 -> 33948 bytes
+ client/src/components/chat/sidebar.tsx               | 681 +++++++++------
+ client/src/pages/home.tsx                            |   7 +-
+ desktop-app/{ => src}/install.sh                     |   0
+ docs/ragent/TROUBLESHOOTING-MANUAL.md                | 961 +++++++++++++++++++++
+ google-credentials.json                              |  13 +
+ prompts/personality.md                               |   2 +-
+ replit.md                                            |   5 +-
+ replit_agent_log.md                                  |  16 +
+ server/gemini-tools.ts                               | 872 +++++++++++++++++++
+ server/integrations/expressive-tts.ts                | 244 +++---
+ server/integrations/google-auth.ts                   |   1 +
+ server/routes.ts                                     | 439 ++++------
+ server/services/rag-dispatcher.ts                    | 119 ++-
+ 19 files changed, 2661 insertions(+), 719 deletions(-)
+ create mode 100644 attached_assets/Screenshot_2026-01-01_22.12.07_1767334402752.png
+ create mode 100644 attached_assets/Screenshot_2026-01-03_06.27.25_1767450528406.png
+ create mode 100644 attached_assets/ai-stack-e2a5f-72c8fed5d463_1767324141242.json
+ rename desktop-app/{ => src}/install.sh (100%)
+ create mode 100644 docs/ragent/TROUBLESHOOTING-MANUAL.md
+ create mode 100644 google-credentials.json
+ create mode 100644 replit_agent_log.md
+ create mode 100644 server/gemini-tools.ts
+Updating af51a96..5e190bc
+Fast-forward (no commit created; -m option ignored)
+ client/public/opengraph.jpg   | Bin 33948 -> 46562 bytes
+ server/integrations/github.ts |  23 +++++++++++++++++++++++
+ server/routes.ts              |   2 +-
+ 3 files changed, 24 insertions(+), 1 deletion(-)
+Enumerating objects: 229, done.
+Counting objects: 100% (229/229), done.
+Delta compression using up to 8 threads
+Compressing objects: 100% (89/89), done.
+Writing objects: 100% (201/201), 1.49 MiB | 8.48 MiB/s, done.
+Total 201 (delta 150), reused 163 (delta 112), pack-reused 0 (from 0)
+remote: Resolving deltas: 100% (150/150), completed with 21 local objects.
+remote: error: GH013: Repository rule violations found for refs/heads/main.
+remote: 
+remote: - GITHUB PUSH PROTECTION
+remote:   —————————————————————————————————————————
+remote:     Resolve the following violations before pushing again
+remote: 
+remote:     - Push cannot contain secrets
+remote: 
+remote:     
+remote:      (?) Learn how to resolve a blocked push
+remote:      https://docs.github.com/code-security/secret-scanning/working-with-secret-scanning-and-push-protection/working-with-push-protection-from-the-command-line#resolving-a-blocked-push
+remote:     
+remote:     
+remote:       —— Google Cloud Service Account Credentials ——————————
+remote:        locations:
+remote:          - commit: 57198c896dff0295ea9fe9179f75dda8bd81b08f
+remote:            path: google-credentials.json:1
+remote:     
+remote:        (?) To push, remove secret from commit(s) or follow this URL to allow the secret.
+remote:        https://github.com/jasonbender-c3x/app/security/secret-scanning/unblock-secret/37n4UJNs3MUNJyP9RWzJM6IMt6i
+remote:     
+remote: 
+remote: 
+To https://github.com/jasonbender-c3x/app.git
+ ! [remote rejected] main -> main (push declined due to repository rule violations)
+error: failed to push some refs to 'https://github.com/jasonbender-c3x/app.git'
+/tmp/app-merge$ 
