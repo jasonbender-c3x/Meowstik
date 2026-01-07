@@ -34,7 +34,11 @@ interface LLMInteraction {
   systemPrompt: string;
   userMessage: string;
   conversationHistory: Array<{ role: string; content: string }>;
-  attachments: Array<{ type: string; filename?: string; mimeType?: string }>;
+  attachments: Array<{ type: string; filename?: string; mimeType?: string; content?: string; size?: number }>;
+  // RAG Context
+  ragContext?: Array<{ source: string; content: string; score?: number; metadata?: Record<string, unknown> }>;
+  injectedFiles?: Array<{ filename: string; content: string; mimeType?: string }>;
+  injectedJson?: Array<{ name: string; data: unknown }>;
   rawResponse: string;
   parsedToolCalls: unknown[];
   cleanContent: string;
@@ -94,9 +98,12 @@ export default function DebugPage() {
     history: false,
     response: true,
     rawResponse: false,
-    toolCalls: false,
-    toolResults: false,
-    attachments: false
+    toolCalls: true,
+    toolResults: true,
+    attachments: false,
+    ragContext: false,
+    injectedFiles: false,
+    injectedJson: false
   });
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
@@ -488,7 +495,7 @@ export default function DebugPage() {
 
           <TabsContent value="llm" className="space-y-4">
             <div className="flex justify-between items-center">
-              <p className="text-muted-foreground">Recent LLM interactions (last 50)</p>
+              <p className="text-muted-foreground">Recent LLM interactions (last 10)</p>
               <div className="flex gap-2">
                 <Button 
                   variant="outline" 
@@ -982,6 +989,88 @@ export default function DebugPage() {
                         </Collapsible>
                       )}
 
+                      {/* RAG Context Recall */}
+                      {selectedLLM.ragContext && selectedLLM.ragContext.length > 0 && (
+                        <Collapsible open={expandedSections.ragContext} onOpenChange={() => toggleSection('ragContext')}>
+                          <CollapsibleTrigger className="flex items-center justify-between w-full p-3 rounded-lg bg-cyan-500/10 border border-cyan-500/30 hover:bg-cyan-500/15 transition-colors">
+                            <div className="flex items-center gap-2">
+                              <span className="px-2 py-0.5 rounded bg-cyan-500/20 text-cyan-400 text-xs font-semibold">RAG</span>
+                              <span className="text-sm font-medium">Context Recall</span>
+                              <span className="px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-400 text-xs">{selectedLLM.ragContext.length} items</span>
+                            </div>
+                            {expandedSections.ragContext ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                          </CollapsibleTrigger>
+                          <CollapsibleContent>
+                            <div className="mt-2 rounded-lg bg-[#1e1e1e] border border-border max-h-[200px] overflow-y-auto">
+                              {selectedLLM.ragContext.map((ctx, idx) => (
+                                <div key={idx} className="p-3 border-b border-[#333] last:border-b-0">
+                                  <div className="flex items-center justify-between mb-2">
+                                    <span className="text-xs font-mono text-cyan-400">{ctx.source}</span>
+                                    {ctx.score !== undefined && (
+                                      <span className="text-xs text-muted-foreground">score: {ctx.score.toFixed(3)}</span>
+                                    )}
+                                  </div>
+                                  <pre className="text-xs text-[#c5c5c5] whitespace-pre-wrap font-mono">{ctx.content}</pre>
+                                </div>
+                              ))}
+                            </div>
+                          </CollapsibleContent>
+                        </Collapsible>
+                      )}
+
+                      {/* Injected Files */}
+                      {selectedLLM.injectedFiles && selectedLLM.injectedFiles.length > 0 && (
+                        <Collapsible open={expandedSections.injectedFiles} onOpenChange={() => toggleSection('injectedFiles')}>
+                          <CollapsibleTrigger className="flex items-center justify-between w-full p-3 rounded-lg bg-orange-500/10 border border-orange-500/30 hover:bg-orange-500/15 transition-colors">
+                            <div className="flex items-center gap-2">
+                              <span className="px-2 py-0.5 rounded bg-orange-500/20 text-orange-400 text-xs font-semibold">FILES</span>
+                              <span className="text-sm font-medium">Injected Files</span>
+                              <span className="px-2 py-0.5 rounded-full bg-orange-500/20 text-orange-400 text-xs">{selectedLLM.injectedFiles.length}</span>
+                            </div>
+                            {expandedSections.injectedFiles ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                          </CollapsibleTrigger>
+                          <CollapsibleContent>
+                            <div className="mt-2 rounded-lg bg-[#1e1e1e] border border-border max-h-[200px] overflow-y-auto">
+                              {selectedLLM.injectedFiles.map((file, idx) => (
+                                <div key={idx} className="p-3 border-b border-[#333] last:border-b-0">
+                                  <div className="flex items-center justify-between mb-2">
+                                    <span className="text-xs font-mono text-orange-400">{file.filename}</span>
+                                    {file.mimeType && <span className="text-xs text-muted-foreground">{file.mimeType}</span>}
+                                  </div>
+                                  <pre className="text-xs text-[#c5c5c5] whitespace-pre-wrap font-mono max-h-[100px] overflow-y-auto">{file.content}</pre>
+                                </div>
+                              ))}
+                            </div>
+                          </CollapsibleContent>
+                        </Collapsible>
+                      )}
+
+                      {/* Injected JSON */}
+                      {selectedLLM.injectedJson && selectedLLM.injectedJson.length > 0 && (
+                        <Collapsible open={expandedSections.injectedJson} onOpenChange={() => toggleSection('injectedJson')}>
+                          <CollapsibleTrigger className="flex items-center justify-between w-full p-3 rounded-lg bg-pink-500/10 border border-pink-500/30 hover:bg-pink-500/15 transition-colors">
+                            <div className="flex items-center gap-2">
+                              <span className="px-2 py-0.5 rounded bg-pink-500/20 text-pink-400 text-xs font-semibold">JSON</span>
+                              <span className="text-sm font-medium">Injected Data</span>
+                              <span className="px-2 py-0.5 rounded-full bg-pink-500/20 text-pink-400 text-xs">{selectedLLM.injectedJson.length}</span>
+                            </div>
+                            {expandedSections.injectedJson ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                          </CollapsibleTrigger>
+                          <CollapsibleContent>
+                            <div className="mt-2 rounded-lg bg-[#1e1e1e] border border-border max-h-[200px] overflow-y-auto">
+                              {selectedLLM.injectedJson.map((json, idx) => (
+                                <div key={idx} className="p-3 border-b border-[#333] last:border-b-0">
+                                  <span className="text-xs font-mono text-pink-400 block mb-2">{json.name}</span>
+                                  <pre className="text-xs text-[#c5c5c5] whitespace-pre-wrap font-mono max-h-[100px] overflow-y-auto">
+                                    {typeof json.data === 'string' ? json.data : JSON.stringify(json.data, null, 2)}
+                                  </pre>
+                                </div>
+                              ))}
+                            </div>
+                          </CollapsibleContent>
+                        </Collapsible>
+                      )}
+
                       {/* Attachments */}
                       {selectedLLM.attachments.length > 0 && (
                         <Collapsible open={expandedSections.attachments} onOpenChange={() => toggleSection('attachments')}>
@@ -993,11 +1082,15 @@ export default function DebugPage() {
                             {expandedSections.attachments ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                           </CollapsibleTrigger>
                           <CollapsibleContent>
-                            <div className="flex flex-wrap gap-2 mt-2 p-3">
+                            <div className="mt-2 rounded-lg bg-[#1e1e1e] border border-border max-h-[150px] overflow-y-auto p-3">
                               {selectedLLM.attachments.map((att, idx) => (
-                                <span key={idx} className="px-3 py-1.5 rounded-full bg-secondary border border-border text-xs">
-                                  {att.filename || att.type} ({att.mimeType})
-                                </span>
+                                <div key={idx} className="flex items-center justify-between p-2 rounded bg-secondary/20 mb-2 last:mb-0">
+                                  <span className="text-xs font-mono">{att.filename || att.type}</span>
+                                  <div className="flex items-center gap-2">
+                                    {att.mimeType && <span className="text-xs text-muted-foreground">{att.mimeType}</span>}
+                                    {att.size && <span className="text-xs text-muted-foreground">{(att.size / 1024).toFixed(1)}KB</span>}
+                                  </div>
+                                </div>
                               ))}
                             </div>
                           </CollapsibleContent>
@@ -1103,58 +1196,74 @@ export default function DebugPage() {
                         </CollapsibleContent>
                       </Collapsible>
 
-                      {/* Tool Calls */}
-                      {selectedLLM.parsedToolCalls.length > 0 && (
+                      {/* Tool Execution - Calls with Results Beneath */}
+                      {(selectedLLM.parsedToolCalls.length > 0 || selectedLLM.toolResults.length > 0) && (
                         <Collapsible open={expandedSections.toolCalls} onOpenChange={() => toggleSection('toolCalls')}>
                           <CollapsibleTrigger className="flex items-center justify-between w-full p-3 rounded-lg bg-amber-500/10 border border-amber-500/30 hover:bg-amber-500/15 transition-colors">
                             <div className="flex items-center gap-2">
                               <Wrench className="h-4 w-4 text-amber-400" />
-                              <span className="text-sm font-medium">Parsed Tool Calls</span>
-                              <span className="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400 text-xs">{selectedLLM.parsedToolCalls.length}</span>
+                              <span className="text-sm font-medium">Tool Execution</span>
+                              <span className="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400 text-xs">
+                                {selectedLLM.parsedToolCalls.length} calls / {selectedLLM.toolResults.length} results
+                              </span>
                             </div>
                             {expandedSections.toolCalls ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                           </CollapsibleTrigger>
                           <CollapsibleContent>
-                            <div className="p-4 mt-2 rounded-lg bg-[#1e1e1e] border border-border">
-                              <pre className="text-xs font-mono whitespace-pre-wrap text-amber-200">
-                                {JSON.stringify(selectedLLM.parsedToolCalls, null, 2)}
-                              </pre>
-                            </div>
-                          </CollapsibleContent>
-                        </Collapsible>
-                      )}
-
-                      {/* Tool Results */}
-                      {selectedLLM.toolResults.length > 0 && (
-                        <Collapsible open={expandedSections.toolResults} onOpenChange={() => toggleSection('toolResults')}>
-                          <CollapsibleTrigger className="flex items-center justify-between w-full p-3 rounded-lg bg-amber-500/10 border border-amber-500/30 hover:bg-amber-500/15 transition-colors">
-                            <div className="flex items-center gap-2">
-                              <Wrench className="h-4 w-4 text-amber-400" />
-                              <span className="text-sm font-medium">Tool Results</span>
-                              <span className="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400 text-xs">{selectedLLM.toolResults.length}</span>
-                            </div>
-                            {expandedSections.toolResults ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                          </CollapsibleTrigger>
-                          <CollapsibleContent>
-                            <div className="space-y-2 mt-2">
-                              {selectedLLM.toolResults.map((result, idx) => (
-                                <div key={idx} className={`p-3 rounded-lg border ${result.success ? 'bg-green-500/5 border-green-500/30' : 'bg-red-500/5 border-red-500/30'}`}>
-                                  <div className="flex items-center justify-between mb-2">
-                                    <span className="font-mono text-xs">{result.type}</span>
-                                    <span className={`text-xs px-2 py-0.5 rounded ${result.success ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
-                                      {result.success ? 'SUCCESS' : 'FAILED'}
-                                    </span>
+                            <div className="mt-2 space-y-3">
+                              {/* Tool Calls List */}
+                              {selectedLLM.parsedToolCalls.length > 0 && (
+                                <div className="rounded-lg bg-[#1e1e1e] border border-amber-500/20 overflow-hidden">
+                                  <div className="px-3 py-2 bg-amber-500/10 border-b border-amber-500/20">
+                                    <span className="text-xs font-semibold text-amber-400">TOOL CALLS</span>
                                   </div>
-                                  {result.error && (
-                                    <p className="text-xs text-red-400 mb-2">{result.error}</p>
-                                  )}
-                                  {result.result !== undefined && result.result !== null && (
-                                    <pre className="text-xs font-mono text-muted-foreground whitespace-pre-wrap">
-                                      {String(typeof result.result === 'string' ? result.result : JSON.stringify(result.result, null, 2))}
-                                    </pre>
-                                  )}
+                                  <div className="p-3 max-h-[200px] overflow-y-auto">
+                                    {selectedLLM.parsedToolCalls.map((call: unknown, idx: number) => {
+                                      const toolCall = call as { name?: string; id?: string; args?: unknown };
+                                      return (
+                                        <div key={idx} className="mb-3 last:mb-0 p-2 rounded bg-[#252525] border border-[#333]">
+                                          <div className="flex items-center gap-2 mb-2">
+                                            <span className="text-xs font-mono text-amber-300">{toolCall.name || `tool_${idx}`}</span>
+                                            {toolCall.id && <span className="text-xs text-muted-foreground">#{toolCall.id}</span>}
+                                          </div>
+                                          <pre className="text-xs font-mono text-[#a0a0a0] whitespace-pre-wrap">
+                                            {JSON.stringify(toolCall.args || call, null, 2)}
+                                          </pre>
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
                                 </div>
-                              ))}
+                              )}
+
+                              {/* Tool Results Beneath */}
+                              {selectedLLM.toolResults.length > 0 && (
+                                <div className="rounded-lg bg-[#1e1e1e] border border-border overflow-hidden">
+                                  <div className="px-3 py-2 bg-secondary/30 border-b border-border">
+                                    <span className="text-xs font-semibold text-muted-foreground">TOOL RESULTS</span>
+                                  </div>
+                                  <div className="p-3 max-h-[300px] overflow-y-auto space-y-2">
+                                    {selectedLLM.toolResults.map((result, idx) => (
+                                      <div key={idx} className={`p-3 rounded-lg border ${result.success ? 'bg-green-500/5 border-green-500/30' : 'bg-red-500/5 border-red-500/30'}`}>
+                                        <div className="flex items-center justify-between mb-2">
+                                          <span className="font-mono text-xs">{result.type}</span>
+                                          <span className={`text-xs px-2 py-0.5 rounded ${result.success ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
+                                            {result.success ? 'SUCCESS' : 'FAILED'}
+                                          </span>
+                                        </div>
+                                        {result.error && (
+                                          <p className="text-xs text-red-400 mb-2">{result.error}</p>
+                                        )}
+                                        {result.result !== undefined && result.result !== null && (
+                                          <pre className="text-xs font-mono text-muted-foreground whitespace-pre-wrap max-h-[150px] overflow-y-auto">
+                                            {String(typeof result.result === 'string' ? result.result : JSON.stringify(result.result, null, 2))}
+                                          </pre>
+                                        )}
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
                             </div>
                           </CollapsibleContent>
                         </Collapsible>
