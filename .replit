@@ -46,4 +46,3 @@ externalPort = 80
 [userenv]
 
 [userenv.shared]
-GOOGLE_APPLICATION_CREDENTIALS = "./google-credentials.json"
