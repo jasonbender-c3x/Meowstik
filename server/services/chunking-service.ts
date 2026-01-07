@@ -44,7 +44,7 @@ export interface ChunkingOptions {
 const DEFAULT_OPTIONS: Required<ChunkingOptions> = {
   strategy: "paragraph",
   maxChunkSize: 1000,
-  minChunkSize: 100,
+  minChunkSize: 25,  // Lowered from 100 to capture short but meaningful messages
   overlap: 50,
 };
 
@@ -245,8 +245,8 @@ export class ChunkingService {
     try {
       const buffer = Buffer.from(base64Content, "base64");
       // Use dynamic import for pdf-parse which handles ESM/CJS compatibility
-      const pdfParse = await import("pdf-parse");
-      const parser = pdfParse.default || pdfParse;
+      const pdfParseModule = await import("pdf-parse") as any;
+      const parser = pdfParseModule.default || pdfParseModule;
       const data = await parser(buffer);
       return data.text;
     } catch (error) {

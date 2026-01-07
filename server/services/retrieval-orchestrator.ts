@@ -46,8 +46,8 @@ export class RetrievalOrchestrator {
 
     const semanticStartTime = Date.now();
     const semanticResults = await ingestionPipeline.semanticSearch(context.query, {
-      limit: 20,
-      threshold: 0.4,
+      limit: 50,        // Increased from 20 for better recall
+      threshold: 0.25,  // Lowered from 0.4 for better recall
       bucket: context.buckets?.[0],
     });
     const semanticTime = Date.now() - semanticStartTime;

@@ -109,6 +109,7 @@ import DocsPage from "@/pages/docs";
 import AgentSettingsPage from "@/pages/agent-settings";
 import LandingPage from "@/pages/landing";
 import InstallPage from "@/pages/install";
+import RagDebugPage from "@/pages/rag-debug";
 
 import { TTSProvider } from "@/contexts/tts-context";
 
@@ -240,6 +241,9 @@ function Router() {
       
       {/* Install Page - Browser extension and desktop agent downloads */}
       <Route path="/install" component={InstallPage} />
+      
+      {/* RAG Debug Page - Monitor ingestion and retrieval pipeline */}
+      <Route path="/rag-debug" component={RagDebugPage} />
       
       {/* 
        * Fallback Route (404) - No path specified means it matches everything

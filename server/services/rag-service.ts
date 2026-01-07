@@ -19,6 +19,7 @@ import { storage } from "../storage";
 import { chunkingService, type ChunkingOptions } from "./chunking-service";
 import { embeddingService } from "./embedding-service";
 import { getVectorStore, type VectorStoreAdapter, type VectorDocument } from "./vector-store";
+import { ragDebugBuffer } from "./rag-debug-buffer";
 import type { DocumentChunk, Attachment } from "@shared/schema";
 
 export interface IngestResult {
@@ -78,10 +79,16 @@ export class RAGService {
     options?: ChunkingOptions
   ): Promise<IngestResult> {
     const documentId = `doc-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    const traceId = ragDebugBuffer.generateTraceId();
+    const startTime = Date.now();
+
+    // Log ingestion start
+    ragDebugBuffer.logIngestStart(traceId, documentId, filename, content.length, "document");
 
     try {
       const extractedText = chunkingService.extractText(content, mimeType);
 
+      const chunkStartTime = Date.now();
       const chunks = await chunkingService.chunkDocument(
         extractedText,
         documentId,
@@ -89,8 +96,20 @@ export class RAGService {
         mimeType,
         options
       );
+      const chunkDuration = Date.now() - chunkStartTime;
+
+      // Log chunking result
+      ragDebugBuffer.logChunk(
+        traceId, 
+        documentId, 
+        chunks.length, 
+        0, // chunksFiltered - we can't know this easily here
+        options?.strategy || "paragraph",
+        chunkDuration
+      );
 
       if (chunks.length === 0) {
+        ragDebugBuffer.logIngestFiltered(traceId, documentId, "No chunks generated from document");
         return {
           documentId,
           chunksCreated: 0,
@@ -99,8 +118,13 @@ export class RAGService {
         };
       }
 
+      const embedStartTime = Date.now();
       const chunkTexts = chunks.map((c) => c.content);
       const embeddings = await embeddingService.embedBatch(chunkTexts);
+      const embedDuration = Date.now() - embedStartTime;
+
+      // Log embedding
+      ragDebugBuffer.logEmbed(traceId, documentId, chunks.length, embedDuration);
 
       // Initialize vector store for semantic search
       const vectorStore = await this.ensureInitialized();
@@ -108,6 +132,7 @@ export class RAGService {
       // Prepare vector documents for batch upsert
       const vectorDocs: VectorDocument[] = [];
 
+      const storeStartTime = Date.now();
       for (let i = 0; i < chunks.length; i++) {
         // Store in PostgreSQL for persistence
         const savedChunk = await storage.createDocumentChunk({
@@ -139,6 +164,13 @@ export class RAGService {
         await vectorStore.upsertBatch(vectorDocs);
         console.log(`[RAG] Upserted ${vectorDocs.length} chunks to vector store`);
       }
+      const storeDuration = Date.now() - storeStartTime;
+
+      // Log store complete
+      ragDebugBuffer.logStore(traceId, documentId, chunks.length, storeDuration);
+
+      const totalDuration = Date.now() - startTime;
+      ragDebugBuffer.logIngestComplete(traceId, documentId, chunks.length, totalDuration);
 
       console.log(`Ingested document ${filename}: ${chunks.length} chunks created`);
 
@@ -149,6 +181,7 @@ export class RAGService {
       };
     } catch (error) {
       console.error("Document ingestion error:", error);
+      ragDebugBuffer.logError(traceId, "ingest_start", error instanceof Error ? error.message : "Unknown error");
       return {
         documentId,
         chunksCreated: 0,
@@ -169,20 +202,35 @@ export class RAGService {
    */
   async retrieve(
     query: string,
-    topK: number = 5,
-    threshold: number = 0.5
+    topK: number = 20,      // Increased from 5 for better recall
+    threshold: number = 0.25  // Lowered from 0.5 for better recall
   ): Promise<RetrievalResult> {
+    const traceId = ragDebugBuffer.generateTraceId();
+    const startTime = Date.now();
+
+    // Log query start
+    ragDebugBuffer.logQueryStart(traceId, query);
+
     try {
       // Get embedding for the query
+      const embedStartTime = Date.now();
       const queryEmbedding = await embeddingService.embed(query);
+      const embedDuration = Date.now() - embedStartTime;
+      ragDebugBuffer.logQueryEmbed(traceId, query, embedDuration);
 
       // Use vector store for efficient similarity search
       const vectorStore = await this.ensureInitialized();
       
+      const searchStartTime = Date.now();
       const searchResults = await vectorStore.search(queryEmbedding.embedding, {
         topK,
         threshold,
       });
+      const searchDuration = Date.now() - searchStartTime;
+
+      // Log search results
+      const searchScores = searchResults.map(r => r.score);
+      ragDebugBuffer.logSearch(traceId, query, searchResults.length, threshold, topK, searchScores, searchDuration);
 
       // If vector store returns no results, try legacy fallback
       // This handles cases where vector store index is sparse or threshold is high
@@ -198,6 +246,7 @@ export class RAGService {
       // Cache the chunk list to avoid fetching multiple times
       const chunkList = await storage.getAllDocumentChunks();
       
+      const retrieveStartTime = Date.now();
       for (const result of searchResults) {
         // Try to fetch full chunk from storage using document.id
         const chunkIdStr = result.document.id;
@@ -207,10 +256,21 @@ export class RAGService {
           scores.push(result.score);
         }
       }
+      const retrieveDuration = Date.now() - retrieveStartTime;
+
+      // Log retrieve
+      const chunkIds = chunks.map(c => String(c.id));
+      const chunkPreviews = chunks.map(c => c.content.slice(0, 100));
+      ragDebugBuffer.logRetrieve(traceId, query, chunkIds, chunkPreviews, retrieveDuration);
+
+      // Log query complete
+      const totalDuration = Date.now() - startTime;
+      ragDebugBuffer.logQueryComplete(traceId, query, chunks.length, 0, totalDuration);
 
       return { chunks, scores };
     } catch (error) {
       console.error("Retrieval error:", error);
+      ragDebugBuffer.logError(traceId, "query_start", error instanceof Error ? error.message : "Unknown error");
       // Fallback to legacy method if vector store fails
       return this.retrieveLegacy(query, topK, threshold);
     }

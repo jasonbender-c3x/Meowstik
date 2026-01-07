@@ -93,7 +93,8 @@ import {
   LogIn,
   LogOut,
   User,
-  Info
+  Info,
+  Search
 } from "lucide-react";
 
 import { useAppSession } from "@/hooks/use-app-session";
@@ -693,6 +694,23 @@ export function Sidebar({ isOpen, setIsOpen, onNewChat, chats, currentChatId, on
                   >
                     <History className="h-4 w-4" />
                     {!effectiveCollapsed && "Database Explorer"}
+                  </Button>
+                </Link>
+
+                {/* RAG Debug Button */}
+                <Link href="/rag-debug">
+                  <Button 
+                    variant="ghost" 
+                    className={cn(
+                      "font-normal text-muted-foreground hover:text-foreground",
+                      effectiveCollapsed ? "w-12 h-9 p-0 justify-center" : "w-full justify-start gap-3",
+                      location === "/rag-debug" && "bg-secondary/50 text-foreground"
+                    )}
+                    title={effectiveCollapsed ? "RAG Debug" : undefined}
+                    data-testid="button-rag-debug"
+                  >
+                    <Search className="h-4 w-4" />
+                    {!effectiveCollapsed && "RAG Debug"}
                   </Button>
                 </Link>
 
