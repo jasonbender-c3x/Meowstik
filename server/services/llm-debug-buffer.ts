@@ -15,7 +15,12 @@ export interface LLMInteraction {
   systemPrompt: string;
   userMessage: string;
   conversationHistory: Array<{ role: string; content: string }>;
-  attachments: Array<{ type: string; filename?: string; mimeType?: string }>;
+  attachments: Array<{ type: string; filename?: string; mimeType?: string; content?: string; size?: number }>;
+  
+  // RAG Context
+  ragContext?: Array<{ source: string; content: string; score?: number; metadata?: Record<string, unknown> }>;
+  injectedFiles?: Array<{ filename: string; content: string; mimeType?: string }>;
+  injectedJson?: Array<{ name: string; data: unknown }>;
   
   // Output
   rawResponse: string;
@@ -34,7 +39,7 @@ export interface LLMInteraction {
 
 class LLMDebugBuffer {
   private interactions: LLMInteraction[] = [];
-  private maxSize = 50;
+  private maxSize = 10; // Keep latest 10 for debugging
   private counter = 0;
 
   /**
