@@ -85,6 +85,19 @@ Stored in `localStorage` with key `meowstik-verbosity-mode`. Uses `tts-context.t
 - **Browser Page (`/browser`):** Full web browser with Browserbase integration for screenshot capture.
 - **Database Explorer (`/database`):** UI for viewing, editing, and deleting database records.
 - **Live Voice Page (`/live`):** Dedicated real-time voice conversation interface using Gemini Live API, WebSocket-based audio streaming, and Voice Activity Detection.
+- **RAG Debug Page (`/rag-debug`):** Real-time visualization of RAG pipeline activity with ingestion/query trace timelines and statistics.
+
+### RAG Debug Infrastructure
+Comprehensive debugging tools for the Retrieval-Augmented Generation pipeline:
+- **Debug Buffer:** Circular buffer (`server/services/rag-debug-buffer.ts`) storing 1000 most recent trace events
+- **Trace Events:** ingest_start, chunk, embed, store, ingest_complete, query_start, query_embed, search, retrieve, query_complete
+- **API Endpoints:** `/api/debug/rag/traces`, `/api/debug/rag/stats`, `/api/debug/rag/clear`
+- **UI Page:** Tabs for Ingestion/Query/Errors with expandable event details and pipeline statistics
+- **Key Tuning Parameters (from memory loss fix):**
+  - `minChunkSize`: 25 chars (lowered from 100 to prevent filtering short messages)
+  - `retrievalThreshold`: 0.25 (lowered from 0.5 for better recall)
+  - `topK`: 20 (raised from 5 for more context retrieval)
+- **Documentation:** See `docs/ragent/RAG-ANALYSIS.md` for architecture analysis and tuning recommendations
 
 ### Turn-Based Collaborative Editing
 - **Protocol:** Operational Transform (OT) for conflict resolution with turn-based control
