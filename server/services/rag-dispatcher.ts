@@ -522,6 +522,33 @@ export class RAGDispatcher {
         case "github_pull_get":
           result = await this.executeGithubPullGet(toolCall);
           break;
+        case "github_pr_merge":
+          result = await this.executeGithubPrMerge(toolCall);
+          break;
+        case "github_pr_review_request":
+          result = await this.executeGithubPrReviewRequest(toolCall);
+          break;
+        case "github_repo_create":
+          result = await this.executeGithubRepoCreate(toolCall);
+          break;
+        case "github_repo_fork":
+          result = await this.executeGithubRepoFork(toolCall);
+          break;
+        case "github_branch_list":
+          result = await this.executeGithubBranchList(toolCall);
+          break;
+        case "github_branch_delete":
+          result = await this.executeGithubBranchDelete(toolCall);
+          break;
+        case "github_release_create":
+          result = await this.executeGithubReleaseCreate(toolCall);
+          break;
+        case "github_actions_trigger":
+          result = await this.executeGithubActionsTrigger(toolCall);
+          break;
+        case "github_workflows_list":
+          result = await this.executeGithubWorkflowsList(toolCall);
+          break;
         case "github_commits":
           result = await this.executeGithubCommits(toolCall);
           break;
@@ -1720,6 +1747,67 @@ export class RAGDispatcher {
 
   private async executeGithubUser(toolCall: ToolCall): Promise<unknown> {
     return await github.getAuthenticatedUser();
+  }
+
+  private async executeGithubPrMerge(toolCall: ToolCall): Promise<unknown> {
+    const params = toolCall.parameters as { owner: string; repo: string; pullNumber: number; commitTitle?: string; commitMessage?: string; mergeMethod?: 'merge' | 'squash' | 'rebase' };
+    return await github.mergePullRequest(params.owner, params.repo, params.pullNumber, {
+      commitTitle: params.commitTitle,
+      commitMessage: params.commitMessage,
+      mergeMethod: params.mergeMethod
+    });
+  }
+
+  private async executeGithubPrReviewRequest(toolCall: ToolCall): Promise<unknown> {
+    const params = toolCall.parameters as { owner: string; repo: string; pullNumber: number; reviewers: string[]; teamReviewers?: string[] };
+    return await github.requestReviewers(params.owner, params.repo, params.pullNumber, params.reviewers, params.teamReviewers);
+  }
+
+  private async executeGithubRepoCreate(toolCall: ToolCall): Promise<unknown> {
+    const params = toolCall.parameters as { name: string; description?: string; isPrivate?: boolean; autoInit?: boolean };
+    return await github.createRepo(params.name, {
+      description: params.description,
+      isPrivate: params.isPrivate,
+      autoInit: params.autoInit
+    });
+  }
+
+  private async executeGithubRepoFork(toolCall: ToolCall): Promise<unknown> {
+    const params = toolCall.parameters as { owner: string; repo: string; organization?: string; name?: string };
+    return await github.forkRepo(params.owner, params.repo, params.organization, params.name);
+  }
+
+  private async executeGithubBranchList(toolCall: ToolCall): Promise<unknown> {
+    const params = toolCall.parameters as { owner: string; repo: string };
+    const branches = await github.listBranches(params.owner, params.repo);
+    return { branches, count: branches.length };
+  }
+
+  private async executeGithubBranchDelete(toolCall: ToolCall): Promise<unknown> {
+    const params = toolCall.parameters as { owner: string; repo: string; branch: string };
+    return await github.deleteBranch(params.owner, params.repo, params.branch);
+  }
+
+  private async executeGithubReleaseCreate(toolCall: ToolCall): Promise<unknown> {
+    const params = toolCall.parameters as { owner: string; repo: string; tagName: string; name?: string; body?: string; draft?: boolean; prerelease?: boolean; targetCommitish?: string };
+    return await github.createRelease(params.owner, params.repo, params.tagName, {
+      name: params.name,
+      body: params.body,
+      draft: params.draft,
+      prerelease: params.prerelease,
+      targetCommitish: params.targetCommitish
+    });
+  }
+
+  private async executeGithubActionsTrigger(toolCall: ToolCall): Promise<unknown> {
+    const params = toolCall.parameters as { owner: string; repo: string; workflowId: string; ref: string; inputs?: Record<string, string> };
+    return await github.triggerWorkflow(params.owner, params.repo, params.workflowId, params.ref, params.inputs);
+  }
+
+  private async executeGithubWorkflowsList(toolCall: ToolCall): Promise<unknown> {
+    const params = toolCall.parameters as { owner: string; repo: string };
+    const workflows = await github.listWorkflows(params.owner, params.repo);
+    return { workflows, count: workflows.length };
   }
 
   // ═══════════════════════════════════════════════════════════════════════════

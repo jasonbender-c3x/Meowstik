@@ -665,6 +665,158 @@ export async function createPullRequest(
   };
 }
 
+export async function mergePullRequest(
+  owner: string,
+  repo: string,
+  pullNumber: number,
+  options: { commitTitle?: string; commitMessage?: string; mergeMethod?: 'merge' | 'squash' | 'rebase' } = {}
+) {
+  const octokit = await getUncachableGitHubClient();
+  const { data } = await octokit.pulls.merge({
+    owner,
+    repo,
+    pull_number: pullNumber,
+    commit_title: options.commitTitle,
+    commit_message: options.commitMessage,
+    merge_method: options.mergeMethod || 'merge'
+  });
+  
+  return {
+    merged: data.merged,
+    sha: data.sha,
+    message: data.message
+  };
+}
+
+export async function requestReviewers(
+  owner: string,
+  repo: string,
+  pullNumber: number,
+  reviewers: string[],
+  teamReviewers?: string[]
+) {
+  const octokit = await getUncachableGitHubClient();
+  const { data: pr } = await octokit.pulls.requestReviewers({
+    owner,
+    repo,
+    pull_number: pullNumber,
+    reviewers,
+    team_reviewers: teamReviewers
+  });
+  
+  return {
+    number: pr.number,
+    title: pr.title,
+    requestedReviewers: pr.requested_reviewers?.map(r => r.login),
+    requestedTeams: pr.requested_teams?.map(t => t.name),
+    htmlUrl: pr.html_url
+  };
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// REPOSITORY OPERATIONS
+// ═══════════════════════════════════════════════════════════════════════════
+
+export async function forkRepo(owner: string, repo: string, organization?: string, name?: string) {
+  const octokit = await getUncachableGitHubClient();
+  const { data: fork } = await octokit.repos.createFork({
+    owner,
+    repo,
+    organization,
+    name
+  });
+  
+  return {
+    id: fork.id,
+    name: fork.name,
+    fullName: fork.full_name,
+    htmlUrl: fork.html_url,
+    cloneUrl: fork.clone_url,
+    defaultBranch: fork.default_branch,
+    owner: fork.owner.login,
+    parent: fork.parent ? { owner: fork.parent.owner.login, repo: fork.parent.name } : null
+  };
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// RELEASE OPERATIONS
+// ═══════════════════════════════════════════════════════════════════════════
+
+export async function createRelease(
+  owner: string,
+  repo: string,
+  tagName: string,
+  options: { name?: string; body?: string; draft?: boolean; prerelease?: boolean; targetCommitish?: string } = {}
+) {
+  const octokit = await getUncachableGitHubClient();
+  const { data: release } = await octokit.repos.createRelease({
+    owner,
+    repo,
+    tag_name: tagName,
+    name: options.name || tagName,
+    body: options.body,
+    draft: options.draft || false,
+    prerelease: options.prerelease || false,
+    target_commitish: options.targetCommitish
+  });
+  
+  return {
+    id: release.id,
+    tagName: release.tag_name,
+    name: release.name,
+    body: release.body,
+    draft: release.draft,
+    prerelease: release.prerelease,
+    htmlUrl: release.html_url,
+    createdAt: release.created_at,
+    publishedAt: release.published_at
+  };
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// GITHUB ACTIONS OPERATIONS
+// ═══════════════════════════════════════════════════════════════════════════
+
+export async function triggerWorkflow(
+  owner: string,
+  repo: string,
+  workflowId: string | number,
+  ref: string,
+  inputs?: Record<string, string>
+) {
+  const octokit = await getUncachableGitHubClient();
+  await octokit.actions.createWorkflowDispatch({
+    owner,
+    repo,
+    workflow_id: workflowId,
+    ref,
+    inputs
+  });
+  
+  return {
+    triggered: true,
+    workflowId,
+    ref,
+    inputs
+  };
+}
+
+export async function listWorkflows(owner: string, repo: string) {
+  const octokit = await getUncachableGitHubClient();
+  const { data } = await octokit.actions.listRepoWorkflows({
+    owner,
+    repo
+  });
+  
+  return data.workflows.map(w => ({
+    id: w.id,
+    name: w.name,
+    path: w.path,
+    state: w.state,
+    htmlUrl: w.html_url
+  }));
+}
+
 // ═══════════════════════════════════════════════════════════════════════════
 // USER OPERATIONS
 // ═══════════════════════════════════════════════════════════════════════════

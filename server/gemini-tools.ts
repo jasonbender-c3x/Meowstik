@@ -762,6 +762,135 @@ export const geminiFunctionDeclarations: FunctionDeclaration[] = [
       required: ["owner", "repo", "title", "head", "base"]
     }
   },
+  {
+    name: "github_pr_merge",
+    description: "Merge a pull request after approvals",
+    parametersJsonSchema: {
+      type: "object",
+      properties: {
+        owner: { type: "string", description: "Repository owner" },
+        repo: { type: "string", description: "Repository name" },
+        pullNumber: { type: "number", description: "Pull request number" },
+        commitTitle: { type: "string", description: "Custom title for the merge commit" },
+        commitMessage: { type: "string", description: "Custom message for the merge commit" },
+        mergeMethod: { type: "string", enum: ["merge", "squash", "rebase"], description: "Merge method (default: merge)" }
+      },
+      required: ["owner", "repo", "pullNumber"]
+    }
+  },
+  {
+    name: "github_pr_review_request",
+    description: "Request reviews from team members on a pull request",
+    parametersJsonSchema: {
+      type: "object",
+      properties: {
+        owner: { type: "string", description: "Repository owner" },
+        repo: { type: "string", description: "Repository name" },
+        pullNumber: { type: "number", description: "Pull request number" },
+        reviewers: { type: "array", items: { type: "string" }, description: "Array of GitHub usernames to request review from" },
+        teamReviewers: { type: "array", items: { type: "string" }, description: "Array of team slugs to request review from" }
+      },
+      required: ["owner", "repo", "pullNumber", "reviewers"]
+    }
+  },
+  {
+    name: "github_repo_create",
+    description: "Create a new repository",
+    parametersJsonSchema: {
+      type: "object",
+      properties: {
+        name: { type: "string", description: "Repository name" },
+        description: { type: "string", description: "Repository description" },
+        isPrivate: { type: "boolean", description: "Whether the repository is private (default: false)" },
+        autoInit: { type: "boolean", description: "Initialize with a README (default: false)" }
+      },
+      required: ["name"]
+    }
+  },
+  {
+    name: "github_repo_fork",
+    description: "Fork an existing repository",
+    parametersJsonSchema: {
+      type: "object",
+      properties: {
+        owner: { type: "string", description: "Repository owner" },
+        repo: { type: "string", description: "Repository name" },
+        organization: { type: "string", description: "Organization to fork into (optional, defaults to your account)" },
+        name: { type: "string", description: "Custom name for the fork (optional)" }
+      },
+      required: ["owner", "repo"]
+    }
+  },
+  {
+    name: "github_branch_list",
+    description: "List all branches in a repository",
+    parametersJsonSchema: {
+      type: "object",
+      properties: {
+        owner: { type: "string", description: "Repository owner" },
+        repo: { type: "string", description: "Repository name" }
+      },
+      required: ["owner", "repo"]
+    }
+  },
+  {
+    name: "github_branch_delete",
+    description: "Delete a branch (typically after merge)",
+    parametersJsonSchema: {
+      type: "object",
+      properties: {
+        owner: { type: "string", description: "Repository owner" },
+        repo: { type: "string", description: "Repository name" },
+        branch: { type: "string", description: "Branch name to delete" }
+      },
+      required: ["owner", "repo", "branch"]
+    }
+  },
+  {
+    name: "github_release_create",
+    description: "Create a new release with tag",
+    parametersJsonSchema: {
+      type: "object",
+      properties: {
+        owner: { type: "string", description: "Repository owner" },
+        repo: { type: "string", description: "Repository name" },
+        tagName: { type: "string", description: "Tag name for the release (e.g., v1.0.0)" },
+        name: { type: "string", description: "Release name/title" },
+        body: { type: "string", description: "Release notes/description" },
+        draft: { type: "boolean", description: "Create as draft release" },
+        prerelease: { type: "boolean", description: "Mark as pre-release" },
+        targetCommitish: { type: "string", description: "Commit SHA or branch to tag (defaults to default branch)" }
+      },
+      required: ["owner", "repo", "tagName"]
+    }
+  },
+  {
+    name: "github_actions_trigger",
+    description: "Manually trigger a GitHub Actions workflow",
+    parametersJsonSchema: {
+      type: "object",
+      properties: {
+        owner: { type: "string", description: "Repository owner" },
+        repo: { type: "string", description: "Repository name" },
+        workflowId: { type: "string", description: "Workflow ID or filename (e.g., 'ci.yml')" },
+        ref: { type: "string", description: "Branch or tag to run the workflow on" },
+        inputs: { type: "object", description: "Workflow input parameters as key-value pairs" }
+      },
+      required: ["owner", "repo", "workflowId", "ref"]
+    }
+  },
+  {
+    name: "github_workflows_list",
+    description: "List all GitHub Actions workflows in a repository",
+    parametersJsonSchema: {
+      type: "object",
+      properties: {
+        owner: { type: "string", description: "Repository owner" },
+        repo: { type: "string", description: "Repository name" }
+      },
+      required: ["owner", "repo"]
+    }
+  },
 
   // ═══════════════════════════════════════════════════════════════════════════
   // TWILIO SMS/VOICE
