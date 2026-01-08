@@ -6,6 +6,21 @@
  */
 
 import { chromium, Browser, Page } from "playwright";
+import { execSync } from "child_process";
+import * as fs from "fs";
+
+function getChromiumExecutablePath(): string | undefined {
+  if (process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH) {
+    return process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH;
+  }
+  try {
+    const chromiumPath = execSync("which chromium", { encoding: "utf-8" }).trim();
+    if (chromiumPath && fs.existsSync(chromiumPath)) {
+      return chromiumPath;
+    }
+  } catch {}
+  return undefined;
+}
 
 export interface BrowserScrapeResult {
   success: boolean;
@@ -31,6 +46,7 @@ async function getBrowser(): Promise<Browser> {
   if (!browser) {
     browser = await chromium.launch({ 
       headless: true,
+      executablePath: getChromiumExecutablePath(),
       args: ['--no-sandbox', '--disable-setuid-sandbox']
     });
   }

@@ -3,8 +3,22 @@ import { chromium, Browser, BrowserContext, Page } from "playwright";
 import { z } from "zod";
 import * as fs from "fs";
 import * as path from "path";
+import { execSync } from "child_process";
 
 const router = Router();
+
+function getChromiumExecutablePath(): string | undefined {
+  if (process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH) {
+    return process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH;
+  }
+  try {
+    const chromiumPath = execSync("which chromium", { encoding: "utf-8" }).trim();
+    if (chromiumPath && fs.existsSync(chromiumPath)) {
+      return chromiumPath;
+    }
+  } catch {}
+  return undefined;
+}
 
 const SCREENSHOTS_DIR = path.join(process.cwd(), ".local", "playwright-screenshots");
 
@@ -71,7 +85,11 @@ async function getOrCreateSession(sessionId: string, headless: boolean = true): 
     }
   }
   
-  const browser = await chromium.launch({ headless });
+  const browser = await chromium.launch({ 
+    headless,
+    executablePath: getChromiumExecutablePath(),
+    args: ['--no-sandbox', '--disable-setuid-sandbox']
+  });
   const context = await browser.newContext({
     viewport: { width: 1280, height: 720 },
     userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
