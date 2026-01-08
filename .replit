@@ -4,7 +4,7 @@ hidden = [".config", ".git", "generated-icon.png", "node_modules", "dist"]
 
 [nix]
 channel = "stable-24_05"
-packages = ["ffmpeg"]
+packages = ["ffmpeg", "chromium", "playwright-driver"]
 
 [deployment]
 deploymentTarget = "autoscale"
@@ -39,7 +39,11 @@ waitForPort = 5000
 mockupState = "FULLSTACK"
 integrations = ["javascript_gemini:1.0.0", "google-drive:1.0.0", "google-mail:1.0.0", "google-calendar:1.0.0", "github:1.0.0", "javascript_log_in_with_replit:1.0.0"]
 
-
 [[ports]]
 localPort = 5000
 externalPort = 80
+
+[userenv]
+
+[userenv.shared]
+PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH = "/nix/store/zi4f80l169xlmivz8vja8wlphq74qqk0-chromium-125.0.6422.141/bin/chromium"
