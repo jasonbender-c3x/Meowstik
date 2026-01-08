@@ -305,7 +305,7 @@ export async function getIssue(owner: string, repo: string, issueNumber: number)
   };
 }
 
-export async function createIssue(owner: string, repo: string, title: string, body?: string, labels?: string[], assignees?: string[]) {
+export async function createIssue(owner: string, repo: string, title: string, body?: string, labels?: string[], assignees?: string[], milestone?: number) {
   const octokit = await getUncachableGitHubClient();
   const { data: issue } = await octokit.issues.create({
     owner,
@@ -313,7 +313,8 @@ export async function createIssue(owner: string, repo: string, title: string, bo
     title,
     body,
     labels,
-    assignees
+    assignees,
+    milestone
   });
   
   return {
@@ -322,11 +323,14 @@ export async function createIssue(owner: string, repo: string, title: string, bo
     title: issue.title,
     htmlUrl: issue.html_url,
     state: issue.state,
+    labels: issue.labels.map(l => typeof l === 'string' ? l : l.name),
+    assignees: issue.assignees?.map(a => a.login),
+    milestone: issue.milestone?.title,
     createdAt: issue.created_at
   };
 }
 
-export async function updateIssue(owner: string, repo: string, issueNumber: number, updates: { title?: string; body?: string; state?: 'open' | 'closed'; labels?: string[]; assignees?: string[] }) {
+export async function updateIssue(owner: string, repo: string, issueNumber: number, updates: { title?: string; body?: string; state?: 'open' | 'closed'; labels?: string[]; assignees?: string[]; milestone?: number | null }) {
   const octokit = await getUncachableGitHubClient();
   const { data: issue } = await octokit.issues.update({
     owner,
@@ -341,8 +345,45 @@ export async function updateIssue(owner: string, repo: string, issueNumber: numb
     title: issue.title,
     state: issue.state,
     htmlUrl: issue.html_url,
+    labels: issue.labels.map(l => typeof l === 'string' ? l : l.name),
+    assignees: issue.assignees?.map(a => a.login),
+    milestone: issue.milestone?.title,
     updatedAt: issue.updated_at
   };
+}
+
+export async function listMilestones(owner: string, repo: string, state: 'open' | 'closed' | 'all' = 'open') {
+  const octokit = await getUncachableGitHubClient();
+  const { data } = await octokit.issues.listMilestones({
+    owner,
+    repo,
+    state
+  });
+  
+  return data.map(m => ({
+    number: m.number,
+    title: m.title,
+    description: m.description,
+    state: m.state,
+    openIssues: m.open_issues,
+    closedIssues: m.closed_issues,
+    dueOn: m.due_on
+  }));
+}
+
+export async function listLabels(owner: string, repo: string) {
+  const octokit = await getUncachableGitHubClient();
+  const { data } = await octokit.issues.listLabelsForRepo({
+    owner,
+    repo,
+    per_page: 100
+  });
+  
+  return data.map(l => ({
+    name: l.name,
+    color: l.color,
+    description: l.description
+  }));
 }
 
 export async function addIssueComment(owner: string, repo: string, issueNumber: number, body: string) {

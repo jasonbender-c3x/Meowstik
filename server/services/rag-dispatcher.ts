@@ -510,6 +510,12 @@ export class RAGDispatcher {
         case "github_issue_comment":
           result = await this.executeGithubIssueComment(toolCall);
           break;
+        case "github_milestones":
+          result = await this.executeGithubMilestones(toolCall);
+          break;
+        case "github_labels":
+          result = await this.executeGithubLabels(toolCall);
+          break;
         case "github_pulls":
           result = await this.executeGithubPulls(toolCall);
           break;
@@ -1662,13 +1668,32 @@ export class RAGDispatcher {
   }
 
   private async executeGithubIssueCreate(toolCall: ToolCall): Promise<unknown> {
-    const params = toolCall.parameters as { owner: string; repo: string; title: string; body?: string; labels?: string[]; assignees?: string[] };
-    return await github.createIssue(params.owner, params.repo, params.title, params.body, params.labels, params.assignees);
+    const params = toolCall.parameters as { owner: string; repo: string; title: string; body?: string; labels?: string[]; assignees?: string[]; milestone?: number };
+    return await github.createIssue(params.owner, params.repo, params.title, params.body, params.labels, params.assignees, params.milestone);
   }
 
   private async executeGithubIssueUpdate(toolCall: ToolCall): Promise<unknown> {
-    const params = toolCall.parameters as { owner: string; repo: string; issueNumber: number; updates: { title?: string; body?: string; state?: 'open' | 'closed'; labels?: string[]; assignees?: string[] } };
-    return await github.updateIssue(params.owner, params.repo, params.issueNumber, params.updates);
+    const params = toolCall.parameters as { owner: string; repo: string; issueNumber: number; title?: string; body?: string; state?: 'open' | 'closed'; labels?: string[]; assignees?: string[]; milestone?: number | null };
+    const updates: { title?: string; body?: string; state?: 'open' | 'closed'; labels?: string[]; assignees?: string[]; milestone?: number | null } = {};
+    if (params.title !== undefined) updates.title = params.title;
+    if (params.body !== undefined) updates.body = params.body;
+    if (params.state !== undefined) updates.state = params.state;
+    if (params.labels !== undefined) updates.labels = params.labels;
+    if (params.assignees !== undefined) updates.assignees = params.assignees;
+    if (params.milestone !== undefined) updates.milestone = params.milestone;
+    return await github.updateIssue(params.owner, params.repo, params.issueNumber, updates);
+  }
+
+  private async executeGithubMilestones(toolCall: ToolCall): Promise<unknown> {
+    const params = toolCall.parameters as { owner: string; repo: string; state?: 'open' | 'closed' | 'all' };
+    const milestones = await github.listMilestones(params.owner, params.repo, params.state);
+    return { milestones, count: milestones.length };
+  }
+
+  private async executeGithubLabels(toolCall: ToolCall): Promise<unknown> {
+    const params = toolCall.parameters as { owner: string; repo: string };
+    const labels = await github.listLabels(params.owner, params.repo);
+    return { labels, count: labels.length };
   }
 
   private async executeGithubIssueComment(toolCall: ToolCall): Promise<unknown> {

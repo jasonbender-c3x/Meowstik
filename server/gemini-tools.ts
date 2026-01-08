@@ -643,16 +643,63 @@ export const geminiFunctionDeclarations: FunctionDeclaration[] = [
   },
   {
     name: "github_issue_create",
-    description: "Create a new issue",
+    description: "Create a new issue with optional labels, assignees, and milestone",
     parametersJsonSchema: {
       type: "object",
       properties: {
         owner: { type: "string", description: "Repository owner" },
         repo: { type: "string", description: "Repository name" },
         title: { type: "string", description: "Issue title" },
-        body: { type: "string", description: "Issue body (optional)" }
+        body: { type: "string", description: "Issue body (optional)" },
+        labels: { type: "array", items: { type: "string" }, description: "Array of label names to add" },
+        assignees: { type: "array", items: { type: "string" }, description: "Array of GitHub usernames to assign" },
+        milestone: { type: "number", description: "Milestone number (use github_milestones to list available milestones)" }
       },
       required: ["owner", "repo", "title"]
+    }
+  },
+  {
+    name: "github_issue_update",
+    description: "Update an existing issue - change title, body, state, labels, assignees, or milestone",
+    parametersJsonSchema: {
+      type: "object",
+      properties: {
+        owner: { type: "string", description: "Repository owner" },
+        repo: { type: "string", description: "Repository name" },
+        issueNumber: { type: "number", description: "Issue number to update" },
+        title: { type: "string", description: "New issue title" },
+        body: { type: "string", description: "New issue body" },
+        state: { type: "string", enum: ["open", "closed"], description: "Issue state" },
+        labels: { type: "array", items: { type: "string" }, description: "Array of label names (replaces existing labels)" },
+        assignees: { type: "array", items: { type: "string" }, description: "Array of GitHub usernames (replaces existing assignees)" },
+        milestone: { type: "number", description: "Milestone number (use null to remove milestone)" }
+      },
+      required: ["owner", "repo", "issueNumber"]
+    }
+  },
+  {
+    name: "github_milestones",
+    description: "List milestones for a repository",
+    parametersJsonSchema: {
+      type: "object",
+      properties: {
+        owner: { type: "string", description: "Repository owner" },
+        repo: { type: "string", description: "Repository name" },
+        state: { type: "string", enum: ["open", "closed", "all"], description: "Filter by state (default: open)" }
+      },
+      required: ["owner", "repo"]
+    }
+  },
+  {
+    name: "github_labels",
+    description: "List available labels for a repository",
+    parametersJsonSchema: {
+      type: "object",
+      properties: {
+        owner: { type: "string", description: "Repository owner" },
+        repo: { type: "string", description: "Repository name" }
+      },
+      required: ["owner", "repo"]
     }
   },
   {

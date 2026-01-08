@@ -103,8 +103,11 @@
 ### Write
 | Tool | Parameters |
 |------|------------|
-| `github_issue_create` | `owner`, `repo`, `title`, `body?` |
+| `github_issue_create` | `owner`, `repo`, `title`, `body?`, `labels?`, `assignees?`, `milestone?` |
+| `github_issue_update` | `owner`, `repo`, `issueNumber`, `title?`, `body?`, `state?`, `labels?`, `assignees?`, `milestone?` |
 | `github_issue_comment` | `owner`, `repo`, `issueNumber`, `body` |
+| `github_milestones` | `owner`, `repo`, `state?` - List available milestones |
+| `github_labels` | `owner`, `repo` - List available labels |
 | `github_branch_create` | `owner`, `repo`, `branch`, `sourceBranch?` |
 | `github_file_create` | `owner`, `repo`, `path`, `content`, `message`, `branch?` |
 | `github_pr_create` | `owner`, `repo`, `title`, `body?`, `head`, `base` |
