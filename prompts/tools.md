@@ -151,6 +151,44 @@
 
 ---
 
+## Database Operations
+
+| Tool | Parameters | Purpose |
+|------|------------|---------|
+| `db_tables` | none | List all database tables with their column schemas |
+| `db_query` | `query`, `limit?` | Execute read-only SELECT queries (max 1000 rows) |
+| `db_insert` | `table`, `data` | Insert a new row into a table |
+| `db_delete` | `table`, `where`, `limit?` | Delete rows matching conditions (default limit: 1, max: 100) |
+
+### Safety Features
+- **db_query**: SELECT-only, blocks dangerous patterns (UPDATE, DELETE, DROP, etc.)
+- **db_insert**: Parameterized queries, sanitized table/column names
+- **db_delete**: Requires WHERE clause, pre-counts affected rows, respects limits
+
+### Examples
+
+**List tables:**
+```json
+{"type": "db_tables", "id": "t1", "parameters": {}}
+```
+
+**Query data:**
+```json
+{"type": "db_query", "id": "q1", "parameters": {"query": "SELECT * FROM messages WHERE role = 'user' LIMIT 10"}}
+```
+
+**Insert row:**
+```json
+{"type": "db_insert", "id": "i1", "parameters": {"table": "messages", "data": {"role": "user", "content": "Hello"}}}
+```
+
+**Delete row:**
+```json
+{"type": "db_delete", "id": "d1", "parameters": {"table": "messages", "where": {"id": 123}}}
+```
+
+---
+
 ## Agentic Loop Pattern
 
 You operate in a **continuous loop** until `send_chat` terminates it:
