@@ -89,28 +89,49 @@
 
 ## GitHub
 
-### Read
-| Tool | Parameters |
-|------|------------|
-| `github_repos` | `username?` |
-| `github_contents` | `owner`, `repo`, `path?` |
-| `github_file_read` | `owner`, `repo`, `path` |
-| `github_code_search` | `query`, `owner?`, `repo?` |
-| `github_issues` | `owner`, `repo`, `state?` |
-| `github_pulls` | `owner`, `repo`, `state?` |
-| `github_commits` | `owner`, `repo`, `maxResults?` |
+### Repository Operations
+| Tool | Parameters | Description |
+|------|------------|-------------|
+| `github_repos` | `username?` | List repositories |
+| `github_contents` | `owner`, `repo`, `path?` | Browse directory contents |
+| `github_file_read` | `owner`, `repo`, `path` | Read file contents |
+| `github_code_search` | `query`, `owner?`, `repo?` | Search code |
+| `github_repo_create` | `name`, `description?`, `isPrivate?`, `autoInit?` | Create new repository |
+| `github_repo_fork` | `owner`, `repo`, `organization?`, `name?` | Fork a repository |
 
-### Write
-| Tool | Parameters |
-|------|------------|
-| `github_issue_create` | `owner`, `repo`, `title`, `body?`, `labels?`, `assignees?`, `milestone?` |
-| `github_issue_update` | `owner`, `repo`, `issueNumber`, `title?`, `body?`, `state?`, `labels?`, `assignees?`, `milestone?` |
-| `github_issue_comment` | `owner`, `repo`, `issueNumber`, `body` |
-| `github_milestones` | `owner`, `repo`, `state?` - List available milestones |
-| `github_labels` | `owner`, `repo` - List available labels |
-| `github_branch_create` | `owner`, `repo`, `branch`, `sourceBranch?` |
-| `github_file_create` | `owner`, `repo`, `path`, `content`, `message`, `branch?` |
-| `github_pr_create` | `owner`, `repo`, `title`, `body?`, `head`, `base` |
+### Issue Management
+| Tool | Parameters | Description |
+|------|------------|-------------|
+| `github_issues` | `owner`, `repo`, `state?` | List issues |
+| `github_issue_create` | `owner`, `repo`, `title`, `body?`, `labels?`, `assignees?`, `milestone?` | Create issue |
+| `github_issue_update` | `owner`, `repo`, `issueNumber`, `title?`, `body?`, `state?`, `labels?`, `assignees?`, `milestone?` | Update issue |
+| `github_issue_comment` | `owner`, `repo`, `issueNumber`, `body` | Add comment |
+| `github_milestones` | `owner`, `repo`, `state?` | List available milestones |
+| `github_labels` | `owner`, `repo` | List available labels |
+
+### Pull Request Operations
+| Tool | Parameters | Description |
+|------|------------|-------------|
+| `github_pulls` | `owner`, `repo`, `state?` | List PRs |
+| `github_pr_create` | `owner`, `repo`, `title`, `body?`, `head`, `base` | Create PR |
+| `github_pr_merge` | `owner`, `repo`, `pullNumber`, `commitTitle?`, `commitMessage?`, `mergeMethod?` | Merge PR (merge/squash/rebase) |
+| `github_pr_review_request` | `owner`, `repo`, `pullNumber`, `reviewers`, `teamReviewers?` | Request reviewers |
+
+### Branch & Commit Operations
+| Tool | Parameters | Description |
+|------|------------|-------------|
+| `github_commits` | `owner`, `repo`, `maxResults?` | List commits |
+| `github_branch_list` | `owner`, `repo` | List all branches |
+| `github_branch_create` | `owner`, `repo`, `branch`, `sourceBranch?` | Create branch |
+| `github_branch_delete` | `owner`, `repo`, `branch` | Delete branch |
+| `github_file_create` | `owner`, `repo`, `path`, `content`, `message`, `branch?` | Create/update file |
+
+### Releases & CI/CD
+| Tool | Parameters | Description |
+|------|------------|-------------|
+| `github_release_create` | `owner`, `repo`, `tagName`, `name?`, `body?`, `draft?`, `prerelease?`, `targetCommitish?` | Create release |
+| `github_workflows_list` | `owner`, `repo` | List GitHub Actions workflows |
+| `github_actions_trigger` | `owner`, `repo`, `workflowId`, `ref`, `inputs?` | Trigger workflow dispatch |
 
 ---
 
