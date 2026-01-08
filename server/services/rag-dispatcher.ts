@@ -578,6 +578,12 @@ export class RAGDispatcher {
         case "db_query":
           result = await this.executeDbQuery(toolCall);
           break;
+        case "db_insert":
+          result = await this.executeDbInsert(toolCall);
+          break;
+        case "db_delete":
+          result = await this.executeDbDelete(toolCall);
+          break;
         default:
           result = { message: `Custom tool type: ${toolCall.type}` };
       }
@@ -2294,6 +2300,201 @@ export class RAGDispatcher {
         error: errorMessage,
         query: params.query,
         message: `Query failed: ${errorMessage}`
+      };
+    }
+  }
+
+  /**
+   * Insert a new row into a database table
+   */
+  private async executeDbInsert(toolCall: ToolCall): Promise<unknown> {
+    const params = toolCall.parameters as { table: string; data: Record<string, unknown> };
+    
+    if (!params.table) {
+      throw new Error("db_insert tool requires 'table' parameter");
+    }
+    if (!params.data || typeof params.data !== 'object') {
+      throw new Error("db_insert tool requires 'data' parameter as an object");
+    }
+
+    // Sanitize table name (only allow alphanumeric and underscore)
+    const tableName = params.table.replace(/[^a-zA-Z0-9_]/g, '');
+    if (tableName !== params.table) {
+      return {
+        type: "db_insert",
+        success: false,
+        error: "Invalid table name",
+        message: "Table name contains invalid characters. Only letters, numbers, and underscores are allowed."
+      };
+    }
+
+    try {
+      const { db } = await import("../db");
+      
+      // Build parameterized INSERT query
+      const columns = Object.keys(params.data);
+      const values = Object.values(params.data);
+      
+      if (columns.length === 0) {
+        return {
+          type: "db_insert",
+          success: false,
+          error: "Empty data object",
+          message: "No data provided to insert"
+        };
+      }
+
+      // Sanitize column names
+      const sanitizedColumns = columns.map(col => col.replace(/[^a-zA-Z0-9_]/g, ''));
+      if (sanitizedColumns.some((col, i) => col !== columns[i])) {
+        return {
+          type: "db_insert",
+          success: false,
+          error: "Invalid column name",
+          message: "Column names contain invalid characters"
+        };
+      }
+
+      // Build parameterized query with $1, $2, etc.
+      const columnList = sanitizedColumns.map(c => `"${c}"`).join(', ');
+      const placeholders = values.map((_, i) => `$${i + 1}`).join(', ');
+      const query = `INSERT INTO "${tableName}" (${columnList}) VALUES (${placeholders}) RETURNING *`;
+
+      console.log(`[DB Insert] Table: ${tableName}, Columns: ${columns.join(', ')}`);
+      
+      const result = await db.execute({
+        text: query,
+        values: values
+      } as any);
+      
+      return {
+        type: "db_insert",
+        success: true,
+        table: tableName,
+        insertedRow: result.rows[0],
+        message: `Successfully inserted row into ${tableName}`
+      };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "Unknown error";
+      console.error(`[DB Insert] Error:`, error);
+      return {
+        type: "db_insert",
+        success: false,
+        error: errorMessage,
+        table: params.table,
+        message: `Insert failed: ${errorMessage}`
+      };
+    }
+  }
+
+  /**
+   * Delete rows from a database table with required WHERE clause
+   */
+  private async executeDbDelete(toolCall: ToolCall): Promise<unknown> {
+    const params = toolCall.parameters as { table: string; where: Record<string, unknown>; limit?: number };
+    
+    if (!params.table) {
+      throw new Error("db_delete tool requires 'table' parameter");
+    }
+    if (!params.where || typeof params.where !== 'object' || Object.keys(params.where).length === 0) {
+      return {
+        type: "db_delete",
+        success: false,
+        error: "WHERE clause required",
+        message: "Delete requires a non-empty 'where' condition to prevent accidental mass deletion. Example: {\"id\": 123}"
+      };
+    }
+
+    // Sanitize table name
+    const tableName = params.table.replace(/[^a-zA-Z0-9_]/g, '');
+    if (tableName !== params.table) {
+      return {
+        type: "db_delete",
+        success: false,
+        error: "Invalid table name",
+        message: "Table name contains invalid characters"
+      };
+    }
+
+    try {
+      const { db } = await import("../db");
+      
+      // Build parameterized WHERE clause
+      const whereColumns = Object.keys(params.where);
+      const whereValues = Object.values(params.where);
+      
+      // Sanitize column names
+      const sanitizedColumns = whereColumns.map(col => col.replace(/[^a-zA-Z0-9_]/g, ''));
+      if (sanitizedColumns.some((col, i) => col !== whereColumns[i])) {
+        return {
+          type: "db_delete",
+          success: false,
+          error: "Invalid column name in where clause",
+          message: "Column names contain invalid characters"
+        };
+      }
+
+      // Build WHERE conditions with $1, $2, etc.
+      const whereConditions = sanitizedColumns.map((col, i) => `"${col}" = $${i + 1}`).join(' AND ');
+      
+      // Apply limit (default 1, max 100 for safety)
+      const limit = Math.min(params.limit || 1, 100);
+      
+      // First, count how many rows will be affected
+      const countQuery = `SELECT COUNT(*) as count FROM "${tableName}" WHERE ${whereConditions}`;
+      const countResult = await db.execute({
+        text: countQuery,
+        values: whereValues
+      } as any);
+      const affectedCount = parseInt((countResult.rows[0] as any).count, 10);
+      
+      if (affectedCount === 0) {
+        return {
+          type: "db_delete",
+          success: true,
+          table: tableName,
+          deletedCount: 0,
+          message: `No rows matched the where condition in ${tableName}`
+        };
+      }
+
+      if (affectedCount > limit) {
+        return {
+          type: "db_delete",
+          success: false,
+          error: "Too many rows would be deleted",
+          table: tableName,
+          wouldDelete: affectedCount,
+          limit: limit,
+          message: `Would delete ${affectedCount} rows but limit is ${limit}. Increase limit parameter or narrow your where condition.`
+        };
+      }
+
+      // Execute the delete
+      const deleteQuery = `DELETE FROM "${tableName}" WHERE ${whereConditions}`;
+      console.log(`[DB Delete] Table: ${tableName}, Where: ${JSON.stringify(params.where)}, Rows: ${affectedCount}`);
+      
+      const result = await db.execute({
+        text: deleteQuery,
+        values: whereValues
+      } as any);
+      
+      return {
+        type: "db_delete",
+        success: true,
+        table: tableName,
+        deletedCount: affectedCount,
+        message: `Successfully deleted ${affectedCount} row(s) from ${tableName}`
+      };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "Unknown error";
+      console.error(`[DB Delete] Error:`, error);
+      return {
+        type: "db_delete",
+        success: false,
+        error: errorMessage,
+        table: params.table,
+        message: `Delete failed: ${errorMessage}`
       };
     }
   }

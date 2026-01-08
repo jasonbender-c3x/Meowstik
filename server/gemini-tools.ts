@@ -880,6 +880,46 @@ export const geminiFunctionDeclarations: FunctionDeclaration[] = [
       },
       required: ["query"]
     }
+  },
+  {
+    name: "db_insert",
+    description: "Insert a new row into a database table. Use db_tables first to see available tables and their columns.",
+    parametersJsonSchema: {
+      type: "object",
+      properties: {
+        table: { 
+          type: "string", 
+          description: "Name of the table to insert into (e.g., 'messages', 'chats')" 
+        },
+        data: {
+          type: "object",
+          description: "Object with column names as keys and values to insert. Example: {\"role\": \"user\", \"content\": \"Hello\"}"
+        }
+      },
+      required: ["table", "data"]
+    }
+  },
+  {
+    name: "db_delete",
+    description: "Delete rows from a database table. Requires a WHERE condition to prevent accidental mass deletion.",
+    parametersJsonSchema: {
+      type: "object",
+      properties: {
+        table: { 
+          type: "string", 
+          description: "Name of the table to delete from" 
+        },
+        where: {
+          type: "object",
+          description: "Condition for deletion as column-value pairs. Example: {\"id\": 123} or {\"chatId\": \"abc\", \"role\": \"user\"}"
+        },
+        limit: {
+          type: "number",
+          description: "Maximum rows to delete (default: 1, max: 100 for safety)"
+        }
+      },
+      required: ["table", "where"]
+    }
   }
 ];
 
