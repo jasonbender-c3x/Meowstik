@@ -572,6 +572,12 @@ export class RAGDispatcher {
           const sendChatParams = toolCall.parameters as { content?: string };
           result = { content: sendChatParams?.content || "" };
           break;
+        case "db_tables":
+          result = await this.executeDbTables(toolCall);
+          break;
+        case "db_query":
+          result = await this.executeDbQuery(toolCall);
+          break;
         default:
           result = { message: `Custom tool type: ${toolCall.type}` };
       }
@@ -2146,6 +2152,148 @@ export class RAGDispatcher {
         utterance: params.utterance,
         error: errorMessage,
         message: `Failed to generate speech: ${errorMessage}`,
+      };
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // DATABASE QUERY HANDLERS
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  /**
+   * List all database tables and their schemas
+   */
+  private async executeDbTables(toolCall: ToolCall): Promise<unknown> {
+    try {
+      const { db } = await import("../db");
+      
+      // Query PostgreSQL information_schema for table info
+      const tablesResult = await db.execute(`
+        SELECT 
+          t.table_name,
+          c.column_name,
+          c.data_type,
+          c.is_nullable,
+          c.column_default
+        FROM information_schema.tables t
+        JOIN information_schema.columns c ON t.table_name = c.table_name
+        WHERE t.table_schema = 'public' AND t.table_type = 'BASE TABLE'
+        ORDER BY t.table_name, c.ordinal_position
+      `);
+
+      // Group columns by table
+      const tables: Record<string, { columns: Array<{ name: string; type: string; nullable: boolean; default: string | null }> }> = {};
+      
+      for (const row of tablesResult.rows as any[]) {
+        const tableName = row.table_name;
+        if (!tables[tableName]) {
+          tables[tableName] = { columns: [] };
+        }
+        tables[tableName].columns.push({
+          name: row.column_name,
+          type: row.data_type,
+          nullable: row.is_nullable === 'YES',
+          default: row.column_default
+        });
+      }
+
+      return {
+        type: "db_tables",
+        success: true,
+        tables,
+        tableCount: Object.keys(tables).length,
+        message: `Found ${Object.keys(tables).length} tables in the database`
+      };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "Unknown error";
+      return {
+        type: "db_tables",
+        success: false,
+        error: errorMessage,
+        message: `Failed to list tables: ${errorMessage}`
+      };
+    }
+  }
+
+  /**
+   * Execute a read-only SQL SELECT query
+   */
+  private async executeDbQuery(toolCall: ToolCall): Promise<unknown> {
+    const params = toolCall.parameters as { query: string; limit?: number };
+    
+    if (!params.query) {
+      throw new Error("db_query tool requires 'query' parameter");
+    }
+
+    // Security: Only allow SELECT queries
+    const normalizedQuery = params.query.trim().toUpperCase();
+    if (!normalizedQuery.startsWith('SELECT')) {
+      return {
+        type: "db_query",
+        success: false,
+        error: "Only SELECT queries are allowed for safety",
+        message: "Query rejected: Only SELECT queries are permitted. Use db_tables to see available tables."
+      };
+    }
+
+    // Block dangerous operations even if they start with SELECT
+    const dangerousPatterns = [
+      /INTO\s+/i,        // SELECT INTO
+      /UPDATE\s+/i,      // Subquery with UPDATE
+      /DELETE\s+/i,      // Subquery with DELETE
+      /INSERT\s+/i,      // Subquery with INSERT
+      /DROP\s+/i,        // DROP
+      /TRUNCATE\s+/i,    // TRUNCATE
+      /ALTER\s+/i,       // ALTER
+      /CREATE\s+/i,      // CREATE
+      /GRANT\s+/i,       // GRANT
+      /REVOKE\s+/i,      // REVOKE
+    ];
+
+    for (const pattern of dangerousPatterns) {
+      if (pattern.test(params.query)) {
+        return {
+          type: "db_query",
+          success: false,
+          error: "Query contains forbidden operations",
+          message: "Query rejected: Contains potentially dangerous operations. Only pure SELECT queries are allowed."
+        };
+      }
+    }
+
+    try {
+      const { db } = await import("../db");
+      
+      // Apply limit (default 100, max 1000)
+      const limit = Math.min(params.limit || 100, 1000);
+      let queryToExecute = params.query;
+      
+      // Add LIMIT if not present
+      if (!normalizedQuery.includes('LIMIT')) {
+        queryToExecute = `${params.query} LIMIT ${limit}`;
+      }
+
+      console.log(`[DB Query] Executing: ${queryToExecute.substring(0, 100)}...`);
+      
+      const result = await db.execute(queryToExecute);
+      
+      return {
+        type: "db_query",
+        success: true,
+        rows: result.rows,
+        rowCount: result.rows.length,
+        query: params.query,
+        message: `Query returned ${result.rows.length} rows`
+      };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "Unknown error";
+      console.error(`[DB Query] Error:`, error);
+      return {
+        type: "db_query",
+        success: false,
+        error: errorMessage,
+        query: params.query,
+        message: `Query failed: ${errorMessage}`
       };
     }
   }

@@ -850,6 +850,36 @@ export const geminiFunctionDeclarations: FunctionDeclaration[] = [
       },
       required: ["sessionId"]
     }
+  },
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // DATABASE OPERATIONS
+  // ═══════════════════════════════════════════════════════════════════════════
+  {
+    name: "db_tables",
+    description: "List all database tables with their column schemas. Use this to understand the database structure before querying.",
+    parametersJsonSchema: {
+      type: "object",
+      properties: {}
+    }
+  },
+  {
+    name: "db_query",
+    description: "Execute a read-only SQL SELECT query against the database. Only SELECT queries are allowed for safety. Use db_tables first to understand the schema.",
+    parametersJsonSchema: {
+      type: "object",
+      properties: {
+        query: { 
+          type: "string", 
+          description: "SQL SELECT query to execute. Must start with SELECT. Example: SELECT * FROM messages WHERE role = 'user' LIMIT 10" 
+        },
+        limit: {
+          type: "number",
+          description: "Maximum rows to return (default: 100, max: 1000)"
+        }
+      },
+      required: ["query"]
+    }
   }
 ];
 
