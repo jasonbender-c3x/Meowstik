@@ -60,6 +60,7 @@ import * as googleContacts from "../integrations/google-contacts";
 import * as github from "../integrations/github";
 import * as browserbase from "../integrations/browserbase";
 import * as twilio from "../integrations/twilio";
+import * as sshService from "./ssh-service";
 import { ragService } from "./rag-service";
 import { chunkingService } from "./chunking-service";
 import { clientRouter } from "./client-router";
@@ -616,6 +617,34 @@ export class RAGDispatcher {
           break;
         case "db_delete":
           result = await this.executeDbDelete(toolCall);
+          break;
+        // SSH Tools
+        case "ssh_key_generate":
+          result = await this.executeSshKeyGenerate(toolCall);
+          break;
+        case "ssh_key_list":
+          result = await this.executeSshKeyList(toolCall);
+          break;
+        case "ssh_host_add":
+          result = await this.executeSshHostAdd(toolCall);
+          break;
+        case "ssh_host_list":
+          result = await this.executeSshHostList(toolCall);
+          break;
+        case "ssh_host_delete":
+          result = await this.executeSshHostDelete(toolCall);
+          break;
+        case "ssh_connect":
+          result = await this.executeSshConnect(toolCall);
+          break;
+        case "ssh_disconnect":
+          result = await this.executeSshDisconnect(toolCall);
+          break;
+        case "ssh_execute":
+          result = await this.executeSshExecute(toolCall);
+          break;
+        case "ssh_status":
+          result = await this.executeSshStatus(toolCall);
           break;
         default:
           result = { message: `Custom tool type: ${toolCall.type}` };
@@ -2610,6 +2639,156 @@ export class RAGDispatcher {
         message: `Delete failed: ${errorMessage}`
       };
     }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // SSH HANDLERS
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  private async executeSshKeyGenerate(toolCall: ToolCall): Promise<unknown> {
+    const params = toolCall.parameters as { name: string; comment?: string };
+    const result = await sshService.generateSshKey(params.name, params.comment);
+    return {
+      type: "ssh_key_generate",
+      success: true,
+      name: result.name,
+      publicKey: result.publicKey,
+      privateKeySecretName: result.privateKeySecretName,
+      fingerprint: result.fingerprint,
+      privateKey: result.privateKey,
+      instructions: result.instructions
+    };
+  }
+
+  private async executeSshKeyList(toolCall: ToolCall): Promise<unknown> {
+    const keys = await sshService.listSshKeys();
+    return {
+      type: "ssh_key_list",
+      success: true,
+      keys: keys.map(k => ({
+        name: k.name,
+        publicKey: k.publicKey,
+        keyType: k.keyType,
+        fingerprint: k.fingerprint,
+        secretName: k.privateKeySecretName,
+        createdAt: k.createdAt
+      }))
+    };
+  }
+
+  private async executeSshHostAdd(toolCall: ToolCall): Promise<unknown> {
+    const params = toolCall.parameters as {
+      alias: string;
+      hostname: string;
+      username: string;
+      port?: number;
+      keySecretName?: string;
+      passwordSecretName?: string;
+      description?: string;
+      tags?: string[];
+    };
+    const host = await sshService.addSshHost({
+      alias: params.alias,
+      hostname: params.hostname,
+      username: params.username,
+      port: params.port || 22,
+      keySecretName: params.keySecretName,
+      passwordSecretName: params.passwordSecretName,
+      description: params.description,
+      tags: params.tags
+    });
+    return {
+      type: "ssh_host_add",
+      success: true,
+      host: {
+        alias: host.alias,
+        hostname: host.hostname,
+        port: host.port,
+        username: host.username
+      },
+      message: `SSH host "${params.alias}" added successfully`
+    };
+  }
+
+  private async executeSshHostList(toolCall: ToolCall): Promise<unknown> {
+    const hosts = await sshService.listSshHosts();
+    return {
+      type: "ssh_host_list",
+      success: true,
+      hosts: hosts.map(h => ({
+        alias: h.alias,
+        hostname: h.hostname,
+        port: h.port,
+        username: h.username,
+        description: h.description,
+        tags: h.tags,
+        lastConnected: h.lastConnected,
+        lastError: h.lastError
+      }))
+    };
+  }
+
+  private async executeSshHostDelete(toolCall: ToolCall): Promise<unknown> {
+    const params = toolCall.parameters as { alias: string };
+    await sshService.deleteSshHost(params.alias);
+    return {
+      type: "ssh_host_delete",
+      success: true,
+      alias: params.alias,
+      message: `SSH host "${params.alias}" removed`
+    };
+  }
+
+  private async executeSshConnect(toolCall: ToolCall): Promise<unknown> {
+    const params = toolCall.parameters as { alias: string };
+    const result = await sshService.connectSsh(params.alias);
+    return {
+      type: "ssh_connect",
+      success: result.success,
+      alias: params.alias,
+      message: result.message
+    };
+  }
+
+  private async executeSshDisconnect(toolCall: ToolCall): Promise<unknown> {
+    const params = toolCall.parameters as { alias: string };
+    await sshService.disconnectSsh(params.alias);
+    return {
+      type: "ssh_disconnect",
+      success: true,
+      alias: params.alias,
+      message: `Disconnected from ${params.alias}`
+    };
+  }
+
+  private async executeSshExecute(toolCall: ToolCall): Promise<unknown> {
+    const params = toolCall.parameters as { alias: string; command: string };
+    const result = await sshService.executeSshCommand(params.alias, params.command);
+    return {
+      type: "ssh_execute",
+      success: result.exitCode === 0,
+      host: params.alias,
+      command: params.command,
+      stdout: result.stdout,
+      stderr: result.stderr,
+      exitCode: result.exitCode
+    };
+  }
+
+  private async executeSshStatus(toolCall: ToolCall): Promise<unknown> {
+    const activeConnections = sshService.getActiveConnections();
+    const allHosts = await sshService.listSshHosts();
+    return {
+      type: "ssh_status",
+      success: true,
+      activeConnections,
+      hosts: allHosts.map(h => ({
+        alias: h.alias,
+        connected: activeConnections.includes(h.alias),
+        lastConnected: h.lastConnected,
+        lastError: h.lastError
+      }))
+    };
   }
 }
 

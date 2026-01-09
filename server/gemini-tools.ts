@@ -512,13 +512,116 @@ export const geminiFunctionDeclarations: FunctionDeclaration[] = [
   // ═══════════════════════════════════════════════════════════════════════════
   {
     name: "terminal_execute",
-    description: "Execute a shell command on the server",
+    description: "Execute a shell command on the server with streaming output",
     parametersJsonSchema: {
       type: "object",
       properties: {
         command: { type: "string", description: "Shell command to execute" }
       },
       required: ["command"]
+    }
+  },
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // SSH - Remote Server Access
+  // ═══════════════════════════════════════════════════════════════════════════
+  {
+    name: "ssh_key_generate",
+    description: "Generate a new SSH key pair. Returns public key (add to server) and instructions for storing private key as Replit secret",
+    parametersJsonSchema: {
+      type: "object",
+      properties: {
+        name: { type: "string", description: "Key pair name (e.g., 'server1')" },
+        comment: { type: "string", description: "Key comment (optional)" }
+      },
+      required: ["name"]
+    }
+  },
+  {
+    name: "ssh_key_list",
+    description: "List all generated SSH key pairs and their public keys",
+    parametersJsonSchema: {
+      type: "object",
+      properties: {}
+    }
+  },
+  {
+    name: "ssh_host_add",
+    description: "Add an SSH host profile for remote connections",
+    parametersJsonSchema: {
+      type: "object",
+      properties: {
+        alias: { type: "string", description: "Short name for this host (e.g., 'prod-server')" },
+        hostname: { type: "string", description: "Server IP or domain" },
+        username: { type: "string", description: "SSH username" },
+        port: { type: "number", description: "SSH port (default: 22)" },
+        keySecretName: { type: "string", description: "Name of the Replit secret containing private key" },
+        passwordSecretName: { type: "string", description: "Alternative: name of secret containing password" },
+        description: { type: "string", description: "Host description (optional)" },
+        tags: { type: "array", items: { type: "string" }, description: "Tags for categorization (optional)" }
+      },
+      required: ["alias", "hostname", "username"]
+    }
+  },
+  {
+    name: "ssh_host_list",
+    description: "List all configured SSH hosts",
+    parametersJsonSchema: {
+      type: "object",
+      properties: {}
+    }
+  },
+  {
+    name: "ssh_host_delete",
+    description: "Remove an SSH host profile",
+    parametersJsonSchema: {
+      type: "object",
+      properties: {
+        alias: { type: "string", description: "Host alias to delete" }
+      },
+      required: ["alias"]
+    }
+  },
+  {
+    name: "ssh_connect",
+    description: "Establish SSH connection to a configured host",
+    parametersJsonSchema: {
+      type: "object",
+      properties: {
+        alias: { type: "string", description: "Host alias to connect to" }
+      },
+      required: ["alias"]
+    }
+  },
+  {
+    name: "ssh_disconnect",
+    description: "Close SSH connection to a host",
+    parametersJsonSchema: {
+      type: "object",
+      properties: {
+        alias: { type: "string", description: "Host alias to disconnect from" }
+      },
+      required: ["alias"]
+    }
+  },
+  {
+    name: "ssh_execute",
+    description: "Execute a command on a connected SSH host with streaming output",
+    parametersJsonSchema: {
+      type: "object",
+      properties: {
+        alias: { type: "string", description: "Host alias to run command on" },
+        command: { type: "string", description: "Shell command to execute" }
+      },
+      required: ["alias", "command"]
+    }
+  },
+  {
+    name: "ssh_status",
+    description: "Check SSH connection status for all hosts",
+    parametersJsonSchema: {
+      type: "object",
+      properties: {}
     }
   },
 

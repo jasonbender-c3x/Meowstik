@@ -2186,3 +2186,75 @@ export const PermissionLevels = {
 } as const;
 
 export type PermissionLevel = typeof PermissionLevels[keyof typeof PermissionLevels];
+
+// =============================================================================
+// SSH HOST MANAGEMENT
+// For AI-driven remote server connections
+// =============================================================================
+
+/**
+ * SSH HOSTS TABLE
+ * ---------------
+ * Stores SSH connection profiles for remote servers.
+ * The AI can generate keys, add hosts, and establish connections.
+ */
+export const sshHosts = pgTable("ssh_hosts", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  
+  // Connection details
+  alias: text("alias").notNull().unique(), // User-friendly name (e.g., "my-server")
+  hostname: text("hostname").notNull(), // IP or domain
+  port: integer("port").default(22).notNull(),
+  username: text("username").notNull(),
+  
+  // Authentication - references a Replit secret by name
+  keySecretName: text("key_secret_name"), // Name of secret storing private key
+  passwordSecretName: text("password_secret_name"), // Alternative: password auth
+  
+  // Connection state
+  lastConnected: timestamp("last_connected"),
+  lastError: text("last_error"),
+  
+  // Metadata
+  description: text("description"),
+  tags: text("tags").array(), // For categorization
+  
+  // Timestamps
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertSshHostSchema = createInsertSchema(sshHosts).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  lastConnected: true,
+  lastError: true,
+});
+export type InsertSshHost = z.infer<typeof insertSshHostSchema>;
+export type SshHost = typeof sshHosts.$inferSelect;
+
+/**
+ * SSH KEYS TABLE
+ * --------------
+ * Stores SSH key pair metadata (public keys only - private keys go to secrets).
+ */
+export const sshKeys = pgTable("ssh_keys", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  
+  name: text("name").notNull().unique(), // Key pair name
+  publicKey: text("public_key").notNull(), // The public key content
+  privateKeySecretName: text("private_key_secret_name").notNull(), // Reference to Replit secret
+  
+  keyType: text("key_type").default("ed25519").notNull(), // ed25519, rsa, etc.
+  fingerprint: text("fingerprint"), // SSH key fingerprint
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertSshKeySchema = createInsertSchema(sshKeys).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertSshKey = z.infer<typeof insertSshKeySchema>;
+export type SshKey = typeof sshKeys.$inferSelect;

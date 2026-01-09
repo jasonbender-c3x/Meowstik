@@ -268,6 +268,15 @@ app.use((req, res, next) => {
   setupCollabWebSocket(httpServer);
 
   /**
+   * SETUP TERMINAL WEBSOCKET
+   * -------------------------
+   * Initialize WebSocket server for shared terminal streaming.
+   * Handles real-time output from local and SSH commands.
+   */
+  const { setupTerminalWebSocket } = await import("./websocket-terminal");
+  setupTerminalWebSocket(httpServer);
+
+  /**
    * INITIALIZE GOOGLE OAUTH TOKENS (NON-BLOCKING)
    * ----------------------------------------------
    * Load any persisted Google OAuth tokens from the database.
