@@ -1119,8 +1119,13 @@ export class RAGDispatcher {
 
   private async executeGmailList(toolCall: ToolCall): Promise<unknown> {
     const params = toolCall.parameters as { maxResults?: number; labelIds?: string[] };
-    const emails = await gmail.listEmails(params?.maxResults || 20, params?.labelIds || ['INBOX']);
-    return { emails, count: emails.length };
+    try {
+      const emails = await gmail.listEmails(params?.maxResults || 20, params?.labelIds || ['INBOX']);
+      return { emails, count: emails.length };
+    } catch (error: any) {
+      console.error('[Gmail List Error]', error.message);
+      throw error;
+    }
   }
 
   private async executeGmailRead(toolCall: ToolCall): Promise<unknown> {
