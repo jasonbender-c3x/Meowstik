@@ -89,7 +89,6 @@ import TerminalPage from "@/pages/terminal";
 import DebugPage from "@/pages/debug";
 import SettingsPage from "@/pages/settings";
 import PythonSandboxPage from "@/pages/python-sandbox";
-// PlaywrightTestingPage removed - functionality moved to /browser and /collaborate
 import WebSearchPage from "@/pages/web-search";
 import KnowledgeIngestionPage from "@/pages/knowledge-ingestion";
 import MarkdownPlaygroundPage from "@/pages/markdown-playground";
@@ -110,8 +109,10 @@ import AgentSettingsPage from "@/pages/agent-settings";
 import LandingPage from "@/pages/landing";
 import InstallPage from "@/pages/install";
 import RagDebugPage from "@/pages/rag-debug";
+import LoginPage from "@/pages/login";
 
 import { TTSProvider } from "@/contexts/tts-context";
+import { ProtectedRoute } from "@/components/protected-route";
 
 // ============================================================================
 // ROUTER COMPONENT
@@ -148,107 +149,134 @@ import { TTSProvider } from "@/contexts/tts-context";
 function Router() {
   return (
     <Switch>
-      {/* Home Route - Main chat interface, default landing page */}
-      <Route path="/" component={Home} />
-      
-      {/* Editor Route - Monaco-based code editor for HTML/CSS/JS */}
-      <Route path="/editor" component={EditorPage} />
-      
-      {/* Preview Route - Live iframe preview of editor content */}
-      <Route path="/preview" component={PreviewPage} />
-      
-      {/* Google Services Route - Google Workspace integrations dashboard */}
-      <Route path="/google" component={GoogleServicesPage} />
-      
-      {/* Help Route - FAQ and guidance */}
-      <Route path="/help" component={HelpPage} />
-      
-      {/* Music Generation Route - Lyria AI music generation */}
-      <Route path="/music" component={MusicGenerationPage} />
-      
-      {/* Expressive Speech Route - Multi-speaker TTS */}
-      <Route path="/speech" component={ExpressiveSpeechPage} />
-      
-      {/* Image Generation Route - AI image generation with canvas editor */}
-      <Route path="/image" component={ImageGenerationPage} />
-      
-      {/* Terminal Route - Code execution terminal */}
-      <Route path="/terminal" component={TerminalPage} />
-      
-      {/* Debug Route - Logs and database viewer */}
-      <Route path="/debug" component={DebugPage} />
-      
-      {/* Settings Route - App configuration */}
-      <Route path="/settings" component={SettingsPage} />
-      
-      {/* Python Sandbox Route - Python code execution */}
-      <Route path="/python" component={PythonSandboxPage} />
-      
-      {/* Testing route redirects to browser automation */}
-      <Route path="/testing">{() => { window.location.href = '/browser'; return null; }}</Route>
-      
-      {/* Web Search Route - Web search and scraping */}
-      <Route path="/search" component={WebSearchPage} />
-      
-      {/* Knowledge Ingestion Route - Ingest historical LLM conversations */}
-      <Route path="/knowledge" component={KnowledgeIngestionPage} />
-
-      {/* Markdown Playground Route - Demo of enhanced markdown features */}
-      <Route path="/markdown" component={MarkdownPlaygroundPage} />
-      
-      {/* Evolution Engine Route - Feedback analysis and PR generation */}
-      <Route path="/evolution" component={EvolutionPage} />
-      
-      {/* Task Queue Route - AI batch processing queue */}
-      <Route path="/queue" component={TaskQueuePage} />
-      
-      {/* Schedules Route - Cron schedules and event triggers */}
-      <Route path="/schedules" component={SchedulesPage} />
-      
-      {/* Browser Route - Full headed browser with screenshots */}
-      <Route path="/browser" component={BrowserPage} />
-      
-      {/* Database Explorer Route - View, edit, delete database records */}
-      <Route path="/database" component={DatabaseExplorerPage} />
-      
-      {/* Live Voice Route - Real-time voice conversation with Gemini */}
-      <Route path="/live" component={LivePage} />
-      
-      {/* Watch App Route - Upcoming Wear OS companion app info */}
-      <Route path="/watch" component={WatchPage} />
-      <Route path="/glasses" component={GlassesPage} />
-      
-      {/* AI Desktop Collaboration - TeamViewer-style AI collaboration */}
-      <Route path="/collaborate" component={CollaboratePage} />
-      
-      {/* Proposal: AI Desktop Collaboration - Feature writeup and architecture */}
-      <Route path="/proposals/desktop-collaboration" component={ProposalDesktopCollaborationPage} />
-      
-      {/* Workspace - Integrated Chat + Editor + Preview with resizable panels */}
-      <Route path="/workspace" component={WorkspacePage} />
-      
-      {/* Vision - Project vision and roadmap blog post */}
-      <Route path="/vision" component={VisionPage} />
-      
-      {/* Documentation */}
-      <Route path="/docs/:slug?" component={DocsPage} />
-      
-      {/* Agent Settings - Configure agent behavior, tools, and preferences */}
-      <Route path="/agent-settings" component={AgentSettingsPage} />
-      
-      {/* Landing Page - Polished entry point with feature overview */}
+      {/* Public Routes - No authentication required */}
+      <Route path="/login" component={LoginPage} />
       <Route path="/landing" component={LandingPage} />
-      
-      {/* Install Page - Browser extension and desktop agent downloads */}
       <Route path="/install" component={InstallPage} />
       
-      {/* RAG Debug Page - Monitor ingestion and retrieval pipeline */}
-      <Route path="/rag-debug" component={RagDebugPage} />
+      {/* Protected Routes - Authentication required */}
+      <Route path="/">
+        {() => <ProtectedRoute><Home /></ProtectedRoute>}
+      </Route>
       
-      {/* 
-       * Fallback Route (404) - No path specified means it matches everything
-       * Must be LAST in the Switch to only catch unmatched routes
-       */}
+      <Route path="/editor">
+        {() => <ProtectedRoute><EditorPage /></ProtectedRoute>}
+      </Route>
+      
+      <Route path="/preview">
+        {() => <ProtectedRoute><PreviewPage /></ProtectedRoute>}
+      </Route>
+      
+      <Route path="/google">
+        {() => <ProtectedRoute><GoogleServicesPage /></ProtectedRoute>}
+      </Route>
+      
+      <Route path="/help">
+        {() => <ProtectedRoute><HelpPage /></ProtectedRoute>}
+      </Route>
+      
+      <Route path="/music">
+        {() => <ProtectedRoute><MusicGenerationPage /></ProtectedRoute>}
+      </Route>
+      
+      <Route path="/speech">
+        {() => <ProtectedRoute><ExpressiveSpeechPage /></ProtectedRoute>}
+      </Route>
+      
+      <Route path="/image">
+        {() => <ProtectedRoute><ImageGenerationPage /></ProtectedRoute>}
+      </Route>
+      
+      <Route path="/terminal">
+        {() => <ProtectedRoute><TerminalPage /></ProtectedRoute>}
+      </Route>
+      
+      <Route path="/debug">
+        {() => <ProtectedRoute><DebugPage /></ProtectedRoute>}
+      </Route>
+      
+      <Route path="/settings">
+        {() => <ProtectedRoute><SettingsPage /></ProtectedRoute>}
+      </Route>
+      
+      <Route path="/python">
+        {() => <ProtectedRoute><PythonSandboxPage /></ProtectedRoute>}
+      </Route>
+      
+      <Route path="/testing">{() => { window.location.href = '/browser'; return null; }}</Route>
+      
+      <Route path="/search">
+        {() => <ProtectedRoute><WebSearchPage /></ProtectedRoute>}
+      </Route>
+      
+      <Route path="/knowledge">
+        {() => <ProtectedRoute><KnowledgeIngestionPage /></ProtectedRoute>}
+      </Route>
+
+      <Route path="/markdown">
+        {() => <ProtectedRoute><MarkdownPlaygroundPage /></ProtectedRoute>}
+      </Route>
+      
+      <Route path="/evolution">
+        {() => <ProtectedRoute><EvolutionPage /></ProtectedRoute>}
+      </Route>
+      
+      <Route path="/queue">
+        {() => <ProtectedRoute><TaskQueuePage /></ProtectedRoute>}
+      </Route>
+      
+      <Route path="/schedules">
+        {() => <ProtectedRoute><SchedulesPage /></ProtectedRoute>}
+      </Route>
+      
+      <Route path="/browser">
+        {() => <ProtectedRoute><BrowserPage /></ProtectedRoute>}
+      </Route>
+      
+      <Route path="/database">
+        {() => <ProtectedRoute><DatabaseExplorerPage /></ProtectedRoute>}
+      </Route>
+      
+      <Route path="/live">
+        {() => <ProtectedRoute><LivePage /></ProtectedRoute>}
+      </Route>
+      
+      <Route path="/watch">
+        {() => <ProtectedRoute><WatchPage /></ProtectedRoute>}
+      </Route>
+      
+      <Route path="/glasses">
+        {() => <ProtectedRoute><GlassesPage /></ProtectedRoute>}
+      </Route>
+      
+      <Route path="/collaborate">
+        {() => <ProtectedRoute><CollaboratePage /></ProtectedRoute>}
+      </Route>
+      
+      <Route path="/proposals/desktop-collaboration">
+        {() => <ProtectedRoute><ProposalDesktopCollaborationPage /></ProtectedRoute>}
+      </Route>
+      
+      <Route path="/workspace">
+        {() => <ProtectedRoute><WorkspacePage /></ProtectedRoute>}
+      </Route>
+      
+      <Route path="/vision">
+        {() => <ProtectedRoute><VisionPage /></ProtectedRoute>}
+      </Route>
+      
+      <Route path="/docs/:slug?">
+        {(params) => <ProtectedRoute><DocsPage /></ProtectedRoute>}
+      </Route>
+      
+      <Route path="/agent-settings">
+        {() => <ProtectedRoute><AgentSettingsPage /></ProtectedRoute>}
+      </Route>
+      
+      <Route path="/rag-debug">
+        {() => <ProtectedRoute><RagDebugPage /></ProtectedRoute>}
+      </Route>
+      
       <Route component={NotFound} />
     </Switch>
   );
