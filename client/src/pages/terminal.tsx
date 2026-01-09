@@ -171,9 +171,7 @@ export default function TerminalPage() {
     } catch (error) {
       addLine("error", `Failed to execute command: ${error instanceof Error ? error.message : "Unknown error"}`);
     } finally {
-      if (!wsConnected) {
-        setIsExecuting(false);
-      }
+      setIsExecuting(false);
       inputRef.current?.focus();
     }
   };
