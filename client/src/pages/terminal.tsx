@@ -153,19 +153,16 @@ export default function TerminalPage() {
 
       const data = await response.json();
 
-      if (!wsConnected) {
-        if (data.stdout) {
-          addLine("output", data.stdout);
-        }
-        if (data.stderr) {
-          addLine("error", data.stderr);
-        }
+      if (data.stdout) {
+        addLine("output", data.stdout);
       }
-      
+      if (data.stderr) {
+        addLine("error", data.stderr);
+      }
       if (data.error) {
         addLine("error", `Error: ${data.error}`);
       }
-      if (!data.stdout && !data.stderr && !data.error && !wsConnected) {
+      if (!data.stdout && !data.stderr && !data.error) {
         addLine("system", "(Command completed with no output)");
       }
     } catch (error) {
