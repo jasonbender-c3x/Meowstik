@@ -1,15 +1,15 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { ArrowLeft, Terminal as TerminalIcon, Play, Trash2, RefreshCw, Download, StopCircle } from "lucide-react";
+import { ArrowLeft, Terminal as TerminalIcon, Trash2, RefreshCw, Download, Wifi, WifiOff, Server } from "lucide-react";
 import { Link } from "wouter";
 import { cn } from "@/lib/utils";
 
 interface TerminalLine {
   id: string;
-  type: "command" | "output" | "error" | "system";
+  type: "command" | "output" | "error" | "system" | "ssh";
   content: string;
   timestamp: Date;
+  host?: string;
 }
 
 export default function TerminalPage() {
@@ -17,7 +17,7 @@ export default function TerminalPage() {
     {
       id: "welcome",
       type: "system",
-      content: "Welcome to Nebula Terminal. Type commands below or let the AI execute code.",
+      content: "Terminal ready. Type commands below. WebSocket provides real-time streaming.",
       timestamp: new Date()
     }
   ]);
@@ -25,8 +25,12 @@ export default function TerminalPage() {
   const [isExecuting, setIsExecuting] = useState(false);
   const [commandHistory, setCommandHistory] = useState<string[]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
+  const [wsConnected, setWsConnected] = useState(false);
+  const [activeHost, setActiveHost] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const wsRef = useRef<WebSocket | null>(null);
+  const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const scrollToBottom = useCallback(() => {
     if (scrollRef.current) {
@@ -42,21 +46,100 @@ export default function TerminalPage() {
     inputRef.current?.focus();
   }, []);
 
-  const addLine = (type: TerminalLine["type"], content: string) => {
+  const addLine = useCallback((type: TerminalLine["type"], content: string, host?: string) => {
     const newLine: TerminalLine = {
       id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       type,
       content,
-      timestamp: new Date()
+      timestamp: new Date(),
+      host
     };
     setLines(prev => [...prev, newLine]);
-  };
+  }, []);
+
+  const connectWebSocket = useCallback(() => {
+    if (wsRef.current?.readyState === WebSocket.OPEN) return;
+
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsUrl = `${protocol}//${window.location.host}/ws/terminal`;
+    
+    console.log('[Terminal] Connecting to WebSocket:', wsUrl);
+    const ws = new WebSocket(wsUrl);
+
+    ws.onopen = () => {
+      console.log('[Terminal] WebSocket connected');
+      setWsConnected(true);
+      addLine("system", "WebSocket connected - real-time streaming enabled");
+    };
+
+    ws.onmessage = (event) => {
+      try {
+        const msg = JSON.parse(event.data);
+        
+        if (msg.type === 'output' || msg.type === 'status') {
+          const data = msg.data;
+          const content = data.content || '';
+          const source = data.source || 'local';
+          const dataType = data.type || 'stdout';
+          
+          if (dataType === 'stderr') {
+            addLine("error", content, source !== 'local' && source !== 'system' ? source : undefined);
+          } else if (dataType === 'system' || msg.type === 'status') {
+            addLine("system", content, source !== 'local' && source !== 'system' ? source : undefined);
+          } else if (dataType === 'command') {
+            addLine("command", content, source !== 'local' && source !== 'system' ? source : undefined);
+          } else {
+            addLine("output", content, source !== 'local' && source !== 'system' ? source : undefined);
+          }
+          
+          if (source !== 'local' && source !== 'system' && !activeHost) {
+            setActiveHost(source);
+          }
+        } else {
+          console.log('[Terminal] Unknown message type:', msg);
+        }
+      } catch (e) {
+        addLine("output", event.data);
+      }
+    };
+
+    ws.onerror = (error) => {
+      console.error('[Terminal] WebSocket error:', error);
+    };
+
+    ws.onclose = () => {
+      console.log('[Terminal] WebSocket closed');
+      setWsConnected(false);
+      wsRef.current = null;
+      
+      reconnectTimeoutRef.current = setTimeout(() => {
+        console.log('[Terminal] Attempting reconnect...');
+        connectWebSocket();
+      }, 3000);
+    };
+
+    wsRef.current = ws;
+  }, [addLine, activeHost]);
+
+  useEffect(() => {
+    connectWebSocket();
+
+    return () => {
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current);
+      }
+      if (wsRef.current) {
+        wsRef.current.close();
+      }
+    };
+  }, [connectWebSocket]);
 
   const executeCommand = async (cmd: string) => {
     if (!cmd.trim()) return;
 
     setIsExecuting(true);
-    addLine("command", `$ ${cmd}`);
+    const prefix = activeHost ? `[${activeHost}]` : "";
+    addLine("command", `${prefix} $ ${cmd}`);
     setCommandHistory(prev => [...prev, cmd]);
     setHistoryIndex(-1);
     setCommand("");
@@ -70,22 +153,27 @@ export default function TerminalPage() {
 
       const data = await response.json();
 
-      if (data.stdout) {
-        addLine("output", data.stdout);
+      if (!wsConnected) {
+        if (data.stdout) {
+          addLine("output", data.stdout);
+        }
+        if (data.stderr) {
+          addLine("error", data.stderr);
+        }
       }
-      if (data.stderr) {
-        addLine("error", data.stderr);
-      }
+      
       if (data.error) {
         addLine("error", `Error: ${data.error}`);
       }
-      if (!data.stdout && !data.stderr && !data.error) {
+      if (!data.stdout && !data.stderr && !data.error && !wsConnected) {
         addLine("system", "(Command completed with no output)");
       }
     } catch (error) {
       addLine("error", `Failed to execute command: ${error instanceof Error ? error.message : "Unknown error"}`);
     } finally {
-      setIsExecuting(false);
+      if (!wsConnected) {
+        setIsExecuting(false);
+      }
       inputRef.current?.focus();
     }
   };
@@ -113,6 +201,7 @@ export default function TerminalPage() {
     } else if (e.key === "c" && e.ctrlKey) {
       addLine("system", "^C");
       setCommand("");
+      setIsExecuting(false);
     }
   };
 
@@ -126,20 +215,14 @@ export default function TerminalPage() {
   };
 
   const downloadOutput = async () => {
-    try {
-      const response = await fetch("/api/terminal/output");
-      const data = await response.json();
-      
-      const blob = new Blob([data.content || "No output saved"], { type: "text/plain" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = "terminal-output.txt";
-      a.click();
-      URL.revokeObjectURL(url);
-    } catch (error) {
-      addLine("error", "Failed to download output file");
-    }
+    const content = lines.map(l => l.content).join('\n');
+    const blob = new Blob([content], { type: "text/plain" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `terminal-output-${new Date().toISOString().slice(0, 10)}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   const getLineColor = (type: TerminalLine["type"]) => {
@@ -148,6 +231,7 @@ export default function TerminalPage() {
       case "output": return "text-gray-300";
       case "error": return "text-red-400";
       case "system": return "text-yellow-400";
+      case "ssh": return "text-purple-400";
       default: return "text-gray-300";
     }
   };
@@ -168,9 +252,24 @@ export default function TerminalPage() {
         </div>
 
         <div className="flex justify-between items-center mb-4">
-          <p className="text-muted-foreground text-sm">
-            Execute shell commands. Output is saved for AI reference.
-          </p>
+          <div className="flex items-center gap-4">
+            <p className="text-muted-foreground text-sm">
+              Execute shell commands with real-time streaming.
+            </p>
+            <div className={cn(
+              "flex items-center gap-1.5 px-2 py-1 rounded text-xs",
+              wsConnected ? "bg-green-500/10 text-green-500" : "bg-red-500/10 text-red-500"
+            )}>
+              {wsConnected ? <Wifi className="h-3 w-3" /> : <WifiOff className="h-3 w-3" />}
+              {wsConnected ? "Connected" : "Disconnected"}
+            </div>
+            {activeHost && (
+              <div className="flex items-center gap-1.5 px-2 py-1 rounded text-xs bg-purple-500/10 text-purple-500">
+                <Server className="h-3 w-3" />
+                SSH: {activeHost}
+              </div>
+            )}
+          </div>
           <div className="flex gap-2">
             <Button 
               variant="outline" 
@@ -179,7 +278,7 @@ export default function TerminalPage() {
               data-testid="button-download-output"
             >
               <Download className="h-4 w-4 mr-2" />
-              Download Output
+              Download
             </Button>
             <Button 
               variant="outline" 
@@ -200,7 +299,9 @@ export default function TerminalPage() {
               <div className="w-3 h-3 rounded-full bg-yellow-500" />
               <div className="w-3 h-3 rounded-full bg-green-500" />
             </div>
-            <span className="text-[#888] text-xs ml-2 font-mono">bash - code execution</span>
+            <span className="text-[#888] text-xs ml-2 font-mono">
+              {activeHost ? `ssh - ${activeHost}` : "bash - local"}
+            </span>
             {isExecuting && (
               <div className="ml-auto flex items-center gap-2 text-yellow-400">
                 <RefreshCw className="h-3 w-3 animate-spin" />
@@ -221,11 +322,15 @@ export default function TerminalPage() {
                 className={cn("py-0.5 whitespace-pre-wrap break-all", getLineColor(line.type))}
                 data-testid={`terminal-line-${line.id}`}
               >
+                {line.host && line.type !== "command" && (
+                  <span className="text-purple-400/60">[{line.host}] </span>
+                )}
                 {line.content}
               </div>
             ))}
             
             <div className="flex items-center py-0.5">
+              {activeHost && <span className="text-purple-400 mr-1">[{activeHost}]</span>}
               <span className="text-green-400 mr-2">$</span>
               <input
                 ref={inputRef}
@@ -245,7 +350,7 @@ export default function TerminalPage() {
         </div>
 
         <div className="mt-4 text-xs text-muted-foreground">
-          <p>Tips: Use arrow keys for command history. Ctrl+C to cancel input. Output is automatically saved for AI access.</p>
+          <p>Tips: Arrow keys for history. Ctrl+C to cancel. SSH commands stream output in real-time via WebSocket.</p>
         </div>
       </div>
     </div>
