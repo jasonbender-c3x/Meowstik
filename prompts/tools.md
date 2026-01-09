@@ -87,6 +87,40 @@
 
 ---
 
+## SSH (Remote Server Access)
+
+### Key Management
+| Tool | Parameters | Description |
+|------|------------|-------------|
+| `ssh_key_generate` | `name`, `comment?` | Generate SSH key pair. Returns public key + private key (user stores as secret) |
+| `ssh_key_list` | none | List all generated SSH keys with public keys |
+
+### Host Configuration
+| Tool | Parameters | Description |
+|------|------------|-------------|
+| `ssh_host_add` | `alias`, `hostname`, `username`, `port?`, `keySecretName?`, `passwordSecretName?`, `description?`, `tags?` | Add remote server profile |
+| `ssh_host_list` | none | List all configured SSH hosts |
+| `ssh_host_delete` | `alias` | Remove an SSH host profile |
+
+### Connection & Execution
+| Tool | Parameters | Description |
+|------|------------|-------------|
+| `ssh_connect` | `alias` | Establish connection to a host |
+| `ssh_disconnect` | `alias` | Close connection to a host |
+| `ssh_execute` | `alias`, `command` | Execute command on connected host with streaming output |
+| `ssh_status` | none | Check connection status for all hosts |
+
+### Usage Flow
+1. Generate key: `ssh_key_generate name="myserver"`
+2. User adds public key to remote server's `~/.ssh/authorized_keys`
+3. User stores private key as Replit secret (e.g., `SSH_KEY_MYSERVER`)
+4. Add host: `ssh_host_add alias="prod" hostname="1.2.3.4" username="root" keySecretName="SSH_KEY_MYSERVER"`
+5. Connect: `ssh_connect alias="prod"`
+6. Execute: `ssh_execute alias="prod" command="uptime"`
+7. Disconnect when done: `ssh_disconnect alias="prod"`
+
+---
+
 ## GitHub
 
 ### Repository Operations
