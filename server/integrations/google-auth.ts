@@ -30,12 +30,26 @@ function getRedirectUri(): string {
   if (process.env.GOOGLE_REDIRECT_URI) {
     return process.env.GOOGLE_REDIRECT_URI;
   }
-  const host = process.env.REPLIT_DEV_DOMAIN 
-    ? `https://${process.env.REPLIT_DEV_DOMAIN}`
-    : process.env.REPL_SLUG 
-      ? `https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER?.toLowerCase()}.repl.co`
-      : 'http://localhost:5000';
-  return `${host}/api/auth/google/callback`;
+  
+  let host: string;
+  
+  if (process.env.REPLIT_DEV_DOMAIN) {
+    // Development environment
+    host = `https://${process.env.REPLIT_DEV_DOMAIN}`;
+  } else if (process.env.REPLIT_DOMAINS) {
+    // Production deployment - use first domain from comma-separated list
+    const domains = process.env.REPLIT_DOMAINS.split(',');
+    host = `https://${domains[0]}`;
+  } else if (process.env.REPL_SLUG && process.env.REPL_OWNER) {
+    // Fallback to replit.app format
+    host = `https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER.toLowerCase()}.replit.app`;
+  } else {
+    host = 'http://localhost:5000';
+  }
+  
+  const redirectUri = `${host}/api/auth/google/callback`;
+  console.log('[Google OAuth] Using redirect URI:', redirectUri);
+  return redirectUri;
 }
 
 function createOAuth2Client(): Auth.OAuth2Client {
