@@ -195,7 +195,15 @@ export async function refreshTokensIfNeeded(): Promise<void> {
 export async function getAuthenticatedClient(): Promise<Auth.OAuth2Client> {
   await initializeFromDatabase();
   
+  // Debug logging to trace auth issues
+  console.log('[Google Auth] getAuthenticatedClient called');
+  console.log('[Google Auth] initialized:', initialized);
+  console.log('[Google Auth] cachedTokens exists:', cachedTokens !== null);
+  console.log('[Google Auth] has access_token:', cachedTokens?.access_token !== undefined);
+  
   if (!(await isAuthenticated())) {
+    console.error('[Google Auth] FAILED: isAuthenticated returned false');
+    console.error('[Google Auth] cachedTokens:', cachedTokens ? 'present' : 'null');
     throw new Error('Not authenticated with Google. Please authorize first.');
   }
   await refreshTokensIfNeeded();
