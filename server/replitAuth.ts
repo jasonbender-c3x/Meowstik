@@ -27,6 +27,10 @@ export function getSession() {
     ttl: sessionTtl,
     tableName: "sessions",
   });
+  // In production (Replit), always use secure cookies
+  // The app is served over HTTPS via replit.dev
+  const isProduction = process.env.NODE_ENV === 'production' || process.env.REPL_ID;
+  
   return session({
     secret: process.env.SESSION_SECRET!,
     store: sessionStore,
@@ -34,7 +38,7 @@ export function getSession() {
     saveUninitialized: false,
     cookie: {
       httpOnly: true,
-      secure: true,
+      secure: isProduction ? true : false,
       sameSite: "lax",
       maxAge: sessionTtl,
     },

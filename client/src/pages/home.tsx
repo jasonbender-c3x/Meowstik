@@ -338,7 +338,7 @@ export default function Home() {
    */
   const loadChats = async (autoSelect = false) => {
     try {
-      const response = await fetch('/api/chats');
+      const response = await fetch('/api/chats', { credentials: 'include' });
       if (response.ok) {
         const data = await response.json();
         setChats(data);
@@ -368,7 +368,7 @@ export default function Home() {
    */
   const loadChatMessages = async (chatId: string): Promise<Message[] | undefined> => {
     try {
-      const response = await fetch(`/api/chats/${chatId}?limit=30`);
+      const response = await fetch(`/api/chats/${chatId}?limit=30`, { credentials: 'include' });
       if (response.ok) {
         const data = await response.json();
         // Metadata is already parsed from JSONB column - just pass through
@@ -399,7 +399,7 @@ export default function Home() {
     try {
       // Use the oldest message ID as cursor
       const oldestMessageId = messages[0]?.id;
-      const response = await fetch(`/api/chats/${currentChatId}/messages?limit=30&before=${oldestMessageId}`);
+      const response = await fetch(`/api/chats/${currentChatId}/messages?limit=30&before=${oldestMessageId}`, { credentials: 'include' });
       if (response.ok) {
         const data = await response.json();
         const olderMessages = (data.messages || []).map((msg: any) => ({
@@ -491,6 +491,7 @@ export default function Home() {
       const response = await fetch(`/api/chats/${chatId}/messages`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include', // Ensure cookies are sent with request
         body: JSON.stringify({ 
           content,
           model: modelMode, // "pro" or "flash"
@@ -506,7 +507,15 @@ export default function Home() {
       });
 
       if (!response.ok) {
-        throw new Error('Failed to send message');
+        // Check if it's an auth issue
+        if (response.status === 401) {
+          console.error('[Chat] Authentication failed - redirecting to login');
+          window.location.href = '/login';
+          return;
+        }
+        const errorText = await response.text();
+        console.error('[Chat] Message failed:', response.status, errorText);
+        throw new Error(`Failed to send message: ${response.status}`);
       }
 
       // Step 4: Handle streaming response (Server-Sent Events)
@@ -856,7 +865,7 @@ export default function Home() {
     
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
       try {
-        const response = await fetch(`/api/messages/${messageId}/metadata`);
+        const response = await fetch(`/api/messages/${messageId}/metadata`, { credentials: 'include' });
         if (response.ok) {
           const data = await response.json();
           
@@ -907,6 +916,7 @@ export default function Home() {
       const response = await fetch('/api/chats', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ title: 'New Discussion' }),
       });
 

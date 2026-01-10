@@ -121,6 +121,7 @@ export default function WorkspacePage() {
         const response = await fetch("/api/chats", { 
           method: "POST",
           headers: { "Content-Type": "application/json" },
+          credentials: "include",
           body: JSON.stringify({ title: "Workspace Chat" })
         });
         if (response.ok) {
@@ -217,6 +218,7 @@ export default function WorkspacePage() {
       const response = await fetch(`/api/chats/${currentChatId}/messages`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({ 
           content: inputMessage.trim(),
           context: `User is working in the code editor. Current file: ${activeFile?.filename || 'none'}. Code:\n${activeFile?.code?.slice(0, 1000) || 'empty'}`
@@ -351,6 +353,7 @@ export default function WorkspacePage() {
                               fetch("/api/chats", { 
                                 method: "POST",
                                 headers: { "Content-Type": "application/json" },
+                                credentials: "include",
                                 body: JSON.stringify({ title: "Workspace Chat" })
                               })
                                 .then(res => res.json())
