@@ -95,51 +95,62 @@ export async function getUncachableGmailClient() {
  * const sent = await listEmails(50, ['SENT']);
  */
 export async function listEmails(maxResults = 20, labelIds = ['INBOX']) {
-  const gmail = await getUncachableGmailClient();
-  
-  // Step 1: Get list of message IDs
-  const response = await gmail.users.messages.list({
-    userId: 'me',  // 'me' refers to the authenticated user
-    maxResults,
-    labelIds  // Filter by label (INBOX, SENT, etc.)
-  });
-  
-  // Return empty array if no messages found
-  if (!response.data.messages) {
-    return [];
-  }
+  try {
+    const gmail = await getUncachableGmailClient();
+    
+    // Step 1: Get list of message IDs
+    const response = await gmail.users.messages.list({
+      userId: 'me',  // 'me' refers to the authenticated user
+      maxResults,
+      labelIds  // Filter by label (INBOX, SENT, etc.)
+    });
+    
+    // Return empty array if no messages found
+    if (!response.data.messages) {
+      return [];
+    }
 
-  // Step 2: Fetch metadata for each message in parallel
-  // This enriches each message with header information
-  const emails = await Promise.all(
-    response.data.messages.map(async (msg) => {
-      // Get message with metadata format (headers only, no body)
-      const email = await gmail.users.messages.get({
-        userId: 'me',
-        id: msg.id!,
-        format: 'metadata',  // Fetch only metadata, not full content
-        metadataHeaders: ['From', 'To', 'Subject', 'Date']  // Specific headers to include
-      });
-      
-      // Helper function to extract header values
-      const headers = email.data.payload?.headers || [];
-      const getHeader = (name: string) => headers.find(h => h.name === name)?.value || '';
-      
-      // Return normalized email object
-      return {
-        id: msg.id,
-        threadId: msg.threadId,        // Thread ID for conversation grouping
-        snippet: email.data.snippet,    // Preview text snippet
-        from: getHeader('From'),        // Sender
-        to: getHeader('To'),            // Recipient(s)
-        subject: getHeader('Subject'),  // Subject line
-        date: getHeader('Date'),        // Send date
-        labelIds: email.data.labelIds   // Applied labels
-      };
-    })
-  );
-  
-  return emails;
+    // Step 2: Fetch metadata for each message in parallel
+    // This enriches each message with header information
+    const emails = await Promise.all(
+      response.data.messages.map(async (msg) => {
+        // Get message with metadata format (headers only, no body)
+        const email = await gmail.users.messages.get({
+          userId: 'me',
+          id: msg.id!,
+          format: 'metadata',  // Fetch only metadata, not full content
+          metadataHeaders: ['From', 'To', 'Subject', 'Date']  // Specific headers to include
+        });
+        
+        // Helper function to extract header values
+        const headers = email.data.payload?.headers || [];
+        const getHeader = (name: string) => headers.find(h => h.name === name)?.value || '';
+        
+        // Return normalized email object
+        return {
+          id: msg.id,
+          threadId: msg.threadId,        // Thread ID for conversation grouping
+          snippet: email.data.snippet,    // Preview text snippet
+          from: getHeader('From'),        // Sender
+          to: getHeader('To'),            // Recipient(s)
+          subject: getHeader('Subject'),  // Subject line
+          date: getHeader('Date'),        // Send date
+          labelIds: email.data.labelIds   // Applied labels
+        };
+      })
+    );
+    
+    return emails;
+  } catch (error: any) {
+    console.error('[Gmail] listEmails error:', error);
+    return {
+      success: false,
+      error: error.message || 'Failed to list emails',
+      statusCode: error.status,
+      operation: 'listEmails',
+      params: { maxResults, labelIds }
+    };
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -168,52 +179,63 @@ export async function listEmails(maxResults = 20, labelIds = ['INBOX']) {
  * console.log(email.subject, email.body);
  */
 export async function getEmail(messageId: string) {
-  const gmail = await getUncachableGmailClient();
-  
-  // Fetch full message content
-  const response = await gmail.users.messages.get({
-    userId: 'me',
-    id: messageId,
-    format: 'full'  // Get complete message with body
-  });
-  
-  // Extract headers
-  const headers = response.data.payload?.headers || [];
-  const getHeader = (name: string) => headers.find(h => h.name === name)?.value || '';
-  
-  // ─────────────────────────────────────────────────────────────────────────
-  // Decode email body from Base64
-  // Gmail stores body content as Base64-encoded strings
-  // ─────────────────────────────────────────────────────────────────────────
-  let body = '';
-  
-  // Case 1: Simple email with body directly in payload
-  if (response.data.payload?.body?.data) {
-    body = Buffer.from(response.data.payload.body.data, 'base64').toString('utf-8');
-  } 
-  // Case 2: Multipart email with body in parts array
-  else if (response.data.payload?.parts) {
-    // Find the text/plain or text/html part
-    const textPart = response.data.payload.parts.find(
-      p => p.mimeType === 'text/plain' || p.mimeType === 'text/html'
-    );
-    if (textPart?.body?.data) {
-      body = Buffer.from(textPart.body.data, 'base64').toString('utf-8');
+  try {
+    const gmail = await getUncachableGmailClient();
+    
+    // Fetch full message content
+    const response = await gmail.users.messages.get({
+      userId: 'me',
+      id: messageId,
+      format: 'full'  // Get complete message with body
+    });
+    
+    // Extract headers
+    const headers = response.data.payload?.headers || [];
+    const getHeader = (name: string) => headers.find(h => h.name === name)?.value || '';
+    
+    // ─────────────────────────────────────────────────────────────────────────
+    // Decode email body from Base64
+    // Gmail stores body content as Base64-encoded strings
+    // ─────────────────────────────────────────────────────────────────────────
+    let body = '';
+    
+    // Case 1: Simple email with body directly in payload
+    if (response.data.payload?.body?.data) {
+      body = Buffer.from(response.data.payload.body.data, 'base64').toString('utf-8');
+    } 
+    // Case 2: Multipart email with body in parts array
+    else if (response.data.payload?.parts) {
+      // Find the text/plain or text/html part
+      const textPart = response.data.payload.parts.find(
+        p => p.mimeType === 'text/plain' || p.mimeType === 'text/html'
+      );
+      if (textPart?.body?.data) {
+        body = Buffer.from(textPart.body.data, 'base64').toString('utf-8');
+      }
     }
+    
+    // Return normalized email object with decoded body
+    return {
+      id: response.data.id,
+      threadId: response.data.threadId,
+      snippet: response.data.snippet,
+      from: getHeader('From'),
+      to: getHeader('To'),
+      subject: getHeader('Subject'),
+      date: getHeader('Date'),
+      body,  // Decoded body content
+      labelIds: response.data.labelIds
+    };
+  } catch (error: any) {
+    console.error('[Gmail] getEmail error:', error);
+    return {
+      success: false,
+      error: error.message || 'Failed to get email',
+      statusCode: error.status,
+      operation: 'getEmail',
+      params: { messageId }
+    };
   }
-  
-  // Return normalized email object with decoded body
-  return {
-    id: response.data.id,
-    threadId: response.data.threadId,
-    snippet: response.data.snippet,
-    from: getHeader('From'),
-    to: getHeader('To'),
-    subject: getHeader('Subject'),
-    date: getHeader('Date'),
-    body,  // Decoded body content
-    labelIds: response.data.labelIds
-  };
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -255,39 +277,50 @@ export async function getEmail(messageId: string) {
  * );
  */
 export async function sendEmail(to: string, subject: string, body: string) {
-  const gmail = await getUncachableGmailClient();
-  
-  // ─────────────────────────────────────────────────────────────────────────
-  // Construct RFC 2822 format email message
-  // ─────────────────────────────────────────────────────────────────────────
-  const message = [
-    'Content-Type: text/html; charset=utf-8',  // Supports HTML content
-    'MIME-Version: 1.0',                        // MIME version header
-    `To: ${to}`,                                // Recipient
-    `Subject: ${subject}`,                      // Subject line
-    '',                                         // Empty line before body
-    body                                        // Email body content
-  ].join('\n');
-  
-  // ─────────────────────────────────────────────────────────────────────────
-  // Encode message as URL-safe Base64
-  // Gmail API requires this specific encoding format
-  // ─────────────────────────────────────────────────────────────────────────
-  const encodedMessage = Buffer.from(message)
-    .toString('base64')              // Standard Base64
-    .replace(/\+/g, '-')             // Replace + with -
-    .replace(/\//g, '_')             // Replace / with _
-    .replace(/=+$/, '');             // Remove trailing padding
-  
-  // Send the email via Gmail API
-  const response = await gmail.users.messages.send({
-    userId: 'me',
-    requestBody: {
-      raw: encodedMessage  // Base64-encoded message
-    }
-  });
-  
-  return response.data;
+  try {
+    const gmail = await getUncachableGmailClient();
+    
+    // ─────────────────────────────────────────────────────────────────────────
+    // Construct RFC 2822 format email message
+    // ─────────────────────────────────────────────────────────────────────────
+    const message = [
+      'Content-Type: text/html; charset=utf-8',  // Supports HTML content
+      'MIME-Version: 1.0',                        // MIME version header
+      `To: ${to}`,                                // Recipient
+      `Subject: ${subject}`,                      // Subject line
+      '',                                         // Empty line before body
+      body                                        // Email body content
+    ].join('\n');
+    
+    // ─────────────────────────────────────────────────────────────────────────
+    // Encode message as URL-safe Base64
+    // Gmail API requires this specific encoding format
+    // ─────────────────────────────────────────────────────────────────────────
+    const encodedMessage = Buffer.from(message)
+      .toString('base64')              // Standard Base64
+      .replace(/\+/g, '-')             // Replace + with -
+      .replace(/\//g, '_')             // Replace / with _
+      .replace(/=+$/, '');             // Remove trailing padding
+    
+    // Send the email via Gmail API
+    const response = await gmail.users.messages.send({
+      userId: 'me',
+      requestBody: {
+        raw: encodedMessage  // Base64-encoded message
+      }
+    });
+    
+    return response.data;
+  } catch (error: any) {
+    console.error('[Gmail] sendEmail error:', error);
+    return {
+      success: false,
+      error: error.message || 'Failed to send email',
+      statusCode: error.status,
+      operation: 'sendEmail',
+      params: { to, subject }
+    };
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -308,13 +341,24 @@ export async function sendEmail(to: string, subject: string, body: string) {
  * labels.forEach(label => console.log(label.name));
  */
 export async function getLabels() {
-  const gmail = await getUncachableGmailClient();
-  
-  const response = await gmail.users.labels.list({
-    userId: 'me'
-  });
-  
-  return response.data.labels || [];
+  try {
+    const gmail = await getUncachableGmailClient();
+    
+    const response = await gmail.users.labels.list({
+      userId: 'me'
+    });
+    
+    return response.data.labels || [];
+  } catch (error: any) {
+    console.error('[Gmail] getLabels error:', error);
+    return {
+      success: false,
+      error: error.message || 'Failed to get labels',
+      statusCode: error.status,
+      operation: 'getLabels',
+      params: {}
+    };
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -349,46 +393,57 @@ export async function getLabels() {
  * @see https://support.google.com/mail/answer/7190
  */
 export async function searchEmails(query: string, maxResults = 20) {
-  const gmail = await getUncachableGmailClient();
-  
-  // Search for messages matching the query
-  const response = await gmail.users.messages.list({
-    userId: 'me',
-    q: query,      // Gmail search query
-    maxResults
-  });
-  
-  // Return empty array if no messages found
-  if (!response.data.messages) {
-    return [];
-  }
+  try {
+    const gmail = await getUncachableGmailClient();
+    
+    // Search for messages matching the query
+    const response = await gmail.users.messages.list({
+      userId: 'me',
+      q: query,      // Gmail search query
+      maxResults
+    });
+    
+    // Return empty array if no messages found
+    if (!response.data.messages) {
+      return [];
+    }
 
-  // Fetch metadata for each matching message
-  // Same enrichment logic as listEmails
-  const emails = await Promise.all(
-    response.data.messages.map(async (msg) => {
-      const email = await gmail.users.messages.get({
-        userId: 'me',
-        id: msg.id!,
-        format: 'metadata',
-        metadataHeaders: ['From', 'To', 'Subject', 'Date']
-      });
-      
-      const headers = email.data.payload?.headers || [];
-      const getHeader = (name: string) => headers.find(h => h.name === name)?.value || '';
-      
-      return {
-        id: msg.id,
-        threadId: msg.threadId,
-        snippet: email.data.snippet,
-        from: getHeader('From'),
-        to: getHeader('To'),
-        subject: getHeader('Subject'),
-        date: getHeader('Date'),
-        labelIds: email.data.labelIds
-      };
-    })
-  );
-  
-  return emails;
+    // Fetch metadata for each matching message
+    // Same enrichment logic as listEmails
+    const emails = await Promise.all(
+      response.data.messages.map(async (msg) => {
+        const email = await gmail.users.messages.get({
+          userId: 'me',
+          id: msg.id!,
+          format: 'metadata',
+          metadataHeaders: ['From', 'To', 'Subject', 'Date']
+        });
+        
+        const headers = email.data.payload?.headers || [];
+        const getHeader = (name: string) => headers.find(h => h.name === name)?.value || '';
+        
+        return {
+          id: msg.id,
+          threadId: msg.threadId,
+          snippet: email.data.snippet,
+          from: getHeader('From'),
+          to: getHeader('To'),
+          subject: getHeader('Subject'),
+          date: getHeader('Date'),
+          labelIds: email.data.labelIds
+        };
+      })
+    );
+    
+    return emails;
+  } catch (error: any) {
+    console.error('[Gmail] searchEmails error:', error);
+    return {
+      success: false,
+      error: error.message || 'Failed to search emails',
+      statusCode: error.status,
+      operation: 'searchEmails',
+      params: { query, maxResults }
+    };
+  }
 }
