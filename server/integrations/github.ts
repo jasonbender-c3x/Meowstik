@@ -269,7 +269,6 @@ export async function getFileContent(owner: string, repo: string, path: string, 
       return {
         success: false,
         error: `Path "${path}" is a directory, not a file`,
-        statusCode: undefined,
         operation: 'getFileContent',
         params: { owner, repo, path, ref }
       };
@@ -279,7 +278,6 @@ export async function getFileContent(owner: string, repo: string, path: string, 
       return {
         success: false,
         error: `Cannot read content of "${path}"`,
-        statusCode: undefined,
         operation: 'getFileContent',
         params: { owner, repo, path, ref }
       };
