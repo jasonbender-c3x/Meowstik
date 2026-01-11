@@ -1,0 +1,1 @@
+- User is verifying the short-term memory system.

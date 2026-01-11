@@ -8,3 +8,7 @@
 - **"Show me" requests:** When asked to "show me" something, create documentation pages in `/docs/ragent/` with extensive hyperlinks and commentary. Open the page in the docs viewer with rich cross-references.
 
 > END OF NOTICE
+
+---
+**2026-01-11T01:35:49.010Z**
+- User is verifying the short-term memory system.
