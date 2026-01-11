@@ -23,6 +23,8 @@ export interface LiveSessionConfig {
   systemInstruction?: string;
   voiceName?: string;
   language?: string;
+  enableComputerUse?: boolean; // Enable Computer Use tools for desktop control
+  tools?: any[]; // Additional custom tools
 }
 
 export interface LiveSession {
@@ -59,7 +61,7 @@ export async function createLiveSession(
   try {
     const ai = new GoogleGenAI({ apiKey });
     
-    const sessionConfig = {
+    const sessionConfig: any = {
       responseModalities: [Modality.AUDIO, Modality.TEXT],
       speechConfig: {
         voiceConfig: {
@@ -70,6 +72,40 @@ export async function createLiveSession(
       },
       systemInstruction: config.systemInstruction || DEFAULT_SYSTEM_INSTRUCTION
     };
+
+    // Add Computer Use tools if enabled (Project Ghost)
+    if (config.enableComputerUse) {
+      const { geminiFunctionDeclarations } = await import("../gemini-tools");
+      
+      // Filter to get only Computer Use tools
+      const computerUseTools = geminiFunctionDeclarations.filter(tool => 
+        tool.name?.startsWith('computer_')
+      );
+      
+      sessionConfig.tools = computerUseTools;
+      
+      // Update system instruction to include Computer Use capabilities
+      sessionConfig.systemInstruction = `${sessionConfig.systemInstruction}
+
+You have computer control capabilities. You can see the user's screen and control their computer through:
+- computer_click: Click at coordinates
+- computer_type: Type text
+- computer_key: Press keyboard keys
+- computer_scroll: Scroll the screen
+- computer_move: Move the mouse
+- computer_screenshot: Take a screenshot
+- computer_wait: Wait before next action
+
+Use these tools to help the user accomplish tasks hands-free through voice commands.`;
+    }
+
+    // Add any additional custom tools
+    if (config.tools && config.tools.length > 0) {
+      if (!sessionConfig.tools) {
+        sessionConfig.tools = [];
+      }
+      sessionConfig.tools.push(...config.tools);
+    }
 
     const session = await (ai as any).live.connect({
       model: "gemini-2.5-flash-native-audio-preview-12-2025",
@@ -83,7 +119,7 @@ export async function createLiveSession(
       createdAt: new Date()
     });
 
-    console.log(`[Gemini Live] Created session: ${sessionId}`);
+    console.log(`[Gemini Live] Created session: ${sessionId}${config.enableComputerUse ? ' (with Computer Use tools)' : ''}`);
     
     return { success: true };
   } catch (error) {
@@ -158,9 +194,10 @@ export async function sendText(
 export async function* receiveResponses(
   sessionId: string
 ): AsyncGenerator<{
-  type: "audio" | "text" | "transcript" | "end";
+  type: "audio" | "text" | "transcript" | "functionCall" | "end";
   data?: string;
   text?: string;
+  functionCall?: { name: string; args: any };
 }> {
   const liveSession = activeSessions.get(sessionId);
   
@@ -184,6 +221,16 @@ export async function* receiveResponses(
           }
           if (part.text) {
             yield { type: "transcript", text: part.text };
+          }
+          // Handle function calls from Computer Use (Project Ghost)
+          if (part.functionCall) {
+            yield { 
+              type: "functionCall", 
+              functionCall: {
+                name: part.functionCall.name,
+                args: part.functionCall.args
+              }
+            };
           }
         }
       }
@@ -244,6 +291,38 @@ export async function updateSystemInstruction(
     return {
       success: false,
       error: error instanceof Error ? error.message : "Failed to update system instruction"
+    };
+  }
+}
+
+/**
+ * Send function result back to the Live session (Project Ghost)
+ * Used when Computer Use tools execute actions
+ */
+export async function sendFunctionResult(
+  sessionId: string,
+  functionName: string,
+  result: any
+): Promise<{ success: boolean; error?: string }> {
+  const liveSession = activeSessions.get(sessionId);
+  
+  if (!liveSession || !liveSession.isActive) {
+    return { success: false, error: "Session not found or inactive" };
+  }
+
+  try {
+    await liveSession.session.send({
+      functionResponse: {
+        name: functionName,
+        response: result
+      }
+    });
+    return { success: true };
+  } catch (error) {
+    console.error("[Gemini Live] Failed to send function result:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to send function result"
     };
   }
 }

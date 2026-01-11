@@ -1,8 +1,10 @@
 /**
  * ╔═══════════════════════════════════════════════════════════════════════════╗
  * ║                     LIVE VOICE WEBSOCKET HANDLER                          ║
- * ║              Real-time Audio Streaming for Gemini Live API                ║
+ * ║        Real-time Audio Streaming for Gemini Live API (Project Ghost)     ║
  * ╚═══════════════════════════════════════════════════════════════════════════╝
+ * 
+ * Enhanced with Computer Use function calling for hands-free desktop control
  */
 
 import { WebSocketServer, WebSocket } from "ws";
@@ -10,11 +12,13 @@ import type { Server } from "http";
 import type { IncomingMessage } from "http";
 import type { Duplex } from "stream";
 import * as geminiLive from "./integrations/gemini-live";
+import { desktopRelayService } from "./services/desktop-relay-service";
 
 interface LiveWebSocketClient {
   ws: WebSocket;
   sessionId: string;
   isActive: boolean;
+  desktopSessionId?: string; // For Computer Use integration
 }
 
 const activeClients = new Map<string, LiveWebSocketClient>();
@@ -89,6 +93,22 @@ async function handleConnection(ws: WebSocket, sessionId: string): Promise<void>
         if (!result.success) {
           sendError(ws, result.error || "Failed to update persona");
         }
+      } else if (message.type === "linkDesktop") {
+        // Link this Live session to a desktop session for Computer Use (Project Ghost)
+        client.desktopSessionId = message.desktopSessionId;
+        console.log(`[Live WS] Linked to desktop session: ${message.desktopSessionId}`);
+        sendMessage(ws, { type: "desktopLinked", sessionId: message.desktopSessionId });
+      } else if (message.type === "functionResult") {
+        // Send function execution result back to Gemini Live
+        const result = await geminiLive.sendFunctionResult(
+          sessionId,
+          message.functionName,
+          message.result
+        );
+
+        if (!result.success) {
+          sendError(ws, result.error || "Failed to send function result");
+        }
       }
     } catch (error) {
       console.error("[Live WS] Error processing message:", error);
@@ -122,6 +142,9 @@ async function startReceiving(client: LiveWebSocketClient): Promise<void> {
         sendMessage(client.ws, { type: "text", text: response.text });
       } else if (response.type === "transcript" && response.text) {
         sendMessage(client.ws, { type: "transcript", text: response.text });
+      } else if (response.type === "functionCall" && response.functionCall) {
+        // Handle Computer Use function calls (Project Ghost)
+        await handleFunctionCall(client, response.functionCall);
       } else if (response.type === "end") {
         sendMessage(client.ws, { type: "end" });
       }
@@ -131,6 +154,135 @@ async function startReceiving(client: LiveWebSocketClient): Promise<void> {
     if (client.isActive && client.ws.readyState === WebSocket.OPEN) {
       sendError(client.ws, "Connection to AI lost");
     }
+  }
+}
+
+/**
+ * Handle Computer Use function calls from Gemini Live (Project Ghost)
+ */
+async function handleFunctionCall(
+  client: LiveWebSocketClient,
+  functionCall: { name: string; args: any }
+): Promise<void> {
+  console.log(`[Live WS] Function call: ${functionCall.name}`, functionCall.args);
+  
+  // Send function call to client for display
+  sendMessage(client.ws, { 
+    type: "functionCall", 
+    functionCall 
+  });
+
+  // If this is a Computer Use function and we have a linked desktop session
+  if (functionCall.name.startsWith('computer_') && client.desktopSessionId) {
+    try {
+      // Convert function call to desktop input event
+      const inputEvent = convertFunctionCallToInputEvent(functionCall);
+      
+      if (inputEvent) {
+        // Execute on desktop
+        desktopRelayService.sendInputToAgent(client.desktopSessionId, inputEvent);
+        
+        // Send success result back to Gemini Live
+        await geminiLive.sendFunctionResult(
+          client.sessionId,
+          functionCall.name,
+          { success: true, executed: true }
+        );
+        
+        console.log(`[Live WS] Executed ${functionCall.name} on desktop ${client.desktopSessionId}`);
+      } else {
+        // Unknown function - send error
+        await geminiLive.sendFunctionResult(
+          client.sessionId,
+          functionCall.name,
+          { success: false, error: "Unknown function type" }
+        );
+      }
+    } catch (error: any) {
+      console.error(`[Live WS] Error executing function ${functionCall.name}:`, error);
+      await geminiLive.sendFunctionResult(
+        client.sessionId,
+        functionCall.name,
+        { success: false, error: error.message }
+      );
+    }
+  } else if (!client.desktopSessionId) {
+    // No desktop session linked
+    sendMessage(client.ws, { 
+      type: "error", 
+      error: "No desktop session linked. Use linkDesktop message to connect."
+    });
+    
+    await geminiLive.sendFunctionResult(
+      client.sessionId,
+      functionCall.name,
+      { success: false, error: "No desktop session linked" }
+    );
+  }
+}
+
+/**
+ * Convert Gemini Computer Use function call to desktop agent input event
+ */
+function convertFunctionCallToInputEvent(functionCall: { name: string; args: any }): any {
+  const { name, args } = functionCall;
+  
+  switch (name) {
+    case 'computer_click':
+      return {
+        type: 'mouse',
+        action: 'click',
+        x: args.x,
+        y: args.y,
+        button: args.button || 'left',
+        source: 'ai'
+      };
+      
+    case 'computer_move':
+      return {
+        type: 'mouse',
+        action: 'move',
+        x: args.x,
+        y: args.y,
+        source: 'ai'
+      };
+      
+    case 'computer_type':
+      return {
+        type: 'keyboard',
+        action: 'type',
+        text: args.text,
+        source: 'ai'
+      };
+      
+    case 'computer_key':
+      return {
+        type: 'keyboard',
+        action: 'keydown',
+        key: args.key,
+        modifiers: args.modifiers,
+        source: 'ai'
+      };
+      
+    case 'computer_scroll':
+      return {
+        type: 'mouse',
+        action: 'scroll',
+        direction: args.direction,
+        delta: args.amount || 300,
+        source: 'ai'
+      };
+      
+    case 'computer_screenshot':
+      // Screenshot is handled differently - just acknowledge
+      return null;
+      
+    case 'computer_wait':
+      // Wait is a no-op for desktop agent
+      return null;
+      
+    default:
+      return null;
   }
 }
 
