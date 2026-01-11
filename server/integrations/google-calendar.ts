@@ -100,11 +100,22 @@ export async function getUncachableGoogleCalendarClient() {
  * console.log('Primary calendar:', primary.summary);
  */
 export async function listCalendars() {
-  const calendar = await getUncachableGoogleCalendarClient();
-  
-  const response = await calendar.calendarList.list();
-  
-  return response.data.items || [];
+  try {
+    const calendar = await getUncachableGoogleCalendarClient();
+    
+    const response = await calendar.calendarList.list();
+    
+    return response.data.items || [];
+  } catch (error: any) {
+    console.error('[GoogleCalendar] listCalendars error:', error);
+    return {
+      success: false,
+      error: error.message || 'Failed to list calendars',
+      statusCode: error.status,
+      operation: 'listCalendars',
+      params: {}
+    };
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -143,21 +154,32 @@ export async function listCalendars() {
  * );
  */
 export async function listEvents(calendarId = 'primary', timeMin?: string, timeMax?: string, maxResults = 20) {
-  const calendar = await getUncachableGoogleCalendarClient();
-  
-  // Default timeMin to current time if not specified
-  const now = new Date().toISOString();
-  
-  const response = await calendar.events.list({
-    calendarId,
-    timeMin: timeMin || now,     // Start time (default: now)
-    timeMax,                      // End time (optional)
-    maxResults,
-    singleEvents: true,           // Expand recurring events into instances
-    orderBy: 'startTime'          // Sort by start time
-  });
-  
-  return response.data.items || [];
+  try {
+    const calendar = await getUncachableGoogleCalendarClient();
+    
+    // Default timeMin to current time if not specified
+    const now = new Date().toISOString();
+    
+    const response = await calendar.events.list({
+      calendarId,
+      timeMin: timeMin || now,     // Start time (default: now)
+      timeMax,                      // End time (optional)
+      maxResults,
+      singleEvents: true,           // Expand recurring events into instances
+      orderBy: 'startTime'          // Sort by start time
+    });
+    
+    return response.data.items || [];
+  } catch (error: any) {
+    console.error('[GoogleCalendar] listEvents error:', error);
+    return {
+      success: false,
+      error: error.message || 'Failed to list events',
+      statusCode: error.status,
+      operation: 'listEvents',
+      params: { calendarId, timeMin, timeMax, maxResults }
+    };
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -180,14 +202,25 @@ export async function listEvents(calendarId = 'primary', timeMin?: string, timeM
  * console.log(event.summary, event.start);
  */
 export async function getEvent(calendarId: string, eventId: string) {
-  const calendar = await getUncachableGoogleCalendarClient();
-  
-  const response = await calendar.events.get({
-    calendarId,
-    eventId
-  });
-  
-  return response.data;
+  try {
+    const calendar = await getUncachableGoogleCalendarClient();
+    
+    const response = await calendar.events.get({
+      calendarId,
+      eventId
+    });
+    
+    return response.data;
+  } catch (error: any) {
+    console.error('[GoogleCalendar] getEvent error:', error);
+    return {
+      success: false,
+      error: error.message || 'Failed to get event',
+      statusCode: error.status,
+      operation: 'getEvent',
+      params: { calendarId, eventId }
+    };
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -244,20 +277,31 @@ export async function createEvent(
   description?: string,
   location?: string
 ) {
-  const calendar = await getUncachableGoogleCalendarClient();
-  
-  const response = await calendar.events.insert({
-    calendarId,
-    requestBody: {
-      summary,       // Event title
-      description,   // Detailed description
-      location,      // Where the event takes place
-      start,         // Start time object
-      end            // End time object
-    }
-  });
-  
-  return response.data;
+  try {
+    const calendar = await getUncachableGoogleCalendarClient();
+    
+    const response = await calendar.events.insert({
+      calendarId,
+      requestBody: {
+        summary,       // Event title
+        description,   // Detailed description
+        location,      // Where the event takes place
+        start,         // Start time object
+        end            // End time object
+      }
+    });
+    
+    return response.data;
+  } catch (error: any) {
+    console.error('[GoogleCalendar] createEvent error:', error);
+    return {
+      success: false,
+      error: error.message || 'Failed to create event',
+      statusCode: error.status,
+      operation: 'createEvent',
+      params: { calendarId, summary, start, end }
+    };
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -299,16 +343,27 @@ export async function updateEvent(
     end?: { dateTime?: string; date?: string; timeZone?: string };
   }
 ) {
-  const calendar = await getUncachableGoogleCalendarClient();
-  
-  // Use patch for partial updates (only updates provided fields)
-  const response = await calendar.events.patch({
-    calendarId,
-    eventId,
-    requestBody: updates
-  });
-  
-  return response.data;
+  try {
+    const calendar = await getUncachableGoogleCalendarClient();
+    
+    // Use patch for partial updates (only updates provided fields)
+    const response = await calendar.events.patch({
+      calendarId,
+      eventId,
+      requestBody: updates
+    });
+    
+    return response.data;
+  } catch (error: any) {
+    console.error('[GoogleCalendar] updateEvent error:', error);
+    return {
+      success: false,
+      error: error.message || 'Failed to update event',
+      statusCode: error.status,
+      operation: 'updateEvent',
+      params: { calendarId, eventId }
+    };
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -332,13 +387,24 @@ export async function updateEvent(
  * // result = { success: true }
  */
 export async function deleteEvent(calendarId: string, eventId: string) {
-  const calendar = await getUncachableGoogleCalendarClient();
-  
-  // Delete operation returns no content on success
-  await calendar.events.delete({
-    calendarId,
-    eventId
-  });
-  
-  return { success: true };
+  try {
+    const calendar = await getUncachableGoogleCalendarClient();
+    
+    // Delete operation returns no content on success
+    await calendar.events.delete({
+      calendarId,
+      eventId
+    });
+    
+    return { success: true };
+  } catch (error: any) {
+    console.error('[GoogleCalendar] deleteEvent error:', error);
+    return {
+      success: false,
+      error: error.message || 'Failed to delete event',
+      statusCode: error.status,
+      operation: 'deleteEvent',
+      params: { calendarId, eventId }
+    };
+  }
 }
