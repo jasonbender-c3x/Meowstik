@@ -21,6 +21,7 @@ import { embeddingService } from "./embedding-service";
 import { getVectorStore, type VectorStoreAdapter, type VectorDocument } from "./vector-store";
 import { ragDebugBuffer } from "./rag-debug-buffer";
 import type { DocumentChunk, Attachment } from "@shared/schema";
+import { GUEST_USER_ID } from "@shared/schema";
 
 export interface IngestResult {
   documentId: string;
@@ -199,11 +200,18 @@ export class RAGService {
    * This method now uses the modular vector store for efficient semantic search.
    * The vector store uses optimized algorithms (IVFFlat, HNSW, etc.) instead
    * of brute-force comparison of all chunks.
+   * 
+   * DATA ISOLATION:
+   * ---------------
+   * If userId is provided, only chunks belonging to that user will be retrieved.
+   * Guest users (userId = null) only retrieve from the guest bucket.
+   * This ensures proper data segregation and privacy.
    */
   async retrieve(
     query: string,
     topK: number = 20,      // Increased from 5 for better recall
-    threshold: number = 0.25  // Lowered from 0.5 for better recall
+    threshold: number = 0.25,  // Lowered from 0.5 for better recall
+    userId?: string | null  // New parameter for data isolation
   ): Promise<RetrievalResult> {
     const traceId = ragDebugBuffer.generateTraceId();
     const startTime = Date.now();
@@ -221,10 +229,18 @@ export class RAGService {
       // Use vector store for efficient similarity search
       const vectorStore = await this.ensureInitialized();
       
+      // Build metadata filter for data isolation
+      const filter: Record<string, unknown> = {};
+      if (userId !== undefined) {
+        // Filter by exact userId (authenticated user or guest)
+        filter.userId = userId || GUEST_USER_ID;
+      }
+      
       const searchStartTime = Date.now();
       const searchResults = await vectorStore.search(queryEmbedding.embedding, {
         topK,
         threshold,
+        filter, // Apply userId filter for data isolation
       });
       const searchDuration = Date.now() - searchStartTime;
 
@@ -232,11 +248,10 @@ export class RAGService {
       const searchScores = searchResults.map(r => r.score);
       ragDebugBuffer.logSearch(traceId, query, searchResults.length, threshold, topK, searchScores, searchDuration);
 
-      // If vector store returns no results, try legacy fallback
-      // This handles cases where vector store index is sparse or threshold is high
+      // If vector store returns no results, try legacy fallback with same filter
       if (searchResults.length === 0) {
         console.log("[RAG] Vector store returned no results, trying legacy fallback");
-        return this.retrieveLegacy(query, topK, threshold);
+        return this.retrieveLegacy(query, topK, threshold, userId);
       }
 
       // Fetch full chunk data from PostgreSQL using the IDs from vector store
@@ -271,24 +286,38 @@ export class RAGService {
     } catch (error) {
       console.error("Retrieval error:", error);
       ragDebugBuffer.logError(traceId, "query_start", error instanceof Error ? error.message : "Unknown error");
-      // Fallback to legacy method if vector store fails
-      return this.retrieveLegacy(query, topK, threshold);
+      // Fallback to legacy method if vector store fails (with userId filter)
+      return this.retrieveLegacy(query, topK, threshold, userId);
     }
   }
 
   /**
    * Legacy retrieval method (loads all chunks - less efficient)
    * Used as fallback if vector store is unavailable
+   * 
+   * DATA ISOLATION:
+   * ---------------
+   * Filters chunks by userId if provided for data segregation.
    */
   private async retrieveLegacy(
     query: string,
     topK: number = 5,
-    threshold: number = 0.5
+    threshold: number = 0.5,
+    userId?: string | null
   ): Promise<RetrievalResult> {
     try {
       const queryEmbedding = await embeddingService.embed(query);
 
-      const allChunks = await storage.getAllDocumentChunks();
+      let allChunks = await storage.getAllDocumentChunks();
+      
+      // Apply userId filter for data isolation
+      if (userId !== undefined) {
+        const targetUserId = userId || GUEST_USER_ID;
+        allChunks = allChunks.filter((chunk) => {
+          const metadata = chunk.metadata as { userId?: string } | null;
+          return metadata?.userId === targetUserId;
+        });
+      }
 
       if (allChunks.length === 0) {
         return { chunks: [], scores: [] };
@@ -339,8 +368,8 @@ export class RAGService {
   /**
    * Build RAG context from retrieved chunks
    */
-  async buildContext(query: string, topK: number = 5): Promise<RAGContext> {
-    const { chunks, scores } = await this.retrieve(query, topK);
+  async buildContext(query: string, topK: number = 5, userId?: string | null): Promise<RAGContext> {
+    const { chunks, scores } = await this.retrieve(query, topK, 0.25, userId);
 
     const relevantChunks = chunks.map((c, i) => {
       const meta = c.metadata as { filename?: string } | null;
@@ -439,7 +468,7 @@ Use this context to provide accurate, grounded responses. Cite sources when appr
    * Ingest a conversation message for RAG recall
    * This allows the AI to remember important facts from earlier in conversations
    * 
-   * @param userId - Optional user ID for authenticated users. Guest messages use "guest" bucket.
+   * @param userId - Optional user ID for authenticated users. Guest messages use GUEST_USER_ID bucket.
    */
   async ingestMessage(
     content: string,
@@ -494,7 +523,7 @@ Use this context to provide accurate, grounded responses. Cite sources when appr
           role,
           timestamp: timestamp?.toISOString() || new Date().toISOString(),
           type: "conversation",
-          userId: userId || "guest",
+          userId: userId || GUEST_USER_ID,
           isVerified: !!userId,
           source: "conversation",
         };
@@ -544,7 +573,7 @@ Use this context to provide accurate, grounded responses. Cite sources when appr
    *                 If null/undefined, retrieves only guest bucket data.
    */
   async buildConversationContext(query: string, chatId?: string, topK: number = 5, userId?: string | null): Promise<RAGContext> {
-    const { chunks, scores } = await this.retrieve(query, topK * 2, 0.4);
+    const { chunks, scores } = await this.retrieve(query, topK * 2, 0.4, userId);
 
     // Pair chunks with their scores and filter to conversation chunks from the same chat
     const pairedChunks = chunks.map((chunk, index) => ({
@@ -561,8 +590,8 @@ Use this context to provide accurate, grounded responses. Cite sources when appr
       // Data isolation: only return chunks belonging to the same user
       // Authenticated users only see their own verified data
       // Guests only see guest bucket data (and only from same chat)
-      const chunkUserId = meta?.userId || "guest";
-      const requestUserId = userId || "guest";
+      const chunkUserId = meta?.userId || GUEST_USER_ID;
+      const requestUserId = userId || GUEST_USER_ID;
       const isSameUser = chunkUserId === requestUserId;
       
       return isConversation && isSameChat && isSameUser;

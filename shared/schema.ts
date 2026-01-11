@@ -44,6 +44,16 @@ import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
 // =============================================================================
+// CONSTANTS
+// =============================================================================
+
+/**
+ * Identifier for guest (unauthenticated) users
+ * Used consistently across the codebase for guest data isolation
+ */
+export const GUEST_USER_ID = "guest";
+
+// =============================================================================
 // REPLIT AUTH TABLES
 // (IMPORTANT) These tables are mandatory for Replit Auth, don't drop them.
 // =============================================================================
@@ -115,6 +125,30 @@ export const chats = pgTable("chats", {
    * Cannot be null - every chat must have a title
    */
   title: text("title").notNull(),
+  
+  /**
+   * User ID - Foreign key reference to users table
+   * NULL for guest (unauthenticated) conversations
+   * Used for data isolation and user-specific chat history
+   * 
+   * CLEANUP STRATEGY:
+   * Guest chats (userId = null) should be periodically cleaned up to prevent
+   * database bloat. Recommended approach:
+   * - Implement a cron job to delete guest chats older than 7 days
+   * - Cascade delete will automatically remove associated messages and chunks
+   * - No orphaned records since guest chats don't reference users table
+   */
+  userId: varchar("user_id").references(() => users.id, { onDelete: "cascade" }),
+  
+  /**
+   * Guest flag - Indicates if this is a guest conversation
+   * Guest conversations:
+   * - Are isolated in a separate "guest bucket"
+   * - Have access to limited, safe tools only
+   * - Should be periodically cleaned up (see userId documentation)
+   * - Use GUEST_USER_ID constant for identification
+   */
+  isGuest: boolean("is_guest").default(false).notNull(),
   
   /**
    * Timestamp when this chat was first created

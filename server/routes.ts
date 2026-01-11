@@ -87,6 +87,7 @@ import { insertChatSchema, insertMessageSchema } from "@shared/schema";
  */
 import { GoogleGenAI, FunctionCallingConfigMode, type FunctionCall } from "@google/genai";
 import { geminiFunctionDeclarations } from "./gemini-tools";
+import { getToolDeclarations } from "./gemini-tools-guest";
 
 /**
  * Prompt Composer for building system prompts from modular components.
@@ -140,12 +141,19 @@ export async function registerRoutes(
   httpServer: Server,
   app: Express,
 ): Promise<Server> {
-  // ══════════════════════════════════}��══════════════════════════════════════
+  // ══════════════════════════════════════════════════════════════════════════
   // REPLIT AUTH SETUP
   // Sets up session management and OAuth flow with Replit as the identity provider
   // ═════════════════════════════════════════════════════════════════════════
   const { setupAuth, isAuthenticated } = await import("./replitAuth");
   await setupAuth(app);
+  
+  // Import authentication status middleware
+  const { checkAuthStatus } = await import("./routes/middleware");
+  
+  // Apply authentication check to all routes (non-blocking)
+  // This determines auth status but doesn't block guest access
+  app.use(checkAuthStatus);
 
   // Auth user endpoint - returns the current user's profile
   app.get("/api/auth/user", isAuthenticated, async (req: any, res) => {
@@ -181,6 +189,8 @@ export async function registerRoutes(
    * Response: Created Chat object
    * - id: string (UUID)
    * - title: string
+   * - userId: string | null (null for guest users)
+   * - isGuest: boolean
    * - createdAt: timestamp
    * - updatedAt: timestamp
    *
@@ -190,12 +200,24 @@ export async function registerRoutes(
    */
   app.post("/api/chats", async (req, res) => {
     try {
+      // Get auth status from middleware
+      const authStatus = (req as any).authStatus;
+      
       // Validate request body against Zod schema
       // This ensures type safety and proper data structure
-      const validatedData = insertChatSchema.parse(req.body);
+      const validatedData = insertChatSchema.parse({
+        ...req.body,
+        userId: authStatus.userId, // null for guests
+        isGuest: authStatus.isGuest, // true for guests
+      });
 
       // Create chat in database via storage layer
       const chat = await storage.createChat(validatedData);
+      
+      // Log chat creation with auth status
+      console.log(
+        `[Chat Created] ${chat.id} - User: ${authStatus.userId || "GUEST"} - Guest: ${authStatus.isGuest}`
+      );
 
       // Return created chat as JSON response
       res.json(chat);
@@ -388,6 +410,10 @@ export async function registerRoutes(
   app.post("/api/chats/:id/messages", async (req, res) => {
     const startTime = Date.now();
     try {
+      // Get auth status from middleware for consistent user identification
+      const authStatus = (req as any).authStatus;
+      const userId = authStatus.userId; // Use authStatus instead of direct req.user access
+      
       // ─────────────────────────────────────────────────────────────────────
       // STEP 1: Validate and save user's message
       // ─────────────────────────────────────────────────────────────────────
@@ -405,7 +431,6 @@ export async function registerRoutes(
 
       // Ingest user message for RAG recall (async, don't block)
       // Pass userId for data isolation - guests use "guest" bucket
-      const userId = (req as any).user?.claims?.sub || null;
       ragService
         .ingestMessage(
           userMessage.content,
@@ -651,12 +676,24 @@ The user has voice output enabled. You MUST use the \`say\` tool to speak your r
       console.log(userMsgText.slice(0, 500) + (userMsgText.length > 500 ? "..." : ""));
       console.log(`${"=".repeat(60)}\n`);
 
+      // Get auth status from middleware
+      const authStatus = (req as any).authStatus;
+      
+      // Select appropriate tool set based on authentication
+      const toolDeclarations = getToolDeclarations(authStatus.isAuthenticated);
+      
+      console.log(
+        `[Routes] Auth Status: ${authStatus.isAuthenticated ? "AUTHENTICATED" : "GUEST"} - ` +
+        `Tools Available: ${toolDeclarations.length}`
+      );
+
       const result = await genAI.models.generateContentStream({
         model: modelMode,
         config: {
           systemInstruction: modifiedPrompt.systemPrompt,
-          // Enable native function calling with all available tools
-          tools: [{ functionDeclarations: geminiFunctionDeclarations }],
+          // Enable native function calling with appropriate tool set
+          // Authenticated users get full tools, guests get limited safe tools
+          tools: [{ functionDeclarations: toolDeclarations }],
           toolConfig: {
             functionCallingConfig: {
               // ANY mode forces the model to always call at least one function
@@ -930,7 +967,8 @@ The user has voice output enabled. You MUST use the \`say\` tool to speak your r
             model: modelMode,
             config: {
               systemInstruction: modifiedPrompt.systemPrompt,
-              tools: [{ functionDeclarations: geminiFunctionDeclarations }],
+              // Use same tool set as initial call (respects auth status)
+              tools: [{ functionDeclarations: toolDeclarations }],
               toolConfig: {
                 functionCallingConfig: {
                   mode: FunctionCallingConfigMode.ANY,
