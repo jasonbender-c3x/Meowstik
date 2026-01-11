@@ -1255,7 +1255,7 @@ export default function DebugPage() {
                                           <p className="text-xs text-red-400 mb-2">{result.error}</p>
                                         )}
                                         {result.result !== undefined && result.result !== null && (
-                                          <pre className="text-xs font-mono text-muted-foreground whitespace-pre-wrap max-h-[150px] overflow-y-auto">
+                                          <pre className="text-xs font-mono text-muted-foreground whitespace-pre-wrap break-all max-h-[150px] overflow-y-auto">
                                             {String(typeof result.result === 'string' ? result.result : JSON.stringify(result.result, null, 2))}
                                           </pre>
                                         )}
