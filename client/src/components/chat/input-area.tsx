@@ -50,7 +50,7 @@ import { Textarea } from "@/components/ui/textarea";
  * - Monitor: Screen capture button
  * - X: Remove attachment button
  */
-import { Mic, MicOff, Image, Send, Paperclip, Sparkles, Monitor, X, Camera } from "lucide-react";
+import { Mic, MicOff, Image, Send, Paperclip, Sparkles, Monitor, X, Camera, Square } from "lucide-react";
 
 /**
  * Voice hook for speech-to-text functionality
@@ -161,11 +161,13 @@ interface Attachment {
  * @property {(message: string, attachments: Attachment[]) => void} onSend - Callback when user sends a message
  * @property {boolean} isLoading - Whether AI is processing (disables input)
  * @property {string[]} promptHistory - Array of previous user prompts for up-arrow navigation
+ * @property {() => void} onStop - Callback to stop/cancel the current AI request
  */
 interface InputAreaProps {
   onSend: (message: string, attachments: Attachment[]) => void;
   isLoading: boolean;
   promptHistory?: string[];
+  onStop?: () => void;
 }
 
 // ============================================================================
@@ -198,7 +200,7 @@ interface InputAreaProps {
  *   isLoading={isWaitingForAI}
  * />
  */
-export function ChatInputArea({ onSend, isLoading, promptHistory = [] }: InputAreaProps) {
+export function ChatInputArea({ onSend, isLoading, promptHistory = [], onStop }: InputAreaProps) {
   // ===========================================================================
   // STATE & REFS
   // ===========================================================================
@@ -925,30 +927,38 @@ export function ChatInputArea({ onSend, isLoading, promptHistory = [] }: InputAr
               </Button>
 
               {/* 
-               * Send Button
+               * Send/Stop Button
                * Changes appearance based on:
+               * - Loading: Red stop button to cancel request
                * - No content: Muted/disabled style
                * - Has content: Primary color with shadow
-               * - Loading: Shows animated sparkles icon
                */}
-              <Button 
-                onClick={handleSend}
-                disabled={!hasContent || isLoading}
-                size="icon"
-                className={cn(
-                    "h-9 w-9 rounded-full transition-all duration-300",
-                    hasContent 
-                    ? "bg-primary text-primary-foreground shadow-lg shadow-primary/25 hover:bg-primary/90" 
-                    : "bg-muted text-muted-foreground"
-                )}
-                data-testid="button-send"
-              >
-                {isLoading ? (
-                    <Sparkles className="h-5 w-5 animate-pulse" />
-                ) : (
-                    <Send className="h-4 w-4 ml-0.5" />
-                )}
-              </Button>
+              {isLoading && onStop ? (
+                <Button 
+                  onClick={onStop}
+                  size="icon"
+                  className="h-9 w-9 rounded-full bg-red-500 text-white hover:bg-red-600 shadow-lg shadow-red-500/25 transition-all duration-300"
+                  data-testid="button-stop"
+                  title="Stop generation"
+                >
+                  <Square className="h-4 w-4 fill-current" />
+                </Button>
+              ) : (
+                <Button 
+                  onClick={handleSend}
+                  disabled={!hasContent || isLoading}
+                  size="icon"
+                  className={cn(
+                      "h-9 w-9 rounded-full transition-all duration-300",
+                      hasContent 
+                      ? "bg-primary text-primary-foreground shadow-lg shadow-primary/25 hover:bg-primary/90" 
+                      : "bg-muted text-muted-foreground"
+                  )}
+                  data-testid="button-send"
+                >
+                  <Send className="h-4 w-4 ml-0.5" />
+                </Button>
+              )}
             </div>
         </div>
       </div>

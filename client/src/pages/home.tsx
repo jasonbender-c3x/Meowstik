@@ -169,6 +169,12 @@ export default function Home() {
   const [isLoading, setIsLoading] = useState(false);
 
   /**
+   * AbortController reference for canceling in-flight requests
+   * Used by the stop button to cancel AI generation
+   */
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+  /**
    * All chat sessions for sidebar display
    * Loaded on mount and updated when chats are created
    */
@@ -488,10 +494,15 @@ export default function Home() {
       const storedSettings = localStorage.getItem('meowstic-settings');
       const modelMode = storedSettings ? JSON.parse(storedSettings).model : 'pro';
       
+      // Create AbortController for this request
+      const abortController = new AbortController();
+      abortControllerRef.current = abortController;
+      
       const response = await fetch(`/api/chats/${chatId}/messages`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include', // Ensure cookies are sent with request
+        signal: abortController.signal, // Allow aborting the request
         body: JSON.stringify({ 
           content,
           model: modelMode, // "pro" or "flash"
@@ -834,9 +845,16 @@ export default function Home() {
           }
         }
       }
-    } catch (error) {
-      console.error('[handleSendMessage] Failed to send message:', error);
+    } catch (error: any) {
+      // Handle abort errors gracefully (user clicked stop)
+      if (error.name === 'AbortError') {
+        console.log('[handleSendMessage] Request aborted by user');
+        // Keep any partial response that was received
+      } else {
+        console.error('[handleSendMessage] Failed to send message:', error);
+      }
       setIsLoading(false);
+      abortControllerRef.current = null;
     } finally {
       // Ensure loading state is always cleared after a reasonable timeout
       // This prevents the UI from getting stuck if something goes wrong
@@ -849,6 +867,19 @@ export default function Home() {
           return current;
         });
       }, 60000); // 60 second safety timeout
+    }
+  };
+
+  /**
+   * Stop the current AI generation
+   * Aborts the in-flight request and clears loading state
+   */
+  const handleStopGeneration = () => {
+    console.log('[handleStopGeneration] Stop button clicked');
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+      setIsLoading(false);
     }
   };
 
@@ -1191,6 +1222,7 @@ export default function Home() {
             onSend={handleSendMessage} 
             isLoading={isLoading}
             promptHistory={messages.filter(m => m.role === 'user').map(m => m.content)}
+            onStop={handleStopGeneration}
           />
         </div>
       </div>
