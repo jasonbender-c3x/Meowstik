@@ -50,7 +50,7 @@ import { Textarea } from "@/components/ui/textarea";
  * - Monitor: Screen capture button
  * - X: Remove attachment button
  */
-import { Mic, MicOff, Image, Send, Paperclip, Sparkles, Monitor, X, Camera, Square } from "lucide-react";
+import { Mic, MicOff, Image, Send, Paperclip, Sparkles, Monitor, X, Camera, PawPrint } from "lucide-react";
 
 /**
  * Voice hook for speech-to-text functionality
@@ -937,11 +937,11 @@ export function ChatInputArea({ onSend, isLoading, promptHistory = [], onStop }:
                 <Button 
                   onClick={onStop}
                   size="icon"
-                  className="h-9 w-9 rounded-full bg-red-500 text-white hover:bg-red-600 shadow-lg shadow-red-500/25 transition-all duration-300"
+                  className="h-9 w-9 rounded-full bg-red-500 text-white hover:bg-red-600 shadow-lg shadow-red-500/25 transition-all duration-300 animate-pulse"
                   data-testid="button-stop"
                   title="Stop generation"
                 >
-                  <Square className="h-4 w-4 fill-current" />
+                  <PawPrint className="h-4 w-4" />
                 </Button>
               ) : (
                 <Button 
