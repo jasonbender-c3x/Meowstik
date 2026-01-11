@@ -13,6 +13,7 @@
  * This creates a secure sandbox for guest interactions.
  */
 import type { FunctionDeclaration } from "@google/genai";
+import { geminiFunctionDeclarations } from "./gemini-tools";
 
 export const guestToolDeclarations: FunctionDeclaration[] = [
   // ═══════════════════════════════════════════════════════════════════════════
@@ -171,8 +172,7 @@ export const guestToolDeclarations: FunctionDeclaration[] = [
  */
 export function getToolDeclarations(isAuthenticated: boolean): FunctionDeclaration[] {
   if (isAuthenticated) {
-    // Import and return full tool set for authenticated users
-    const { geminiFunctionDeclarations } = require("./gemini-tools");
+    // Return full tool set for authenticated users
     return geminiFunctionDeclarations;
   } else {
     // Return limited guest tool set

@@ -410,6 +410,10 @@ export async function registerRoutes(
   app.post("/api/chats/:id/messages", async (req, res) => {
     const startTime = Date.now();
     try {
+      // Get auth status from middleware for consistent user identification
+      const authStatus = (req as any).authStatus;
+      const userId = authStatus.userId; // Use authStatus instead of direct req.user access
+      
       // ─────────────────────────────────────────────────────────────────────
       // STEP 1: Validate and save user's message
       // ─────────────────────────────────────────────────────────────────────
@@ -427,7 +431,6 @@ export async function registerRoutes(
 
       // Ingest user message for RAG recall (async, don't block)
       // Pass userId for data isolation - guests use "guest" bucket
-      const userId = (req as any).user?.claims?.sub || null;
       ragService
         .ingestMessage(
           userMessage.content,

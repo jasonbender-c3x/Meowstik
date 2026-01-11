@@ -367,8 +367,8 @@ export class RAGService {
   /**
    * Build RAG context from retrieved chunks
    */
-  async buildContext(query: string, topK: number = 5): Promise<RAGContext> {
-    const { chunks, scores } = await this.retrieve(query, topK);
+  async buildContext(query: string, topK: number = 5, userId?: string | null): Promise<RAGContext> {
+    const { chunks, scores } = await this.retrieve(query, topK, 0.25, userId);
 
     const relevantChunks = chunks.map((c, i) => {
       const meta = c.metadata as { filename?: string } | null;
@@ -572,7 +572,7 @@ Use this context to provide accurate, grounded responses. Cite sources when appr
    *                 If null/undefined, retrieves only guest bucket data.
    */
   async buildConversationContext(query: string, chatId?: string, topK: number = 5, userId?: string | null): Promise<RAGContext> {
-    const { chunks, scores } = await this.retrieve(query, topK * 2, 0.4);
+    const { chunks, scores } = await this.retrieve(query, topK * 2, 0.4, userId);
 
     // Pair chunks with their scores and filter to conversation chunks from the same chat
     const pairedChunks = chunks.map((chunk, index) => ({
