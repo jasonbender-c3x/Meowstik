@@ -55,7 +55,7 @@ router.get('/google/callback', async (req: Request, res: Response) => {
     if (!userId) {
       // Fallback to legacy flow for backward compatibility
       await handleCallback(code);
-      return res.redirect('/?auth=success');
+      return res.redirect('/settings?auth=success');
     }
     
     // Per-user flow
@@ -64,10 +64,10 @@ router.get('/google/callback', async (req: Request, res: Response) => {
     // Clear session data
     delete (req.session as any).oauthUserId;
     
-    res.redirect('/?auth=success');
+    res.redirect('/settings?auth=success');
   } catch (error: any) {
     console.error('OAuth callback error:', error);
-    res.redirect('/?auth=error');
+    res.redirect('/settings?auth=error');
   }
 });
 

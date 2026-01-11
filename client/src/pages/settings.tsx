@@ -74,7 +74,8 @@ export default function SettingsPage() {
   });
 
   const handleConnectGoogle = () => {
-    window.open('/api/auth/google', '_blank');
+    // Redirect in the same window to maintain session
+    window.location.href = '/api/auth/google';
   };
 
   const handleDisconnectGoogle = () => {
@@ -90,7 +91,21 @@ export default function SettingsPage() {
         console.error('Failed to parse settings:', e);
       }
     }
-  }, []);
+    
+    // Check for OAuth callback status
+    const urlParams = new URLSearchParams(window.location.search);
+    const authStatus = urlParams.get('auth');
+    if (authStatus === 'success') {
+      // Refresh auth status query
+      queryClient.invalidateQueries({ queryKey: ['/api/auth/google/status'] });
+      // Clean up URL
+      window.history.replaceState({}, '', '/settings');
+    } else if (authStatus === 'error') {
+      console.error('OAuth authentication failed');
+      // Clean up URL
+      window.history.replaceState({}, '', '/settings');
+    }
+  }, [queryClient]);
 
   const updateSetting = <K extends keyof AppSettings>(key: K, value: AppSettings[K]) => {
     const newSettings = { ...settings, [key]: value };
