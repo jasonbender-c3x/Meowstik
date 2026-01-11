@@ -676,10 +676,7 @@ The user has voice output enabled. You MUST use the \`say\` tool to speak your r
       console.log(userMsgText.slice(0, 500) + (userMsgText.length > 500 ? "..." : ""));
       console.log(`${"=".repeat(60)}\n`);
 
-      // Get auth status from middleware
-      const authStatus = (req as any).authStatus;
-      
-      // Select appropriate tool set based on authentication
+      // Select appropriate tool set based on authentication (authStatus already declared above)
       const toolDeclarations = getToolDeclarations(authStatus.isAuthenticated);
       
       console.log(
