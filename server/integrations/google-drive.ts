@@ -107,20 +107,31 @@ export async function getUncachableGoogleDriveClient() {
  * @see https://developers.google.com/drive/api/v3/search-files
  */
 export async function listDriveFiles(query?: string, pageSize = 20) {
-  // Get authenticated Drive client
-  const drive = await getUncachableGoogleDriveClient();
-  
-  // Execute files.list API call
-  const response = await drive.files.list({
-    pageSize,  // Limit number of results
-    // Specify which fields to return (reduces response size)
-    fields: 'nextPageToken, files(id, name, mimeType, modifiedTime, size, webViewLink, iconLink)',
-    q: query || undefined,  // Optional query filter
-    orderBy: 'modifiedTime desc'  // Sort by most recently modified
-  });
-  
-  // Return files array or empty array if none found
-  return response.data.files || [];
+  try {
+    // Get authenticated Drive client
+    const drive = await getUncachableGoogleDriveClient();
+    
+    // Execute files.list API call
+    const response = await drive.files.list({
+      pageSize,  // Limit number of results
+      // Specify which fields to return (reduces response size)
+      fields: 'nextPageToken, files(id, name, mimeType, modifiedTime, size, webViewLink, iconLink)',
+      q: query || undefined,  // Optional query filter
+      orderBy: 'modifiedTime desc'  // Sort by most recently modified
+    });
+    
+    // Return files array or empty array if none found
+    return response.data.files || [];
+  } catch (error: any) {
+    console.error('[GoogleDrive] listDriveFiles error:', error);
+    return {
+      success: false,
+      error: error.message || 'Failed to list Drive files',
+      statusCode: error.status,
+      operation: 'listDriveFiles',
+      params: { query, pageSize }
+    };
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -150,15 +161,26 @@ export async function listDriveFiles(query?: string, pageSize = 20) {
  * console.log(file.name, file.mimeType);
  */
 export async function getDriveFile(fileId: string) {
-  const drive = await getUncachableGoogleDriveClient();
-  
-  const response = await drive.files.get({
-    fileId,
-    // Specify which metadata fields to return
-    fields: 'id, name, mimeType, modifiedTime, size, webViewLink, iconLink, description'
-  });
-  
-  return response.data;
+  try {
+    const drive = await getUncachableGoogleDriveClient();
+    
+    const response = await drive.files.get({
+      fileId,
+      // Specify which metadata fields to return
+      fields: 'id, name, mimeType, modifiedTime, size, webViewLink, iconLink, description'
+    });
+    
+    return response.data;
+  } catch (error: any) {
+    console.error('[GoogleDrive] getDriveFile error:', error);
+    return {
+      success: false,
+      error: error.message || 'Failed to get Drive file',
+      statusCode: error.status,
+      operation: 'getDriveFile',
+      params: { fileId }
+    };
+  }
 }
 
 /**
@@ -180,14 +202,25 @@ export async function getDriveFile(fileId: string) {
  * console.log(content); // File text content
  */
 export async function getDriveFileContent(fileId: string) {
-  const drive = await getUncachableGoogleDriveClient();
-  
-  const response = await drive.files.get({
-    fileId,
-    alt: 'media'  // Download content instead of metadata
-  }, { responseType: 'text' });  // Parse response as text
-  
-  return response.data;
+  try {
+    const drive = await getUncachableGoogleDriveClient();
+    
+    const response = await drive.files.get({
+      fileId,
+      alt: 'media'  // Download content instead of metadata
+    }, { responseType: 'text' });  // Parse response as text
+    
+    return response.data;
+  } catch (error: any) {
+    console.error('[GoogleDrive] getDriveFileContent error:', error);
+    return {
+      success: false,
+      error: error.message || 'Failed to get Drive file content',
+      statusCode: error.status,
+      operation: 'getDriveFileContent',
+      params: { fileId }
+    };
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -225,24 +258,35 @@ export async function getDriveFileContent(fileId: string) {
  * );
  */
 export async function createDriveFile(name: string, content: string, mimeType: string = 'text/plain') {
-  const drive = await getUncachableGoogleDriveClient();
-  
-  const response = await drive.files.create({
-    // File metadata
-    requestBody: {
-      name,
-      mimeType
-    },
-    // File content
-    media: {
-      mimeType,
-      body: content
-    },
-    // Fields to return in response
-    fields: 'id, name, mimeType, webViewLink'
-  });
-  
-  return response.data;
+  try {
+    const drive = await getUncachableGoogleDriveClient();
+    
+    const response = await drive.files.create({
+      // File metadata
+      requestBody: {
+        name,
+        mimeType
+      },
+      // File content
+      media: {
+        mimeType,
+        body: content
+      },
+      // Fields to return in response
+      fields: 'id, name, mimeType, webViewLink'
+    });
+    
+    return response.data;
+  } catch (error: any) {
+    console.error('[GoogleDrive] createDriveFile error:', error);
+    return {
+      success: false,
+      error: error.message || 'Failed to create Drive file',
+      statusCode: error.status,
+      operation: 'createDriveFile',
+      params: { name, mimeType }
+    };
+  }
 }
 
 /**
@@ -263,20 +307,31 @@ export async function createDriveFile(name: string, content: string, mimeType: s
  * console.log('Updated at:', updated.modifiedTime);
  */
 export async function updateDriveFile(fileId: string, content: string, mimeType: string = 'text/plain') {
-  const drive = await getUncachableGoogleDriveClient();
-  
-  const response = await drive.files.update({
-    fileId,
-    // New file content
-    media: {
-      mimeType,
-      body: content
-    },
-    // Fields to return in response
-    fields: 'id, name, mimeType, modifiedTime, webViewLink'
-  });
-  
-  return response.data;
+  try {
+    const drive = await getUncachableGoogleDriveClient();
+    
+    const response = await drive.files.update({
+      fileId,
+      // New file content
+      media: {
+        mimeType,
+        body: content
+      },
+      // Fields to return in response
+      fields: 'id, name, mimeType, modifiedTime, webViewLink'
+    });
+    
+    return response.data;
+  } catch (error: any) {
+    console.error('[GoogleDrive] updateDriveFile error:', error);
+    return {
+      success: false,
+      error: error.message || 'Failed to update Drive file',
+      statusCode: error.status,
+      operation: 'updateDriveFile',
+      params: { fileId, mimeType }
+    };
+  }
 }
 
 /**
@@ -295,12 +350,23 @@ export async function updateDriveFile(fileId: string, content: string, mimeType:
  * // result = { success: true }
  */
 export async function deleteDriveFile(fileId: string) {
-  const drive = await getUncachableGoogleDriveClient();
-  
-  // Delete operation returns no content on success
-  await drive.files.delete({ fileId });
-  
-  return { success: true };
+  try {
+    const drive = await getUncachableGoogleDriveClient();
+    
+    // Delete operation returns no content on success
+    await drive.files.delete({ fileId });
+    
+    return { success: true };
+  } catch (error: any) {
+    console.error('[GoogleDrive] deleteDriveFile error:', error);
+    return {
+      success: false,
+      error: error.message || 'Failed to delete Drive file',
+      statusCode: error.status,
+      operation: 'deleteDriveFile',
+      params: { fileId }
+    };
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -326,11 +392,22 @@ export async function deleteDriveFile(fileId: string) {
  * // Returns files with 'project' in name or content
  */
 export async function searchDriveFiles(searchTerm: string) {
-  // Build query using Drive query syntax
-  // 'name contains' searches file names
-  // 'fullText contains' searches file content
-  const query = `name contains '${searchTerm}' or fullText contains '${searchTerm}'`;
-  
-  // Delegate to listDriveFiles with the constructed query
-  return listDriveFiles(query);
+  try {
+    // Build query using Drive query syntax
+    // 'name contains' searches file names
+    // 'fullText contains' searches file content
+    const query = `name contains '${searchTerm}' or fullText contains '${searchTerm}'`;
+    
+    // Delegate to listDriveFiles with the constructed query
+    return listDriveFiles(query);
+  } catch (error: any) {
+    console.error('[GoogleDrive] searchDriveFiles error:', error);
+    return {
+      success: false,
+      error: error.message || 'Failed to search Drive files',
+      statusCode: error.status,
+      operation: 'searchDriveFiles',
+      params: { searchTerm }
+    };
+  }
 }

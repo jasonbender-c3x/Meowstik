@@ -118,13 +118,24 @@ async function getDriveClient() {
  * console.log('Sheets:', spreadsheet.sheets?.map(s => s.properties?.title));
  */
 export async function getSpreadsheet(spreadsheetId: string) {
-  const sheets = await getUncachableGoogleSheetsClient();
-  
-  const response = await sheets.spreadsheets.get({
-    spreadsheetId
-  });
-  
-  return response.data;
+  try {
+    const sheets = await getUncachableGoogleSheetsClient();
+    
+    const response = await sheets.spreadsheets.get({
+      spreadsheetId
+    });
+    
+    return response.data;
+  } catch (error: any) {
+    console.error('[GoogleSheets] getSpreadsheet error:', error);
+    return {
+      success: false,
+      error: error.message || 'Failed to get spreadsheet',
+      statusCode: error.status,
+      operation: 'getSpreadsheet',
+      params: { spreadsheetId }
+    };
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -151,15 +162,26 @@ export async function getSpreadsheet(spreadsheetId: string) {
  * // ]
  */
 export async function getSheetValues(spreadsheetId: string, range: string) {
-  const sheets = await getUncachableGoogleSheetsClient();
-  
-  const response = await sheets.spreadsheets.values.get({
-    spreadsheetId,
-    range
-  });
-  
-  // Return values array or empty array if no data
-  return response.data.values || [];
+  try {
+    const sheets = await getUncachableGoogleSheetsClient();
+    
+    const response = await sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range
+    });
+    
+    // Return values array or empty array if no data
+    return response.data.values || [];
+  } catch (error: any) {
+    console.error('[GoogleSheets] getSheetValues error:', error);
+    return {
+      success: false,
+      error: error.message || 'Failed to get sheet values',
+      statusCode: error.status,
+      operation: 'getSheetValues',
+      params: { spreadsheetId, range }
+    };
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -193,18 +215,29 @@ export async function updateSheetValues(
   range: string,
   values: any[][]
 ) {
-  const sheets = await getUncachableGoogleSheetsClient();
-  
-  const response = await sheets.spreadsheets.values.update({
-    spreadsheetId,
-    range,
-    valueInputOption: 'USER_ENTERED',  // Parse values like user input
-    requestBody: {
-      values
-    }
-  });
-  
-  return response.data;
+  try {
+    const sheets = await getUncachableGoogleSheetsClient();
+    
+    const response = await sheets.spreadsheets.values.update({
+      spreadsheetId,
+      range,
+      valueInputOption: 'USER_ENTERED',  // Parse values like user input
+      requestBody: {
+        values
+      }
+    });
+    
+    return response.data;
+  } catch (error: any) {
+    console.error('[GoogleSheets] updateSheetValues error:', error);
+    return {
+      success: false,
+      error: error.message || 'Failed to update sheet values',
+      statusCode: error.status,
+      operation: 'updateSheetValues',
+      params: { spreadsheetId, range }
+    };
+  }
 }
 
 /**
@@ -235,19 +268,30 @@ export async function appendSheetValues(
   range: string,
   values: any[][]
 ) {
-  const sheets = await getUncachableGoogleSheetsClient();
-  
-  const response = await sheets.spreadsheets.values.append({
-    spreadsheetId,
-    range,
-    valueInputOption: 'USER_ENTERED',  // Parse values like user input
-    insertDataOption: 'INSERT_ROWS',   // Insert new rows (don't overwrite)
-    requestBody: {
-      values
-    }
-  });
-  
-  return response.data;
+  try {
+    const sheets = await getUncachableGoogleSheetsClient();
+    
+    const response = await sheets.spreadsheets.values.append({
+      spreadsheetId,
+      range,
+      valueInputOption: 'USER_ENTERED',  // Parse values like user input
+      insertDataOption: 'INSERT_ROWS',   // Insert new rows (don't overwrite)
+      requestBody: {
+        values
+      }
+    });
+    
+    return response.data;
+  } catch (error: any) {
+    console.error('[GoogleSheets] appendSheetValues error:', error);
+    return {
+      success: false,
+      error: error.message || 'Failed to append sheet values',
+      statusCode: error.status,
+      operation: 'appendSheetValues',
+      params: { spreadsheetId, range }
+    };
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -276,21 +320,32 @@ export async function appendSheetValues(
  * ]);
  */
 export async function createSpreadsheet(title: string, sheetTitles?: string[]) {
-  const sheets = await getUncachableGoogleSheetsClient();
-  
-  // Build sheets array from provided titles or default to Sheet1
-  const sheetsList = sheetTitles?.map(title => ({
-    properties: { title }
-  })) || [{ properties: { title: 'Sheet1' } }];
-  
-  const response = await sheets.spreadsheets.create({
-    requestBody: {
-      properties: { title },  // Spreadsheet title
-      sheets: sheetsList      // Initial sheets
-    }
-  });
-  
-  return response.data;
+  try {
+    const sheets = await getUncachableGoogleSheetsClient();
+    
+    // Build sheets array from provided titles or default to Sheet1
+    const sheetsList = sheetTitles?.map(title => ({
+      properties: { title }
+    })) || [{ properties: { title: 'Sheet1' } }];
+    
+    const response = await sheets.spreadsheets.create({
+      requestBody: {
+        properties: { title },  // Spreadsheet title
+        sheets: sheetsList      // Initial sheets
+      }
+    });
+    
+    return response.data;
+  } catch (error: any) {
+    console.error('[GoogleSheets] createSpreadsheet error:', error);
+    return {
+      success: false,
+      error: error.message || 'Failed to create spreadsheet',
+      statusCode: error.status,
+      operation: 'createSpreadsheet',
+      params: { title, sheetTitles }
+    };
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -318,21 +373,32 @@ export async function createSpreadsheet(title: string, sheetTitles?: string[]) {
  * spreadsheets.forEach(s => console.log(s.name, s.webViewLink));
  */
 export async function listSpreadsheets() {
-  // Use Drive API to list files filtered by MIME type
-  const drive = await getDriveClient();
-  
-  const response = await drive.files.list({
-    // Filter to only Google Sheets spreadsheets
-    q: "mimeType='application/vnd.google-apps.spreadsheet'",
-    // Specify which fields to return
-    fields: 'files(id, name, modifiedTime, webViewLink)',
-    // Sort by most recently modified
-    orderBy: 'modifiedTime desc',
-    // Limit results
-    pageSize: 20
-  });
-  
-  return response.data.files || [];
+  try {
+    // Use Drive API to list files filtered by MIME type
+    const drive = await getDriveClient();
+    
+    const response = await drive.files.list({
+      // Filter to only Google Sheets spreadsheets
+      q: "mimeType='application/vnd.google-apps.spreadsheet'",
+      // Specify which fields to return
+      fields: 'files(id, name, modifiedTime, webViewLink)',
+      // Sort by most recently modified
+      orderBy: 'modifiedTime desc',
+      // Limit results
+      pageSize: 20
+    });
+    
+    return response.data.files || [];
+  } catch (error: any) {
+    console.error('[GoogleSheets] listSpreadsheets error:', error);
+    return {
+      success: false,
+      error: error.message || 'Failed to list spreadsheets',
+      statusCode: error.status,
+      operation: 'listSpreadsheets',
+      params: {}
+    };
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -355,12 +421,23 @@ export async function listSpreadsheets() {
  * await clearSheetRange('1abc123', 'Sheet1!A2:D100');
  */
 export async function clearSheetRange(spreadsheetId: string, range: string) {
-  const sheets = await getUncachableGoogleSheetsClient();
-  
-  const response = await sheets.spreadsheets.values.clear({
-    spreadsheetId,
-    range
-  });
-  
-  return response.data;
+  try {
+    const sheets = await getUncachableGoogleSheetsClient();
+    
+    const response = await sheets.spreadsheets.values.clear({
+      spreadsheetId,
+      range
+    });
+    
+    return response.data;
+  } catch (error: any) {
+    console.error('[GoogleSheets] clearSheetRange error:', error);
+    return {
+      success: false,
+      error: error.message || 'Failed to clear sheet range',
+      statusCode: error.status,
+      operation: 'clearSheetRange',
+      params: { spreadsheetId, range }
+    };
+  }
 }
