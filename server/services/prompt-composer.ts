@@ -17,7 +17,9 @@
  * - prompts/core-directives.md - Fundamental behavior rules
  * - prompts/personality.md - Character and communication style
  * - prompts/tools.md - Tool definitions and implementation
- * - w/short-term-memory.md - User-defined, dynamic instructions
+ * - logs/Short_Term_Memory.md - Persistent user-defined memory
+ * - logs/cache.md - Thoughts forward from last turn (auto-loaded)
+ * - logs/STM_APPEND.md - Append content (auto-processed and deleted)
  *
  * INPUT SOURCES:
  * - User typed text
@@ -96,6 +98,7 @@ export class PromptComposer {
   private personality: string = "";
   private tools: string = "";
   private shortTermMemory: string = "";
+  private cache: string = "";
   private promptsLoaded: boolean = false;
 
   constructor() {
@@ -110,7 +113,7 @@ export class PromptComposer {
     if (this.promptsLoaded) return;
 
     const promptsDir = path.join(process.cwd(), "prompts");
-    const workspaceDir = path.join(process.cwd()); // Assuming workspace is root
+    const logsDir = path.join(process.cwd(), "logs");
 
     try {
       this.coreDirectives = fs.readFileSync(
@@ -142,55 +145,108 @@ export class PromptComposer {
       this.tools = this.getFallbackTools();
     }
 
+    // Process STM_APPEND.md -> append to Short_Term_Memory.md
+    this.processSTMAppend(logsDir);
+
+    // Load Short_Term_Memory.md (the main memory file)
     try {
       this.shortTermMemory = fs.readFileSync(
-        path.join(workspaceDir, "w", "short-term-memory.md"),
+        path.join(logsDir, "Short_Term_Memory.md"),
         "utf-8"
       );
     } catch (error) {
-      console.warn("Could not load w/short-term-memory.md. This is expected if the file hasn't been created yet.");
+      console.warn("Could not load logs/Short_Term_Memory.md. This is expected if the file hasn't been created yet.");
       this.shortTermMemory = "# Short-Term Memory\n\n*(No instructions)*";
     }
 
+    // Load cache.md (thoughts forward from last turn)
+    try {
+      this.cache = fs.readFileSync(
+        path.join(logsDir, "cache.md"),
+        "utf-8"
+      );
+    } catch (error) {
+      console.warn("Could not load logs/cache.md. This is expected for the first turn.");
+      this.cache = "";
+    }
 
     this.promptsLoaded = true;
+  }
+
+  /**
+   * Process STM_APPEND.md - append its contents to Short_Term_Memory.md and delete it
+   */
+  private processSTMAppend(logsDir: string): void {
+    const stmAppendPath = path.join(logsDir, "STM_APPEND.md");
+    const stmPath = path.join(logsDir, "Short_Term_Memory.md");
+    
+    try {
+      // Check if STM_APPEND.md exists
+      if (!fs.existsSync(stmAppendPath)) {
+        return; // Nothing to process
+      }
+
+      const appendContent = fs.readFileSync(stmAppendPath, "utf-8");
+      
+      if (appendContent.trim()) {
+        // Read existing Short_Term_Memory.md or create default
+        let existingContent = "# Short-Term Memory\n";
+        try {
+          existingContent = fs.readFileSync(stmPath, "utf-8");
+        } catch (e) {
+          // File doesn't exist, use default
+        }
+
+        // Append content with timestamp
+        const timestamp = new Date().toISOString();
+        const newContent = `${existingContent}\n\n---\n**${timestamp}**\n${appendContent}`;
+        
+        // Write back to Short_Term_Memory.md
+        fs.writeFileSync(stmPath, newContent, "utf-8");
+        console.log("[PromptComposer] Appended STM_APPEND.md to Short_Term_Memory.md");
+      }
+
+      // Delete STM_APPEND.md after processing
+      fs.unlinkSync(stmAppendPath);
+      console.log("[PromptComposer] Deleted STM_APPEND.md after processing");
+
+    } catch (error) {
+      console.warn("[PromptComposer] Error processing STM_APPEND.md:", error);
+    }
   }
   
   private getFinalInstructions(): string {
     return `
 # FINAL INSTRUCTIONS (NON-NEGOTIABLE)
 
-Before you call 'send_chat' to end your turn, you MUST perform the following two actions in this specific order:
+Before you call 'send_chat' to end your turn, you MUST perform the following actions:
 
-1.  **Create Execution Log (\`log-append.md\`)**:
-    *   **Action**: Create a markdown file named \`log-append.md\` in the \`w/\` directory.
-    *   **Content**: The file must contain a log of the tools you executed in this turn. Include the tool name, parameters, and a brief summary of the result. This is for auditing and recall.
-    *   **Schema**:
-        \`\`\`markdown
-        ### Turn Execution Log
-
-        - **Tool**: \`tool_name\`
-        - **Parameters**: \`{...}\`
-        - **Result**: "Summary of what happened."
-
-        - **Tool**: \`another_tool\`
-        - **Parameters**: \`{...}\`
-        - **Result**: "Summary..."
+1.  **Append Execution Log**:
+    *   **Action**: Use the \`log_append\` tool with \`name: "execution"\`
+    *   **Content**: Log the tools you executed in this turn. Include tool name, parameters, and result summary.
+    *   **Example**:
+        \`\`\`
+        log_append({ name: "execution", content: "### Turn Log\\n- **Tool**: gmail_search\\n- **Result**: Found 5 emails from Nick" })
         \`\`\`
 
-2.  **Create Thoughts Forward Cache (\`cache.md\`)**:
-    *   **Action**: Create a markdown file named \`cache.md\` in the \`w/\` directory.
-    *   **Content**: This file is your internal monologue and plan for the future. Reflect on the user's request, your actions, and what you anticipate needing in the *next* turn. This is your "thoughts forward" file to maintain context across interactions.
+2.  **Update Thoughts Forward Cache**:
+    *   **Action**: Use the \`file_put\` tool to write \`logs/cache.md\`
+    *   **Content**: Your internal monologue and plan for future turns. This file is automatically loaded into your context on the next turn.
     *   **Schema**:
         \`\`\`markdown
         ### Thought & Cache
 
-        **Reflection**: A brief analysis of my performance and the user's intent in this turn.
-        **Next Step**: My primary goal for the next interaction with the user.
-        **Anticipated Needs**: What information or tools I might need next.
+        **Reflection**: Brief analysis of this turn's performance and user intent.
+        **Next Step**: Primary goal for the next interaction.
+        **Anticipated Needs**: Information or tools you might need next.
         \`\`\`
 
-These two file creation steps are mandatory before sending your response.
+3.  **Update Short-Term Memory (Optional)**:
+    *   **Action**: Use the \`file_put\` tool to write \`logs/STM_APPEND.md\` when you need to remember something important across sessions.
+    *   **Content**: Important facts, user preferences, or ongoing task state that should persist.
+    *   **Note**: This content will be automatically appended to \`Short_Term_Memory.md\` on the next turn.
+
+These steps are mandatory before sending your response via send_chat.
 `;
   }
 
@@ -198,18 +254,26 @@ These two file creation steps are mandatory before sending your response.
    * Assembles and returns the complete system prompt.
    */
   public getSystemPrompt(): string {
-    // Reload prompts every time to catch dynamic changes to the memory file
+    // Reload prompts every time to catch dynamic changes to memory files
+    this.promptsLoaded = false;
     this.loadPrompts();
 
-    const finalSystemPrompt = [
+    const components: string[] = [
       this.coreDirectives,
       this.personality,
       this.tools,
-      this.shortTermMemory, // Append our dynamic short-term memory
-      this.getFinalInstructions() // Append the mandatory final instructions
-    ].join("\\n\\n---\\n\\n");
+      this.shortTermMemory, // Persistent user-defined memory
+    ];
 
-    return finalSystemPrompt;
+    // Include cache from last turn if available
+    if (this.cache.trim()) {
+      components.push(`# Thoughts Forward (from last turn)\n\n${this.cache}`);
+    }
+
+    // Append mandatory final instructions
+    components.push(this.getFinalInstructions());
+
+    return components.join("\n\n---\n\n");
   }
 
 

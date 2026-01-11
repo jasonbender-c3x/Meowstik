@@ -352,6 +352,9 @@ export class RAGDispatcher {
         case "file_put":
           result = await this.executeFilePut(toolCall);
           break;
+        case "log_append":
+          result = await this.executeLogAppend(toolCall);
+          break;
         case "tasks_list":
           result = await this.executeTasksList(toolCall);
           break;
@@ -1589,6 +1592,56 @@ export class RAGDispatcher {
         destination: 'server',
         success: false,
         error: `Failed to write file: ${error.message || String(error)}`
+      };
+    }
+  }
+
+  /**
+   * Log Append Tool - Append content to a named log file in ~/workspace/logs/
+   */
+  private async executeLogAppend(toolCall: ToolCall): Promise<unknown> {
+    const params = toolCall.parameters as { 
+      name: string; 
+      content: string;
+    };
+    
+    if (!params.name || typeof params.name !== 'string') {
+      throw new Error('log_append requires a name parameter');
+    }
+    if (!params.content && params.content !== '') {
+      throw new Error('log_append requires a content parameter');
+    }
+
+    // Sanitize log name to prevent path traversal
+    const sanitizedName = params.name.replace(/[^a-zA-Z0-9_-]/g, '_');
+    const logPath = path.join(this.workspaceDir, 'logs', `${sanitizedName}.md`);
+    
+    try {
+      // Ensure logs directory exists
+      await fs.mkdir(path.dirname(logPath), { recursive: true });
+      
+      // Append content with timestamp
+      const timestamp = new Date().toISOString();
+      const entry = `\n---\n**${timestamp}**\n${params.content}\n`;
+      
+      await fs.appendFile(logPath, entry, 'utf8');
+      
+      console.log(`[RAGDispatcher] Appended to log: ${logPath}`);
+      
+      return {
+        type: 'log_append',
+        name: sanitizedName,
+        path: logPath,
+        success: true,
+        message: `Content appended to log: ${sanitizedName}.md`
+      };
+    } catch (error: any) {
+      return {
+        type: 'log_append',
+        name: sanitizedName,
+        path: logPath,
+        success: false,
+        error: `Failed to append to log: ${error.message || String(error)}`
       };
     }
   }

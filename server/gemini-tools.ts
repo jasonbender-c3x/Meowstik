@@ -72,6 +72,18 @@ export const geminiFunctionDeclarations: FunctionDeclaration[] = [
       required: ["path", "content"]
     }
   },
+  {
+    name: "log_append",
+    description: "Append content to a named log file in ~/workspace/logs/. Creates the log if it doesn't exist.",
+    parametersJsonSchema: {
+      type: "object",
+      properties: {
+        name: { type: "string", description: "Log name (e.g., 'execution', 'thoughts'). Will be saved as {name}.md" },
+        content: { type: "string", description: "Content to append to the log" }
+      },
+      required: ["name", "content"]
+    }
+  },
 
   // ═══════════════════════════════════════════════════════════════════════════
   // GMAIL
