@@ -96,7 +96,8 @@ export async function listUserRepos(perPage = 30, page = 1, sort: 'created' | 'u
       success: false,
       error: error.message || 'Failed to list user repositories',
       statusCode: error.status,
-      operation: 'listUserRepos'
+      operation: 'listUserRepos',
+      params: { perPage, page, sort }
     };
   }
 }
@@ -268,6 +269,7 @@ export async function getFileContent(owner: string, repo: string, path: string, 
       return {
         success: false,
         error: `Path "${path}" is a directory, not a file`,
+        statusCode: undefined,
         operation: 'getFileContent',
         params: { owner, repo, path, ref }
       };
@@ -277,6 +279,7 @@ export async function getFileContent(owner: string, repo: string, path: string, 
       return {
         success: false,
         error: `Cannot read content of "${path}"`,
+        statusCode: undefined,
         operation: 'getFileContent',
         params: { owner, repo, path, ref }
       };
