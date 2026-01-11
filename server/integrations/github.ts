@@ -776,7 +776,7 @@ export async function deleteBranch(owner: string, repo: string, branchName: stri
   }
 }
 
-export async function getDefaultBranch(owner: string, repo: string) {
+export async function getDefaultBranch(owner: string, repo: string): Promise<string | { success: false; error: string; statusCode?: number; operation: string; params: any }> {
   try {
     const octokit = await getUncachableGitHubClient();
     const { data } = await octokit.repos.get({ owner, repo });
@@ -849,6 +849,8 @@ export async function createOrUpdateFile(
           existingSha = data.sha;
         }
       } catch (e: any) {
+        // 404 errors are expected when checking if a file exists before creating it
+        // We can safely ignore them and proceed with file creation
         if (e.status !== 404) {
           console.error('[GitHub] createOrUpdateFile getContent error:', e);
           return {
