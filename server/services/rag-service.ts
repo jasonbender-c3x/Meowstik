@@ -21,6 +21,7 @@ import { embeddingService } from "./embedding-service";
 import { getVectorStore, type VectorStoreAdapter, type VectorDocument } from "./vector-store";
 import { ragDebugBuffer } from "./rag-debug-buffer";
 import type { DocumentChunk, Attachment } from "@shared/schema";
+import { GUEST_USER_ID } from "@shared/schema";
 
 export interface IngestResult {
   documentId: string;
@@ -232,7 +233,7 @@ export class RAGService {
       const filter: Record<string, unknown> = {};
       if (userId !== undefined) {
         // Filter by exact userId (authenticated user or guest)
-        filter.userId = userId || "guest";
+        filter.userId = userId || GUEST_USER_ID;
       }
       
       const searchStartTime = Date.now();
@@ -311,7 +312,7 @@ export class RAGService {
       
       // Apply userId filter for data isolation
       if (userId !== undefined) {
-        const targetUserId = userId || "guest";
+        const targetUserId = userId || GUEST_USER_ID;
         allChunks = allChunks.filter((chunk) => {
           const metadata = chunk.metadata as { userId?: string } | null;
           return metadata?.userId === targetUserId;
@@ -467,7 +468,7 @@ Use this context to provide accurate, grounded responses. Cite sources when appr
    * Ingest a conversation message for RAG recall
    * This allows the AI to remember important facts from earlier in conversations
    * 
-   * @param userId - Optional user ID for authenticated users. Guest messages use "guest" bucket.
+   * @param userId - Optional user ID for authenticated users. Guest messages use GUEST_USER_ID bucket.
    */
   async ingestMessage(
     content: string,
@@ -522,7 +523,7 @@ Use this context to provide accurate, grounded responses. Cite sources when appr
           role,
           timestamp: timestamp?.toISOString() || new Date().toISOString(),
           type: "conversation",
-          userId: userId || "guest",
+          userId: userId || GUEST_USER_ID,
           isVerified: !!userId,
           source: "conversation",
         };
@@ -589,8 +590,8 @@ Use this context to provide accurate, grounded responses. Cite sources when appr
       // Data isolation: only return chunks belonging to the same user
       // Authenticated users only see their own verified data
       // Guests only see guest bucket data (and only from same chat)
-      const chunkUserId = meta?.userId || "guest";
-      const requestUserId = userId || "guest";
+      const chunkUserId = meta?.userId || GUEST_USER_ID;
+      const requestUserId = userId || GUEST_USER_ID;
       const isSameUser = chunkUserId === requestUserId;
       
       return isConversation && isSameChat && isSameUser;
