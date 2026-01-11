@@ -49,7 +49,7 @@
  * Provides access to all Google API services including Gmail.
  */
 import { google } from 'googleapis';
-import { getAuthenticatedClient } from './google-auth';
+import { getAuthenticatedClient, getUserOAuth2Client } from './google-auth';
 
 // ═══════════════════════════════════════════════════════════════════════════
 // SECTION: CLIENT FACTORY
@@ -62,9 +62,23 @@ import { getAuthenticatedClient } from './google-auth';
  * @async
  * @returns {Promise<gmail_v1.Gmail>} Authenticated Gmail API client
  * @throws {Error} If not authenticated with Google
+ * @deprecated Use getGmailClientForUser instead for per-user authentication
  */
 export async function getUncachableGmailClient() {
   const auth = await getAuthenticatedClient();
+  return google.gmail({ version: 'v1', auth });
+}
+
+/**
+ * Creates a Gmail API client for a specific user.
+ * 
+ * @async
+ * @param {string} userId - The user ID to create the client for
+ * @returns {Promise<gmail_v1.Gmail>} Authenticated Gmail API client
+ * @throws {Error} If user not authenticated with Google
+ */
+export async function getGmailClientForUser(userId: string) {
+  const auth = await getUserOAuth2Client(userId);
   return google.gmail({ version: 'v1', auth });
 }
 

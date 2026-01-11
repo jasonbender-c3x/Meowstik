@@ -1,6 +1,6 @@
 /**
  * Custom Google OAuth2 Authentication
- * Uses user's own Google Cloud credentials with database persistence
+ * Supports per-user OAuth tokens for true multi-user functionality
  */
 
 import { google, Auth } from 'googleapis';
@@ -21,10 +21,15 @@ const SCOPES = [
   'https://www.googleapis.com/auth/cloud-platform',
 ];
 
+// Legacy singleton tokens (deprecated - for backward compatibility)
 let cachedTokens: Auth.Credentials | null = null;
 let oauth2Client: Auth.OAuth2Client | null = null;
 let initialized = false;
 let initializationPromise: Promise<void> | null = null;
+
+// Per-user token cache
+const userTokenCache = new Map<string, Auth.Credentials>();
+const userOAuth2Clients = new Map<string, Auth.OAuth2Client>();
 
 function getRedirectUri(): string {
   if (process.env.GOOGLE_REDIRECT_URI) {
@@ -223,6 +228,139 @@ export async function revokeAccess(): Promise<void> {
   initializationPromise = null;
   await storage.deleteGoogleTokens();
   console.log('Revoked Google access and cleared tokens');
+}
+
+// =============================================================================
+// PER-USER OAUTH OPERATIONS
+// =============================================================================
+
+/**
+ * Get OAuth2 client for a specific user
+ * @param userId - The user ID to get the client for
+ */
+export async function getUserOAuth2Client(userId: string): Promise<Auth.OAuth2Client> {
+  // Check cache first
+  if (userOAuth2Clients.has(userId)) {
+    const client = userOAuth2Clients.get(userId)!;
+    // Refresh tokens if needed
+    await refreshUserTokensIfNeeded(userId, client);
+    return client;
+  }
+  
+  // Load from database
+  const tokens = await storage.getUserGoogleTokens(userId);
+  if (!tokens || !tokens.accessToken) {
+    throw new Error('User not authenticated with Google. Please authorize first.');
+  }
+  
+  const client = createOAuth2Client();
+  const credentials: Auth.Credentials = {
+    access_token: tokens.accessToken,
+    refresh_token: tokens.refreshToken || undefined,
+    expiry_date: tokens.expiryDate || undefined,
+    token_type: tokens.tokenType || undefined,
+    scope: tokens.scope || undefined,
+  };
+  
+  client.setCredentials(credentials);
+  
+  // Cache the client and tokens
+  userOAuth2Clients.set(userId, client);
+  userTokenCache.set(userId, credentials);
+  
+  return client;
+}
+
+/**
+ * Handle OAuth callback for a specific user
+ * @param userId - The user ID to associate tokens with
+ * @param code - The authorization code from Google
+ */
+export async function handleUserCallback(userId: string, code: string): Promise<Auth.Credentials> {
+  const client = createOAuth2Client();
+  const { tokens } = await client.getToken(code);
+  client.setCredentials(tokens);
+  
+  // Save to database
+  await storage.saveUserGoogleTokens(userId, {
+    accessToken: tokens.access_token || null,
+    refreshToken: tokens.refresh_token || null,
+    expiryDate: tokens.expiry_date || null,
+    tokenType: tokens.token_type || null,
+    scope: tokens.scope || null,
+  });
+  
+  // Cache
+  userOAuth2Clients.set(userId, client);
+  userTokenCache.set(userId, tokens);
+  
+  console.log(`Saved Google OAuth tokens for user ${userId}`);
+  return tokens;
+}
+
+/**
+ * Check if a user is authenticated with Google
+ * @param userId - The user ID to check
+ */
+export async function isUserAuthenticated(userId: string): Promise<boolean> {
+  const tokens = await storage.getUserGoogleTokens(userId);
+  return tokens !== null && tokens.accessToken !== null;
+}
+
+/**
+ * Refresh tokens for a specific user if needed
+ * @param userId - The user ID
+ * @param client - The OAuth2 client
+ */
+async function refreshUserTokensIfNeeded(userId: string, client: Auth.OAuth2Client): Promise<void> {
+  const credentials = client.credentials;
+  if (!credentials) return;
+  
+  const expiryDate = credentials.expiry_date;
+  if (expiryDate && expiryDate < Date.now() + 60000) {
+    const previousRefreshToken = credentials.refresh_token;
+    try {
+      const { credentials: newCredentials } = await client.refreshAccessToken();
+      
+      // Preserve refresh token if not returned
+      if (!newCredentials.refresh_token && previousRefreshToken) {
+        newCredentials.refresh_token = previousRefreshToken;
+      }
+      
+      client.setCredentials(newCredentials);
+      
+      // Update database
+      await storage.saveUserGoogleTokens(userId, {
+        accessToken: newCredentials.access_token || null,
+        refreshToken: newCredentials.refresh_token || null,
+        expiryDate: newCredentials.expiry_date || null,
+        tokenType: newCredentials.token_type || null,
+        scope: newCredentials.scope || null,
+      });
+      
+      // Update cache
+      userTokenCache.set(userId, newCredentials);
+      
+      console.log(`Refreshed Google OAuth tokens for user ${userId}`);
+    } catch (error) {
+      console.error(`Failed to refresh tokens for user ${userId}:`, error);
+      // Clear cache on error
+      userOAuth2Clients.delete(userId);
+      userTokenCache.delete(userId);
+      throw error;
+    }
+  }
+}
+
+/**
+ * Revoke Google access for a specific user
+ * @param userId - The user ID
+ */
+export async function revokeUserAccess(userId: string): Promise<void> {
+  await storage.deleteUserGoogleTokens(userId);
+  userOAuth2Clients.delete(userId);
+  userTokenCache.delete(userId);
+  console.log(`Revoked Google access for user ${userId}`);
 }
 
 export { SCOPES };

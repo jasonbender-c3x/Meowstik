@@ -263,9 +263,15 @@ export interface IStorage {
   // GOOGLE OAUTH TOKEN OPERATIONS
   // =========================================================================
   
+  // Legacy global token operations (deprecated)
   saveGoogleTokens(tokens: InsertGoogleOAuthTokens): Promise<GoogleOAuthTokens>;
   getGoogleTokens(): Promise<GoogleOAuthTokens | undefined>;
   deleteGoogleTokens(): Promise<void>;
+  
+  // Per-user token operations
+  saveUserGoogleTokens(userId: string, tokens: { accessToken: string | null, refreshToken: string | null, expiryDate: number | null, tokenType: string | null, scope: string | null }): Promise<User>;
+  getUserGoogleTokens(userId: string): Promise<{ accessToken: string | null, refreshToken: string | null, expiryDate: number | null, tokenType: string | null, scope: string | null } | null>;
+  deleteUserGoogleTokens(userId: string): Promise<void>;
 
   // =========================================================================
   // DEBUG OPERATIONS
@@ -938,6 +944,79 @@ export class DrizzleStorage implements IStorage {
 
   async deleteGoogleTokens(): Promise<void> {
     await this.getDb().delete(googleOAuthTokens).where(eq(googleOAuthTokens.id, "default"));
+  }
+
+  // Per-user token operations
+  async saveUserGoogleTokens(userId: string, tokens: { 
+    accessToken: string | null, 
+    refreshToken: string | null, 
+    expiryDate: number | null, 
+    tokenType: string | null, 
+    scope: string | null 
+  }): Promise<User> {
+    const [updatedUser] = await this.getDb()
+      .update(users)
+      .set({
+        googleAccessToken: tokens.accessToken,
+        googleRefreshToken: tokens.refreshToken,
+        googleExpiryDate: tokens.expiryDate,
+        googleTokenType: tokens.tokenType,
+        googleScope: tokens.scope,
+        updatedAt: new Date(),
+      })
+      .where(eq(users.id, userId))
+      .returning();
+    
+    if (!updatedUser) {
+      throw new Error(`User ${userId} not found`);
+    }
+    
+    return updatedUser;
+  }
+
+  async getUserGoogleTokens(userId: string): Promise<{ 
+    accessToken: string | null, 
+    refreshToken: string | null, 
+    expiryDate: number | null, 
+    tokenType: string | null, 
+    scope: string | null 
+  } | null> {
+    const [user] = await this.getDb()
+      .select({
+        googleAccessToken: users.googleAccessToken,
+        googleRefreshToken: users.googleRefreshToken,
+        googleExpiryDate: users.googleExpiryDate,
+        googleTokenType: users.googleTokenType,
+        googleScope: users.googleScope,
+      })
+      .from(users)
+      .where(eq(users.id, userId));
+    
+    if (!user) {
+      return null;
+    }
+    
+    return {
+      accessToken: user.googleAccessToken,
+      refreshToken: user.googleRefreshToken,
+      expiryDate: user.googleExpiryDate,
+      tokenType: user.googleTokenType,
+      scope: user.googleScope,
+    };
+  }
+
+  async deleteUserGoogleTokens(userId: string): Promise<void> {
+    await this.getDb()
+      .update(users)
+      .set({
+        googleAccessToken: null,
+        googleRefreshToken: null,
+        googleExpiryDate: null,
+        googleTokenType: null,
+        googleScope: null,
+        updatedAt: new Date(),
+      })
+      .where(eq(users.id, userId));
   }
 
   // =========================================================================

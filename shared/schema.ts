@@ -82,6 +82,12 @@ export const users = pgTable("users", {
   firstName: varchar("first_name"),
   lastName: varchar("last_name"),
   profileImageUrl: varchar("profile_image_url"),
+  // Google OAuth 2.0 tokens (per-user)
+  googleAccessToken: text("google_access_token"),
+  googleRefreshToken: text("google_refresh_token"),
+  googleExpiryDate: bigint("google_expiry_date", { mode: "number" }),
+  googleTokenType: text("google_token_type"),
+  googleScope: text("google_scope"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
