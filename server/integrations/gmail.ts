@@ -96,20 +96,21 @@ export async function getGmailClientForUser(userId: string) {
  * The emails are enriched with header information for display.
  * 
  * @async
+ * @param {string} userId - The user ID to fetch emails for (required for per-user auth)
  * @param {number} [maxResults=20] - Maximum number of emails to return
  * @param {string[]} [labelIds=['INBOX']] - Labels to filter by
  * @returns {Promise<Object[]>} Array of email summary objects
  * 
  * @example
- * // List 20 recent inbox emails
- * const emails = await listEmails();
+ * // List 20 recent inbox emails for a specific user
+ * const emails = await listEmails(userId);
  * 
  * @example
  * // List 50 emails from SENT folder
- * const sent = await listEmails(50, ['SENT']);
+ * const sent = await listEmails(userId, 50, ['SENT']);
  */
-export async function listEmails(maxResults = 20, labelIds = ['INBOX']) {
-  const gmail = await getUncachableGmailClient();
+export async function listEmails(userId: string, maxResults = 20, labelIds = ['INBOX']) {
+  const gmail = await getGmailClientForUser(userId);
   
   // Step 1: Get list of message IDs
   const response = await gmail.users.messages.list({
@@ -181,8 +182,8 @@ export async function listEmails(maxResults = 20, labelIds = ['INBOX']) {
  * const email = await getEmail('18abc123def');
  * console.log(email.subject, email.body);
  */
-export async function getEmail(messageId: string) {
-  const gmail = await getUncachableGmailClient();
+export async function getEmail(userId: string, messageId: string) {
+  const gmail = await getGmailClientForUser(userId);
   
   // Fetch full message content
   const response = await gmail.users.messages.get({
@@ -268,8 +269,8 @@ export async function getEmail(messageId: string) {
  *   '<h1>Welcome!</h1><p>This is a test email.</p>'
  * );
  */
-export async function sendEmail(to: string, subject: string, body: string) {
-  const gmail = await getUncachableGmailClient();
+export async function sendEmail(userId: string, to: string, subject: string, body: string) {
+  const gmail = await getGmailClientForUser(userId);
   
   // ─────────────────────────────────────────────────────────────────────────
   // Construct RFC 2822 format email message
@@ -321,8 +322,8 @@ export async function sendEmail(to: string, subject: string, body: string) {
  * const labels = await getLabels();
  * labels.forEach(label => console.log(label.name));
  */
-export async function getLabels() {
-  const gmail = await getUncachableGmailClient();
+export async function getLabels(userId: string) {
+  const gmail = await getGmailClientForUser(userId);
   
   const response = await gmail.users.labels.list({
     userId: 'me'
@@ -362,8 +363,8 @@ export async function getLabels() {
  * 
  * @see https://support.google.com/mail/answer/7190
  */
-export async function searchEmails(query: string, maxResults = 20) {
-  const gmail = await getUncachableGmailClient();
+export async function searchEmails(userId: string, query: string, maxResults = 20) {
+  const gmail = await getGmailClientForUser(userId);
   
   // Search for messages matching the query
   const response = await gmail.users.messages.list({

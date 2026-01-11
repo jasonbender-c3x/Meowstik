@@ -194,3 +194,31 @@ export const checkAuthStatus: RequestHandler = (req: Request, _res: Response, ne
   
   next();
 };
+
+/**
+ * Get User ID Helper
+ * 
+ * Extracts the authenticated user's ID from the request.
+ * Returns null if user is not authenticated.
+ */
+export function getUserId(req: Request): string | null {
+  const user = req.user as any;
+  return user?.claims?.sub || null;
+}
+
+/**
+ * Require Authentication Middleware
+ * 
+ * Blocks requests if user is not authenticated.
+ * Use this for endpoints that require user authentication.
+ */
+export const requireAuth: RequestHandler = (req: Request, res: Response, next: NextFunction) => {
+  const userId = getUserId(req);
+  
+  if (!userId) {
+    res.status(401).json({ error: 'Authentication required. Please log in.' });
+    return;
+  }
+  
+  next();
+};
