@@ -19,6 +19,8 @@ Welcome to the Ragent (AI Agent) documentation. This index provides comprehensiv
 
 ### Core Systems
 - [RAG Pipeline](../RAG_PIPELINE.md) - Retrieval-Augmented Generation for context-aware responses
+- [RAG Analysis & Improvements](./RAG-ANALYSIS.md) - Critical analysis and proposed fixes for memory system
+- [Chain of Thought Proposal](./CHAIN_OF_THOUGHT_PROPOSAL.md) - CoT prompting implementation strategy
 - [System Overview](../SYSTEM_OVERVIEW.md) - High-level architecture and component interactions
 - [Prompt Lifecycle](../03-prompt-lifecycle.md) - How prompts flow through the system
 - [Documentation Site](./docs-site.md) - How the docs system works (frontend and backend)
