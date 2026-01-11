@@ -165,3 +165,32 @@ export function createApiError(message: string, status: number): Error & { statu
 export const badRequest = (message: string) => createApiError(message, 400);
 export const notFound = (message: string) => createApiError(message, 404);
 export const serverError = (message: string) => createApiError(message, 500);
+
+/**
+ * Authentication Status Middleware
+ * 
+ * Checks if the user is authenticated and attaches auth status to the request.
+ * This middleware does NOT block requests - it simply determines authentication status.
+ * 
+ * Authenticated users get:
+ * - Full set of powerful tools
+ * - Access to personal data and services
+ * - Data stored in their user-specific bucket
+ * 
+ * Guest users (unauthenticated) get:
+ * - Restricted, safe set of tools
+ * - No access to personal data or services
+ * - Data routed to a temporary "guest bucket"
+ */
+export const checkAuthStatus: RequestHandler = (req: Request, _res: Response, next: NextFunction) => {
+  const user = req.user as any;
+  
+  // Attach auth status to request
+  (req as any).authStatus = {
+    isAuthenticated: req.isAuthenticated() && !!user?.claims?.sub,
+    userId: user?.claims?.sub || null,
+    isGuest: !req.isAuthenticated() || !user?.claims?.sub,
+  };
+  
+  next();
+};

@@ -117,6 +117,22 @@ export const chats = pgTable("chats", {
   title: text("title").notNull(),
   
   /**
+   * User ID - Foreign key reference to users table
+   * NULL for guest (unauthenticated) conversations
+   * Used for data isolation and user-specific chat history
+   */
+  userId: varchar("user_id").references(() => users.id, { onDelete: "cascade" }),
+  
+  /**
+   * Guest flag - Indicates if this is a guest conversation
+   * Guest conversations:
+   * - Are isolated in a separate "guest bucket"
+   * - Have access to limited, safe tools only
+   * - Are periodically cleaned up
+   */
+  isGuest: boolean("is_guest").default(false).notNull(),
+  
+  /**
    * Timestamp when this chat was first created
    * Automatically set by PostgreSQL using defaultNow()
    * Used for sorting chats chronologically
