@@ -174,7 +174,7 @@ function convertActionToInputEvent(action: ComputerAction): any {
         type: 'keyboard',
         action: 'keydown',
         key: action.key,
-        modifiers: (action as any).modifiers,
+        modifiers: action.modifiers, // Now properly typed
         source: 'ai'
       };
 
@@ -345,6 +345,14 @@ router.post("/run-desktop-task", async (req: Request, res: Response) => {
 });
 
 /**
+ * Configuration for Computer Use task execution
+ */
+const COMPUTER_USE_CONFIG = {
+  ACTION_DELAY_MS: 500, // Delay between action execution (configurable based on system performance)
+  PROGRESS_CHECK_INTERVAL: 3, // Check progress every N steps
+};
+
+/**
  * Execute a desktop task using the Computer Use API in a loop
  */
 async function executeDesktopTask(goal: string, sessionId: string, maxSteps: number): Promise<void> {
@@ -412,7 +420,7 @@ async function executeDesktopTask(goal: string, sessionId: string, maxSteps: num
         });
 
         // Wait a bit for action to complete
-        await new Promise(resolve => setTimeout(resolve, 500));
+        await new Promise(resolve => setTimeout(resolve, COMPUTER_USE_CONFIG.ACTION_DELAY_MS));
       }
     }
 
@@ -422,8 +430,8 @@ async function executeDesktopTask(goal: string, sessionId: string, maxSteps: num
       parts: [{ text: `Action executed: ${JSON.stringify(result.actions)}` }]
     });
 
-    // Assess progress
-    if (stepCount % 3 === 0) {
+    // Assess progress periodically
+    if (stepCount % COMPUTER_USE_CONFIG.PROGRESS_CHECK_INTERVAL === 0) {
       const assessment = await computerUseService.assessProgress(
         goal,
         screenshot,

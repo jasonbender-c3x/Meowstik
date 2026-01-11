@@ -274,12 +274,24 @@ function convertFunctionCallToInputEvent(functionCall: { name: string; args: any
       };
       
     case 'computer_screenshot':
-      // Screenshot is handled differently - just acknowledge
-      return null;
+      // Screenshot handling - send request to desktop agent to capture
+      // The screenshot will be included in the next frame update
+      return {
+        type: 'screenshot',
+        action: 'capture',
+        fullScreen: args.fullScreen !== false,
+        source: 'ai'
+      };
       
     case 'computer_wait':
-      // Wait is a no-op for desktop agent
-      return null;
+      // Wait is handled client-side via setTimeout
+      // Return a marker event that the agent can recognize
+      return {
+        type: 'wait',
+        action: 'delay',
+        duration: args.delay,
+        source: 'ai'
+      };
       
     default:
       return null;

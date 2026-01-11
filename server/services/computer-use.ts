@@ -119,9 +119,11 @@ export interface ComputerAction {
   target?: { x: number; y: number } | string;
   text?: string;
   key?: string;
+  modifiers?: string[]; // Add modifiers to the interface
   direction?: 'up' | 'down' | 'left' | 'right';
   amount?: number;
   delay?: number;
+  button?: 'left' | 'right' | 'middle';
 }
 
 export interface ComputerState {
