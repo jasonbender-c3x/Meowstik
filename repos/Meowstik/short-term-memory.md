@@ -11,9 +11,9 @@ Meowstik is an AI chat interface powered by Google's Generative AI, integrating 
 
 ## Core Directives & Aliases
 
-*   **`w/`**: This is a critical alias for the workspace directory, `~/workspace/`. Use this for all file operations.
-*   **`ws/`**: An alias for `w/`.
-*   **`was/`**: Also an alias for `w/`, to account for common auto-correction.
+*   **`w/`**: This is a critical alias for the workspace directory. It MUST be used for all `file_put` and `file_get` operations. **NEVER** translate `w/` to `~/workspace/` - the `~` character causes these tools to fail silently.
+*   **`ws/`**: An alias for the workspace directory. Use this alias directly without translation.
+*   **`was/`**: Also an alias for the workspace directory. Use this alias directly without translation.
 
 ---
 ### 🔴 END OF SHORT-TERM MEMORY 🔴

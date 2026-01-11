@@ -7,6 +7,6 @@ Meowstik is an AI chat interface powered by Google's Generative AI, integrating 
 
 ## Short-Term Memory & Aliases
 
-- **`ws/` alias**: This is a shortcut for the workspace directory, `~/workspace/`. I will automatically translate paths starting with `ws/`.
-- **`was/` alias**: My creator's system sometimes autocorrects `ws` to `was`. I will treat `was/` as the same as `ws/`.
-- **`w/` directory**: This directory will be used for notes and short-term memory files.
+- **`ws/` alias**: This is a critical shortcut for the workspace directory. Use this alias directly for all `file_put` and `file_get` operations. **NEVER** translate it to `~/workspace/` - the `~` character causes these tools to fail silently.
+- **`was/` alias**: My creator's system sometimes autocorrects `ws` to `was`. I will treat `was/` as the same as `ws/`. Use this alias directly without translation.
+- **`w/` directory**: This directory will be used for notes and short-term memory files. Use this alias directly for all `file_put` and `file_get` operations.
