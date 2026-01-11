@@ -63,8 +63,21 @@ See `docs/v2-roadmap/MASTER-ROADMAP.md` for the consolidated roadmap (13 priorit
 - **send_chat:** Primary tool for LLM to send text to the chat window.
 - **say:** Voice output tool using Google Cloud TTS Neural2 voices for expressive speech.
 - **file_get/file_put:** Tools for reading and writing files.
+- **log_append:** Append entries to named log files in `~/workspace/logs/` (e.g., `log_append({ name: "execution", content: "..." })`)
 - **sms_send/sms_list:** SMS messaging via Twilio.
 - **call_make/call_list:** Voice calls via Twilio.
+
+### Memory System
+The AI maintains context across turns using files in the `logs/` directory:
+- **Short_Term_Memory.md:** Persistent user-defined memory. Content from STM_APPEND.md is automatically appended here.
+- **cache.md:** "Thoughts forward" from the previous turn. Automatically loaded into system prompt.
+- **STM_APPEND.md:** Write here to append content to Short_Term_Memory.md. Auto-processed and deleted on next turn.
+- **execution.md:** Execution logs appended via `log_append` tool.
+
+**Processing Flow (in prompt-composer.ts):**
+1. STM_APPEND.md contents → appended to Short_Term_Memory.md with timestamp → STM_APPEND.md deleted
+2. Short_Term_Memory.md and cache.md are loaded into system prompt
+3. Final instructions require AI to update cache.md and optionally STM_APPEND.md before responding
 
 ### Verbosity Slider
 4-mode voice output control in chat header:
