@@ -21,6 +21,9 @@ const SCOPES = [
   'https://www.googleapis.com/auth/cloud-platform',
 ];
 
+// Time buffer before token expiry to trigger refresh (60 seconds)
+const TOKEN_REFRESH_BUFFER_MS = 60000;
+
 // Legacy singleton tokens (deprecated - for backward compatibility)
 let cachedTokens: Auth.Credentials | null = null;
 let oauth2Client: Auth.OAuth2Client | null = null;
@@ -30,6 +33,17 @@ let initializationPromise: Promise<void> | null = null;
 // Per-user token cache
 const userTokenCache = new Map<string, Auth.Credentials>();
 const userOAuth2Clients = new Map<string, Auth.OAuth2Client>();
+
+/**
+ * Type definition for OAuth tokens stored in database
+ */
+export interface OAuthTokens {
+  accessToken: string | null;
+  refreshToken: string | null;
+  expiryDate: number | null;
+  tokenType: string | null;
+  scope: string | null;
+}
 
 function getRedirectUri(): string {
   if (process.env.GOOGLE_REDIRECT_URI) {
@@ -184,7 +198,7 @@ export async function refreshTokensIfNeeded(): Promise<void> {
   if (!cachedTokens || !oauth2Client) return;
   
   const expiryDate = cachedTokens.expiry_date;
-  if (expiryDate && expiryDate < Date.now() + 60000) {
+  if (expiryDate && expiryDate < Date.now() + TOKEN_REFRESH_BUFFER_MS) {
     const previousRefreshToken = cachedTokens.refresh_token;
     try {
       const { credentials } = await oauth2Client.refreshAccessToken();
@@ -317,7 +331,7 @@ async function refreshUserTokensIfNeeded(userId: string, client: Auth.OAuth2Clie
   if (!credentials) return;
   
   const expiryDate = credentials.expiry_date;
-  if (expiryDate && expiryDate < Date.now() + 60000) {
+  if (expiryDate && expiryDate < Date.now() + TOKEN_REFRESH_BUFFER_MS) {
     const previousRefreshToken = credentials.refresh_token;
     try {
       const { credentials: newCredentials } = await client.refreshAccessToken();
@@ -343,7 +357,14 @@ async function refreshUserTokensIfNeeded(userId: string, client: Auth.OAuth2Clie
       
       console.log(`Refreshed Google OAuth tokens for user ${userId}`);
     } catch (error) {
-      console.error(`Failed to refresh tokens for user ${userId}:`, error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      const errorName = error instanceof Error ? error.name : 'Error';
+      console.error(`[OAuth] Failed to refresh tokens for user ${userId}:`, {
+        errorName,
+        errorMessage,
+        userId,
+        hasRefreshToken: !!previousRefreshToken,
+      });
       // Clear cache on error
       userOAuth2Clients.delete(userId);
       userTokenCache.delete(userId);

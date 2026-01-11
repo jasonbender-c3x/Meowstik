@@ -87,6 +87,7 @@ import {
 import { drizzle, NodePgDatabase } from "drizzle-orm/node-postgres";
 import { eq, desc, and, lte, lt, or, sql, isNull, isNotNull, inArray, arrayContains } from "drizzle-orm";
 import { Pool } from "pg";
+import type { OAuthTokens } from "./integrations/google-auth";
 
 /**
  * Retry an async operation with exponential backoff
@@ -269,8 +270,8 @@ export interface IStorage {
   deleteGoogleTokens(): Promise<void>;
   
   // Per-user token operations
-  saveUserGoogleTokens(userId: string, tokens: { accessToken: string | null, refreshToken: string | null, expiryDate: number | null, tokenType: string | null, scope: string | null }): Promise<User>;
-  getUserGoogleTokens(userId: string): Promise<{ accessToken: string | null, refreshToken: string | null, expiryDate: number | null, tokenType: string | null, scope: string | null } | null>;
+  saveUserGoogleTokens(userId: string, tokens: OAuthTokens): Promise<User>;
+  getUserGoogleTokens(userId: string): Promise<OAuthTokens | null>;
   deleteUserGoogleTokens(userId: string): Promise<void>;
 
   // =========================================================================
@@ -947,13 +948,7 @@ export class DrizzleStorage implements IStorage {
   }
 
   // Per-user token operations
-  async saveUserGoogleTokens(userId: string, tokens: { 
-    accessToken: string | null, 
-    refreshToken: string | null, 
-    expiryDate: number | null, 
-    tokenType: string | null, 
-    scope: string | null 
-  }): Promise<User> {
+  async saveUserGoogleTokens(userId: string, tokens: OAuthTokens): Promise<User> {
     const [updatedUser] = await this.getDb()
       .update(users)
       .set({
@@ -974,13 +969,7 @@ export class DrizzleStorage implements IStorage {
     return updatedUser;
   }
 
-  async getUserGoogleTokens(userId: string): Promise<{ 
-    accessToken: string | null, 
-    refreshToken: string | null, 
-    expiryDate: number | null, 
-    tokenType: string | null, 
-    scope: string | null 
-  } | null> {
+  async getUserGoogleTokens(userId: string): Promise<OAuthTokens | null> {
     const [user] = await this.getDb()
       .select({
         googleAccessToken: users.googleAccessToken,

@@ -15,14 +15,9 @@ import {
   isUserAuthenticated,
   revokeUserAccess,
 } from '../integrations/google-auth';
+import { getUserId } from './middleware';
 
 const router = Router();
-
-// Helper to get user ID from session
-function getUserId(req: Request): string | null {
-  const user = req.user as any;
-  return user?.claims?.sub || null;
-}
 
 router.get('/google', (req: Request, res: Response) => {
   try {
