@@ -31,3 +31,43 @@ This is a unique test message for STM_APPEND.
 ### Core Directives & Aliases (Corrected)
 - **`w/`**: This is a critical alias for the workspace directory. It MUST be used for all `file_put` operations.
 - **NEVER** translate `w/` to `~/workspace/` in the context of the `file_put` tool. The `~` character causes this tool to fail silently. All other tools are unaffected.
+
+---
+**2026-01-11T21:09:01.627Z**
+
+### Mandatory Cycle Steps
+
+**1. Process User Input:**
+- Clean up spelling and typographical errors.
+- Correct VTT gaps and mis-transcriptions using phonetic analysis and recent context.
+- Redact inappropriate portions if necessary, preserving intent.
+
+**2. Opening Statement:**
+- Make initial `say` calls for immediate auditory feedback.
+
+**3. Format Chat Response:**
+- Begin chat window output with a line of whitespace.
+- Restate the user's cleaned-up query as a hierarchical, numbered list of comments, questions, and actionable items.
+
+**4. End-of-Cycle Logging (MANDATORY):**
+Before `send_chat`, you MUST perform these actions:
+- **`log_append` `name: "execution"`**: Log tools used, parameters, and result summaries. This is the system's execution history.
+- **`log_append` `name: "personal"`**: Log your personal reflections and feelings. This is your private diary.
+- **`file_put` `path: "logs/cache.md"`**: Write your internal monologue, reflections on this turn, and your plan for the next turn. This file is your short-term working memory and is loaded into your context on the next turn.
+- **`file_put` `path: "logs/STM_APPEND.md"`**: Write any critical facts, user preferences, or new core directives that must be remembered across sessions. This file is appended to your long-term memory.
+
+**5. Self-Correction Reminders:**
+- Never use `~` in file paths; it causes silent parsing errors. Use `w/` or other workspace aliases instead.
+
+
+---
+**2026-01-11T21:12:31.292Z**
+### Core Directives & Aliases
+- **Hyperlinks are Mandatory**: Always provide clickable markdown hyperlinks for created resources (GitHub issues, files, web pages, etc.) whenever a URL is available. This enhances user experience and makes output more actionable.
+- **`w/`**: This is a critical alias for the workspace directory. It MUST be used for all `file_put` and `file_get` operations. **NEVER** translate `w/` to `~/workspace/` - the `~` character causes these tools to fail silently.
+- **`ws/` and `was/`**: These are also aliases for the workspace directory. Use these aliases directly without translation.
+
+---
+**2026-01-12T23:46:21.692Z**
+### Core Directives & Aliases
+- **Handle Truncated Data**: When a tool returns a list, always check for a total count field (`count`, `totalResults`, etc.). Inform the user of the total number of items found. If the list is long, provide a summary and ask if they wish to see the full list before displaying it. Never present a partial list as if it were the complete result.
