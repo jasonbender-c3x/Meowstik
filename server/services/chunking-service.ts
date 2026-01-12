@@ -11,10 +11,13 @@
  * - Sentence-based: Split on sentence boundaries
  * - Fixed-size: Split into fixed token counts with overlap
  * - Semantic: Split on topic boundaries (more advanced)
+ * - Code-aware: Split by function/class boundaries for source code
+ * - Content-aware: Use file-type specific parsers for optimal chunking
  * =============================================================================
  */
 
 // pdf-parse is loaded dynamically in extractPdfText to handle ESM/CJS compatibility
+import { parserRegistry, type ParsedChunk } from './content-parsers';
 
 export interface ChunkMetadata {
   documentId: string;
@@ -25,6 +28,15 @@ export interface ChunkMetadata {
   startOffset: number;
   endOffset: number;
   strategy: ChunkingStrategy;
+  // Enhanced semantic metadata
+  type?: 'function' | 'class' | 'section' | 'paragraph' | 'module' | 'component';
+  name?: string;
+  startLine?: number;
+  endLine?: number;
+  parent?: string;
+  language?: string;
+  sectionLevel?: number;
+  pageNumber?: number;
 }
 
 export interface DocumentChunkResult {
@@ -32,7 +44,7 @@ export interface DocumentChunkResult {
   metadata: ChunkMetadata;
 }
 
-export type ChunkingStrategy = "paragraph" | "sentence" | "fixed" | "semantic" | "adaptive" | "hierarchical";
+export type ChunkingStrategy = "paragraph" | "sentence" | "fixed" | "semantic" | "adaptive" | "hierarchical" | "code-aware" | "content-aware";
 
 export interface ChunkingOptions {
   strategy?: ChunkingStrategy;
@@ -66,12 +78,24 @@ export class ChunkingService {
     // Auto-select strategy if adaptive
     let strategy = opts.strategy;
     if (strategy === "adaptive") {
-      strategy = this.selectAdaptiveStrategy(content, mimeType);
+      strategy = this.selectAdaptiveStrategy(content, mimeType, filename);
       console.log(`[Chunking] Auto-selected strategy: ${strategy} for ${filename}`);
     }
 
     let rawChunks: string[];
+    let parsedChunks: ParsedChunk[] | null = null;
 
+    // Try content-aware parsing first for supported file types
+    if (strategy === "content-aware" || strategy === "code-aware") {
+      parsedChunks = parserRegistry.parse(content, filename, mimeType);
+      if (parsedChunks && parsedChunks.length > 0) {
+        console.log(`[Chunking] Used content-aware parsing: ${parsedChunks.length} semantic chunks`);
+        // Convert parsed chunks to DocumentChunkResult format
+        return this.convertParsedChunks(parsedChunks, documentId, filename, mimeType, opts.strategy);
+      }
+    }
+
+    // Fall back to traditional chunking strategies
     switch (strategy) {
       case "paragraph":
         rawChunks = this.chunkByParagraph(content, opts);
@@ -118,6 +142,51 @@ export class ChunkingService {
     }
 
     return chunks.filter((c) => c.content.length >= opts.minChunkSize);
+  }
+
+  /**
+   * Convert parsed chunks from content-aware parsers to DocumentChunkResult format
+   */
+  private convertParsedChunks(
+    parsedChunks: ParsedChunk[],
+    documentId: string,
+    filename: string,
+    mimeType: string | undefined,
+    strategy: ChunkingStrategy
+  ): DocumentChunkResult[] {
+    const results: DocumentChunkResult[] = [];
+    let currentOffset = 0;
+
+    for (let i = 0; i < parsedChunks.length; i++) {
+      const parsed = parsedChunks[i];
+      
+      results.push({
+        content: parsed.content.trim(),
+        metadata: {
+          documentId,
+          filename,
+          mimeType,
+          chunkIndex: i,
+          totalChunks: parsedChunks.length,
+          startOffset: currentOffset,
+          endOffset: currentOffset + parsed.content.length,
+          strategy,
+          // Enhanced semantic metadata
+          type: parsed.metadata.type,
+          name: parsed.metadata.name,
+          startLine: parsed.metadata.startLine,
+          endLine: parsed.metadata.endLine,
+          parent: parsed.metadata.parent,
+          language: parsed.metadata.language,
+          sectionLevel: parsed.metadata.sectionLevel,
+          pageNumber: parsed.metadata.pageNumber,
+        },
+      });
+
+      currentOffset += parsed.content.length;
+    }
+
+    return results;
   }
 
   /**
@@ -229,15 +298,21 @@ export class ChunkingService {
   /**
    * Select adaptive chunking strategy based on content characteristics
    */
-  private selectAdaptiveStrategy(content: string, mimeType?: string): ChunkingStrategy {
+  private selectAdaptiveStrategy(content: string, mimeType?: string, filename?: string): ChunkingStrategy {
     // Short content - don't split
     if (content.length < 500) {
       return "fixed";
     }
 
-    // Code files - use fixed with overlap to preserve context
+    // Check if content-aware parsing is supported
+    if (filename && parserRegistry.isSupported(filename, mimeType)) {
+      console.log(`[Chunking] Content-aware parsing available for ${filename}`);
+      return "content-aware";
+    }
+
+    // Code files - use code-aware if supported, otherwise fixed with overlap
     if (mimeType && this.isCodeFile(mimeType)) {
-      return "fixed";
+      return "code-aware";
     }
 
     // Markdown/structured documents - use semantic (headers)
