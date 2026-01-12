@@ -1,7 +1,7 @@
 /**
  * Computer Use Service (Project Ghost)
  * 
- * Integrates with Gemini 2.5 Computer Use API for hands-free desktop control:
+ * Integrates with Gemini Computer Use API for hands-free desktop control:
  * - Real-time screen capture and vision analysis
  * - Voice-driven action planning using Gemini's native computer use capabilities
  * - Mouse/keyboard input injection via desktop agent
@@ -9,7 +9,9 @@
  * - Visual feedback loop with progress assessment
  * 
  * Key Features:
- * - Uses official Gemini 2.5 Computer Use model with built-in tool declarations
+ * - Uses official Gemini Computer Use model with built-in tool declarations
+ * - Supports Gemini 2.0/2.5/3.0 models (configurable via COMPUTER_USE_MODEL env var)
+ * - Gemini 3.0 adds continuous video streaming support (1 FPS JPEG frames)
  * - Supports multimodal input (screen + audio + context)
  * - Implements safety checks for destructive operations
  * - Provides real-time action execution via WebSocket to desktop agent
@@ -20,7 +22,9 @@ import { GoogleGenAI, type FunctionDeclaration } from "@google/genai";
 const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
 
 // Computer Use model - the official Gemini model with built-in desktop control capabilities
-const COMPUTER_USE_MODEL = "gemini-2.0-flash-exp"; // Will be updated to 2.5 when available
+// Supports Gemini 2.0/2.5/3.0 models with computer use capabilities
+const COMPUTER_USE_MODEL = process.env.COMPUTER_USE_MODEL || "gemini-2.0-flash-exp";
+// Options: gemini-2.0-flash-exp, gemini-2.5-flash, gemini-3.0-flash-preview
 
 /**
  * Gemini Computer Use Tool Declarations

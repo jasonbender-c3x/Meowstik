@@ -1,6 +1,6 @@
 # Browser & Computer Use (Project Ghost)
 
-> AI-controlled browser automation and full desktop control powered by Gemini 2.5 Computer Use API
+> AI-controlled browser automation and full desktop control powered by Gemini 2.5/3.0 Computer Use API
 
 ---
 
@@ -9,7 +9,7 @@
 Meowstik provides two levels of computer control with hands-free voice operation:
 
 1. **Browser Use** - AI controls a headless browser via Playwright
-2. **Computer Use (Project Ghost)** - AI controls the entire desktop using official Gemini 2.5 Computer Use API
+2. **Computer Use (Project Ghost)** - AI controls the entire desktop using official Gemini Computer Use API
 
 Both can be used with [Collaborative Editing](./collaborative-editing.md) for real-time voice-guided sessions.
 
@@ -17,16 +17,27 @@ Both can be used with [Collaborative Editing](./collaborative-editing.md) for re
 
 ## Project Ghost: Hands-Free Computer Use
 
-**Project Ghost** is Meowstik's implementation of the official Gemini 2.5 Computer Use API, enabling true hands-free desktop control through voice commands.
+**Project Ghost** is Meowstik's implementation of the official Gemini Computer Use API, enabling true hands-free desktop control through voice commands.
 
 ### Key Features
 
 - 🎤 **Voice-Driven**: Control your computer entirely through speech
 - 👁️ **Vision Analysis**: Gemini sees your screen in real-time
+- 🎥 **Video Streaming**: Gemini 3.0 supports continuous 1 FPS video input
 - 🤖 **Intelligent Actions**: AI plans and executes multi-step tasks
 - 🔒 **Safety First**: Confirmation required for destructive operations
 - ♿ **Accessibility**: Perfect for users with limited mobility
 - 🧪 **Visual Testing**: Automated UI testing without API access
+
+### Model Support
+
+| Model | Audio | Vision | Video Streaming | Computer Use |
+|-------|-------|--------|----------------|--------------|
+| Gemini 2.5 Flash | ✅ Real-time | ✅ Screenshots | ❌ | ✅ |
+| Gemini 3.0 Flash | ✅ Real-time | ✅ Screenshots | ✅ 1 FPS JPEG | ✅ |
+
+**Environment Variables:**
+- `COMPUTER_USE_MODEL` - Set model: `gemini-2.0-flash-exp`, `gemini-2.5-flash`, or `gemini-3.0-flash-preview`
 
 ### How It Works
 
@@ -263,6 +274,41 @@ Receive: { type: "functionCall", functionCall: { name: "computer_click", args: {
 Receive: { type: "transcript", text: "I'll click on the Chrome icon..." }
 Receive: { type: "audio", data: "<base64>" }
 ```
+
+**Gemini 3.0 with Continuous Video Streaming:**
+
+```typescript
+// 1. Create a Gemini 3.0 Live session with video streaming enabled
+POST /api/live/create
+Body: { 
+  enableComputerUse: true, 
+  enableVideoStreaming: true,
+  useGemini3: true,
+  desktopSessionId: "..." 
+}
+
+// 2. Connect to WebSocket
+WS: /api/live/stream/{sessionId}
+
+// 3. Link to desktop session
+Send: { type: "linkDesktop", desktopSessionId: "session-123" }
+
+// 4. Stream video frames (continuous at 1 FPS)
+Send: { type: "videoFrame", data: "<base64-jpeg>", mimeType: "image/jpeg" }
+
+// 5. Speak or send text
+Send: { type: "audio", data: "<base64-pcm>", mimeType: "audio/pcm" }
+Send: { type: "text", text: "What do you see on screen?" }
+
+// 6. Receive real-time analysis and function calls
+Receive: { type: "functionCall", functionCall: { name: "computer_click", args: {...} } }
+Receive: { type: "transcript", text: "I can see a Chrome window with..." }
+Receive: { type: "audio", data: "<base64>" }
+```
+
+**Key Differences:**
+- **Gemini 2.5**: Turn-based screenshots (one per decision)
+- **Gemini 3.0**: Continuous video stream (1 FPS JPEG frames) + turn-based screenshots for decisions
 
 ---
 
