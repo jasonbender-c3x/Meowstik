@@ -112,13 +112,24 @@ async function getDriveClient() {
  * console.log(doc.title);
  */
 export async function getDocument(documentId: string) {
-  const docs = await getUncachableGoogleDocsClient();
-  
-  const response = await docs.documents.get({
-    documentId
-  });
-  
-  return response.data;
+  try {
+    const docs = await getUncachableGoogleDocsClient();
+    
+    const response = await docs.documents.get({
+      documentId
+    });
+    
+    return response.data;
+  } catch (error: any) {
+    console.error('[GoogleDocs] getDocument error:', error);
+    return {
+      success: false,
+      error: error.message || 'Failed to get document',
+      statusCode: error.status,
+      operation: 'getDocument',
+      params: { documentId }
+    };
+  }
 }
 
 /**
@@ -141,26 +152,43 @@ export async function getDocument(documentId: string) {
  * console.log('Content:', text);
  */
 export async function getDocumentText(documentId: string) {
-  // First get the full document structure
-  const doc = await getDocument(documentId);
-  let text = '';
-  
-  // Traverse document body content
-  if (doc.body?.content) {
-    for (const element of doc.body.content) {
-      // Check if element is a paragraph
-      if (element.paragraph?.elements) {
-        // Extract text from each text run in the paragraph
-        for (const el of element.paragraph.elements) {
-          if (el.textRun?.content) {
-            text += el.textRun.content;
+  try {
+    // First get the full document structure
+    const doc = await getDocument(documentId);
+    
+    // Check if getDocument returned an error
+    if (doc && typeof doc === 'object' && 'success' in doc && !doc.success) {
+      return doc;
+    }
+    
+    let text = '';
+    
+    // Traverse document body content
+    if (doc.body?.content) {
+      for (const element of doc.body.content) {
+        // Check if element is a paragraph
+        if (element.paragraph?.elements) {
+          // Extract text from each text run in the paragraph
+          for (const el of element.paragraph.elements) {
+            if (el.textRun?.content) {
+              text += el.textRun.content;
+            }
           }
         }
       }
     }
+    
+    return { documentId: doc.documentId, title: doc.title, text };
+  } catch (error: any) {
+    console.error('[GoogleDocs] getDocumentText error:', error);
+    return {
+      success: false,
+      error: error.message || 'Failed to get document text',
+      statusCode: error.status,
+      operation: 'getDocumentText',
+      params: { documentId }
+    };
   }
-  
-  return { documentId: doc.documentId, title: doc.title, text };
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -181,15 +209,26 @@ export async function getDocumentText(documentId: string) {
  * console.log('Created:', doc.documentId);
  */
 export async function createDocument(title: string) {
-  const docs = await getUncachableGoogleDocsClient();
-  
-  const response = await docs.documents.create({
-    requestBody: {
-      title
-    }
-  });
-  
-  return response.data;
+  try {
+    const docs = await getUncachableGoogleDocsClient();
+    
+    const response = await docs.documents.create({
+      requestBody: {
+        title
+      }
+    });
+    
+    return response.data;
+  } catch (error: any) {
+    console.error('[GoogleDocs] createDocument error:', error);
+    return {
+      success: false,
+      error: error.message || 'Failed to create document',
+      statusCode: error.status,
+      operation: 'createDocument',
+      params: { title }
+    };
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -217,31 +256,42 @@ export async function createDocument(title: string) {
  * await appendText('1abc123', '\n\nNew paragraph added at the end.');
  */
 export async function appendText(documentId: string, text: string) {
-  const docs = await getUncachableGoogleDocsClient();
-  
-  // Get current document to find the end position
-  const doc = await docs.documents.get({ documentId });
-  
-  // Get the end index from the last content element
-  // Default to 1 if document is empty
-  const endIndex = doc.data.body?.content?.slice(-1)[0]?.endIndex || 1;
-  
-  // Insert text at the end (just before the final newline character)
-  const response = await docs.documents.batchUpdate({
-    documentId,
-    requestBody: {
-      requests: [{
-        insertText: {
-          location: {
-            index: endIndex - 1  // Insert before the trailing newline
-          },
-          text
-        }
-      }]
-    }
-  });
-  
-  return response.data;
+  try {
+    const docs = await getUncachableGoogleDocsClient();
+    
+    // Get current document to find the end position
+    const doc = await docs.documents.get({ documentId });
+    
+    // Get the end index from the last content element
+    // Default to 1 if document is empty
+    const endIndex = doc.data.body?.content?.slice(-1)[0]?.endIndex || 1;
+    
+    // Insert text at the end (just before the final newline character)
+    const response = await docs.documents.batchUpdate({
+      documentId,
+      requestBody: {
+        requests: [{
+          insertText: {
+            location: {
+              index: endIndex - 1  // Insert before the trailing newline
+            },
+            text
+          }
+        }]
+      }
+    });
+    
+    return response.data;
+  } catch (error: any) {
+    console.error('[GoogleDocs] appendText error:', error);
+    return {
+      success: false,
+      error: error.message || 'Failed to append text',
+      statusCode: error.status,
+      operation: 'appendText',
+      params: { documentId }
+    };
+  }
 }
 
 /**
@@ -265,24 +315,35 @@ export async function appendText(documentId: string, text: string) {
  * await replaceText('1abc123', '[REMOVE THIS]', '');
  */
 export async function replaceText(documentId: string, oldText: string, newText: string) {
-  const docs = await getUncachableGoogleDocsClient();
-  
-  const response = await docs.documents.batchUpdate({
-    documentId,
-    requestBody: {
-      requests: [{
-        replaceAllText: {
-          containsText: {
-            text: oldText,
-            matchCase: true  // Case-sensitive matching
-          },
-          replaceText: newText
-        }
-      }]
-    }
-  });
-  
-  return response.data;
+  try {
+    const docs = await getUncachableGoogleDocsClient();
+    
+    const response = await docs.documents.batchUpdate({
+      documentId,
+      requestBody: {
+        requests: [{
+          replaceAllText: {
+            containsText: {
+              text: oldText,
+              matchCase: true  // Case-sensitive matching
+            },
+            replaceText: newText
+          }
+        }]
+      }
+    });
+    
+    return response.data;
+  } catch (error: any) {
+    console.error('[GoogleDocs] replaceText error:', error);
+    return {
+      success: false,
+      error: error.message || 'Failed to replace text',
+      statusCode: error.status,
+      operation: 'replaceText',
+      params: { documentId, oldText }
+    };
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -310,19 +371,30 @@ export async function replaceText(documentId: string, oldText: string, newText: 
  * docs.forEach(doc => console.log(doc.name, doc.webViewLink));
  */
 export async function listDocuments() {
-  // Use Drive API to list files filtered by MIME type
-  const drive = await getDriveClient();
-  
-  const response = await drive.files.list({
-    // Filter to only Google Docs documents
-    q: "mimeType='application/vnd.google-apps.document'",
-    // Specify which fields to return
-    fields: 'files(id, name, modifiedTime, webViewLink)',
-    // Sort by most recently modified
-    orderBy: 'modifiedTime desc',
-    // Limit results
-    pageSize: 20
-  });
-  
-  return response.data.files || [];
+  try {
+    // Use Drive API to list files filtered by MIME type
+    const drive = await getDriveClient();
+    
+    const response = await drive.files.list({
+      // Filter to only Google Docs documents
+      q: "mimeType='application/vnd.google-apps.document'",
+      // Specify which fields to return
+      fields: 'files(id, name, modifiedTime, webViewLink)',
+      // Sort by most recently modified
+      orderBy: 'modifiedTime desc',
+      // Limit results
+      pageSize: 20
+    });
+    
+    return response.data.files || [];
+  } catch (error: any) {
+    console.error('[GoogleDocs] listDocuments error:', error);
+    return {
+      success: false,
+      error: error.message || 'Failed to list documents',
+      statusCode: error.status,
+      operation: 'listDocuments',
+      params: {}
+    };
+  }
 }

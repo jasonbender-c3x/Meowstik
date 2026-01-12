@@ -114,13 +114,24 @@ export async function getUncachableGoogleTasksClient() {
  * taskLists.forEach(list => console.log(list.title));
  */
 export async function listTaskLists() {
-  const tasks = await getUncachableGoogleTasksClient();
-  
-  const response = await tasks.tasklists.list({
-    maxResults: 20  // Limit number of results
-  });
-  
-  return response.data.items || [];
+  try {
+    const tasks = await getUncachableGoogleTasksClient();
+    
+    const response = await tasks.tasklists.list({
+      maxResults: 20  // Limit number of results
+    });
+    
+    return response.data.items || [];
+  } catch (error: any) {
+    console.error('[GoogleTasks] listTaskLists error:', error);
+    return {
+      success: false,
+      error: error.message || 'Failed to list task lists',
+      statusCode: error.status,
+      operation: 'listTaskLists',
+      params: {}
+    };
+  }
 }
 
 /**
@@ -136,13 +147,24 @@ export async function listTaskLists() {
  * console.log('List title:', list.title);
  */
 export async function getTaskList(taskListId: string) {
-  const tasks = await getUncachableGoogleTasksClient();
-  
-  const response = await tasks.tasklists.get({
-    tasklist: taskListId
-  });
-  
-  return response.data;
+  try {
+    const tasks = await getUncachableGoogleTasksClient();
+    
+    const response = await tasks.tasklists.get({
+      tasklist: taskListId
+    });
+    
+    return response.data;
+  } catch (error: any) {
+    console.error('[GoogleTasks] getTaskList error:', error);
+    return {
+      success: false,
+      error: error.message || 'Failed to get task list',
+      statusCode: error.status,
+      operation: 'getTaskList',
+      params: { taskListId }
+    };
+  }
 }
 
 /**
@@ -157,15 +179,26 @@ export async function getTaskList(taskListId: string) {
  * console.log('Created list:', newList.id);
  */
 export async function createTaskList(title: string) {
-  const tasks = await getUncachableGoogleTasksClient();
-  
-  const response = await tasks.tasklists.insert({
-    requestBody: {
-      title
-    }
-  });
-  
-  return response.data;
+  try {
+    const tasks = await getUncachableGoogleTasksClient();
+    
+    const response = await tasks.tasklists.insert({
+      requestBody: {
+        title
+      }
+    });
+    
+    return response.data;
+  } catch (error: any) {
+    console.error('[GoogleTasks] createTaskList error:', error);
+    return {
+      success: false,
+      error: error.message || 'Failed to create task list',
+      statusCode: error.status,
+      operation: 'createTaskList',
+      params: { title }
+    };
+  }
 }
 
 /**
@@ -183,13 +216,24 @@ export async function createTaskList(title: string) {
  * await deleteTaskList('MTIzNDU2Nzg5');
  */
 export async function deleteTaskList(taskListId: string) {
-  const tasks = await getUncachableGoogleTasksClient();
-  
-  await tasks.tasklists.delete({
-    tasklist: taskListId
-  });
-  
-  return { success: true };
+  try {
+    const tasks = await getUncachableGoogleTasksClient();
+    
+    await tasks.tasklists.delete({
+      tasklist: taskListId
+    });
+    
+    return { success: true };
+  } catch (error: any) {
+    console.error('[GoogleTasks] deleteTaskList error:', error);
+    return {
+      success: false,
+      error: error.message || 'Failed to delete task list',
+      statusCode: error.status,
+      operation: 'deleteTaskList',
+      params: { taskListId }
+    };
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -217,15 +261,26 @@ export async function deleteTaskList(taskListId: string) {
  * const incomplete = await listTasks('list123', false);
  */
 export async function listTasks(taskListId: string = '@default', showCompleted = true, maxResults = 100) {
-  const tasks = await getUncachableGoogleTasksClient();
-  
-  const response = await tasks.tasks.list({
-    tasklist: taskListId,
-    showCompleted,  // Whether to include completed tasks
-    maxResults
-  });
-  
-  return response.data.items || [];
+  try {
+    const tasks = await getUncachableGoogleTasksClient();
+    
+    const response = await tasks.tasks.list({
+      tasklist: taskListId,
+      showCompleted,  // Whether to include completed tasks
+      maxResults
+    });
+    
+    return response.data.items || [];
+  } catch (error: any) {
+    console.error('[GoogleTasks] listTasks error:', error);
+    return {
+      success: false,
+      error: error.message || 'Failed to list tasks',
+      statusCode: error.status,
+      operation: 'listTasks',
+      params: { taskListId, showCompleted, maxResults }
+    };
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -248,14 +303,25 @@ export async function listTasks(taskListId: string = '@default', showCompleted =
  * console.log(task.title, task.status);
  */
 export async function getTask(taskListId: string, taskId: string) {
-  const tasks = await getUncachableGoogleTasksClient();
-  
-  const response = await tasks.tasks.get({
-    tasklist: taskListId,
-    task: taskId
-  });
-  
-  return response.data;
+  try {
+    const tasks = await getUncachableGoogleTasksClient();
+    
+    const response = await tasks.tasks.get({
+      tasklist: taskListId,
+      task: taskId
+    });
+    
+    return response.data;
+  } catch (error: any) {
+    console.error('[GoogleTasks] getTask error:', error);
+    return {
+      success: false,
+      error: error.message || 'Failed to get task',
+      statusCode: error.status,
+      operation: 'getTask',
+      params: { taskListId, taskId }
+    };
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -295,18 +361,29 @@ export async function createTask(
   notes?: string,
   due?: string
 ) {
-  const tasks = await getUncachableGoogleTasksClient();
-  
-  const response = await tasks.tasks.insert({
-    tasklist: taskListId,
-    requestBody: {
-      title,
-      notes,
-      due
-    }
-  });
-  
-  return response.data;
+  try {
+    const tasks = await getUncachableGoogleTasksClient();
+    
+    const response = await tasks.tasks.insert({
+      tasklist: taskListId,
+      requestBody: {
+        title,
+        notes,
+        due
+      }
+    });
+    
+    return response.data;
+  } catch (error: any) {
+    console.error('[GoogleTasks] createTask error:', error);
+    return {
+      success: false,
+      error: error.message || 'Failed to create task',
+      statusCode: error.status,
+      operation: 'createTask',
+      params: { taskListId, title }
+    };
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -349,16 +426,27 @@ export async function updateTask(
     status?: 'needsAction' | 'completed';
   }
 ) {
-  const tasks = await getUncachableGoogleTasksClient();
-  
-  // Use patch for partial updates
-  const response = await tasks.tasks.patch({
-    tasklist: taskListId,
-    task: taskId,
-    requestBody: updates
-  });
-  
-  return response.data;
+  try {
+    const tasks = await getUncachableGoogleTasksClient();
+    
+    // Use patch for partial updates
+    const response = await tasks.tasks.patch({
+      tasklist: taskListId,
+      task: taskId,
+      requestBody: updates
+    });
+    
+    return response.data;
+  } catch (error: any) {
+    console.error('[GoogleTasks] updateTask error:', error);
+    return {
+      success: false,
+      error: error.message || 'Failed to update task',
+      statusCode: error.status,
+      operation: 'updateTask',
+      params: { taskListId, taskId }
+    };
+  }
 }
 
 /**
@@ -417,14 +505,25 @@ export async function uncompleteTask(taskListId: string, taskId: string) {
  * await deleteTask('list123', 'task456');
  */
 export async function deleteTask(taskListId: string, taskId: string) {
-  const tasks = await getUncachableGoogleTasksClient();
-  
-  await tasks.tasks.delete({
-    tasklist: taskListId,
-    task: taskId
-  });
-  
-  return { success: true };
+  try {
+    const tasks = await getUncachableGoogleTasksClient();
+    
+    await tasks.tasks.delete({
+      tasklist: taskListId,
+      task: taskId
+    });
+    
+    return { success: true };
+  } catch (error: any) {
+    console.error('[GoogleTasks] deleteTask error:', error);
+    return {
+      success: false,
+      error: error.message || 'Failed to delete task',
+      statusCode: error.status,
+      operation: 'deleteTask',
+      params: { taskListId, taskId }
+    };
+  }
 }
 
 /**
@@ -444,12 +543,23 @@ export async function deleteTask(taskListId: string, taskId: string) {
  * await clearCompletedTasks('list123');
  */
 export async function clearCompletedTasks(taskListId: string) {
-  const tasks = await getUncachableGoogleTasksClient();
-  
-  // Clear operation removes all completed tasks
-  await tasks.tasks.clear({
-    tasklist: taskListId
-  });
-  
-  return { success: true };
+  try {
+    const tasks = await getUncachableGoogleTasksClient();
+    
+    // Clear operation removes all completed tasks
+    await tasks.tasks.clear({
+      tasklist: taskListId
+    });
+    
+    return { success: true };
+  } catch (error: any) {
+    console.error('[GoogleTasks] clearCompletedTasks error:', error);
+    return {
+      success: false,
+      error: error.message || 'Failed to clear completed tasks',
+      statusCode: error.status,
+      operation: 'clearCompletedTasks',
+      params: { taskListId }
+    };
+  }
 }
