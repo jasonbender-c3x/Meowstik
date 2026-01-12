@@ -20,6 +20,9 @@ import { chunkingService, type ChunkingOptions } from "./chunking-service";
 import { embeddingService } from "./embedding-service";
 import { getVectorStore, type VectorStoreAdapter, type VectorDocument } from "./vector-store";
 import { ragDebugBuffer } from "./rag-debug-buffer";
+import { hybridSearchService } from "./hybrid-search";
+import { rerankerService } from "./reranker";
+import { contextSynthesisService } from "./context-synthesis";
 import type { DocumentChunk, Attachment } from "@shared/schema";
 import { GUEST_USER_ID } from "@shared/schema";
 
@@ -366,6 +369,134 @@ export class RAGService {
   }
 
   /**
+   * Advanced retrieval using Cognitive Architecture 2.0
+   * Combines hybrid search, re-ranking, and context synthesis
+   * 
+   * @param query - User query
+   * @param userId - User ID for data isolation
+   * @param options - Advanced retrieval options
+   */
+  async retrieveAdvanced(
+    query: string,
+    userId?: string | null,
+    options: {
+      topK?: number;
+      useHybridSearch?: boolean;
+      useReranking?: boolean;
+      useContextSynthesis?: boolean;
+      maxTokens?: number;
+    } = {}
+  ): Promise<{
+    chunks: DocumentChunk[];
+    scores: number[];
+    synthesizedContext?: string;
+    tokenCount?: number;
+  }> {
+    const {
+      topK = 20,
+      useHybridSearch = true,
+      useReranking = true,
+      useContextSynthesis = true,
+      maxTokens = 4000,
+    } = options;
+
+    const traceId = ragDebugBuffer.generateTraceId();
+    ragDebugBuffer.logQueryStart(traceId, query);
+
+    try {
+      // Step 1: Initial semantic retrieval
+      const { chunks: semanticChunks, scores: semanticScores } = await this.retrieve(
+        query,
+        topK * 2, // Get more candidates for hybrid search
+        0.2, // Lower threshold for better recall
+        userId
+      );
+
+      let finalChunks = semanticChunks;
+      let finalScores = semanticScores;
+
+      // Step 2: Hybrid search (semantic + keyword)
+      if (useHybridSearch && semanticChunks.length > 0) {
+        // For hybrid search, we need a corpus for BM25 scoring.
+        // Note: For very large datasets (>10k chunks), consider implementing
+        // a database-level keyword search instead of loading all chunks.
+        const allChunks = await storage.getAllDocumentChunks();
+        
+        // Filter by userId if provided
+        let userFilteredChunks = allChunks;
+        if (userId !== undefined) {
+          const targetUserId = userId || GUEST_USER_ID;
+          userFilteredChunks = allChunks.filter(c => {
+            const meta = c.metadata as { userId?: string } | null;
+            return (meta?.userId || GUEST_USER_ID) === targetUserId;
+          });
+        }
+
+        const hybridResults = hybridSearchService.search(
+          query,
+          semanticChunks.map((chunk, i) => ({ chunk, score: semanticScores[i] })),
+          userFilteredChunks,
+          { topK, semanticWeight: 0.7, keywordWeight: 0.3 }
+        );
+
+        finalChunks = hybridResults.map(r => r.chunk);
+        finalScores = hybridResults.map(r => r.fusedScore);
+
+        console.log(`[RAG Advanced] Hybrid search: ${hybridResults.length} results`);
+      }
+
+      // Step 3: Re-ranking
+      if (useReranking && finalChunks.length > 0) {
+        const reranked = await rerankerService.rerank(
+          query,
+          finalChunks.map((chunk, i) => ({ chunk, score: finalScores[i] })),
+          { strategy: "hybrid", topK: Math.min(topK, finalChunks.length) }
+        );
+
+        finalChunks = reranked.map(r => r.chunk);
+        finalScores = reranked.map(r => r.rerankedScore);
+
+        console.log(`[RAG Advanced] Re-ranking: ${reranked.length} results`);
+      }
+
+      // Step 4: Context synthesis
+      let synthesizedContext: string | undefined;
+      let tokenCount: number | undefined;
+
+      if (useContextSynthesis && finalChunks.length > 0) {
+        const synthesis = await contextSynthesisService.synthesize(
+          query,
+          finalChunks.map((chunk, i) => ({ chunk, relevance: finalScores[i] })),
+          { maxTokens, strategy: "hybrid", deduplicate: true }
+        );
+
+        synthesizedContext = synthesis.content;
+        tokenCount = synthesis.tokenCount;
+
+        console.log(
+          `[RAG Advanced] Context synthesis: ${synthesis.sourceChunkCount} → ${synthesis.synthesizedChunkCount} chunks, ` +
+          `${tokenCount} tokens (${(synthesis.compressionRatio * 100).toFixed(1)}% compression)`
+        );
+      }
+
+      const totalDuration = Date.now();
+      ragDebugBuffer.logQueryComplete(traceId, query, finalChunks.length, 0, totalDuration);
+
+      return {
+        chunks: finalChunks,
+        scores: finalScores,
+        synthesizedContext,
+        tokenCount,
+      };
+    } catch (error) {
+      console.error("[RAG Advanced] Retrieval error:", error);
+      ragDebugBuffer.logError(traceId, "query_start", error instanceof Error ? error.message : "Unknown error");
+      // Fallback to basic retrieval
+      return this.retrieve(query, topK, 0.25, userId);
+    }
+  }
+
+  /**
    * Build RAG context from retrieved chunks
    */
   async buildContext(query: string, topK: number = 5, userId?: string | null): Promise<RAGContext> {
@@ -387,6 +518,46 @@ export class RAGService {
     });
 
     return { relevantChunks, sources };
+  }
+
+  /**
+   * Build advanced RAG context using Cognitive Architecture 2.0
+   */
+  async buildContextAdvanced(
+    query: string,
+    topK: number = 10,
+    userId?: string | null,
+    maxTokens: number = 4000
+  ): Promise<RAGContext & { synthesizedContext?: string; tokenCount?: number }> {
+    const result = await this.retrieveAdvanced(query, userId, {
+      topK,
+      useHybridSearch: true,
+      useReranking: true,
+      useContextSynthesis: true,
+      maxTokens,
+    });
+
+    const relevantChunks = result.chunks.map((c, i) => {
+      const meta = c.metadata as { filename?: string } | null;
+      const filename = meta?.filename || "unknown";
+      return `[Source: ${filename}, Score: ${result.scores[i].toFixed(2)}]\n${c.content}`;
+    });
+
+    const sources = result.chunks.map((c) => {
+      const meta = c.metadata as { filename?: string } | null;
+      return {
+        documentId: c.documentId,
+        filename: meta?.filename || "unknown",
+        chunkIndex: c.chunkIndex,
+      };
+    });
+
+    return {
+      relevantChunks,
+      sources,
+      synthesizedContext: result.synthesizedContext,
+      tokenCount: result.tokenCount,
+    };
   }
 
   /**

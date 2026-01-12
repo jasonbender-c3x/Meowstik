@@ -32,16 +32,18 @@ export interface DocumentChunkResult {
   metadata: ChunkMetadata;
 }
 
-export type ChunkingStrategy = "paragraph" | "sentence" | "fixed" | "semantic";
+export type ChunkingStrategy = "paragraph" | "sentence" | "fixed" | "semantic" | "adaptive" | "hierarchical";
 
 export interface ChunkingOptions {
   strategy?: ChunkingStrategy;
   maxChunkSize?: number;
   minChunkSize?: number;
   overlap?: number;
+  mimeType?: string;
+  contentLength?: number;
 }
 
-const DEFAULT_OPTIONS: Required<ChunkingOptions> = {
+const DEFAULT_OPTIONS: Required<Omit<ChunkingOptions, "mimeType" | "contentLength">> = {
   strategy: "paragraph",
   maxChunkSize: 1000,
   minChunkSize: 25,  // Lowered from 100 to capture short but meaningful messages
@@ -50,7 +52,7 @@ const DEFAULT_OPTIONS: Required<ChunkingOptions> = {
 
 export class ChunkingService {
   /**
-   * Chunk a document into semantic pieces
+   * Chunk a document into semantic pieces with adaptive strategy selection
    */
   async chunkDocument(
     content: string,
@@ -61,9 +63,16 @@ export class ChunkingService {
   ): Promise<DocumentChunkResult[]> {
     const opts = { ...DEFAULT_OPTIONS, ...options };
 
+    // Auto-select strategy if adaptive
+    let strategy = opts.strategy;
+    if (strategy === "adaptive") {
+      strategy = this.selectAdaptiveStrategy(content, mimeType);
+      console.log(`[Chunking] Auto-selected strategy: ${strategy} for ${filename}`);
+    }
+
     let rawChunks: string[];
 
-    switch (opts.strategy) {
+    switch (strategy) {
       case "paragraph":
         rawChunks = this.chunkByParagraph(content, opts);
         break;
@@ -75,6 +84,9 @@ export class ChunkingService {
         break;
       case "semantic":
         rawChunks = this.chunkSemantically(content, opts);
+        break;
+      case "hierarchical":
+        rawChunks = this.chunkHierarchically(content, opts);
         break;
       default:
         rawChunks = this.chunkByParagraph(content, opts);
@@ -212,6 +224,141 @@ export class ChunkingService {
     }
 
     return merged;
+  }
+
+  /**
+   * Select adaptive chunking strategy based on content characteristics
+   */
+  private selectAdaptiveStrategy(content: string, mimeType?: string): ChunkingStrategy {
+    // Short content - don't split
+    if (content.length < 500) {
+      return "fixed";
+    }
+
+    // Code files - use fixed with overlap to preserve context
+    if (mimeType && this.isCodeFile(mimeType)) {
+      return "fixed";
+    }
+
+    // Markdown/structured documents - use semantic (headers)
+    if (mimeType === "text/markdown" || content.includes("# ") || content.includes("## ")) {
+      return "semantic";
+    }
+
+    // Conversations or chat logs - use sentence
+    if (this.isConversational(content)) {
+      return "sentence";
+    }
+
+    // Technical documents with hierarchical structure
+    if (this.hasHierarchicalStructure(content)) {
+      return "hierarchical";
+    }
+
+    // Default - paragraph
+    return "paragraph";
+  }
+
+  /**
+   * Check if content is code
+   */
+  private isCodeFile(mimeType: string): boolean {
+    const codeTypes = [
+      "javascript",
+      "typescript",
+      "python",
+      "java",
+      "c++",
+      "rust",
+      "go",
+      "ruby",
+      "php",
+      "text/x-",
+    ];
+    return codeTypes.some(type => mimeType.includes(type));
+  }
+
+  /**
+   * Check if content is conversational
+   */
+  private isConversational(content: string): boolean {
+    const conversationIndicators = [
+      /:\s*[A-Z]/, // "Person: Message"
+      /^(User|AI|Assistant|Human):/im,
+      /\b(said|asked|replied|answered)\b/i,
+    ];
+    return conversationIndicators.some(pattern => pattern.test(content));
+  }
+
+  /**
+   * Check if content has hierarchical structure
+   */
+  private hasHierarchicalStructure(content: string): boolean {
+    // Check for numbered sections, chapters, or clear hierarchy
+    const hierarchyPatterns = [
+      /^\d+\.\s+/m, // "1. Section"
+      /^Chapter\s+\d+/im,
+      /^Section\s+\d+/im,
+      /^Part\s+[IVX]+/im,
+    ];
+    return hierarchyPatterns.some(pattern => pattern.test(content));
+  }
+
+  /**
+   * Hierarchical chunking for structured documents
+   * Preserves document structure while creating overlapping chunks
+   */
+  private chunkHierarchically(
+    content: string,
+    opts: Required<Omit<ChunkingOptions, "mimeType" | "contentLength">>
+  ): string[] {
+    // First, try to identify major sections
+    const sections = this.identifySections(content);
+    
+    if (sections.length <= 1) {
+      // No clear hierarchy - fall back to semantic chunking
+      return this.chunkSemantically(content, opts);
+    }
+
+    const chunks: string[] = [];
+
+    // Chunk each section separately
+    for (const section of sections) {
+      if (section.length <= opts.maxChunkSize) {
+        chunks.push(section);
+      } else {
+        // Section is too large - split it using semantic chunking
+        const subChunks = this.chunkSemantically(section, opts);
+        chunks.push(...subChunks);
+      }
+    }
+
+    return chunks;
+  }
+
+  /**
+   * Identify major sections in structured content
+   */
+  private identifySections(content: string): string[] {
+    // Try markdown headers first
+    const headerPattern = /^#{1,3}\s+.+$/gm;
+    const headers = content.match(headerPattern);
+
+    if (headers && headers.length > 0) {
+      // Split on major headers
+      const sections = content.split(/^#{1,3}\s+/gm);
+      return sections.filter(s => s.trim().length > 0);
+    }
+
+    // Try numbered sections
+    const numberedPattern = /^\d+\.\s+/gm;
+    if (numberedPattern.test(content)) {
+      const sections = content.split(numberedPattern);
+      return sections.filter(s => s.trim().length > 0);
+    }
+
+    // Fall back to double newlines (paragraphs)
+    return content.split(/\n\s*\n/).filter(s => s.trim().length > 0);
   }
 
   /**
