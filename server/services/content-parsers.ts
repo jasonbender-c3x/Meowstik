@@ -97,7 +97,14 @@ export class PythonParser implements ContentParser {
         }
         
         const funcIndent = funcMatch[1].length;
-        const currentClass = classStack.find(c => c.indent < funcIndent);
+        // Find the most recent (innermost) class at a shallower indent level
+        let currentClass = undefined;
+        for (let j = classStack.length - 1; j >= 0; j--) {
+          if (classStack[j].indent < funcIndent) {
+            currentClass = classStack[j];
+            break;
+          }
+        }
         
         currentChunk = {
           start: i,
@@ -113,10 +120,14 @@ export class PythonParser implements ContentParser {
       if (currentChunk) {
         currentChunk.lines.push(line);
         
-        // Check if we should close the chunk (dedent or empty lines after content)
+        // Check if we should close the chunk (dedent detected)
         if (indent !== -1 && line.trim() !== '') {
-          const chunkIndent = currentChunk.lines[0].search(/\S/);
-          if (indent <= chunkIndent && i > currentChunk.start + 1) {
+          // Get the indentation of the definition line (first line of chunk)
+          const defLine = currentChunk.lines[0];
+          const defIndent = defLine.search(/\S/);
+          
+          // If current line is at or before definition indent, close the chunk
+          if (indent <= defIndent && i > currentChunk.start + 1) {
             // Dedent detected - close chunk
             currentChunk.lines.pop(); // Remove the dedented line
             chunks.push(this.createChunk(currentChunk, filename));
@@ -197,8 +208,15 @@ export class JavaScriptParser implements ContentParser {
         continue;
       }
       
-      // Function definition (including arrow functions)
-      const funcMatch = line.match(/^\s*(?:export\s+)?(?:async\s+)?(?:function\s+(\w+)|const\s+(\w+)\s*=\s*(?:async\s*)?\(|function\s*\()/);
+      // Function definition (including arrow functions with and without type annotations)
+      // Matches: 
+      //   - function name()
+      //   - const name = () =>
+      //   - const name = (param) =>
+      //   - const name = (param: Type) =>
+      //   - const name = (param): ReturnType =>
+      //   - const name = async (param) =>
+      const funcMatch = line.match(/^\s*(?:export\s+)?(?:async\s+)?(?:function\s+(\w+)|const\s+(\w+)\s*=\s*(?:async\s*)?\([^)]*\)(?:\s*:\s*\w+(?:<[^>]+>)?)?\s*=>|function\s*\()/);
       if (funcMatch && !currentChunk) {
         const name = funcMatch[1] || funcMatch[2] || 'anonymous';
         currentChunk = {
@@ -211,9 +229,10 @@ export class JavaScriptParser implements ContentParser {
         continue;
       }
       
-      // React component (functional component)
-      const componentMatch = line.match(/^\s*(?:export\s+)?(?:const|function)\s+([A-Z]\w+)\s*[=:]/);
-      if (componentMatch && !currentChunk) {
+      // React component (functional component) - only if name starts with uppercase
+      // This should come after function matching to avoid conflicts
+      const componentMatch = line.match(/^\s*(?:export\s+)?(?:const|function)\s+([A-Z][A-Za-z0-9]*)\s*[=:]/);
+      if (componentMatch && !currentChunk && !funcMatch) {
         currentChunk = {
           start: i,
           lines: [line],
