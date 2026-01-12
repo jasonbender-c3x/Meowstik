@@ -73,6 +73,24 @@
 | `file_put` | `path`, `content`, `mimeType?`, `summary?` |
 | `file_ingest` | `content`, `filename`, `mimeType?` |
 
+### Path Prefixes
+- `server:path` or just `path` → Server filesystem (default)
+- `client:path` → Client machine via connected desktop-app
+- `editor:path` → Monaco editor canvas
+
+### Tilde Expansion
+The `~` character is automatically expanded to the user's home directory:
+- `~` → User's home directory
+- `~/path` → User's home directory + path
+- Works with all prefixes (e.g., `client:~/file.txt`)
+
+Examples:
+```json
+{"type": "file_put", "id": "f1", "parameters": {"path": "~/workspace/test.txt", "content": "..."}}
+{"type": "file_get", "id": "f2", "parameters": {"path": "~/documents/report.pdf"}}
+{"type": "file_put", "id": "f3", "parameters": {"path": "client:~/Desktop/file.txt", "content": "..."}}
+```
+
 ---
 
 ## Terminal & Web

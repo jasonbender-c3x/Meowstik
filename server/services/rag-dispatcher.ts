@@ -68,7 +68,32 @@ import { exec } from "child_process";
 import { promisify } from "util";
 import * as fs from "fs/promises";
 import * as path from "path";
+import * as os from "os";
 import { z } from "zod";
+
+/**
+ * Expand tilde (~) in paths to the user's home directory
+ * Handles both ~ and ~/path patterns
+ * 
+ * @param filePath - The path that may contain a tilde
+ * @returns The path with tilde expanded to home directory
+ */
+function expandTilde(filePath: string): string {
+  if (!filePath) return filePath;
+  
+  // Handle ~ at the start of the path
+  if (filePath === '~') {
+    return os.homedir();
+  }
+  
+  // Handle ~/path
+  if (filePath.startsWith('~/') || filePath.startsWith('~\\')) {
+    return path.join(os.homedir(), filePath.slice(2));
+  }
+  
+  // No tilde expansion needed
+  return filePath;
+}
 
 /**
  * Path Prefix Routing System
@@ -87,6 +112,11 @@ import { z } from "zod";
  * EDITOR OPERATIONS (editor_load):
  * - editor:server:path or editor:path → Load file from server into Monaco editor (default)
  * - editor:client:path → Load file from client into Monaco editor
+ * 
+ * TILDE EXPANSION:
+ * - ~ expands to user's home directory
+ * - ~/path expands to home directory + path
+ * - Works with all prefixes (e.g., client:~/file.txt)
  */
 
 type PathTarget = 'server' | 'client' | 'editor';
@@ -101,6 +131,7 @@ interface ParsedPath {
  * Parse a path with prefix routing
  * Returns the target (server/client/editor) and the clean path
  * 
+ * Handles tilde expansion before prefix parsing
  * Throws error for invalid prefixes (e.g., client: with no path)
  */
 function parsePathPrefix(rawPath: string, defaultTarget: PathTarget = 'server'): ParsedPath {
@@ -117,7 +148,7 @@ function parsePathPrefix(rawPath: string, defaultTarget: PathTarget = 'server'):
       }
       return { 
         target: 'editor', 
-        path: clientPath,
+        path: expandTilde(clientPath),
         editorSubTarget: 'client'
       };
     }
@@ -128,7 +159,7 @@ function parsePathPrefix(rawPath: string, defaultTarget: PathTarget = 'server'):
       }
       return { 
         target: 'editor', 
-        path: serverPath,
+        path: expandTilde(serverPath),
         editorSubTarget: 'server'
       };
     }
@@ -137,7 +168,7 @@ function parsePathPrefix(rawPath: string, defaultTarget: PathTarget = 'server'):
     if (!afterEditor || afterEditor.trim() === '') {
       throw new Error('editor: requires a filename (e.g., editor:app.tsx)');
     }
-    return { target: 'editor', path: afterEditor, editorSubTarget: undefined };
+    return { target: 'editor', path: expandTilde(afterEditor), editorSubTarget: undefined };
   }
   
   // Handle client: prefix
@@ -146,7 +177,7 @@ function parsePathPrefix(rawPath: string, defaultTarget: PathTarget = 'server'):
     if (!clientPath || clientPath.trim() === '') {
       throw new Error('client: requires a path (e.g., client:/home/user/file.txt)');
     }
-    return { target: 'client', path: clientPath };
+    return { target: 'client', path: expandTilde(clientPath) };
   }
   
   // Handle explicit server: prefix
@@ -155,11 +186,11 @@ function parsePathPrefix(rawPath: string, defaultTarget: PathTarget = 'server'):
     if (!serverPath || serverPath.trim() === '') {
       throw new Error('server: requires a path (e.g., server:package.json)');
     }
-    return { target: 'server', path: serverPath };
+    return { target: 'server', path: expandTilde(serverPath) };
   }
   
-  // No prefix = default target
-  return { target: defaultTarget, path: rawPath };
+  // No prefix = default target (also expand tilde)
+  return { target: defaultTarget, path: expandTilde(rawPath) };
 }
 
 /**
