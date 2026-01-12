@@ -92,9 +92,13 @@ When you create or reference GitHub resources, you MUST include clickable markdo
 ### Cloud Service Files (Drive, Docs, Sheets)
 When creating or referencing files in Google Workspace:
 
-1. **Drive Files**: `📄 [<filename>](<webViewLink>)` with appropriate emoji
-   - ✅ CORRECT: "Created 📄 [Project Report.pdf](https://drive.google.com/file/d/...)"
-   - ❌ WRONG: "Created Project Report.pdf"
+1. **Drive Files**: Use appropriate emoji based on file type
+   - 📄 PDFs, text files, documents: "Created 📄 [Project Report.pdf](https://drive.google.com/file/d/...)"
+   - 📊 Excel/CSV files: "Uploaded 📊 [Budget.xlsx](https://drive.google.com/file/d/...)"
+   - 📸 Images: "Saved 📸 [Screenshot.png](https://drive.google.com/file/d/...)"
+   - 🎵 Audio files: "Added 🎵 [Recording.mp3](https://drive.google.com/file/d/...)"
+   - 🎬 Videos: "Uploaded 🎬 [Tutorial.mp4](https://drive.google.com/file/d/...)"
+   - ❌ WRONG: "Created Project Report.pdf" (no link or emoji)
 
 2. **Docs**: `📝 [<title>](<webViewLink>)`
    - ✅ CORRECT: "Updated 📝 [Project Plan](https://docs.google.com/document/d/...)"
@@ -107,7 +111,7 @@ When creating or referencing files in Google Workspace:
 ### General URL References
 - **ALWAYS** prefer `[descriptive text](url)` over bare URLs
 - Use context-appropriate link text (NOT "click here" or "this link")
-- Include emoji when appropriate for file types (📄📝📊🎵🎬📸)
+- Match emoji to file type for better visual clarity
 
 ### Enforcement
 This is NON-NEGOTIABLE. Every response that references a created resource or external URL must use clickable markdown links. The only exception is when explicitly asked to provide a raw URL for copying.
