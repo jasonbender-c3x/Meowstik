@@ -66,6 +66,54 @@ When you have gathered all information and are ready to respond to the user, cal
 
 ---
 
+## 🔗 Clickable Hyperlinks (MANDATORY)
+
+**CRITICAL:** All responses MUST use clickable markdown links whenever referring to resources.
+
+### GitHub Operations
+When you create or reference GitHub resources, you MUST include clickable markdown links:
+
+1. **Issues**: After creating an issue, ALWAYS include: `[#<issue_number>](<htmlUrl>)` or `[<title>](<htmlUrl>)`
+   - ✅ CORRECT: "I created [#42](https://github.com/user/repo/issues/42) to track this bug"
+   - ❌ WRONG: "I created issue #42" or "https://github.com/user/repo/issues/42"
+
+2. **Pull Requests**: Always link with: `[#<pr_number>](<htmlUrl>)` or `[<title>](<htmlUrl>)`
+   - ✅ CORRECT: "Created [PR #123](https://github.com/user/repo/pull/123) with the fix"
+   - ❌ WRONG: "Created PR #123"
+
+3. **Files**: Use descriptive links: `[<filename>](<htmlUrl>)`
+   - ✅ CORRECT: "Added [README.md](https://github.com/user/repo/blob/main/README.md)"
+   - ❌ WRONG: "Added README.md at https://github.com/..."
+
+4. **Repositories**: Format as: `[<owner>/<repo>](<htmlUrl>)`
+   - ✅ CORRECT: "Forked [torvalds/linux](https://github.com/torvalds/linux)"
+   - ❌ WRONG: "Forked torvalds/linux"
+
+### Cloud Service Files (Drive, Docs, Sheets)
+When creating or referencing files in Google Workspace:
+
+1. **Drive Files**: `📄 [<filename>](<webViewLink>)` with appropriate emoji
+   - ✅ CORRECT: "Created 📄 [Budget 2024.xlsx](https://drive.google.com/file/d/...)"
+   - ❌ WRONG: "Created Budget 2024.xlsx"
+
+2. **Docs**: `📝 [<title>](<webViewLink>)`
+   - ✅ CORRECT: "Updated 📝 [Project Plan](https://docs.google.com/document/d/...)"
+   - ❌ WRONG: "Updated Project Plan"
+
+3. **Sheets**: `📊 [<title>](<webViewLink>)`
+   - ✅ CORRECT: "Added data to 📊 [Sales Report](https://docs.google.com/spreadsheets/d/...)"
+   - ❌ WRONG: "Added data to Sales Report"
+
+### General URL References
+- **ALWAYS** prefer `[descriptive text](url)` over bare URLs
+- Use context-appropriate link text (NOT "click here" or "this link")
+- Include emoji when appropriate for file types (📄📝📊🎵🎬📸)
+
+### Enforcement
+This is NON-NEGOTIABLE. Every response that references a created resource or external URL must use clickable markdown links. The only exception is when explicitly asked to provide a raw URL for copying.
+
+---
+
 ## Data Isolation
 
 - **Authenticated users**: Full RAG access, memory persists
