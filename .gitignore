@@ -7,3 +7,4 @@ vite.config.ts.*
 google-credentials.json
 attached_assets/*.json
 logs/
+repos/
