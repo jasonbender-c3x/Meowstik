@@ -137,7 +137,8 @@ export class RerankerService {
           },
         });
 
-        const text = response.text || "";
+        // Handle different response formats
+        const text = response.text || response.response?.text?.() || "";
         const scores = this.parseRerankedScores(text, batch.length);
 
         // Combine with original scores
@@ -252,6 +253,9 @@ Scores:`;
       rank: 1,
     });
 
+    // Pre-compute selected chunk tokens for faster comparison
+    const selectedTokenSets = [new Set(this.tokenize(first.chunk.content))];
+
     // Iteratively select results that maximize MMR
     while (remaining.length > 0 && selected.length < options.topK) {
       let bestScore = -Infinity;
@@ -259,14 +263,13 @@ Scores:`;
 
       for (let i = 0; i < remaining.length; i++) {
         const candidate = remaining[i];
+        const candidateTokens = new Set(this.tokenize(candidate.chunk.content));
         
-        // Calculate similarity to already selected results
+        // Calculate max similarity to already selected results
+        // Using pre-computed token sets for efficiency
         let maxSimilarity = 0;
-        for (const sel of selected) {
-          const similarity = this.calculateTextSimilarity(
-            candidate.chunk.content,
-            sel.chunk.content
-          );
+        for (const selectedTokens of selectedTokenSets) {
+          const similarity = this.calculateJaccardSimilarity(candidateTokens, selectedTokens);
           maxSimilarity = Math.max(maxSimilarity, similarity);
         }
 
@@ -281,6 +284,9 @@ Scores:`;
 
       // Add best candidate
       const best = remaining.splice(bestIndex, 1)[0];
+      const bestTokens = new Set(this.tokenize(best.chunk.content));
+      selectedTokenSets.push(bestTokens);
+      
       selected.push({
         chunk: best.chunk,
         originalScore: best.score,
@@ -407,16 +413,34 @@ Scores:`;
   }
 
   /**
-   * Calculate text similarity (simple Jaccard similarity on word sets)
+   * Calculate text similarity (Jaccard similarity on word sets)
    */
   private calculateTextSimilarity(text1: string, text2: string): number {
     const words1 = new Set(this.tokenize(text1));
     const words2 = new Set(this.tokenize(text2));
+    return this.calculateJaccardSimilarity(words1, words2);
+  }
 
-    const intersection = new Set([...words1].filter(w => words2.has(w)));
-    const union = new Set([...words1, ...words2]);
+  /**
+   * Calculate Jaccard similarity between two sets
+   * Optimized for performance with pre-computed sets
+   */
+  private calculateJaccardSimilarity(set1: Set<string>, set2: Set<string>): number {
+    if (set1.size === 0 && set2.size === 0) return 1;
+    if (set1.size === 0 || set2.size === 0) return 0;
 
-    return union.size > 0 ? intersection.size / union.size : 0;
+    let intersectionSize = 0;
+    // Iterate over smaller set for efficiency
+    const [smaller, larger] = set1.size < set2.size ? [set1, set2] : [set2, set1];
+    
+    for (const item of smaller) {
+      if (larger.has(item)) {
+        intersectionSize++;
+      }
+    }
+
+    const unionSize = set1.size + set2.size - intersectionSize;
+    return unionSize > 0 ? intersectionSize / unionSize : 0;
   }
 
   /**

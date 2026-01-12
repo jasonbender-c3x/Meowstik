@@ -417,13 +417,20 @@ export class RAGService {
 
       // Step 2: Hybrid search (semantic + keyword)
       if (useHybridSearch && semanticChunks.length > 0) {
+        // For hybrid search, we need a corpus for BM25 scoring.
+        // Note: For very large datasets (>10k chunks), consider implementing
+        // a database-level keyword search instead of loading all chunks.
         const allChunks = await storage.getAllDocumentChunks();
-        const userFilteredChunks = userId !== undefined 
-          ? allChunks.filter(c => {
-              const meta = c.metadata as { userId?: string } | null;
-              return (meta?.userId || GUEST_USER_ID) === (userId || GUEST_USER_ID);
-            })
-          : allChunks;
+        
+        // Filter by userId if provided
+        let userFilteredChunks = allChunks;
+        if (userId !== undefined) {
+          const targetUserId = userId || GUEST_USER_ID;
+          userFilteredChunks = allChunks.filter(c => {
+            const meta = c.metadata as { userId?: string } | null;
+            return (meta?.userId || GUEST_USER_ID) === targetUserId;
+          });
+        }
 
         const hybridResults = hybridSearchService.search(
           query,

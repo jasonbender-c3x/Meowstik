@@ -215,7 +215,8 @@ Summary:`;
         },
       });
 
-      const summary = response.text || "";
+      // Handle different response formats
+      const summary = response.text || response.response?.text?.() || "";
       const tokenCount = Math.ceil(summary.length / this.CHARS_PER_TOKEN);
 
       return {
@@ -272,7 +273,8 @@ Summary:`;
           },
         });
 
-        summaries.push(response.text || "");
+        // Handle different response formats
+        summaries.push(response.text || response.response?.text?.() || "");
       } catch (error) {
         console.error("[ContextSynthesis] Batch summarization failed:", error);
         // Use original text as fallback
@@ -302,7 +304,8 @@ Final Summary (max ${options.maxTokens} tokens):`;
           },
         });
 
-        const finalSummary = response.text || "";
+        // Handle different response formats
+        const finalSummary = response.text || response.response?.text?.() || "";
         return {
           content: finalSummary,
           tokenCount: Math.ceil(finalSummary.length / this.CHARS_PER_TOKEN),
