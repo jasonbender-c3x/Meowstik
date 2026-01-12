@@ -277,7 +277,7 @@ class DesktopRelayService {
     console.log(`[DesktopRelay] Audio for session ${sessionId}: ${enabled}`);
   }
 
-  private broadcastToBrowsers(session: DesktopSession, message: object): void {
+  broadcastToBrowsers(session: DesktopSession, message: object): void {
     const payload = JSON.stringify(message);
     session.browserWs.forEach((ws) => {
       if (ws.readyState === WebSocket.OPEN) {

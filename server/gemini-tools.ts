@@ -1144,6 +1144,116 @@ export const geminiFunctionDeclarations: FunctionDeclaration[] = [
   },
 
   // ═══════════════════════════════════════════════════════════════════════════
+  // COMPUTER USE (PROJECT GHOST)
+  // Hands-free desktop control via Gemini Computer Use API
+  // ═══════════════════════════════════════════════════════════════════════════
+  {
+    name: "computer_click",
+    description: "Click at a specific coordinate on the user's desktop screen. Use after analyzing a screenshot to find element positions.",
+    parametersJsonSchema: {
+      type: "object",
+      properties: {
+        x: { type: "number", description: "X coordinate in pixels from the left edge" },
+        y: { type: "number", description: "Y coordinate in pixels from the top edge" },
+        button: { 
+          type: "string", 
+          enum: ["left", "right", "middle"], 
+          description: "Mouse button to click (default: left)" 
+        }
+      },
+      required: ["x", "y"]
+    }
+  },
+  {
+    name: "computer_type",
+    description: "Type text at the current cursor position or into a focused input field on the desktop.",
+    parametersJsonSchema: {
+      type: "object",
+      properties: {
+        text: { type: "string", description: "Text to type" }
+      },
+      required: ["text"]
+    }
+  },
+  {
+    name: "computer_key",
+    description: "Press a keyboard key (Enter, Tab, Escape, Arrow keys, etc.) with optional modifiers.",
+    parametersJsonSchema: {
+      type: "object",
+      properties: {
+        key: { 
+          type: "string", 
+          description: "Key name: Enter, Tab, Escape, Backspace, Delete, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Home, End, PageUp, PageDown, etc." 
+        },
+        modifiers: { 
+          type: "array", 
+          items: { type: "string", enum: ["Control", "Shift", "Alt", "Meta"] },
+          description: "Modifier keys to hold while pressing (e.g., ['Control', 'Shift'] for Ctrl+Shift+Key)"
+        }
+      },
+      required: ["key"]
+    }
+  },
+  {
+    name: "computer_scroll",
+    description: "Scroll the active window in a direction.",
+    parametersJsonSchema: {
+      type: "object",
+      properties: {
+        direction: { 
+          type: "string", 
+          enum: ["up", "down", "left", "right"], 
+          description: "Scroll direction" 
+        },
+        amount: { 
+          type: "number", 
+          description: "Amount to scroll in pixels (default: 300)" 
+        }
+      },
+      required: ["direction"]
+    }
+  },
+  {
+    name: "computer_move",
+    description: "Move the mouse cursor to a position without clicking. Useful for hovering to reveal tooltips or menus.",
+    parametersJsonSchema: {
+      type: "object",
+      properties: {
+        x: { type: "number", description: "X coordinate in pixels" },
+        y: { type: "number", description: "Y coordinate in pixels" }
+      },
+      required: ["x", "y"]
+    }
+  },
+  {
+    name: "computer_screenshot",
+    description: "Take a screenshot of the current desktop state. Use this to see the current screen before taking action.",
+    parametersJsonSchema: {
+      type: "object",
+      properties: {
+        fullScreen: { 
+          type: "boolean", 
+          description: "Capture full screen or active window only (default: true)" 
+        }
+      }
+    }
+  },
+  {
+    name: "computer_wait",
+    description: "Wait for a specified duration before the next action. Useful when waiting for page loads or animations.",
+    parametersJsonSchema: {
+      type: "object",
+      properties: {
+        delay: { 
+          type: "number", 
+          description: "Time to wait in milliseconds (1000ms = 1 second)" 
+        }
+      },
+      required: ["delay"]
+    }
+  },
+
+  // ═══════════════════════════════════════════════════════════════════════════
   // DATABASE OPERATIONS
   // ═══════════════════════════════════════════════════════════════════════════
   {
