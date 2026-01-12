@@ -93,8 +93,8 @@ When you create or reference GitHub resources, you MUST include clickable markdo
 When creating or referencing files in Google Workspace:
 
 1. **Drive Files**: `📄 [<filename>](<webViewLink>)` with appropriate emoji
-   - ✅ CORRECT: "Created 📄 [Budget 2024.xlsx](https://drive.google.com/file/d/...)"
-   - ❌ WRONG: "Created Budget 2024.xlsx"
+   - ✅ CORRECT: "Created 📄 [Project Report.pdf](https://drive.google.com/file/d/...)"
+   - ❌ WRONG: "Created Project Report.pdf"
 
 2. **Docs**: `📝 [<title>](<webViewLink>)`
    - ✅ CORRECT: "Updated 📝 [Project Plan](https://docs.google.com/document/d/...)"
