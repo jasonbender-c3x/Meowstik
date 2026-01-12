@@ -73,12 +73,23 @@ import { z } from "zod";
 
 /**
  * Expand tilde (~) in paths to the user's home directory
- * Handles both ~ and ~/path patterns
+ * Handles both ~ and ~/path patterns on Unix and Windows
+ * 
+ * Edge cases:
+ * - Empty string, null, or undefined: returned as-is
+ * - '~' alone: expands to home directory
+ * - '~/path' or '~\\path': expands to home directory + path
+ * - Tilde in middle of path: not expanded (e.g., '/some/~/path' unchanged)
  * 
  * @param filePath - The path that may contain a tilde
  * @returns The path with tilde expanded to home directory
+ * 
+ * @example
+ * expandTilde('~') // '/home/user'
+ * expandTilde('~/documents') // '/home/user/documents'
+ * expandTilde('/absolute/path') // '/absolute/path' (unchanged)
  */
-function expandTilde(filePath: string): string {
+export function expandTilde(filePath: string): string {
   if (!filePath) return filePath;
   
   // Handle ~ at the start of the path
@@ -86,8 +97,8 @@ function expandTilde(filePath: string): string {
     return os.homedir();
   }
   
-  // Handle ~/path
-  if (filePath.startsWith('~/') || filePath.startsWith('~\\')) {
+  // Handle ~/path or ~\path (Unix and Windows)
+  if (filePath.startsWith('~/') || filePath.startsWith('~' + path.sep)) {
     return path.join(os.homedir(), filePath.slice(2));
   }
   
