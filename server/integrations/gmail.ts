@@ -49,7 +49,7 @@
  * Provides access to all Google API services including Gmail.
  */
 import { google } from 'googleapis';
-import { getAuthenticatedClient, getUserOAuth2Client } from './google-auth';
+import { getAuthenticatedClient, getUserOAuth2Client, getAgentOAuth2Client, getOAuth2ClientForContext } from './google-auth';
 
 // ═══════════════════════════════════════════════════════════════════════════
 // SECTION: CLIENT FACTORY
@@ -82,6 +82,31 @@ export async function getGmailClientForUser(userId: string) {
   return google.gmail({ version: 'v1', auth });
 }
 
+/**
+ * Creates a Gmail API client for the agent (LLM's own account).
+ * 
+ * @async
+ * @returns {Promise<gmail_v1.Gmail>} Authenticated Gmail API client
+ * @throws {Error} If agent not authenticated with Google
+ */
+export async function getGmailClientForAgent() {
+  const auth = await getAgentOAuth2Client();
+  return google.gmail({ version: 'v1', auth });
+}
+
+/**
+ * Creates a Gmail API client for either a user or the agent.
+ * 
+ * @async
+ * @param {string | null} userId - The user ID, or null to use agent account
+ * @returns {Promise<gmail_v1.Gmail>} Authenticated Gmail API client
+ * @throws {Error} If not authenticated with Google
+ */
+export async function getGmailClientForContext(userId: string | null) {
+  const auth = await getOAuth2ClientForContext(userId);
+  return google.gmail({ version: 'v1', auth });
+}
+
 // ═══════════════════════════════════════════════════════════════════════════
 // SECTION: EMAIL LISTING
 // ═══════════════════════════════════════════════════════════════════════════
@@ -96,7 +121,7 @@ export async function getGmailClientForUser(userId: string) {
  * The emails are enriched with header information for display.
  * 
  * @async
- * @param {string} userId - The user ID to fetch emails for (required for per-user auth)
+ * @param {string | null} userId - The user ID to fetch emails for, or null to use agent account
  * @param {number} [maxResults=20] - Maximum number of emails to return
  * @param {string[]} [labelIds=['INBOX']] - Labels to filter by
  * @returns {Promise<Object[]>} Array of email summary objects
@@ -106,11 +131,15 @@ export async function getGmailClientForUser(userId: string) {
  * const emails = await listEmails(userId);
  * 
  * @example
+ * // List emails using agent account
+ * const emails = await listEmails(null);
+ * 
+ * @example
  * // List 50 emails from SENT folder
  * const sent = await listEmails(userId, 50, ['SENT']);
  */
-export async function listEmails(userId: string, maxResults = 20, labelIds = ['INBOX']) {
-  const gmail = await getGmailClientForUser(userId);
+export async function listEmails(userId: string | null, maxResults = 20, labelIds = ['INBOX']) {
+  const gmail = await getGmailClientForContext(userId);
   
   // Step 1: Get list of message IDs
   const response = await gmail.users.messages.list({
@@ -182,8 +211,8 @@ export async function listEmails(userId: string, maxResults = 20, labelIds = ['I
  * const email = await getEmail('18abc123def');
  * console.log(email.subject, email.body);
  */
-export async function getEmail(userId: string, messageId: string) {
-  const gmail = await getGmailClientForUser(userId);
+export async function getEmail(userId: string | null, messageId: string) {
+  const gmail = await getGmailClientForContext(userId);
   
   // Fetch full message content
   const response = await gmail.users.messages.get({
@@ -269,8 +298,8 @@ export async function getEmail(userId: string, messageId: string) {
  *   '<h1>Welcome!</h1><p>This is a test email.</p>'
  * );
  */
-export async function sendEmail(userId: string, to: string, subject: string, body: string) {
-  const gmail = await getGmailClientForUser(userId);
+export async function sendEmail(userId: string | null, to: string, subject: string, body: string) {
+  const gmail = await getGmailClientForContext(userId);
   
   // ─────────────────────────────────────────────────────────────────────────
   // Construct RFC 2822 format email message
@@ -322,8 +351,8 @@ export async function sendEmail(userId: string, to: string, subject: string, bod
  * const labels = await getLabels();
  * labels.forEach(label => console.log(label.name));
  */
-export async function getLabels(userId: string) {
-  const gmail = await getGmailClientForUser(userId);
+export async function getLabels(userId: string | null) {
+  const gmail = await getGmailClientForContext(userId);
   
   const response = await gmail.users.labels.list({
     userId: 'me'
@@ -363,8 +392,8 @@ export async function getLabels(userId: string) {
  * 
  * @see https://support.google.com/mail/answer/7190
  */
-export async function searchEmails(userId: string, query: string, maxResults = 20) {
-  const gmail = await getGmailClientForUser(userId);
+export async function searchEmails(userId: string | null, query: string, maxResults = 20) {
+  const gmail = await getGmailClientForContext(userId);
   
   // Search for messages matching the query
   const response = await gmail.users.messages.list({

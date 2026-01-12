@@ -1,6 +1,7 @@
 /**
  * Custom Google OAuth2 Authentication
  * Supports per-user OAuth tokens for true multi-user functionality
+ * Also supports agent/service account for LLM's own operations
  */
 
 import { google, Auth } from 'googleapis';
@@ -23,6 +24,13 @@ const SCOPES = [
 
 // Time buffer before token expiry to trigger refresh (60 seconds)
 const TOKEN_REFRESH_BUFFER_MS = 60000;
+
+/**
+ * Special user ID for the default agent account
+ * Account numbering: 0 = owner, 1-9 = agents, 1 = default agent
+ * The LLM uses this account for its own operations
+ */
+export const AGENT_USER_ID = '1';
 
 // Legacy singleton tokens (deprecated - for backward compatibility)
 let cachedTokens: Auth.Credentials | null = null;
@@ -264,7 +272,7 @@ export async function getUserOAuth2Client(userId: string): Promise<Auth.OAuth2Cl
   // Load from database
   const tokens = await storage.getUserGoogleTokens(userId);
   if (!tokens || !tokens.accessToken) {
-    throw new Error('User not authenticated with Google. Please authorize first.');
+    throw new Error(`User ${userId} not authenticated with Google. Please authorize first.`);
   }
   
   const client = createOAuth2Client();
@@ -382,6 +390,37 @@ export async function revokeUserAccess(userId: string): Promise<void> {
   userOAuth2Clients.delete(userId);
   userTokenCache.delete(userId);
   console.log(`Revoked Google access for user ${userId}`);
+}
+
+/**
+ * Get OAuth2 client for the agent (LLM's own account)
+ * This allows the LLM to make API calls on its own behalf
+ */
+export async function getAgentOAuth2Client(): Promise<Auth.OAuth2Client> {
+  return getUserOAuth2Client(AGENT_USER_ID);
+}
+
+/**
+ * Get OAuth2 client for either a user or the agent
+ * @param userId - The user ID, or null to use the agent account
+ */
+export async function getOAuth2ClientForContext(userId: string | null): Promise<Auth.OAuth2Client> {
+  if (userId === null || userId === AGENT_USER_ID) {
+    return getAgentOAuth2Client();
+  }
+  return getUserOAuth2Client(userId);
+}
+
+/**
+ * Check if the agent account is authenticated with Google
+ */
+export async function isAgentAuthenticated(): Promise<boolean> {
+  try {
+    const tokens = await storage.getUserGoogleTokens(AGENT_USER_ID);
+    return tokens !== null && tokens.accessToken !== null;
+  } catch {
+    return false;
+  }
 }
 
 export { SCOPES };
