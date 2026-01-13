@@ -44,9 +44,10 @@ router.post(
       throw badRequest(validation.error.errors[0].message);
     }
 
-    const config: DocGenerationConfig = validation.data;
+    const { saveToDb, ...configData } = validation.data;
+    const config: DocGenerationConfig = configData;
     
-    if (config.saveToDb) {
+    if (saveToDb) {
       // Generate and save to database
       const result = await generateAndSave(config);
       

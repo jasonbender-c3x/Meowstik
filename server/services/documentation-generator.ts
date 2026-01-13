@@ -118,9 +118,11 @@ Generate a complete API reference document in Markdown format that includes:
 
 The documentation should be clear, comprehensive, and include practical examples.`;
 
-    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp" });
-    const result = await model.generateContent(prompt);
-    const content = result.response.text();
+    const result = await genAI.models.generateContent({
+      model: "gemini-2.0-flash-exp",
+      contents: [{ role: "user", parts: [{ text: prompt }] }]
+    });
+    const content = result.text;
     
     const slug = generateSlug(config.title);
     const doc: InsertGeneratedDoc = {
@@ -174,9 +176,11 @@ Generate a complete tutorial in Markdown format that includes:
 
 The tutorial should be beginner-friendly, well-structured, and include all necessary code examples.`;
 
-    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp" });
-    const result = await model.generateContent(prompt);
-    const content = result.response.text();
+    const result = await genAI.models.generateContent({
+      model: "gemini-2.0-flash-exp",
+      contents: [{ role: "user", parts: [{ text: prompt }] }]
+    });
+    const content = result.text;
     
     const slug = generateSlug(config.title);
     const doc: InsertGeneratedDoc = {
@@ -231,9 +235,11 @@ Generate a complete guide in Markdown format that includes:
 
 The guide should be thorough, practical, and help users master the topic.`;
 
-    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp" });
-    const result = await model.generateContent(prompt);
-    const content = result.response.text();
+    const result = await genAI.models.generateContent({
+      model: "gemini-2.0-flash-exp",
+      contents: [{ role: "user", parts: [{ text: prompt }] }]
+    });
+    const content = result.text;
     
     const slug = generateSlug(config.title);
     const doc: InsertGeneratedDoc = {
@@ -288,9 +294,11 @@ Generate a complete overview document in Markdown format that includes:
 
 The overview should give readers a clear understanding of the system architecture and design.`;
 
-    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp" });
-    const result = await model.generateContent(prompt);
-    const content = result.response.text();
+    const result = await genAI.models.generateContent({
+      model: "gemini-2.0-flash-exp",
+      contents: [{ role: "user", parts: [{ text: prompt }] }]
+    });
+    const content = result.text;
     
     const slug = generateSlug(config.title);
     const doc: InsertGeneratedDoc = {
