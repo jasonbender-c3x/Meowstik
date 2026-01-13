@@ -91,12 +91,12 @@ Format in Markdown.`;
     const result = await client.models.generateContent({
       model: DOCUMENTATION_MODEL,
       contents: [{ role: "user", parts: [{ text: prompt }] }],
-      config: {
+      generationConfig: {
         maxOutputTokens: options.maxLength || 2048,
       },
     });
 
-    const content = result.text || "";
+    const content = result.text || result.response?.text?.() || "";
     
     return {
       content,
@@ -141,12 +141,12 @@ Format in Markdown.`;
     const result = await client.models.generateContent({
       model: DOCUMENTATION_MODEL,
       contents: [{ role: "user", parts: [{ text: prompt }] }],
-      config: {
+      generationConfig: {
         maxOutputTokens: options.maxLength || 2048,
       },
     });
 
-    const content = result.text || "";
+    const content = result.text || result.response?.text?.() || "";
     
     return {
       content,
@@ -192,12 +192,12 @@ Format in Markdown.`;
     const result = await client.models.generateContent({
       model: DOCUMENTATION_MODEL,
       contents: [{ role: "user", parts: [{ text: prompt }] }],
-      config: {
+      generationConfig: {
         maxOutputTokens: options.maxLength || 2048,
       },
     });
 
-    const content = result.text || "";
+    const content = result.text || result.response?.text?.() || "";
     
     return {
       content,
@@ -242,12 +242,12 @@ Format in Markdown.`;
     const result = await client.models.generateContent({
       model: DOCUMENTATION_MODEL,
       contents: [{ role: "user", parts: [{ text: prompt }] }],
-      config: {
+      generationConfig: {
         maxOutputTokens: options.maxLength || 2048,
       },
     });
 
-    const content = result.text || "";
+    const content = result.text || result.response?.text?.() || "";
     
     return {
       content,
