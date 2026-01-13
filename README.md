@@ -140,7 +140,7 @@ npm run dev
 | `GEMINI_API_KEY` | Google Generative AI API key for chat functionality |
 | `GOOGLE_CLIENT_ID` | Google OAuth2 client ID for user authentication |
 | `GOOGLE_CLIENT_SECRET` | Google OAuth2 client secret |
-| `GOOGLE_APPLICATION_CREDENTIALS` | Path to Google service account JSON key for TTS (see [Voice Setup Guide](docs/VOICE_SYNTHESIS_SETUP.md)) |
+| `GOOGLE_APPLICATION_CREDENTIALS` | Path to Google service account JSON key for TTS (see [Credential Management Guide](docs/CREDENTIAL_MANAGEMENT.md) and [Voice Setup Guide](docs/VOICE_SYNTHESIS_SETUP.md)) |
 
 For a complete list of environment variables, see [`.env.example`](.env.example).
 
