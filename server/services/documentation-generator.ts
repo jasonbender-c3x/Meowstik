@@ -21,7 +21,12 @@ import { InsertGeneratedDoc, DocTypes } from "@shared/schema";
 import fs from "fs/promises";
 import path from "path";
 
-const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+// Validate Gemini API key at module initialization
+if (!process.env.GEMINI_API_KEY) {
+  console.error("WARNING: GEMINI_API_KEY environment variable is not set. Documentation generation will fail.");
+}
+
+const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "dummy-key-for-testing" });
 
 /**
  * Configuration for documentation generation
@@ -56,14 +61,26 @@ function generateSlug(title: string): string {
 
 /**
  * Read and analyze source files for documentation generation
+ * Validates file paths to prevent directory traversal attacks
  */
 async function analyzeSourceFiles(filePaths: string[]): Promise<string> {
   const analyses: string[] = [];
+  const projectRoot = process.cwd();
   
   for (const filePath of filePaths) {
     try {
-      const fullPath = path.join(process.cwd(), filePath);
-      const content = await fs.readFile(fullPath, "utf-8");
+      // Security: Resolve and validate path is within project directory
+      const fullPath = path.join(projectRoot, filePath);
+      const resolvedPath = path.resolve(fullPath);
+      
+      // Prevent directory traversal
+      if (!resolvedPath.startsWith(projectRoot)) {
+        console.warn(`Blocked access to file outside project: ${filePath}`);
+        analyses.push(`## File: ${filePath}\n(Access denied: file outside project directory)`);
+        continue;
+      }
+      
+      const content = await fs.readFile(resolvedPath, "utf-8");
       
       // Get file extension for language context
       const ext = path.extname(filePath);

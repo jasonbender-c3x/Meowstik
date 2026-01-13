@@ -132,7 +132,22 @@ router.get(
 router.patch(
   "/generated/:id",
   asyncHandler(async (req, res) => {
-    const doc = await storage.updateGeneratedDoc(req.params.id, req.body);
+    // Validate and sanitize update data
+    const allowedFields = ['title', 'category', 'content', 'summary', 'published', 'featured'];
+    const updates: any = {};
+    
+    for (const field of allowedFields) {
+      if (req.body[field] !== undefined) {
+        updates[field] = req.body[field];
+      }
+    }
+    
+    // Ensure at least one field is being updated
+    if (Object.keys(updates).length === 0) {
+      throw badRequest("No valid fields to update");
+    }
+    
+    const doc = await storage.updateGeneratedDoc(req.params.id, updates);
     res.json(doc);
   })
 );
