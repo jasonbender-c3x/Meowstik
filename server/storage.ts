@@ -65,6 +65,9 @@ import {
   type InsertAgentIdentity,
   type AgentActivityLog,
   type InsertAgentActivityLog,
+  type GeneratedDoc,
+  type InsertGeneratedDoc,
+  type UpdateGeneratedDoc,
   chats,
   messages,
   attachments,
@@ -82,7 +85,8 @@ import {
   executorState,
   llmUsage,
   agentIdentities,
-  agentActivityLog
+  agentActivityLog,
+  generatedDocs
 } from "@shared/schema";
 import { drizzle, NodePgDatabase } from "drizzle-orm/node-postgres";
 import { eq, desc, and, lte, lt, or, sql, isNull, isNotNull, inArray, arrayContains } from "drizzle-orm";
@@ -1638,6 +1642,84 @@ export class DrizzleStorage implements IStorage {
       ...agent_activity_log,
       agent: agent_identities
     }));
+  }
+
+  // =============================================================================
+  // GENERATED DOCUMENTATION METHODS
+  // =============================================================================
+
+  async createGeneratedDoc(doc: InsertGeneratedDoc): Promise<GeneratedDoc> {
+    const [created] = await this.getDb()
+      .insert(generatedDocs)
+      .values(doc)
+      .returning();
+    return created;
+  }
+
+  async getGeneratedDocs(options?: { 
+    published?: boolean; 
+    type?: string; 
+    category?: string;
+  }): Promise<GeneratedDoc[]> {
+    let query = this.getDb().select().from(generatedDocs);
+    
+    const conditions = [];
+    if (options?.published !== undefined) {
+      conditions.push(eq(generatedDocs.published, options.published));
+    }
+    if (options?.type) {
+      conditions.push(eq(generatedDocs.type, options.type));
+    }
+    if (options?.category) {
+      conditions.push(eq(generatedDocs.category, options.category));
+    }
+    
+    if (conditions.length > 0) {
+      query = query.where(and(...conditions)) as any;
+    }
+    
+    return query.orderBy(desc(generatedDocs.createdAt));
+  }
+
+  async getGeneratedDocBySlug(slug: string): Promise<GeneratedDoc | undefined> {
+    const [doc] = await this.getDb()
+      .select()
+      .from(generatedDocs)
+      .where(eq(generatedDocs.slug, slug))
+      .limit(1);
+    return doc;
+  }
+
+  async getGeneratedDocById(id: string): Promise<GeneratedDoc | undefined> {
+    const [doc] = await this.getDb()
+      .select()
+      .from(generatedDocs)
+      .where(eq(generatedDocs.id, id))
+      .limit(1);
+    return doc;
+  }
+
+  async updateGeneratedDoc(id: string, updates: UpdateGeneratedDoc): Promise<GeneratedDoc> {
+    const [updated] = await this.getDb()
+      .update(generatedDocs)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(generatedDocs.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteGeneratedDoc(id: string): Promise<void> {
+    await this.getDb()
+      .delete(generatedDocs)
+      .where(eq(generatedDocs.id, id));
+  }
+
+  async publishGeneratedDoc(id: string): Promise<GeneratedDoc> {
+    return this.updateGeneratedDoc(id, { published: true });
+  }
+
+  async unpublishGeneratedDoc(id: string): Promise<GeneratedDoc> {
+    return this.updateGeneratedDoc(id, { published: false });
   }
 }
 
