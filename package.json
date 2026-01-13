@@ -10,7 +10,8 @@
     "start": "NODE_ENV=production node dist/index.cjs",
     "check": "tsc",
     "db:push": "drizzle-kit push",
-    "seed:agents": "tsx scripts/seed-agents.ts"
+    "seed:agents": "tsx scripts/seed-agents.ts",
+    "test:tts-auth": "node scripts/test-tts-auth.cjs"
   },
   "dependencies": {
     "@browserbasehq/sdk": "^2.6.0",
