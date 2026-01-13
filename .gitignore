@@ -6,5 +6,6 @@ vite.config.ts.*
 *.tar.gz 
 google-credentials.json
 attached_assets/*.json
-logs/
+logs/cache.md
+logs/execution.md
 repos/
