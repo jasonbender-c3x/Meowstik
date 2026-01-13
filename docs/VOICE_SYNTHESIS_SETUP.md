@@ -28,6 +28,17 @@ Service accounts provide consistent, application-level authentication without re
 
 3. **Verify Service Account Permissions**
    - The service account must have the **Cloud Text-to-Speech API** enabled
+   - Required IAM role: **Cloud Text-to-Speech User** (`roles/texttospeech.user`)
+   - Grant the role via Google Cloud Console IAM page or using gcloud CLI:
+     ```bash
+     gcloud projects add-iam-policy-binding YOUR_PROJECT_ID \
+       --member="serviceAccount:YOUR_SERVICE_ACCOUNT_EMAIL" \
+       --role="roles/texttospeech.user"
+     ```
+   - Verify API is enabled:
+     ```bash
+     gcloud services enable texttospeech.googleapis.com --project=YOUR_PROJECT_ID
+     ```
    - Required scope: `https://www.googleapis.com/auth/cloud-platform`
 
 ### 2. OAuth2 (Fallback)
@@ -105,16 +116,39 @@ GET /api/speech/voices
 3. Ensure the file path is correct (relative or absolute)
 4. For Replit: Check Secrets panel for the environment variable
 
-**Symptom:** "Permission denied" or "PERMISSION_DENIED" error
+**Symptom:** "Permission denied", "PERMISSION_DENIED", or "Insufficient Permission" error
+
+**Root Cause:** The service account lacks the required IAM role in Google Cloud.
 
 **Solutions:**
-1. Enable Text-to-Speech API in Google Cloud Console:
+1. **Grant the required IAM role** (MOST COMMON FIX):
+   ```bash
+   # Using gcloud CLI
+   gcloud projects add-iam-policy-binding YOUR_PROJECT_ID \
+     --member="serviceAccount:YOUR_SERVICE_ACCOUNT_EMAIL" \
+     --role="roles/texttospeech.user"
+   ```
+   
+   OR via Console:
+   - Go to https://console.cloud.google.com/iam-admin/iam
+   - Find your service account
+   - Click "Edit" (pencil icon)
+   - Add role: "Cloud Text-to-Speech User" (`roles/texttospeech.user`)
+   - Click "Save"
+
+2. Enable Text-to-Speech API in Google Cloud Console:
    - Go to https://console.cloud.google.com/apis/library/texttospeech.googleapis.com
-   - Select your project (ai-stack-e2a5f)
+   - Select your project
    - Click "Enable"
-2. Verify service account has proper IAM roles:
-   - Role needed: "Cloud Text-to-Speech User" or "Editor"
-3. For OAuth: Re-authorize your Google account to include cloud-platform scope
+
+3. Wait 1-2 minutes for IAM changes to propagate
+
+4. Verify permissions using the diagnostic tool:
+   ```bash
+   npm run diagnose:tts-iam
+   ```
+
+5. For OAuth: Re-authorize your Google account to include cloud-platform scope
 
 ### Rate Limiting
 
@@ -137,6 +171,36 @@ GET /api/speech/voices
 2. Verify audio format support (MP3 should work in all modern browsers)
 3. Check browser console for errors
 4. Ensure audio elements are properly unmuted
+
+## Diagnostic Tools
+
+### IAM Permission Diagnostics
+
+Run the comprehensive IAM diagnostic tool to identify permission issues:
+
+```bash
+npm run diagnose:tts-iam
+```
+
+This tool will:
+- ✅ Verify service account file exists and is valid
+- ✅ Check if Text-to-Speech API is enabled
+- ✅ Verify IAM role assignments
+- ✅ Test actual TTS API calls
+- ✅ Provide actionable fix instructions
+
+### Basic Authentication Test
+
+Run the basic authentication test to verify file configuration:
+
+```bash
+npm run test:tts-auth
+```
+
+This checks:
+- Service account file exists
+- All required JSON fields are present
+- File path is correctly configured
 
 ## Code Architecture
 

@@ -98,6 +98,8 @@ High-quality voice capabilities powered by Google Cloud Text-to-Speech API and W
 - **Multiple Voices**: Choose from Kore, Puck, Charon, Fenrir, Aoede, Leda, Orus, and Zephyr
 
 > 📖 **Setup Guide**: See [docs/VOICE_SYNTHESIS_SETUP.md](docs/VOICE_SYNTHESIS_SETUP.md) for detailed configuration instructions
+> 
+> ⚠️ **Troubleshooting**: If you get "Insufficient Permission" errors, see [docs/TTS_IAM_PERMISSION_FIX.md](docs/TTS_IAM_PERMISSION_FIX.md) for IAM setup instructions
 
 ### 6. Modern UI/UX
 

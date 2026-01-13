@@ -43,7 +43,10 @@ function getServiceAccountAuth(): Auth.GoogleAuth | null {
   if (serviceAccountAuth) return serviceAccountAuth;
   
   const credentialsPath = process.env.GOOGLE_APPLICATION_CREDENTIALS;
-  if (!credentialsPath) return null;
+  if (!credentialsPath) {
+    console.warn('[TTS] GOOGLE_APPLICATION_CREDENTIALS not set');
+    return null;
+  }
   
   const resolvedPath = path.resolve(credentialsPath);
   if (!fs.existsSync(resolvedPath)) {
@@ -52,11 +55,14 @@ function getServiceAccountAuth(): Auth.GoogleAuth | null {
   }
   
   try {
+    const credentials = JSON.parse(fs.readFileSync(resolvedPath, 'utf8'));
     serviceAccountAuth = new google.auth.GoogleAuth({
       keyFile: resolvedPath,
       scopes: ['https://www.googleapis.com/auth/cloud-platform'],
     });
     console.log('[TTS] Loaded service account credentials');
+    console.log(`[TTS] Service Account: ${credentials.client_email}`);
+    console.log(`[TTS] Project: ${credentials.project_id}`);
     return serviceAccountAuth;
   } catch (error) {
     console.error('[TTS] Failed to load service account:', error);
@@ -84,6 +90,7 @@ export async function generateSingleSpeakerAudio(
   }
 
   const voiceConfig = AVAILABLE_VOICES[voice] || AVAILABLE_VOICES["Kore"];
+  const authMethod = serviceAuth ? "service account" : "OAuth";
   let lastError: any;
 
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
@@ -93,7 +100,6 @@ export async function generateSingleSpeakerAudio(
         await new Promise(r => setTimeout(r, 500 * attempt));
       }
 
-      const authMethod = serviceAuth ? "service account" : "OAuth";
       console.log(`[TTS] Generating audio with Google Cloud TTS (${authMethod}), voice: ${voiceConfig.name}`);
 
       const auth = serviceAuth || await getAuthenticatedClient();
@@ -138,22 +144,29 @@ export async function generateSingleSpeakerAudio(
       const errorStr = error.message || String(error);
       
       if (errorStr.includes("403") || errorStr.includes("PERMISSION_DENIED") || 
-          errorStr.includes("insufficient") || errorStr.includes("scope")) {
-        console.error("[TTS] Permission denied - likely missing cloud-platform scope:", errorStr);
+          errorStr.includes("insufficient") || errorStr.includes("scope") ||
+          errorStr.includes("Insufficient Permission")) {
+        console.error("[TTS] Permission denied:", errorStr);
+        console.error("[TTS] This usually means the service account lacks the required IAM role");
+        console.error("[TTS] Required: roles/texttospeech.user (Cloud Text-to-Speech User)");
+        console.error("[TTS] See: https://console.cloud.google.com/iam-admin/iam");
         
         const { logLLMError } = await import("../services/llm-error-buffer");
         logLLMError("tts", "generateSingleSpeakerAudio", error, {
           textLength: text.length,
           voice: voiceConfig.name,
           attempt,
-          scopeIssue: true
+          scopeIssue: true,
+          authMethod
         }, {
           model: "google-cloud-tts-neural2"
         });
         
         return {
           success: false,
-          error: "TTS requires Cloud Platform permissions. Please re-authorize your Google account to enable text-to-speech."
+          error: authMethod === "service account" 
+            ? "TTS service account lacks required IAM permissions. The service account needs the 'Cloud Text-to-Speech User' role (roles/texttospeech.user) in Google Cloud IAM. Please contact your administrator."
+            : "TTS requires Cloud Platform permissions. Please re-authorize your Google account to enable text-to-speech."
         };
       }
       
