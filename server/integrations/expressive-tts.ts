@@ -90,6 +90,7 @@ export async function generateSingleSpeakerAudio(
   }
 
   const voiceConfig = AVAILABLE_VOICES[voice] || AVAILABLE_VOICES["Kore"];
+  const authMethod = serviceAuth ? "service account" : "OAuth";
   let lastError: any;
 
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
@@ -99,7 +100,6 @@ export async function generateSingleSpeakerAudio(
         await new Promise(r => setTimeout(r, 500 * attempt));
       }
 
-      const authMethod = serviceAuth ? "service account" : "OAuth";
       console.log(`[TTS] Generating audio with Google Cloud TTS (${authMethod}), voice: ${voiceConfig.name}`);
 
       const auth = serviceAuth || await getAuthenticatedClient();
@@ -142,7 +142,6 @@ export async function generateSingleSpeakerAudio(
     } catch (error: any) {
       lastError = error;
       const errorStr = error.message || String(error);
-      const authMethod = serviceAuth ? "service account" : "OAuth";
       
       if (errorStr.includes("403") || errorStr.includes("PERMISSION_DENIED") || 
           errorStr.includes("insufficient") || errorStr.includes("scope") ||
