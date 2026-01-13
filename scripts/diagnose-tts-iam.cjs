@@ -158,8 +158,19 @@ async function main() {
   console.log('   Testing authentication with a minimal API call...');
   
   try {
-    // Dynamic import for ESM compatibility
-    const googleapis = await import('googleapis');
+    // Try to load googleapis - it's an ESM module but we'll handle it
+    let googleapis;
+    try {
+      googleapis = await import('googleapis');
+    } catch (importError) {
+      // Fallback to require for older setups
+      try {
+        googleapis = require('googleapis');
+      } catch (requireError) {
+        throw new Error('googleapis module not found or could not be loaded');
+      }
+    }
+    
     const { google } = googleapis;
     
     const auth = new google.auth.GoogleAuth({

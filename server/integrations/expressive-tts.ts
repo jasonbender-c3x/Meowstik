@@ -142,6 +142,7 @@ export async function generateSingleSpeakerAudio(
     } catch (error: any) {
       lastError = error;
       const errorStr = error.message || String(error);
+      const authMethod = serviceAuth ? "service account" : "OAuth";
       
       if (errorStr.includes("403") || errorStr.includes("PERMISSION_DENIED") || 
           errorStr.includes("insufficient") || errorStr.includes("scope") ||
@@ -157,7 +158,7 @@ export async function generateSingleSpeakerAudio(
           voice: voiceConfig.name,
           attempt,
           scopeIssue: true,
-          authMethod: serviceAuth ? "service account" : "OAuth"
+          authMethod
         }, {
           model: "google-cloud-tts-neural2"
         });
