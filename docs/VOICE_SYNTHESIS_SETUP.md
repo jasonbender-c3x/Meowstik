@@ -15,15 +15,15 @@ Service accounts provide consistent, application-level authentication without re
 **Setup:**
 
 1. **Get Service Account JSON Key**
-   - The service account key file should be in `attached_assets/` directory
-   - Current file: `ai-stack-e2a5f-72c8fed5d463_1767324141242.json`
+   - The service account key file should be placed in `attached_assets/` directory
+   - Example filename: `service-account-key.json`
 
 2. **Configure Environment Variable**
    - Set `GOOGLE_APPLICATION_CREDENTIALS` to point to your service account JSON file
-   - For Replit: Already configured in `.replit` file
+   - For Replit: Configure in `.replit` file or Secrets panel
    - For local development: Add to `.env` file:
      ```bash
-     GOOGLE_APPLICATION_CREDENTIALS=attached_assets/ai-stack-e2a5f-72c8fed5d463_1767324141242.json
+     GOOGLE_APPLICATION_CREDENTIALS=attached_assets/service-account-key.json
      ```
 
 3. **Verify Service Account Permissions**

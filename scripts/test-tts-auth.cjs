@@ -13,7 +13,7 @@ const fs = require('fs');
 const path = require('path');
 
 const GOOGLE_APPLICATION_CREDENTIALS = process.env.GOOGLE_APPLICATION_CREDENTIALS || 
-  'attached_assets/ai-stack-e2a5f-72c8fed5d463_1767324141242.json';
+  'attached_assets/service-account-key.json';
 
 console.log('🔍 Testing Google Cloud TTS Authentication\n');
 console.log('═'.repeat(60));
