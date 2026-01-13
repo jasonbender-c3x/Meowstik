@@ -97,7 +97,6 @@ GOOGLE_APPLICATION_CREDENTIALS=./attached_assets/service-account-key.json
    - **Description:** "Service account for Meowstik AI assistant"
 5. Grant required roles:
    - **Cloud Text-to-Speech User** (for TTS)
-   - **Cloud Vision User** (if using image analysis)
    - Or use **Editor** role for development (reduce to minimal permissions in production)
 6. Click **Create Key** > **JSON**
 7. Download the key file
