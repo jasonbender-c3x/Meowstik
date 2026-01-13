@@ -90,11 +90,14 @@ Access and manage your Google account services directly from Meowstik.
 
 ### 5. Voice Interaction
 
-Built-in voice capabilities using the Web Speech API.
+High-quality voice capabilities powered by Google Cloud Text-to-Speech API and Web Speech API.
 
 - **Speech-to-Text**: Speak your messages instead of typing
-- **Text-to-Speech**: Have AI responses read aloud
+- **Text-to-Speech**: Neural voice synthesis with 8 high-quality voices (1M chars/month free)
 - **Voice Input Toggle**: One-click activation of voice mode
+- **Multiple Voices**: Choose from Kore, Puck, Charon, Fenrir, Aoede, Leda, Orus, and Zephyr
+
+> 📖 **Setup Guide**: See [docs/VOICE_SYNTHESIS_SETUP.md](docs/VOICE_SYNTHESIS_SETUP.md) for detailed configuration instructions
 
 ### 6. Modern UI/UX
 
@@ -133,6 +136,11 @@ npm run dev
 |----------|-------------|
 | `DATABASE_URL` | PostgreSQL connection string (auto-configured on Replit) |
 | `GEMINI_API_KEY` | Google Generative AI API key for chat functionality |
+| `GOOGLE_CLIENT_ID` | Google OAuth2 client ID for user authentication |
+| `GOOGLE_CLIENT_SECRET` | Google OAuth2 client secret |
+| `GOOGLE_APPLICATION_CREDENTIALS` | Path to Google service account JSON key for TTS (see [Voice Setup Guide](docs/VOICE_SYNTHESIS_SETUP.md)) |
+
+For a complete list of environment variables, see [`.env.example`](.env.example).
 
 ### Running the Application
 
