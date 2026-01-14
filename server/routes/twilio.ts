@@ -241,8 +241,8 @@ async function processSmsMessage(from: string, body: string, messageSid: string)
       // Search contacts for this phone number
       try {
         // Search contacts - Google People API searches across names, emails, and phone numbers
-        // Note: The search may not be perfect for phone numbers, so we do additional filtering
-        const contacts = await googleContacts.searchContacts(from, 30);
+        // Limit to 10 results for performance, then filter for exact matches
+        const contacts = await googleContacts.searchContacts(from, 10);
         
         // Filter contacts to find exact phone number match
         let matchedContact = null;
@@ -254,17 +254,6 @@ async function processSmsMessage(from: string, body: string, messageSid: string)
             }
           }
           if (matchedContact) break;
-        }
-        
-        // If no exact match, try searching by the number itself (without special chars)
-        if (!matchedContact && contacts.length > 0) {
-          // Use first result if it has this phone number
-          const firstContact = contacts[0];
-          if (firstContact.phoneNumbers.some(p => 
-            normalizePhoneNumber(p) === normalizePhoneNumber(from)
-          )) {
-            matchedContact = firstContact;
-          }
         }
         
         if (matchedContact) {
