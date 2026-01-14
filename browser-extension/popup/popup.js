@@ -261,7 +261,7 @@ class MeowstikPopup {
       
       const source = this.audioContext.createMediaStreamSource(this.mediaStream);
       
-      await this.audioContext.audioWorklet.addModule(chrome.runtime.getURL('audio-processor.js'));
+      await this.audioContext.audioWorklet.addModule(chrome.runtime.getURL('popup/audio-processor.js'));
       this.audioWorklet = new AudioWorkletNode(this.audioContext, 'audio-processor');
       
       this.audioWorklet.port.onmessage = (event) => {

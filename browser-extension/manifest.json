@@ -47,7 +47,7 @@
   ],
   "web_accessible_resources": [
     {
-      "resources": ["icons/*"],
+      "resources": ["icons/*", "popup/audio-processor.js"],
       "matches": ["<all_urls>"]
     }
   ],
