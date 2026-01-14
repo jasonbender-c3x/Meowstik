@@ -43,6 +43,10 @@ integrations = ["javascript_gemini:1.0.0", "google-drive:1.0.0", "google-mail:1.
 localPort = 5000
 externalPort = 80
 
+[[ports]]
+localPort = 5001
+externalPort = 3000
+
 [userenv]
 
 [userenv.shared]
