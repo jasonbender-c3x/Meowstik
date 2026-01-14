@@ -133,9 +133,13 @@ async function runTests() {
 }
 
 // Run tests if called directly
-const isMainModule = process.argv[1] && import.meta.url.endsWith(process.argv[1].replace(/\\/g, '/'));
-if (isMainModule) {
-  runTests().catch(console.error);
+// Check if this script is the main module being executed
+if (process.argv[1]) {
+  const scriptPath = process.argv[1].replace(/\\/g, '/');
+  const modulePath = import.meta.url.replace('file://', '');
+  if (modulePath.includes(scriptPath) || scriptPath.includes('test-twilio-webhook')) {
+    runTests().catch(console.error);
+  }
 }
 
 export { testWebhook, testPayloads };

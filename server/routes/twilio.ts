@@ -437,18 +437,13 @@ async function processSmsMessage(from: string, body: string, messageSid: string)
  * Normalize phone number for comparison
  * Removes formatting but preserves country code
  * E.g., "+1 (555) 123-4567" -> "+15551234567"
+ * 
+ * Note: If a number doesn't have a country code (+), it returns it as-is
+ * without assuming a default country. This avoids incorrect matches.
  */
 function normalizePhoneNumber(phone: string): string {
   // Remove spaces, hyphens, parentheses but keep the leading +
-  let normalized = phone.replace(/[\s\-\(\)]/g, '');
-  
-  // Ensure it starts with + if it has digits
-  if (normalized && !normalized.startsWith('+')) {
-    // If it doesn't start with +, assume US number and prepend +1
-    normalized = '+1' + normalized;
-  }
-  
-  return normalized;
+  return phone.replace(/[\s\-\(\)]/g, '');
 }
 
 /**

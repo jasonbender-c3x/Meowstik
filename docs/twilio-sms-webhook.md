@@ -29,9 +29,16 @@ TWILIO_AUTH_TOKEN=your_auth_token_from_twilio
 TWILIO_PHONE_NUMBER=your_twilio_phone_number
 
 # Owner Identification (Required for owner privileges)
+# IMPORTANT: Use E.164 format with country code (e.g., +15551234567 for US)
 OWNER_PHONE_NUMBER=+15551234567  # Your phone number in E.164 format
 OWNER_USER_ID=your_user_id_from_database  # Optional: your user ID for authenticated context
 ```
+
+**Phone Number Format**: All phone numbers must use E.164 format:
+- Start with `+` followed by country code
+- US: `+1` followed by 10 digits (e.g., `+15551234567`)
+- UK: `+44` followed by digits (e.g., `+447700900123`)
+- See [E.164 format guide](https://www.twilio.com/docs/glossary/what-e164) for other countries
 
 ### 2. Configure Twilio Webhook
 
