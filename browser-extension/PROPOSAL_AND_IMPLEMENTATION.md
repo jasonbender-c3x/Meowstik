@@ -35,62 +35,62 @@ Replace the Desktop Agent with a native Chrome extension that:
 ### 2.1 Component Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                    Chrome Browser                            │
-│                                                              │
-│  ┌────────────────────────────────────────────────────────┐ │
-│  │                 Extension Components                     │ │
-│  │                                                          │ │
-│  │  ┌─────────────────┐    ┌──────────────────────────┐   │ │
-│  │  │  Popup UI       │◄──►│  Service Worker          │   │ │
-│  │  │  (User Interface)│    │  (Background Process)    │   │ │
-│  │  │                 │    │                          │   │ │
-│  │  │ • Chat          │    │ • WebSocket Connection   │   │ │
-│  │  │ • Voice         │    │ • Message Routing        │   │ │
-│  │  │ • Screen Capture│    │ • Command Execution      │   │ │
-│  │  │ • Settings      │    │ • Context Menus          │   │ │
-│  │  └─────────────────┘    └──────────────────────────┘   │ │
-│  │           │                        │                     │ │
-│  │           └────────┬───────────────┘                     │ │
-│  │                    │                                     │ │
-│  │         ┌──────────▼──────────────┐                     │ │
-│  │         │   Content Script        │                     │ │
-│  │         │   (Injected in Pages)   │                     │ │
-│  │         │                          │                     │ │
-│  │         │ • DOM Manipulation       │                     │ │
-│  │         │ • Element Selection      │                     │ │
-│  │         │ • Page Content Extract   │                     │ │
-│  │         │ • Console Capture        │                     │ │
-│  │         └──────────────────────────┘                     │ │
-│  └────────────────────────────────────────────────────────┘ │
-│                           │                                  │
-└───────────────────────────┼──────────────────────────────────┘
-                            │ WebSocket (WSS)
-                            ▼
-┌─────────────────────────────────────────────────────────────┐
-│                   Meowstik Server                            │
-│                                                              │
-│  ┌────────────────────────────────────────────────────────┐ │
-│  │              AI Processing Layer                        │ │
-│  │                                                          │ │
-│  │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐ │ │
-│  │  │ Gemini Live  │  │ Vision API   │  │ Automation   │ │ │
-│  │  │ Voice        │  │ Screenshot   │  │ Engine       │ │ │
-│  │  └──────────────┘  └──────────────┘  └──────────────┘ │ │
-│  └────────────────────────────────────────────────────────┘ │
-└─────────────────────────────────────────────────────────────┘
++-------------------------------------------------------------+
+|                    Chrome Browser                           |
+|                                                             |
+|  +--------------------------------------------------------+ |
+|  |                 Extension Components                   | |
+|  |                                                        | |
+|  |  +-----------------+    +--------------------------+  | |
+|  |  |  Popup UI       |<-->|  Service Worker          |  | |
+|  |  |  (User Interface)|    |  (Background Process)    |  | |
+|  |  |                 |    |                          |  | |
+|  |  | • Chat          |    | • WebSocket Connection   |  | |
+|  |  | • Voice         |    | • Message Routing        |  | |
+|  |  | • Screen Capture|    | • Command Execution      |  | |
+|  |  | • Settings      |    | • Context Menus          |  | |
+|  |  +-----------------+    +--------------------------+  | |
+|  |           |                        |                   | |
+|  |           +------------+-----------+                   | |
+|  |                        |                               | |
+|  |         +--------------v--------------+                | |
+|  |         |   Content Script            |                | |
+|  |         |   (Injected in Pages)       |                | |
+|  |         |                             |                | |
+|  |         | • DOM Manipulation          |                | |
+|  |         | • Element Selection         |                | |
+|  |         | • Page Content Extract      |                | |
+|  |         | • Console Capture           |                | |
+|  |         +-----------------------------+                | |
+|  +--------------------------------------------------------+ |
+|                           |                                 |
++---------------------------+---------------------------------+
+                            | WebSocket (WSS)
+                            v
++-------------------------------------------------------------+
+|                   Meowstik Server                           |
+|                                                             |
+|  +--------------------------------------------------------+ |
+|  |              AI Processing Layer                       | |
+|  |                                                        | |
+|  |  +--------------+  +--------------+  +--------------+ | |
+|  |  | Gemini Live  |  | Vision API   |  | Automation   | | |
+|  |  | Voice        |  | Screenshot   |  | Engine       | | |
+|  |  +--------------+  +--------------+  +--------------+ | |
+|  +--------------------------------------------------------+ |
++-------------------------------------------------------------+
 ```
 
 ### 2.2 Communication Flow
 
-1. **User Interaction** → Popup UI
-2. **Popup UI** → Service Worker (chrome.runtime.sendMessage)
-3. **Service Worker** → Meowstik Server (WebSocket)
-4. **Meowstik Server** → AI Processing (Gemini)
-5. **AI Response** → Service Worker (WebSocket)
-6. **Service Worker** → Content Script (chrome.tabs.sendMessage)
-7. **Content Script** → Execute Action on Page
-8. **Result** → Service Worker → Meowstik Server
+1. **User Interaction** -> Popup UI
+2. **Popup UI** -> Service Worker (chrome.runtime.sendMessage)
+3. **Service Worker** -> Meowstik Server (WebSocket)
+4. **Meowstik Server** -> AI Processing (Gemini)
+5. **AI Response** -> Service Worker (WebSocket)
+6. **Service Worker** -> Content Script (chrome.tabs.sendMessage)
+7. **Content Script** -> Execute Action on Page
+8. **Result** -> Service Worker -> Meowstik Server
 
 ---
 
@@ -139,8 +139,8 @@ Replace the Desktop Agent with a native Chrome extension that:
 **Technical Details**:
 ```javascript
 // Audio processing pipeline
-MediaStream → AudioContext → AudioWorklet → 
-  Int16 PCM → Base64 → WebSocket → Server
+MediaStream -> AudioContext -> AudioWorklet -> 
+  Int16 PCM -> Base64 -> WebSocket -> Server
 ```
 
 **User Flow**:
@@ -233,7 +233,7 @@ chrome.tabs.captureVisibleTab(null, { format: 'png' })
 **Implementation**:
 ```javascript
 // Command routing
-Service Worker → chrome.tabs.sendMessage() → Content Script
+Service Worker -> chrome.tabs.sendMessage() -> Content Script
 
 // Execution in content script
 async function clickElement({ selector, x, y }) {
@@ -302,29 +302,29 @@ console.log = function(...args) {
 
 ```
 browser-extension/
-├── manifest.json          # Extension configuration (Manifest V3)
-├── build.sh              # Build automation script
-├── validate.sh           # Pre-flight validation
-├── .gitignore            # Exclude build artifacts
-│
-├── background/
-│   └── service-worker.js # Background service worker (persistent logic)
-│
-├── content/
-│   ├── content-script.js # Injected into all pages
-│   └── content-style.css # Injected styles
-│
-├── popup/
-│   ├── popup.html        # Extension popup UI
-│   ├── popup.css         # Popup styles
-│   ├── popup.js          # Popup logic and state
-│   └── audio-processor.js # AudioWorklet processor
-│
-└── icons/
-    ├── icon16.png        # Toolbar icon
-    ├── icon32.png        # Extension management
-    ├── icon48.png        # Extension management
-    └── icon128.png       # Chrome Web Store
+|-- manifest.json          # Extension configuration (Manifest V3)
+|-- build.sh              # Build automation script
+|-- validate.sh           # Pre-flight validation
+|-- .gitignore            # Exclude build artifacts
+|
+|-- background/
+|   `-- service-worker.js # Background service worker (persistent logic)
+|
+|-- content/
+|   |-- content-script.js # Injected into all pages
+|   `-- content-style.css # Injected styles
+|
+|-- popup/
+|   |-- popup.html        # Extension popup UI
+|   |-- popup.css         # Popup styles
+|   |-- popup.js          # Popup logic and state
+|   `-- audio-processor.js # AudioWorklet processor
+|
+`-- icons/
+    |-- icon16.png        # Toolbar icon
+    |-- icon32.png        # Extension management
+    |-- icon48.png        # Extension management
+    `-- icon128.png       # Chrome Web Store
 ```
 
 ### 4.3 Build System
@@ -391,7 +391,7 @@ const ws = new WebSocket('wss://meowstik.replit.app/api/extension/connect');
 
 **Message Types**:
 
-**Client → Server**:
+**Client -> Server**:
 - `extension_connected`: Initial handshake with capabilities
 - `chat_message`: Text message from user
 - `voice_audio`: Audio chunk (base64 PCM)
@@ -399,7 +399,7 @@ const ws = new WebSocket('wss://meowstik.replit.app/api/extension/connect');
 - `page_content`: Extracted page data
 - `command_result`: Action execution result
 
-**Server → Client**:
+**Server -> Client**:
 - `chat_response`: AI text response
 - `voice_audio`: AI voice response
 - `execute_command`: Request browser action
@@ -536,18 +536,24 @@ const ws = new WebSocket('wss://meowstik.replit.app/api/extension/connect');
 
 ```
 User clicks extension icon in Chrome Web Store
-           ↓
+           |
+           v
 Extension installs automatically
-           ↓
+           |
+           v
 Icon appears in Chrome toolbar
-           ↓
-User clicks icon → Opens settings tab
-           ↓
+           |
+           v
+User clicks icon -> Opens settings tab
+           |
+           v
 User enters Meowstik server URL
-           ↓
+           |
+           v
 User clicks "Connect"
-           ↓
-Status indicator turns green → Ready to use
+           |
+           v
+Status indicator turns green -> Ready to use
 ```
 
 ### 7.2 Primary Use Cases
@@ -566,7 +572,7 @@ Status indicator turns green → Ready to use
 
 **Use Case 3: Debugging Assistance**
 1. Developer encounters JavaScript error
-2. Right-clicks → "Analyze with Meowstik AI"
+2. Right-clicks -> "Analyze with Meowstik AI"
 3. Extension captures console logs + page state
 4. AI analyzes and suggests fix
 
