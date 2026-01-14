@@ -65,13 +65,11 @@ export class CollabIntegrationService {
 
     if (options.enableVoice) {
       try {
-        const liveResult = await geminiLive.initLiveSession(`collab-${sessionId}`, {
-          model: 'gemini-2.0-flash-live-001'
+        const liveResult = await geminiLive.createLiveSession(`collab-${sessionId}`, {
+          systemInstruction: 'You are Meowstik, collaborating on code with the user in real-time.'
         });
-        if (liveResult.success) {
-          state.liveSessionId = `collab-${sessionId}`;
-          state.isVoiceActive = true;
-        }
+        state.liveSessionId = `collab-${sessionId}`;
+        state.isVoiceActive = true;
       } catch (e) {
         console.warn('[CollabIntegration] Voice init failed:', e);
       }
