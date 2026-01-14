@@ -76,7 +76,7 @@ export function getAvailableVoices(): string[] {
 
 export async function generateSingleSpeakerAudio(
   text: string, 
-  voice: string = "Kore",
+  voice: string = "Puck",
   maxRetries: number = 2
 ): Promise<TTSResponse> {
   const serviceAuth = getServiceAccountAuth();
