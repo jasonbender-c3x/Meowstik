@@ -130,6 +130,53 @@ async function parseResponse(response: Response): Promise<unknown> {
 }
 
 /**
+ * Convert Response headers to plain object
+ */
+function convertHeaders(headers: Headers): Record<string, string> {
+  const result: Record<string, string> = {};
+  headers.forEach((value, key) => {
+    result[key] = value;
+  });
+  return result;
+}
+
+/**
+ * Create standardized HTTP response object
+ */
+function createHttpResponse(response: Response, data: unknown): HttpResponse {
+  return {
+    success: response.ok,
+    status: response.status,
+    statusText: response.statusText,
+    headers: convertHeaders(response.headers),
+    contentType: response.headers.get('content-type') || undefined,
+    data,
+    error: response.ok ? undefined : `HTTP ${response.status}: ${response.statusText}`
+  };
+}
+
+/**
+ * Create standardized error response
+ */
+function createErrorResponse(method: string, errorMessage: string): HttpResponse {
+  return {
+    success: false,
+    status: 0,
+    statusText: 'Error',
+    headers: {},
+    data: null,
+    error: `HTTP ${method} failed: ${errorMessage}`
+  };
+}
+
+/**
+ * Check if headers object already has Content-Type set (case-insensitive)
+ */
+function hasContentType(headers: Record<string, string>): boolean {
+  return Object.keys(headers).some(key => key.toLowerCase() === 'content-type');
+}
+
+/**
  * Perform an HTTP GET request
  * 
  * @param options - Request options including URL, headers, and query params
@@ -156,22 +203,7 @@ export async function httpGet(options: HttpGetOptions): Promise<HttpResponse> {
       clearTimeout(timeoutId);
       
       const data = await parseResponse(response);
-      
-      // Convert headers to plain object
-      const responseHeaders: Record<string, string> = {};
-      response.headers.forEach((value, key) => {
-        responseHeaders[key] = value;
-      });
-      
-      return {
-        success: response.ok,
-        status: response.status,
-        statusText: response.statusText,
-        headers: responseHeaders,
-        contentType: response.headers.get('content-type') || undefined,
-        data,
-        error: response.ok ? undefined : `HTTP ${response.status}: ${response.statusText}`
-      };
+      return createHttpResponse(response, data);
     } catch (error: any) {
       clearTimeout(timeoutId);
       if (error.name === 'AbortError') {
@@ -180,14 +212,7 @@ export async function httpGet(options: HttpGetOptions): Promise<HttpResponse> {
       throw error;
     }
   } catch (error: any) {
-    return {
-      success: false,
-      status: 0,
-      statusText: 'Error',
-      headers: {},
-      data: null,
-      error: `HTTP GET failed: ${error.message}`
-    };
+    return createErrorResponse('GET', error.message);
   }
 }
 
@@ -208,12 +233,12 @@ export async function httpPost(options: HttpPostOptions): Promise<HttpResponse> 
     let body: string;
     if (typeof options.body === 'string') {
       body = options.body;
-      if (!headers['content-type'] && !headers['Content-Type']) {
+      if (!hasContentType(headers)) {
         headers['Content-Type'] = 'text/plain';
       }
     } else {
       body = JSON.stringify(options.body);
-      if (!headers['content-type'] && !headers['Content-Type']) {
+      if (!hasContentType(headers)) {
         headers['Content-Type'] = 'application/json';
       }
     }
@@ -232,22 +257,7 @@ export async function httpPost(options: HttpPostOptions): Promise<HttpResponse> 
       clearTimeout(timeoutId);
       
       const data = await parseResponse(response);
-      
-      // Convert headers to plain object
-      const responseHeaders: Record<string, string> = {};
-      response.headers.forEach((value, key) => {
-        responseHeaders[key] = value;
-      });
-      
-      return {
-        success: response.ok,
-        status: response.status,
-        statusText: response.statusText,
-        headers: responseHeaders,
-        contentType: response.headers.get('content-type') || undefined,
-        data,
-        error: response.ok ? undefined : `HTTP ${response.status}: ${response.statusText}`
-      };
+      return createHttpResponse(response, data);
     } catch (error: any) {
       clearTimeout(timeoutId);
       if (error.name === 'AbortError') {
@@ -256,14 +266,7 @@ export async function httpPost(options: HttpPostOptions): Promise<HttpResponse> 
       throw error;
     }
   } catch (error: any) {
-    return {
-      success: false,
-      status: 0,
-      statusText: 'Error',
-      headers: {},
-      data: null,
-      error: `HTTP POST failed: ${error.message}`
-    };
+    return createErrorResponse('POST', error.message);
   }
 }
 
@@ -284,12 +287,12 @@ export async function httpPut(options: HttpPutOptions): Promise<HttpResponse> {
     let body: string;
     if (typeof options.body === 'string') {
       body = options.body;
-      if (!headers['content-type'] && !headers['Content-Type']) {
+      if (!hasContentType(headers)) {
         headers['Content-Type'] = 'text/plain';
       }
     } else {
       body = JSON.stringify(options.body);
-      if (!headers['content-type'] && !headers['Content-Type']) {
+      if (!hasContentType(headers)) {
         headers['Content-Type'] = 'application/json';
       }
     }
@@ -308,22 +311,7 @@ export async function httpPut(options: HttpPutOptions): Promise<HttpResponse> {
       clearTimeout(timeoutId);
       
       const data = await parseResponse(response);
-      
-      // Convert headers to plain object
-      const responseHeaders: Record<string, string> = {};
-      response.headers.forEach((value, key) => {
-        responseHeaders[key] = value;
-      });
-      
-      return {
-        success: response.ok,
-        status: response.status,
-        statusText: response.statusText,
-        headers: responseHeaders,
-        contentType: response.headers.get('content-type') || undefined,
-        data,
-        error: response.ok ? undefined : `HTTP ${response.status}: ${response.statusText}`
-      };
+      return createHttpResponse(response, data);
     } catch (error: any) {
       clearTimeout(timeoutId);
       if (error.name === 'AbortError') {
@@ -332,13 +320,6 @@ export async function httpPut(options: HttpPutOptions): Promise<HttpResponse> {
       throw error;
     }
   } catch (error: any) {
-    return {
-      success: false,
-      status: 0,
-      statusText: 'Error',
-      headers: {},
-      data: null,
-      error: `HTTP PUT failed: ${error.message}`
-    };
+    return createErrorResponse('PUT', error.message);
   }
 }
