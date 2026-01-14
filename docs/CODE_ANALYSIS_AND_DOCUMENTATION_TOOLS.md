@@ -49,7 +49,7 @@ This document provides a comprehensive overview of open-source tools suitable fo
 **Installation**:
 ```bash
 npm install --save-dev eslint @typescript-eslint/parser @typescript-eslint/eslint-plugin
-npm install --save-dev eslint-plugin-react eslint-plugin-react-hooks eslint-plugin-node
+npm install --save-dev eslint-plugin-react eslint-plugin-react-hooks eslint-plugin-n
 ```
 
 **Use Cases for Meowstik**:
@@ -89,8 +89,8 @@ npm install --save-dev eslint-plugin-react eslint-plugin-react-hooks eslint-plug
 
 **Installation**:
 ```bash
-# Docker Compose recommended
-docker run -d --name sonarqube -p 9000:9000 sonarqube:latest
+# Docker Compose recommended (specify version for reproducibility)
+docker run -d --name sonarqube -p 9000:9000 sonarqube:10.4-community
 npm install --save-dev sonarqube-scanner
 ```
 
@@ -669,8 +669,8 @@ npm install --save-dev typedoc
   "entryPoints": [
     "shared/schema.ts",
     "server/storage.ts",
-    "server/routes",
-    "client/src/hooks"
+    "server/routes/**/*.ts",
+    "client/src/hooks/**/*.ts"
   ],
   "out": "docs/api",
   "exclude": [

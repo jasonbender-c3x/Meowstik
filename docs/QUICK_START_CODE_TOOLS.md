@@ -14,7 +14,8 @@ npm install --save-dev \
   eslint prettier typedoc \
   @typescript-eslint/parser @typescript-eslint/eslint-plugin \
   eslint-plugin-react eslint-plugin-react-hooks \
-  eslint-config-prettier eslint-plugin-prettier
+  eslint-config-prettier eslint-plugin-prettier \
+  eslint-plugin-n
 
 # 2. Create configuration files (see examples below)
 
@@ -97,8 +98,8 @@ docs/api
   "entryPoints": [
     "shared/schema.ts",
     "server/storage.ts",
-    "server/routes",
-    "client/src/hooks"
+    "server/routes/**/*.ts",
+    "client/src/hooks/**/*.ts"
   ],
   "out": "docs/api",
   "exclude": ["**/*.test.ts", "**/node_modules/**", "**/dist/**"],
@@ -139,11 +140,15 @@ npm pkg set scripts.security:scan="semgrep --config=auto"
 npm install --save-dev husky lint-staged
 npx husky init
 
-# Add to package.json
-npm pkg set lint-staged='{"*.{ts,tsx}":["eslint --fix","prettier --write"],"*.{json,md}":["prettier --write"]}'
+# Add lint-staged config to package.json manually:
+# "lint-staged": {
+#   "*.{ts,tsx}": ["eslint --fix", "prettier --write"],
+#   "*.{json,md}": ["prettier --write"]
+# }
 
-# Create .husky/pre-commit
-echo '#!/bin/sh\nnpm run lint-staged' > .husky/pre-commit
+# Create .husky/pre-commit (recommended to create manually)
+# Content: #!/bin/sh
+#          npx lint-staged
 chmod +x .husky/pre-commit
 ```
 
