@@ -914,6 +914,33 @@ export const browserScrapeParamsSchema = z.object({
 });
 export type BrowserScrapeParams = z.infer<typeof browserScrapeParamsSchema>;
 
+/** HTTP GET parameters for direct web requests */
+export const httpGetParamsSchema = z.object({
+  url: z.string().url(),
+  headers: z.record(z.string()).optional(),
+  params: z.record(z.string()).optional(),
+  timeout: z.number().optional().default(30000),
+});
+export type HttpGetParams = z.infer<typeof httpGetParamsSchema>;
+
+/** HTTP POST parameters for direct web requests */
+export const httpPostParamsSchema = z.object({
+  url: z.string().url(),
+  headers: z.record(z.string()).optional(),
+  body: z.union([z.string(), z.record(z.unknown())]),
+  timeout: z.number().optional().default(30000),
+});
+export type HttpPostParams = z.infer<typeof httpPostParamsSchema>;
+
+/** HTTP PUT parameters for direct web requests */
+export const httpPutParamsSchema = z.object({
+  url: z.string().url(),
+  headers: z.record(z.string()).optional(),
+  body: z.union([z.string(), z.record(z.unknown())]),
+  timeout: z.number().optional().default(30000),
+});
+export type HttpPutParams = z.infer<typeof httpPutParamsSchema>;
+
 /**
  * File Operation Schema
  * Defines a file to be created, replaced, or appended
