@@ -16,10 +16,14 @@ AI-powered browser assistant with voice, screen capture, and automation capabili
 ### From Source (Development)
 
 1. Clone or download this directory
-2. Open Chrome and go to `chrome://extensions/`
-3. Enable "Developer mode" (top right toggle)
-4. Click "Load unpacked"
-5. Select the `browser-extension` directory
+2. Generate icons (if not already present):
+   ```bash
+   python3 scripts/generate-icons.py
+   ```
+3. Open Chrome and go to `chrome://extensions/`
+4. Enable "Developer mode" (top right toggle)
+5. Click "Load unpacked"
+6. Select the `browser-extension` directory
 
 ### Configuration
 
