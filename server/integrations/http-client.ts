@@ -178,6 +178,8 @@ function hasContentType(headers: Record<string, string>): boolean {
 
 /**
  * Prepare request body and set appropriate Content-Type header if not already set
+ * Note: This function modifies the headers object in place, which is safe because
+ * the headers have already been sanitized and copied by sanitizeHeaders()
  */
 function prepareRequestBody(
   body: string | Record<string, unknown>, 

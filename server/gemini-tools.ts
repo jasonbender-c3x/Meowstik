@@ -703,6 +703,7 @@ export const geminiFunctionDeclarations: FunctionDeclaration[] = [
           description: "Optional HTTP headers as key-value pairs (e.g., {'Content-Type': 'application/json', 'Authorization': 'Bearer token'})" 
         },
         body: { 
+          type: ["string", "object"],
           description: "Request body - can be a string or an object (objects will be JSON stringified automatically)" 
         },
         timeout: { 
@@ -725,6 +726,7 @@ export const geminiFunctionDeclarations: FunctionDeclaration[] = [
           description: "Optional HTTP headers as key-value pairs (e.g., {'Content-Type': 'application/json', 'Authorization': 'Bearer token'})" 
         },
         body: { 
+          type: ["string", "object"],
           description: "Request body - can be a string or an object (objects will be JSON stringified automatically)" 
         },
         timeout: { 
