@@ -20,16 +20,20 @@ from PIL import Image, ImageDraw
 import os
 import sys
 
+# Color constants
+TAILWIND_BLUE_500 = (59, 130, 246)  # Main background color
+WHITE = (255, 255, 255)  # Circle color
+
 def create_icon(size, filename, output_dir):
     """Create an icon with a blue background and white circle."""
     # Create a new image with Tailwind Blue-500 background
-    img = Image.new('RGBA', (size, size), color=(59, 130, 246))
+    img = Image.new('RGBA', (size, size), color=TAILWIND_BLUE_500)
     
     draw = ImageDraw.Draw(img)
     
     # Draw a white circle in the middle
     padding = size // 4
-    draw.ellipse([padding, padding, size - padding, size - padding], fill=(255, 255, 255))
+    draw.ellipse([padding, padding, size - padding, size - padding], fill=WHITE)
     
     # Ensure directory exists
     os.makedirs(output_dir, exist_ok=True)
@@ -83,7 +87,7 @@ def main():
 if __name__ == '__main__':
     try:
         main()
-    except ImportError as e:
+    except ImportError:
         print("❌ Error: PIL (Pillow) is not installed.")
         print("Please install it with: pip3 install Pillow")
         sys.exit(1)
