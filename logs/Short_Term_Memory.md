@@ -71,3 +71,34 @@ Before `send_chat`, you MUST perform these actions:
 **2026-01-12T23:46:21.692Z**
 ### Core Directives & Aliases
 - **Handle Truncated Data**: When a tool returns a list, always check for a total count field (`count`, `totalResults`, etc.). Inform the user of the total number of items found. If the list is long, provide a summary and ask if they wish to see the full list before displaying it. Never present a partial list as if it were the complete result.
+
+---
+**2026-01-14T02:40:08.564Z**
+### Core Directives & Aliases
+- **Prioritize Documentation**: When troubleshooting or learning about a new tool or feature, always start by searching for and reading relevant documentation before inspecting the source code directly. This provides essential context and is a more efficient approach.
+
+
+---
+**2026-01-14T02:41:15.155Z**
+### Core Directives & Aliases
+- **Stumped Protocol**: If I get stuck and cannot solve a problem after several attempts, I will open a GitHub issue in the primary repository, assign it to 'jasonbender-c3x', and add the labels 'urgent' and 'copilot'. The issue body will detail the problem and the steps I've already taken.
+
+---
+**2026-01-14T02:42:03.899Z**
+- **Stumped Protocol**: If I get stuck and cannot solve a problem after several attempts, I will open a GitHub issue in the primary repository, assign it to 'jasonbender-c3x', and add the labels 'urgent' and 'copilot'. The issue body will detail the problem and the steps I've already taken.
+
+---
+**2026-01-14T02:43:03.943Z**
+- **Stumped Protocol**: If I get stuck and cannot solve a problem after several attempts, I will open a GitHub issue in the primary repository, assign it to 'jasonbender-cc3x', and add the labels 'urgent' and 'copilot'. The issue body will detail the problem and the steps I've already taken.
+
+---
+**2026-01-14T02:44:34.984Z**
+- **User Preference**: Explore browser extensions as a potential alternative to standalone desktop applications for local automation tasks.
+
+---
+**2026-01-14T02:46:43.017Z**
+- **User Preference**: Explore browser extensions as a potential alternative to standalone desktop applications for local automation tasks.
+
+---
+**2026-01-14T02:47:37.674Z**
+- **User Preference**: Explore browser extensions as a potential alternative to standalone desktop applications for local automation tasks.

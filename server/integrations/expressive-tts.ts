@@ -26,6 +26,12 @@ export interface TTSResponse {
   error?: string;
 }
 
+/**
+ * Default voice for TTS - change this single constant to update the default everywhere.
+ * Use alternate voices (e.g., "Puck", "Charon") for alerts or emphasis.
+ */
+export const DEFAULT_TTS_VOICE = "Kore";
+
 const AVAILABLE_VOICES: Record<string, { languageCode: string; name: string; ssmlGender: string }> = {
   "Kore": { languageCode: "en-US", name: "en-US-Neural2-C", ssmlGender: "FEMALE" },
   "Puck": { languageCode: "en-US", name: "en-US-Neural2-D", ssmlGender: "MALE" },
@@ -76,7 +82,7 @@ export function getAvailableVoices(): string[] {
 
 export async function generateSingleSpeakerAudio(
   text: string, 
-  voice: string = "Kore",
+  voice: string = DEFAULT_TTS_VOICE,
   maxRetries: number = 2
 ): Promise<TTSResponse> {
   const serviceAuth = getServiceAccountAuth();
@@ -89,7 +95,7 @@ export async function generateSingleSpeakerAudio(
     };
   }
 
-  const voiceConfig = AVAILABLE_VOICES[voice] || AVAILABLE_VOICES["Kore"];
+  const voiceConfig = AVAILABLE_VOICES[voice] || AVAILABLE_VOICES[DEFAULT_TTS_VOICE];
   const authMethod = serviceAuth ? "service account" : "OAuth";
   let lastError: any;
 
@@ -205,6 +211,6 @@ export async function generateSingleSpeakerAudio(
 }
 
 export async function generateMultiSpeakerAudio(request: { text: string; speakers: Array<{ voice?: string }>; model?: string }): Promise<TTSResponse> {
-  const voice = request.speakers[0]?.voice || "Kore";
+  const voice = request.speakers[0]?.voice || DEFAULT_TTS_VOICE;
   return generateSingleSpeakerAudio(request.text, voice);
 }
