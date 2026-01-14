@@ -1168,7 +1168,8 @@ The user has voice output enabled. You MUST use the \`say\` tool to speak your r
             ? finalContent.substring(0, 500) + "..."
             : finalContent;
           
-          const ttsResult = await generateSingleSpeakerAudio(ttsText, "Puck");
+          const { DEFAULT_TTS_VOICE } = await import("./integrations/expressive-tts");
+          const ttsResult = await generateSingleSpeakerAudio(ttsText, DEFAULT_TTS_VOICE);
           if (ttsResult.audioBase64) {
             console.log(`[Routes][TTS-Fallback] ✓ Generated fallback audio, length: ${ttsResult.audioBase64.length}`);
             res.write(

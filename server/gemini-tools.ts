@@ -37,7 +37,7 @@ export const geminiFunctionDeclarations: FunctionDeclaration[] = [
         voice: {
           type: "string",
           enum: ["Kore", "Puck", "Charon", "Fenrir", "Aoede", "Leda", "Orus", "Zephyr"],
-          description: "Voice to use (default: Puck)"
+          description: "Voice to use (default: Kore)"
         }
       },
       required: ["utterance"]

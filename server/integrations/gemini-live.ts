@@ -22,6 +22,7 @@
  */
 
 import { GoogleGenAI, Modality } from "@google/genai";
+import { DEFAULT_TTS_VOICE } from "./expressive-tts";
 
 export interface LiveSessionConfig {
   systemInstruction?: string;
@@ -46,7 +47,7 @@ const DEFAULT_SYSTEM_INSTRUCTION = `You are Meowstik, a helpful and friendly AI 
 You are having a real-time voice conversation. Be concise and natural in your responses.
 Respond conversationally as if speaking to a friend. Avoid long lists or overly formal language.`;
 
-const DEFAULT_VOICE = "Puck";
+const DEFAULT_VOICE = DEFAULT_TTS_VOICE;
 
 /**
  * Create a new Gemini Live session
