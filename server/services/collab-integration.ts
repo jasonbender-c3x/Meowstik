@@ -68,10 +68,14 @@ export class CollabIntegrationService {
         const liveResult = await geminiLive.createLiveSession(`collab-${sessionId}`, {
           systemInstruction: 'You are Meowstik, collaborating on code with the user in real-time.'
         });
-        state.liveSessionId = `collab-${sessionId}`;
-        state.isVoiceActive = true;
+        if (liveResult.success) {
+          state.liveSessionId = `collab-${sessionId}`;
+          state.isVoiceActive = true;
+        } else {
+          console.warn('[CollabIntegration] Voice init failed:', liveResult.error);
+        }
       } catch (e) {
-        console.warn('[CollabIntegration] Voice init failed:', e);
+        console.warn('[CollabIntegration] Voice init exception:', e);
       }
     }
 
