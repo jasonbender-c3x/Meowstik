@@ -101,7 +101,33 @@ High-quality voice capabilities powered by Google Cloud Text-to-Speech API and W
 > 
 > ⚠️ **Troubleshooting**: If you get "Insufficient Permission" errors, see [docs/TTS_IAM_PERMISSION_FIX.md](docs/TTS_IAM_PERMISSION_FIX.md) for IAM setup instructions
 
-### 6. Modern UI/UX
+### 6. RAG (Retrieval-Augmented Generation)
+
+Intelligent document ingestion and semantic search powered by vector embeddings and knowledge graphs.
+
+- **Multiple Ingestion Methods**: Gmail/Drive scanning, file uploads, directory batch, repository cloning
+- **Semantic Search**: Google's text-embedding-004 embeddings with pgvector/Vertex AI
+- **Hybrid Search**: Combines semantic similarity with keyword matching (BM25)
+- **Auto-Memory**: Chat messages automatically ingested for long-term recall
+- **Knowledge Buckets**: Organized storage (PERSONAL_LIFE, CREATOR, PROJECTS)
+- **Entity Extraction**: Automatically identifies people, places, concepts, technologies
+
+> 📖 **Quick Start**: See [docs/RAG_QUICK_REFERENCE.md](docs/RAG_QUICK_REFERENCE.md) for commands and examples
+> 
+> 📚 **Full Guide**: See [docs/RAG_INGESTION_GUIDE.md](docs/RAG_INGESTION_GUIDE.md) for complete documentation
+
+**Quick Examples:**
+```bash
+# Ingest a directory of documents
+npm run ingest:dir ./docs
+
+# Ingest a GitHub repository
+npm run ingest:repo https://github.com/user/repo.git main
+
+# Or use the UI at /knowledge for Gmail/Drive scanning
+```
+
+### 7. Modern UI/UX
 
 - **Google-esque Design**: Clean, airy aesthetic with lots of whitespace
 - **Responsive Layout**: Works on mobile, tablet, and desktop

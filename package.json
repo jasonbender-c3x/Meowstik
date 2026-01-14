@@ -12,7 +12,9 @@
     "db:push": "drizzle-kit push",
     "seed:agents": "tsx scripts/seed-agents.ts",
     "test:tts-auth": "node scripts/test-tts-auth.cjs",
-    "diagnose:tts-iam": "node scripts/diagnose-tts-iam.cjs"
+    "diagnose:tts-iam": "node scripts/diagnose-tts-iam.cjs",
+    "ingest:dir": "tsx scripts/ingest-directory.ts",
+    "ingest:repo": "tsx scripts/ingest-repo.ts"
   },
   "dependencies": {
     "@browserbasehq/sdk": "^2.6.0",
