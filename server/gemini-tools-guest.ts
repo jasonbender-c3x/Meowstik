@@ -46,7 +46,7 @@ export const guestToolDeclarations: FunctionDeclaration[] = [
         voice: {
           type: "string",
           enum: ["Kore", "Puck", "Charon", "Fenrir", "Aoede", "Leda", "Orus", "Zephyr"],
-          description: "Voice to use (default: Kore)"
+          description: "Voice to use (default: Puck)"
         }
       },
       required: ["utterance"]

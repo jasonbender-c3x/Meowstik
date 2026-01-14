@@ -2362,7 +2362,7 @@ export class RAGDispatcher {
 
     try {
       const { generateSingleSpeakerAudio } = await import("../integrations/expressive-tts");
-      const voice = params.voice || "Kore";
+      const voice = params.voice || "Puck";
       
       console.log(`[Say] Calling TTS API: "${params.utterance.substring(0, 50)}..." with voice ${voice}`);
       

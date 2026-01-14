@@ -46,7 +46,7 @@ const DEFAULT_SYSTEM_INSTRUCTION = `You are Meowstik, a helpful and friendly AI 
 You are having a real-time voice conversation. Be concise and natural in your responses.
 Respond conversationally as if speaking to a friend. Avoid long lists or overly formal language.`;
 
-const DEFAULT_VOICE = "Kore";
+const DEFAULT_VOICE = "Puck";
 
 /**
  * Create a new Gemini Live session

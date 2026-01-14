@@ -89,7 +89,7 @@ export async function generateSingleSpeakerAudio(
     };
   }
 
-  const voiceConfig = AVAILABLE_VOICES[voice] || AVAILABLE_VOICES["Kore"];
+  const voiceConfig = AVAILABLE_VOICES[voice] || AVAILABLE_VOICES["Puck"];
   const authMethod = serviceAuth ? "service account" : "OAuth";
   let lastError: any;
 
@@ -205,6 +205,6 @@ export async function generateSingleSpeakerAudio(
 }
 
 export async function generateMultiSpeakerAudio(request: { text: string; speakers: Array<{ voice?: string }>; model?: string }): Promise<TTSResponse> {
-  const voice = request.speakers[0]?.voice || "Kore";
+  const voice = request.speakers[0]?.voice || "Puck";
   return generateSingleSpeakerAudio(request.text, voice);
 }

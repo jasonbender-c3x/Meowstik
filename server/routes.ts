@@ -1168,7 +1168,7 @@ The user has voice output enabled. You MUST use the \`say\` tool to speak your r
             ? finalContent.substring(0, 500) + "..."
             : finalContent;
           
-          const ttsResult = await generateSingleSpeakerAudio(ttsText, "Kore");
+          const ttsResult = await generateSingleSpeakerAudio(ttsText, "Puck");
           if (ttsResult.audioBase64) {
             console.log(`[Routes][TTS-Fallback] ✓ Generated fallback audio, length: ${ttsResult.audioBase64.length}`);
             res.write(
