@@ -17,6 +17,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { RefreshCw, Trash2, ChevronDown, ChevronRight, Database, Search, FileText, AlertCircle, CheckCircle, Clock, Zap } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
+import { TraceList } from "@/components/rag/TraceList";
+import { MetricsDashboard } from "@/components/rag/MetricsDashboard";
 
 interface RagTraceEvent {
   id: string;
@@ -252,6 +254,7 @@ function TraceGroupCard({ group }: { group: RagTraceGroup }) {
 export default function RagDebugPage() {
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState("all");
+  const [viewMode, setViewMode] = useState<"live" | "persistent">("live");
 
   const { data: traceGroups, isLoading: groupsLoading, refetch: refetchGroups } = useQuery<RagTraceGroup[]>({
     queryKey: ["/api/debug/rag/traces"],
@@ -261,6 +264,18 @@ export default function RagDebugPage() {
   const { data: stats, isLoading: statsLoading, refetch: refetchStats } = useQuery<RagStats>({
     queryKey: ["/api/debug/rag/stats"],
     refetchInterval: 5000,
+  });
+
+  // New: Query persistent traces
+  const { data: persistentTraces, isLoading: persistentLoading, refetch: refetchPersistent } = useQuery({
+    queryKey: ["/api/debug/rag/traceability/traces", { limit: 50 }],
+    enabled: viewMode === "persistent",
+  });
+
+  // New: Query metrics
+  const { data: metricsData, isLoading: metricsLoading, refetch: refetchMetrics } = useQuery({
+    queryKey: ["/api/debug/rag/traceability/metrics"],
+    enabled: viewMode === "persistent",
   });
 
   const clearMutation = useMutation({
@@ -277,6 +292,10 @@ export default function RagDebugPage() {
   const handleRefresh = () => {
     refetchGroups();
     refetchStats();
+    if (viewMode === "persistent") {
+      refetchPersistent();
+      refetchMetrics();
+    }
   };
 
   const filteredGroups = traceGroups?.filter((g) => {
@@ -356,43 +375,94 @@ export default function RagDebugPage() {
       {/* Trace Groups */}
       <Card>
         <CardHeader className="pb-2">
-          <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList>
-              <TabsTrigger value="all" data-testid="tab-all">
-                All ({traceGroups?.length || 0})
-              </TabsTrigger>
-              <TabsTrigger value="ingestion" data-testid="tab-ingestion">
-                Ingestion ({traceGroups?.filter(g => g.type === "ingestion").length || 0})
-              </TabsTrigger>
-              <TabsTrigger value="query" data-testid="tab-query">
-                Queries ({traceGroups?.filter(g => g.type === "query").length || 0})
-              </TabsTrigger>
-              <TabsTrigger value="errors" data-testid="tab-errors">
-                Errors ({traceGroups?.filter(g => !g.success).length || 0})
-              </TabsTrigger>
-            </TabsList>
-          </Tabs>
+          <div className="flex items-center justify-between">
+            <Tabs value={activeTab} onValueChange={setActiveTab}>
+              <TabsList>
+                <TabsTrigger value="all" data-testid="tab-all">
+                  All ({traceGroups?.length || 0})
+                </TabsTrigger>
+                <TabsTrigger value="ingestion" data-testid="tab-ingestion">
+                  Ingestion ({traceGroups?.filter(g => g.type === "ingestion").length || 0})
+                </TabsTrigger>
+                <TabsTrigger value="query" data-testid="tab-query">
+                  Queries ({traceGroups?.filter(g => g.type === "query").length || 0})
+                </TabsTrigger>
+                <TabsTrigger value="errors" data-testid="tab-errors">
+                  Errors ({traceGroups?.filter(g => !g.success).length || 0})
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
+            
+            <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as "live" | "persistent")}>
+              <TabsList>
+                <TabsTrigger value="live">
+                  <Clock className="h-3 w-3 mr-1" />
+                  Live (Memory)
+                </TabsTrigger>
+                <TabsTrigger value="persistent">
+                  <Database className="h-3 w-3 mr-1" />
+                  Persistent (DB)
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
+          </div>
         </CardHeader>
         <CardContent>
-          <ScrollArea className="h-[500px] pr-4">
-            {groupsLoading ? (
-              <div className="flex items-center justify-center h-32">
-                <RefreshCw className="h-6 w-6 animate-spin text-muted-foreground" />
+          {viewMode === "live" ? (
+            <ScrollArea className="h-[500px] pr-4">
+              {groupsLoading ? (
+                <div className="flex items-center justify-center h-32">
+                  <RefreshCw className="h-6 w-6 animate-spin text-muted-foreground" />
+                </div>
+              ) : filteredGroups.length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-32 text-muted-foreground">
+                  <Database className="h-8 w-8 mb-2" />
+                  <p>No trace events yet</p>
+                  <p className="text-xs">Send a message or upload a document to see traces</p>
+                </div>
+              ) : (
+                filteredGroups.map((group) => (
+                  <TraceGroupCard key={group.traceId} group={group} />
+                ))
+              )}
+            </ScrollArea>
+          ) : (
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Database className="h-4 w-4" />
+                <span>Viewing persistent traces from database</span>
               </div>
-            ) : filteredGroups.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-32 text-muted-foreground">
-                <Database className="h-8 w-8 mb-2" />
-                <p>No trace events yet</p>
-                <p className="text-xs">Send a message or upload a document to see traces</p>
-              </div>
-            ) : (
-              filteredGroups.map((group) => (
-                <TraceGroupCard key={group.traceId} group={group} />
-              ))
-            )}
-          </ScrollArea>
+              
+              <ScrollArea className="h-[500px] pr-4">
+                {persistentLoading ? (
+                  <div className="flex items-center justify-center h-32">
+                    <RefreshCw className="h-6 w-6 animate-spin text-muted-foreground" />
+                  </div>
+                ) : persistentTraces?.traces?.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center h-32 text-muted-foreground">
+                    <Database className="h-8 w-8 mb-2" />
+                    <p>No persistent traces found</p>
+                    <p className="text-xs">Traces are automatically saved to the database</p>
+                  </div>
+                ) : (
+                  <TraceList traces={persistentTraces?.traces || []} />
+                )}
+              </ScrollArea>
+            </div>
+          )}
         </CardContent>
       </Card>
+
+      {/* Metrics Dashboard - Only visible in persistent mode */}
+      {viewMode === "persistent" && metricsData?.metrics?.length > 0 && (
+        <div className="mt-6">
+          <h2 className="text-xl font-bold mb-4">Performance Metrics</h2>
+          <MetricsDashboard 
+            metrics={metricsData.metrics} 
+            period={metricsData.period || "hour"} 
+          />
+        </div>
+      )}
     </div>
   );
 }
