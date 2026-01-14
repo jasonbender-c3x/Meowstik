@@ -20,35 +20,8 @@ import { execSync } from 'child_process';
 import { ingestionPipeline } from '../server/services/ingestion-pipeline';
 import fs from 'fs';
 import path from 'path';
-
-// Supported file extensions
-const SUPPORTED_EXTENSIONS = [
-  '.md', '.txt', '.js', '.ts', '.tsx', '.jsx',
-  '.py', '.java', '.c', '.cpp', '.h', '.hpp',
-  '.go', '.rs', '.rb', '.php', '.sh', '.bash',
-  '.json', '.yaml', '.yml', '.xml', '.csv',
-  '.html', '.css', '.scss', '.less',
-  '.sql', '.graphql', '.proto', '.thrift'
-];
-
-// Directories to skip
-const SKIP_DIRS = [
-  'node_modules',
-  '.git',
-  'dist',
-  'build',
-  '.next',
-  'coverage',
-  '.vscode',
-  '.idea',
-  '__pycache__',
-  'vendor',
-  'target',
-  'out',
-  'bin',
-  '.gradle',
-  '.mvn'
-];
+import os from 'os';
+import { SUPPORTED_EXTENSIONS, SKIP_DIRS } from './ingestion-constants';
 
 interface IngestStats {
   total: number;
@@ -57,7 +30,7 @@ interface IngestStats {
   skipped: number;
 }
 
-function getAllFiles(dir: string, extensions: string[], stats: IngestStats = { total: 0, success: 0, failed: 0, skipped: 0 }): string[] {
+function getAllFiles(dir: string, extensions: string[]): string[] {
   const files: string[] = [];
   const items = fs.readdirSync(dir, { withFileTypes: true });
   
@@ -70,7 +43,7 @@ function getAllFiles(dir: string, extensions: string[], stats: IngestStats = { t
         continue;
       }
       // Recursively get files from subdirectories
-      files.push(...getAllFiles(fullPath, extensions, stats));
+      files.push(...getAllFiles(fullPath, extensions));
     } else if (item.isFile()) {
       const ext = path.extname(item.name).toLowerCase();
       if (extensions.includes(ext)) {
@@ -83,14 +56,17 @@ function getAllFiles(dir: string, extensions: string[], stats: IngestStats = { t
 }
 
 async function ingestRepository(repoUrl: string, branch = 'main') {
-  const tempDir = `/tmp/repo-${Date.now()}`;
+  // Use os.tmpdir() for cross-platform compatibility
+  const tempDir = path.join(os.tmpdir(), `repo-${Date.now()}`);
   
   try {
     console.log(`Cloning repository: ${repoUrl} (branch: ${branch})`);
     console.log(`Target directory: ${tempDir}`);
     
     // Clone repository with depth=1 for faster cloning
-    execSync(`git clone --depth 1 --branch ${branch} ${repoUrl} ${tempDir}`, {
+    // Use array arguments to avoid shell injection
+    const gitArgs = ['clone', '--depth', '1', '--branch', branch, repoUrl, tempDir];
+    execSync(`git ${gitArgs.map(arg => JSON.stringify(arg)).join(' ')}`, {
       stdio: 'inherit'
     });
     
@@ -131,7 +107,7 @@ async function ingestRepository(repoUrl: string, branch = 'main') {
         }
         
         const result = await ingestionPipeline.ingestText({
-          sourceType: 'web', // Using 'web' as proxy for 'repository' source
+          sourceType: 'upload', // Using 'upload' for repository ingestion
           sourceUrl: `${repoUrl}/blob/${branch}/${relativePath}`,
           modality: 'document',
           title: relativePath,
@@ -149,12 +125,12 @@ async function ingestRepository(repoUrl: string, branch = 'main') {
     
     return stats;
   } finally {
-    // Cleanup: Remove cloned repository
+    // Cleanup: Remove cloned repository (cross-platform)
     try {
       if (fs.existsSync(tempDir)) {
         console.log('');
         console.log('Cleaning up temporary directory...');
-        execSync(`rm -rf ${tempDir}`);
+        fs.rmSync(tempDir, { recursive: true, force: true });
         console.log('✓ Cleanup complete');
       }
     } catch (error) {
@@ -177,10 +153,22 @@ async function main() {
     process.exit(1);
   }
   
-  // Validate URL format
-  if (!repoUrl.startsWith('http://') && !repoUrl.startsWith('https://') && !repoUrl.startsWith('git@')) {
+  // Validate URL format - basic validation
+  const isHttpUrl = repoUrl.startsWith('http://') || repoUrl.startsWith('https://');
+  const isSshUrl = repoUrl.startsWith('git@') && repoUrl.includes(':');
+  
+  if (!isHttpUrl && !isSshUrl) {
     console.error('Error: Invalid repository URL format');
-    console.error('URL must start with http://, https://, or git@');
+    console.error('URL must be a valid Git URL:');
+    console.error('  - HTTPS: https://github.com/user/repo.git');
+    console.error('  - SSH: git@github.com:user/repo.git');
+    process.exit(1);
+  }
+  
+  // Sanitize branch name - only allow alphanumeric, dash, underscore, slash, dot
+  if (!/^[a-zA-Z0-9/_.-]+$/.test(branch)) {
+    console.error('Error: Invalid branch name');
+    console.error('Branch name can only contain letters, numbers, -, _, /, and .');
     process.exit(1);
   }
   

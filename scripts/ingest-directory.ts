@@ -15,30 +15,7 @@
 import { ingestionPipeline } from '../server/services/ingestion-pipeline';
 import fs from 'fs';
 import path from 'path';
-
-// Supported file extensions
-const SUPPORTED_EXTENSIONS = [
-  '.md', '.txt', '.js', '.ts', '.tsx', '.jsx',
-  '.py', '.java', '.c', '.cpp', '.h', '.hpp',
-  '.go', '.rs', '.rb', '.php', '.sh', '.bash',
-  '.json', '.yaml', '.yml', '.xml', '.csv',
-  '.html', '.css', '.scss', '.less'
-];
-
-// Directories to skip
-const SKIP_DIRS = [
-  'node_modules',
-  '.git',
-  'dist',
-  'build',
-  '.next',
-  'coverage',
-  '.vscode',
-  '.idea',
-  '__pycache__',
-  'vendor',
-  'target'
-];
+import { SUPPORTED_EXTENSIONS, SKIP_DIRS } from './ingestion-constants';
 
 interface IngestStats {
   total: number;
