@@ -16,6 +16,7 @@ This directory contains actively maintained documentation for Meowstik.
 - **RAG_QUICK_REFERENCE.md** - Command cheat sheet
 - **RAG_TESTING.md** - Testing procedures
 - **RAG_PIPELINE.md** - Technical pipeline details
+- **RAG-ANALYSIS.md** - RAG system analysis and improvements
 
 ### Architecture & Design
 - **01-database-schemas.md** - Database structure
@@ -39,6 +40,19 @@ This directory contains actively maintained documentation for Meowstik.
 - **orchestration-layer.md** - Coordination system
 - **orchestration-implementation-summary.md** - Implementation details
 - **tool_logging_standard.md** - Logging conventions
+
+### Agent System (Ragent)
+- **INDEX.md** - Agent system overview (Ragent index)
+- **agent-configuration.md** - Configure agent behavior
+- **browser-computer-use.md** - Browser automation
+- **collaborative-editing.md** - Multi-agent collaboration
+- **job-orchestration.md** - Task management
+- **scheduler.md** - Job scheduling with cron
+- **CHAIN_OF_THOUGHT_PROPOSAL.md** - Reasoning system
+- **TROUBLESHOOTING-MANUAL.md** - Debug guide
+- **install-browser-extension.md** - Extension setup
+- **install-desktop-agent.md** - Desktop setup
+- **docs-site.md** - Documentation site guide
 
 ## Maintenance
 

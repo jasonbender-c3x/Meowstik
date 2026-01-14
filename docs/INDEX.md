@@ -56,24 +56,19 @@ Current, actively maintained documentation for day-to-day use.
 - [Orchestration Implementation Summary](current/orchestration-implementation-summary.md) - Implementation details
 - [Tool Logging Standard](current/tool_logging_standard.md) - Logging conventions
 
----
-
-### `/docs/ragent` - Agent Documentation
-
-Documentation specific to the RAGent system (autonomous agents).
-
-- [Index](ragent/INDEX.md) - Agent system overview
-- [Agent Configuration](ragent/agent-configuration.md) - Configuration guide
-- [RAG Analysis](ragent/RAG-ANALYSIS.md) - RAG system analysis
-- [Browser Computer Use](ragent/browser-computer-use.md) - Browser automation
-- [Collaborative Editing](ragent/collaborative-editing.md) - Multi-agent collaboration
-- [Job Orchestration](ragent/job-orchestration.md) - Task management
-- [Scheduler](ragent/scheduler.md) - Job scheduling
-- [Chain of Thought Proposal](ragent/CHAIN_OF_THOUGHT_PROPOSAL.md) - Reasoning system
-- [Troubleshooting Manual](ragent/TROUBLESHOOTING-MANUAL.md) - Debug guide
-- [Install Browser Extension](ragent/install-browser-extension.md) - Extension setup
-- [Install Desktop Agent](ragent/install-desktop-agent.md) - Desktop setup
-- [Docs Site](ragent/docs-site.md) - Documentation site
+#### Agent System (Ragent)
+- [Ragent Index](current/INDEX.md) - Agent system overview
+- [Agent Configuration](current/agent-configuration.md) - Configuration guide
+- [RAG Analysis](current/RAG-ANALYSIS.md) - RAG system analysis
+- [Browser Computer Use](current/browser-computer-use.md) - Browser automation
+- [Collaborative Editing](current/collaborative-editing.md) - Multi-agent collaboration
+- [Job Orchestration](current/job-orchestration.md) - Task management
+- [Scheduler](current/scheduler.md) - Job scheduling
+- [Chain of Thought Proposal](current/CHAIN_OF_THOUGHT_PROPOSAL.md) - Reasoning system
+- [Troubleshooting Manual](current/TROUBLESHOOTING-MANUAL.md) - Debug guide
+- [Install Browser Extension](current/install-browser-extension.md) - Extension setup
+- [Install Desktop Agent](current/install-desktop-agent.md) - Desktop setup
+- [Docs Site](current/docs-site.md) - Documentation site
 
 ---
 
@@ -140,7 +135,7 @@ Historical summaries, fix reports, and completed project documentation.
 **Development**
 → [current/PROTOCOL_ANALYSIS.md](current/PROTOCOL_ANALYSIS.md)  
 → [current/orchestration-layer.md](current/orchestration-layer.md)  
-→ [ragent/INDEX.md](ragent/INDEX.md)
+→ [current/INDEX.md](current/INDEX.md)
 
 **Roadmap**
 → [v2-roadmap/MASTER-ROADMAP.md](v2-roadmap/MASTER-ROADMAP.md)  
@@ -158,8 +153,8 @@ Historical summaries, fix reports, and completed project documentation.
 | Set up voice synthesis | [Voice Setup](current/VOICE_SYNTHESIS_SETUP.md) |
 | Configure credentials | [Credential Management](current/CREDENTIAL_MANAGEMENT.md) |
 | Understand architecture | [Cognitive Architecture 2.0](current/COGNITIVE_ARCHITECTURE_2.0.md) |
-| Set up agents | [Agent Configuration](ragent/agent-configuration.md) |
-| Debug issues | [Troubleshooting Manual](ragent/TROUBLESHOOTING-MANUAL.md) |
+| Set up agents | [Agent Configuration](current/agent-configuration.md) |
+| Debug issues | [Troubleshooting Manual](current/TROUBLESHOOTING-MANUAL.md) |
 | See the roadmap | [Master Roadmap](v2-roadmap/MASTER-ROADMAP.md) |
 | Understand the vision | [Comprehensive Vision](idea-extraction/COMPREHENSIVE_VISION.md) |
 
@@ -167,7 +162,7 @@ Historical summaries, fix reports, and completed project documentation.
 
 ## 🗂️ Full File Listing
 
-### Current Documentation (28 files)
+### Current Documentation (40 files)
 ```
 docs/current/
 ├── 01-database-schemas.md
@@ -175,44 +170,39 @@ docs/current/
 ├── 03-prompt-lifecycle.md
 ├── 05-tool-call-schema.md
 ├── AGENT_ATTRIBUTION.md
+├── CHAIN_OF_THOUGHT_PROPOSAL.md
 ├── COGNITIVE_ARCHITECTURE_2.0.md
 ├── CREDENTIAL_MANAGEMENT.md
 ├── FEATURES.md
 ├── HOW_TO_INITIATE_RAG_INGESTION.md
+├── INDEX.md (Ragent system overview)
 ├── MARKDOWN_EMBEDDING_GUIDE.md
 ├── PROTOCOL_ANALYSIS.md
 ├── QUICK_START.md
+├── RAG-ANALYSIS.md
 ├── RAG_DOCUMENTATION_INDEX.md
 ├── RAG_INGESTION_GUIDE.md
 ├── RAG_PIPELINE.md
 ├── RAG_QUICK_REFERENCE.md
 ├── RAG_TESTING.md
 ├── SYSTEM_OVERVIEW.md
+├── TROUBLESHOOTING-MANUAL.md
 ├── TTS_IAM_PERMISSION_FIX.md
 ├── VOICE_SYNTHESIS_SETUP.md
+├── agent-configuration.md
 ├── authentication-and-session-isolation.md
+├── browser-computer-use.md
+├── collaborative-editing.md
+├── docs-site.md
+├── install-browser-extension.md
+├── install-desktop-agent.md
+├── job-orchestration.md
 ├── llm-output-processing-pipeline.md
 ├── orchestration-implementation-summary.md
 ├── orchestration-layer.md
+├── scheduler.md
 ├── ssh-gateway-guide.md
 └── tool_logging_standard.md
-```
-
-### Agent Documentation (12 files)
-```
-docs/ragent/
-├── INDEX.md
-├── agent-configuration.md
-├── RAG-ANALYSIS.md
-├── browser-computer-use.md
-├── collaborative-editing.md
-├── job-orchestration.md
-├── scheduler.md
-├── CHAIN_OF_THOUGHT_PROPOSAL.md
-├── TROUBLESHOOTING-MANUAL.md
-├── install-browser-extension.md
-├── install-desktop-agent.md
-└── docs-site.md
 ```
 
 ### Roadmap & Vision (11 files)

@@ -17,21 +17,21 @@ const docCategories = [
     name: "Agent (Ragent)",
     icon: "🤖",
     docs: [
-      { slug: "ragent-index", title: "Ragent Index", path: "ragent/INDEX.md" },
-      { slug: "agent-configuration", title: "Agent Configuration", path: "ragent/agent-configuration.md" },
-      { slug: "job-orchestration", title: "Job Orchestration", path: "ragent/job-orchestration.md" },
-      { slug: "scheduler", title: "Scheduler & Workflows", path: "ragent/scheduler.md" },
-      { slug: "collaborative-editing", title: "Collaborative Editing", path: "ragent/collaborative-editing.md" },
-      { slug: "browser-computer-use", title: "Browser & Computer Use", path: "ragent/browser-computer-use.md" },
-      { slug: "docs-site", title: "Docs Site Guide", path: "ragent/docs-site.md" },
+      { slug: "ragent-index", title: "Ragent Index", path: "current/INDEX.md" },
+      { slug: "agent-configuration", title: "Agent Configuration", path: "current/agent-configuration.md" },
+      { slug: "job-orchestration", title: "Job Orchestration", path: "current/job-orchestration.md" },
+      { slug: "scheduler", title: "Scheduler & Workflows", path: "current/scheduler.md" },
+      { slug: "collaborative-editing", title: "Collaborative Editing", path: "current/collaborative-editing.md" },
+      { slug: "browser-computer-use", title: "Browser & Computer Use", path: "current/browser-computer-use.md" },
+      { slug: "docs-site", title: "Docs Site Guide", path: "current/docs-site.md" },
     ]
   },
   {
     name: "Installation",
     icon: "📦",
     docs: [
-      { slug: "install-browser-extension", title: "Browser Extension", path: "ragent/install-browser-extension.md" },
-      { slug: "install-desktop-agent", title: "Desktop Agent", path: "ragent/install-desktop-agent.md" },
+      { slug: "install-browser-extension", title: "Browser Extension", path: "current/install-browser-extension.md" },
+      { slug: "install-desktop-agent", title: "Desktop Agent", path: "current/install-desktop-agent.md" },
     ]
   },
   {
@@ -47,8 +47,8 @@ const docCategories = [
     name: "Architecture",
     icon: "🏗️",
     docs: [
-      { slug: "SYSTEM_OVERVIEW", title: "System Overview", path: "SYSTEM_OVERVIEW.md" },
-      { slug: "RAG_PIPELINE", title: "RAG Pipeline", path: "RAG_PIPELINE.md" },
+      { slug: "SYSTEM_OVERVIEW", title: "System Overview", path: "current/SYSTEM_OVERVIEW.md" },
+      { slug: "RAG_PIPELINE", title: "RAG Pipeline", path: "current/RAG_PIPELINE.md" },
       { slug: "KNOWLEDGE_INGESTION_ARCHITECTURE", title: "Knowledge Ingestion", path: "v2-roadmap/KNOWLEDGE_INGESTION_ARCHITECTURE.md" },
       { slug: "KERNEL_IMPLEMENTATION_PROPOSAL", title: "Kernel Implementation", path: "v2-roadmap/KERNEL_IMPLEMENTATION_PROPOSAL.md" },
     ]
@@ -65,27 +65,27 @@ const docCategories = [
     name: "Technical",
     icon: "⚙️",
     docs: [
-      { slug: "FEATURES", title: "Features", path: "FEATURES.md" },
-      { slug: "database-schemas", title: "Database Schemas", path: "01-database-schemas.md" },
-      { slug: "ui-architecture", title: "UI Architecture", path: "02-ui-architecture.md" },
-      { slug: "prompt-lifecycle", title: "Prompt Lifecycle", path: "03-prompt-lifecycle.md" },
-      { slug: "llm-output-processing-pipeline", title: "LLM Output Processing", path: "llm-output-processing-pipeline.md" },
+      { slug: "FEATURES", title: "Features", path: "current/FEATURES.md" },
+      { slug: "database-schemas", title: "Database Schemas", path: "current/01-database-schemas.md" },
+      { slug: "ui-architecture", title: "UI Architecture", path: "current/02-ui-architecture.md" },
+      { slug: "prompt-lifecycle", title: "Prompt Lifecycle", path: "current/03-prompt-lifecycle.md" },
+      { slug: "llm-output-processing-pipeline", title: "LLM Output Processing", path: "current/llm-output-processing-pipeline.md" },
     ]
   },
   {
     name: "Reference",
     icon: "📚",
     docs: [
-      { slug: "PROTOCOL_ANALYSIS", title: "Protocol Analysis", path: "PROTOCOL_ANALYSIS.md" },
-      { slug: "MARKDOWN_EMBEDDING_GUIDE", title: "Markdown Embedding Guide", path: "MARKDOWN_EMBEDDING_GUIDE.md" },
-      { slug: "LIVE_MODE_EVALUATION", title: "Live Mode Evaluation", path: "LIVE_MODE_EVALUATION.md" },
+      { slug: "PROTOCOL_ANALYSIS", title: "Protocol Analysis", path: "current/PROTOCOL_ANALYSIS.md" },
+      { slug: "MARKDOWN_EMBEDDING_GUIDE", title: "Markdown Embedding Guide", path: "current/MARKDOWN_EMBEDDING_GUIDE.md" },
+      { slug: "LIVE_MODE_EVALUATION", title: "Live Mode Evaluation", path: "archive/LIVE_MODE_EVALUATION.md" },
     ]
   },
   {
     name: "Guides",
     icon: "📖",
     docs: [
-      { slug: "EXTERNAL-DOCS-HOSTING", title: "External Docs Hosting", path: "EXTERNAL-DOCS-HOSTING.md" },
+      { slug: "EXTERNAL-DOCS-HOSTING", title: "External Docs Hosting", path: "archive/EXTERNAL-DOCS-HOSTING.md" },
     ]
   }
 ];

@@ -518,16 +518,16 @@ Comprehensive documentation is available in the `/docs` directory:
 ```
 docs/
 ├── INDEX.md                    # Master documentation index
-├── current/                    # Active documentation (28 files)
+├── current/                    # Active documentation (40 files)
 │   ├── Quick Start, System Overview, Features
-│   ├── RAG & Knowledge Management (6 docs)
+│   ├── RAG & Knowledge Management (7 docs)
 │   ├── Architecture & Design (6 docs)
 │   ├── Setup & Configuration (5 docs)
-│   └── Development (7 docs)
-├── ragent/                     # Agent system docs (12 files)
+│   ├── Development (7 docs)
+│   └── Agent System (12 docs)
 ├── v2-roadmap/                 # Future plans (9 files)
 ├── idea-extraction/            # Vision documents (2 files)
-└── archive/                    # Historical docs (10 files)
+└── archive/                    # Historical docs (11 files)
 ```
 
 **Quick Links:**
