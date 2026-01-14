@@ -1714,10 +1714,6 @@ export class DrizzleStorage implements IStorage {
     limit?: number;
     phoneNumber?: string;
   }): Promise<SmsMessage[]> {
-    let query = this.getDb()
-      .select()
-      .from(smsMessages);
-
     const conditions = [];
     
     if (options?.direction) {
@@ -1735,8 +1731,12 @@ export class DrizzleStorage implements IStorage {
       ));
     }
 
+    let query = this.getDb()
+      .select()
+      .from(smsMessages);
+
     if (conditions.length > 0) {
-      query = query.where(and(...conditions));
+      query = query.where(and(...conditions)) as typeof query;
     }
 
     return query
