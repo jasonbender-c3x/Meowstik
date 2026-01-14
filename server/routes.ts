@@ -591,9 +591,13 @@ export async function registerRoutes(
       // - Tools from prompts/tools.md
       // - RAG context from relevant document chunks
       // - Contextual instructions based on attachments
-      // Get verbosity mode from client (mute, quiet, verbose, experimental)
-      const verbosityMode = req.body.verbosityMode || "mute";
+      // Get verbosity mode from client (mute, low, normal, high, demo-hd, podcast)
+      const verbosityMode = req.body.verbosityMode || "normal";
       const useVoice = verbosityMode !== "mute";
+      
+      // Determine verbosity content level (low or normal)
+      // Low: concise responses, high: all content spoken, demo-hd/podcast: special modes
+      const contentVerbosity = verbosityMode === "low" ? "low" : "normal";
       
       const composedPrompt = await promptComposer.compose({
         textContent: req.body.content || "",
@@ -604,17 +608,73 @@ export async function registerRoutes(
         userId: userId, // Pass userId for data isolation in RAG context
       });
       
-      // Add voice instructions if voice mode is enabled
+      // Add voice/verbosity instructions based on mode
       let finalSystemPrompt = composedPrompt.systemPrompt;
       if (useVoice) {
-        const voiceInstruction = `
-## VOICE MODE ENABLED
-The user has voice output enabled. You MUST use the \`say\` tool to speak your responses.
-- Use \`say\` with your response text BEFORE calling \`send_chat\`
-- Both tools can be called in the same turn
+        let voiceInstruction = "";
+        
+        switch (verbosityMode) {
+          case "low":
+            voiceInstruction = `
+## VOICE MODE: LOW VERBOSITY
+The user has LOW verbosity mode enabled. Keep responses concise and focused.
+- Use the \`say\` tool for voice output when appropriate
+- Keep responses brief and to-the-point
+- Only speak explicit \`say\` tool calls - chat content is NOT read aloud
+`;
+            break;
+            
+          case "normal":
+            voiceInstruction = `
+## VOICE MODE: NORMAL VERBOSITY
+The user has NORMAL verbosity mode enabled (default).
+- Use the \`say\` tool for voice output when appropriate
+- Provide balanced, informative responses
+- Only speak explicit \`say\` tool calls - chat content is NOT read aloud
+`;
+            break;
+            
+          case "high":
+            voiceInstruction = `
+## VOICE MODE: HIGH VERBOSITY
+The user has HIGH verbosity mode enabled. All chat content (except code blocks) will be spoken aloud.
+- Use the \`say\` tool to speak your responses
+- All text sent via \`send_chat\` (except code blocks) will be passed through the \`say\` tool
+- Provide comprehensive, detailed responses
 - Example: {"toolCalls": [{"type": "say", "id": "s1", "parameters": {"utterance": "Here's what I found..."}}, {"type": "send_chat", "id": "c1", "parameters": {"content": "Here's what I found..."}}]}
 `;
+            break;
+            
+          case "demo-hd":
+            voiceInstruction = `
+## VOICE MODE: DEMO HD-EXPRESSIVE
+The user has DEMO HD-EXPRESSIVE mode enabled - premium, expressive voice synthesis.
+- Use the \`say\` tool with expressive, engaging delivery
+- All content will be spoken with high-quality, expressive voice
+- Craft responses that sound natural and engaging when spoken
+- Vary tone and pacing for emphasis and clarity
+`;
+            break;
+            
+          case "podcast":
+            voiceInstruction = `
+## VOICE MODE: PODCAST
+The user has PODCAST mode enabled - dual-voice discussion style.
+- Respond in a conversational, discussion-style format
+- Structure responses as if explaining to a co-host or listener
+- Use natural speech patterns and transitions
+- Support seamless interruptions (barge-in capability active)
+`;
+            break;
+        }
+        
         finalSystemPrompt = voiceInstruction + "\n\n" + finalSystemPrompt;
+      }
+      
+      // Add content verbosity instruction
+      if (contentVerbosity === "low") {
+        const verbosityNote = "\n\n**Content Verbosity: LOW** - Keep all responses concise and focused.\n";
+        finalSystemPrompt = finalSystemPrompt + verbosityNote;
       }
       
       // Replace composedPrompt.systemPrompt with our modified version
