@@ -8,8 +8,9 @@ A next-generation AI chat interface built with modern web technologies, featurin
 
 1. [Features](#features)
 2. [Getting Started](#getting-started)
-3. [Architecture Overview](#architecture-overview)
-4. [Glossary](#glossary)
+3. [Browser Extension](#browser-extension)
+4. [Architecture Overview](#architecture-overview)
+5. [Glossary](#glossary)
    - [Database Tables & Types](#database-tables--types)
    - [Core Functions](#core-functions)
    - [React Hooks](#react-hooks)
@@ -101,7 +102,22 @@ High-quality voice capabilities powered by Google Cloud Text-to-Speech API and W
 > 
 > ⚠️ **Troubleshooting**: If you get "Insufficient Permission" errors, see [docs/TTS_IAM_PERMISSION_FIX.md](docs/TTS_IAM_PERMISSION_FIX.md) for IAM setup instructions
 
-### 6. Modern UI/UX
+### 6. Browser Extension (Meowstik Automations)
+
+Chrome extension for browser control and automation capabilities.
+
+- **Chat Interface**: Chat with Meowstik AI directly from your browser
+- **Live Voice**: Real-time voice conversations using WebSocket streaming
+- **Screen Capture**: Capture visible area, full page, or select elements for AI analysis
+- **Page Analysis**: Extract and analyze page content, links, forms
+- **Browser Automation**: AI can navigate, click, type, and interact with pages
+- **Console/Network Logs**: Capture and send logs to AI for debugging
+
+> 📦 **Installation**: See [browser-extension/README.md](browser-extension/README.md) for setup instructions
+>
+> 🔧 **Build**: Run `cd browser-extension && ./build.sh` to create distribution package
+
+### 7. Modern UI/UX
 
 - **Google-esque Design**: Clean, airy aesthetic with lots of whitespace
 - **Responsive Layout**: Works on mobile, tablet, and desktop
@@ -154,6 +170,45 @@ The application runs on port 5000 with the following routes:
 | `/editor` | Code editor with Monaco Editor |
 | `/preview` | Live preview of your code |
 | `/google` | Google Workspace services dashboard |
+
+---
+
+## Browser Extension
+
+The **Meowstik Automations** browser extension enables computer-control tools and browser automation directly from Chrome. It replaces the standalone Desktop Agent with a more integrated solution.
+
+### Quick Install
+
+1. **Build the extension:**
+   ```bash
+   cd browser-extension
+   ./build.sh
+   ```
+
+2. **Load in Chrome:**
+   - Navigate to `chrome://extensions/`
+   - Enable "Developer mode"
+   - Click "Load unpacked" and select `browser-extension/dist`
+
+3. **Configure:**
+   - Click extension icon → Settings
+   - Enter your Meowstik server URL
+   - Click "Connect"
+
+### Features
+
+- 🎤 **Live Voice**: Real-time voice conversations with AI
+- 📸 **Screen Capture**: Capture and analyze any webpage
+- 🤖 **Browser Automation**: AI can click, type, and navigate
+- 📝 **Page Analysis**: Extract content, links, and forms
+- 🔍 **Console Logs**: Debug with AI assistance
+- ⌨️ **Keyboard Shortcuts**: Quick access (Ctrl+Shift+M)
+
+### Documentation
+
+- **Quick Start**: [docs/BROWSER_EXTENSION_QUICKSTART.md](docs/BROWSER_EXTENSION_QUICKSTART.md)
+- **Full Documentation**: [browser-extension/README.md](browser-extension/README.md)
+- **Automation Guide**: [docs/ragent/browser-computer-use.md](docs/ragent/browser-computer-use.md)
 
 ---
 
