@@ -43,6 +43,20 @@ export const geminiFunctionDeclarations: FunctionDeclaration[] = [
       required: ["utterance"]
     }
   },
+  {
+    name: "open_url",
+    description: "Open a URL in a new browser tab. Use this when the user asks to view a webpage, open a link, or navigate to a URL. Does NOT terminate the loop.",
+    parametersJsonSchema: {
+      type: "object",
+      properties: {
+        url: {
+          type: "string",
+          description: "The full URL to open (must include https:// or http://)"
+        }
+      },
+      required: ["url"]
+    }
+  },
 
   // ═══════════════════════════════════════════════════════════════════════════
   // FILE OPERATIONS

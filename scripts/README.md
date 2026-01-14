@@ -2,6 +2,25 @@
 
 Utility scripts for managing the Meowstik application.
 
+## Icon Generation
+
+### Generate Icons
+Generate browser extension icons in multiple sizes:
+
+```bash
+python3 scripts/generate-icons.py
+```
+
+**Requirements:**
+- Python 3.x
+- Pillow library (`pip3 install Pillow`)
+
+**Output:**
+- `browser-extension/icons/` - Icons for the standalone browser extension
+- `extension/icons/` - Icons for the legacy extension
+- `extension-src/icons/` - Icons for the built extension (via Vite)
+- `public/icons/` - Icons for the web app
+
 ## Agent Attribution Scripts
 
 ### Seed Agents

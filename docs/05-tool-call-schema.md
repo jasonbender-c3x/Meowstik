@@ -91,6 +91,14 @@ export type ToolCall = z.infer<typeof toolCallSchema>;
 
 ## Tool Types Reference
 
+### Core Operations
+
+| Type | Description | Key Parameters |
+|------|-------------|----------------|
+| `send_chat` | Send message to chat | `content` |
+| `say` | Speak text with TTS | `utterance`, `voiceId`, `style` |
+| `open_url` | Open URL in new tab | `url` |
+
 ### Gmail Operations
 
 | Type | Description | Key Parameters |

@@ -656,6 +656,8 @@ export const toolCallSchema = z.object({
     "send_chat",
     // Voice output - tool for sending speech in turn-taking voice mode
     "say",
+    // Browser control - open URLs in new tabs
+    "open_url",
     // File operations
     "file_get", "file_put",
     // Search & Scraping
@@ -713,6 +715,21 @@ export const sendChatParamsSchema = z.object({
   content: z.string().min(1, "Content cannot be empty"),
 });
 export type SendChatParams = z.infer<typeof sendChatParamsSchema>;
+
+// =============================================================================
+// BROWSER CONTROL PARAMETER SCHEMA
+// =============================================================================
+
+/**
+ * Open URL Parameters
+ * Tool for opening URLs in new browser tabs
+ * The frontend handles this by executing window.open()
+ */
+export const openUrlParamsSchema = z.object({
+  /** The URL to open in a new tab/window */
+  url: z.string().url("Must be a valid URL"),
+});
+export type OpenUrlParams = z.infer<typeof openUrlParamsSchema>;
 
 // =============================================================================
 // VOICE OUTPUT PARAMETER SCHEMA

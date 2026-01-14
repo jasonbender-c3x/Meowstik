@@ -89,7 +89,7 @@ import {
   llmUsage,
   agentIdentities,
   agentActivityLog,
-  smsMessages
+  smsMessages,
   callConversations,
   callTurns
 } from "@shared/schema";
@@ -1768,13 +1768,6 @@ export class DrizzleStorage implements IStorage {
     const [created] = await this.getDb()
       .insert(smsMessages)
       .values(sms)
-  // TWILIO CALL CONVERSATION OPERATIONS
-  // =========================================================================
-
-  async createCallConversation(conversation: InsertCallConversation): Promise<CallConversation> {
-    const [created] = await this.getDb()
-      .insert(callConversations)
-      .values(conversation)
       .returning();
     return created;
   }
@@ -1848,6 +1841,20 @@ export class DrizzleStorage implements IStorage {
       .update(smsMessages)
       .set({ errorCode, errorMessage })
       .where(eq(smsMessages.id, id));
+  }
+
+  // =========================================================================
+  // TWILIO CALL CONVERSATION OPERATIONS
+  // =========================================================================
+
+  async createCallConversation(conversation: InsertCallConversation): Promise<CallConversation> {
+    const [created] = await this.getDb()
+      .insert(callConversations)
+      .values(conversation)
+      .returning();
+    return created;
+  }
+
   async getCallConversationBySid(callSid: string): Promise<CallConversation | undefined> {
     const [conversation] = await this.getDb()
       .select()
