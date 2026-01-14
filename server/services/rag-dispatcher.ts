@@ -43,11 +43,15 @@ import {
   webSearchParamsSchema,
   googleSearchParamsSchema,
   duckduckgoSearchParamsSchema,
-  browserScrapeParamsSchema
+  browserScrapeParamsSchema,
+  httpGetParamsSchema,
+  httpPostParamsSchema,
+  httpPutParamsSchema
 } from "@shared/schema";
 import { webSearch, formatSearchResult } from "../integrations/web-search";
 import { searchWeb } from "../integrations/web-scraper";
 import { browserScrape } from "../integrations/browser-scraper";
+import { httpGet, httpPost, httpPut } from "../integrations/http-client";
 import { tavilySearch, tavilyQnA, tavilyDeepResearch } from "../integrations/tavily";
 import { perplexitySearch, perplexityQuickAnswer, perplexityDeepResearch, perplexityNews } from "../integrations/perplexity";
 import * as googleTasks from "../integrations/google-tasks";
@@ -384,6 +388,15 @@ export class RAGDispatcher {
           break;
         case "browser_scrape":
           result = await this.executeBrowserScrape(toolCall);
+          break;
+        case "http_get":
+          result = await this.executeHttpGet(toolCall);
+          break;
+        case "http_post":
+          result = await this.executeHttpPost(toolCall);
+          break;
+        case "http_put":
+          result = await this.executeHttpPut(toolCall);
           break;
         case "file_ingest":
           result = await this.executeFileOperation(toolCall);
@@ -874,6 +887,103 @@ export class RAGDispatcher {
       content: result.content
     };
   }
+
+  /**
+   * Execute HTTP GET request
+   */
+  private async executeHttpGet(toolCall: ToolCall): Promise<unknown> {
+    const parseResult = httpGetParamsSchema.safeParse(toolCall.parameters);
+    
+    if (!parseResult.success) {
+      throw new Error(`Invalid HTTP GET parameters: ${parseResult.error.message}`);
+    }
+
+    const params = parseResult.data;
+    const result = await httpGet({
+      url: params.url,
+      headers: params.headers,
+      params: params.params,
+      timeout: params.timeout
+    });
+
+    if (!result.success) {
+      throw new Error(result.error || "HTTP GET request failed");
+    }
+
+    return {
+      success: true,
+      status: result.status,
+      statusText: result.statusText,
+      headers: result.headers,
+      contentType: result.contentType,
+      data: result.data
+    };
+  }
+
+  /**
+   * Execute HTTP POST request
+   */
+  private async executeHttpPost(toolCall: ToolCall): Promise<unknown> {
+    const parseResult = httpPostParamsSchema.safeParse(toolCall.parameters);
+    
+    if (!parseResult.success) {
+      throw new Error(`Invalid HTTP POST parameters: ${parseResult.error.message}`);
+    }
+
+    const params = parseResult.data;
+    const result = await httpPost({
+      url: params.url,
+      headers: params.headers,
+      body: params.body,
+      timeout: params.timeout
+    });
+
+    if (!result.success) {
+      throw new Error(result.error || "HTTP POST request failed");
+    }
+
+    return {
+      success: true,
+      status: result.status,
+      statusText: result.statusText,
+      headers: result.headers,
+      contentType: result.contentType,
+      data: result.data
+    };
+  }
+
+  /**
+   * Execute HTTP PUT request
+   */
+  private async executeHttpPut(toolCall: ToolCall): Promise<unknown> {
+    const parseResult = httpPutParamsSchema.safeParse(toolCall.parameters);
+    
+    if (!parseResult.success) {
+      throw new Error(`Invalid HTTP PUT parameters: ${parseResult.error.message}`);
+    }
+
+    const params = parseResult.data;
+    const result = await httpPut({
+      url: params.url,
+      headers: params.headers,
+      body: params.body,
+      timeout: params.timeout
+    });
+
+    if (!result.success) {
+      throw new Error(result.error || "HTTP PUT request failed");
+    }
+
+    return {
+      success: true,
+      status: result.status,
+      statusText: result.statusText,
+      headers: result.headers,
+      contentType: result.contentType,
+      data: result.data
+    };
+  }
+
 
   /**
    * Execute file ingest/upload operations

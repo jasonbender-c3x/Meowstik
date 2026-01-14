@@ -666,6 +666,77 @@ export const geminiFunctionDeclarations: FunctionDeclaration[] = [
   },
 
   // ═══════════════════════════════════════════════════════════════════════════
+  // HTTP CLIENT - Direct HTTP Access
+  // ═══════════════════════════════════════════════════════════════════════════
+  {
+    name: "http_get",
+    description: "Perform a direct HTTP GET request to any URL. Useful for API integrations, fetching raw data, JSON, or files directly from the web.",
+    parametersJsonSchema: {
+      type: "object",
+      properties: {
+        url: { type: "string", description: "Full URL to request (must start with http:// or https://)" },
+        headers: { 
+          type: "object", 
+          description: "Optional HTTP headers as key-value pairs (e.g., {'Authorization': 'Bearer token', 'Accept': 'application/json'})" 
+        },
+        params: { 
+          type: "object", 
+          description: "Optional query parameters as key-value pairs (will be appended to URL)" 
+        },
+        timeout: { 
+          type: "number", 
+          description: "Request timeout in milliseconds (default: 30000)" 
+        }
+      },
+      required: ["url"]
+    }
+  },
+  {
+    name: "http_post",
+    description: "Perform a direct HTTP POST request to any URL. Useful for submitting data to APIs, webhooks, or web services.",
+    parametersJsonSchema: {
+      type: "object",
+      properties: {
+        url: { type: "string", description: "Full URL to request (must start with http:// or https://)" },
+        headers: { 
+          type: "object", 
+          description: "Optional HTTP headers as key-value pairs (e.g., {'Content-Type': 'application/json', 'Authorization': 'Bearer token'})" 
+        },
+        body: { 
+          description: "Request body - can be a string or an object (objects will be JSON stringified automatically)" 
+        },
+        timeout: { 
+          type: "number", 
+          description: "Request timeout in milliseconds (default: 30000)" 
+        }
+      },
+      required: ["url", "body"]
+    }
+  },
+  {
+    name: "http_put",
+    description: "Perform a direct HTTP PUT request to any URL. Useful for updating resources via RESTful APIs.",
+    parametersJsonSchema: {
+      type: "object",
+      properties: {
+        url: { type: "string", description: "Full URL to request (must start with http:// or https://)" },
+        headers: { 
+          type: "object", 
+          description: "Optional HTTP headers as key-value pairs (e.g., {'Content-Type': 'application/json', 'Authorization': 'Bearer token'})" 
+        },
+        body: { 
+          description: "Request body - can be a string or an object (objects will be JSON stringified automatically)" 
+        },
+        timeout: { 
+          type: "number", 
+          description: "Request timeout in milliseconds (default: 30000)" 
+        }
+      },
+      required: ["url", "body"]
+    }
+  },
+
+  // ═══════════════════════════════════════════════════════════════════════════
   // GITHUB
   // ═══════════════════════════════════════════════════════════════════════════
   {
