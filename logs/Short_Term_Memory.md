@@ -102,3 +102,73 @@ Before `send_chat`, you MUST perform these actions:
 ---
 **2026-01-14T02:47:37.674Z**
 - **User Preference**: Explore browser extensions as a potential alternative to standalone desktop applications for local automation tasks.
+
+---
+**2026-01-14T02:52:20.707Z**
+- **Stumped Protocol**: If I get stuck and cannot solve a problem after several attempts, I will open a GitHub issue in the primary repository, assign it to 'jasonbender-c3x', and add the labels 'urgent' and 'copilot'. The issue body will detail the problem and the steps I've already taken.
+- **User Preference**: Explore browser extensions as a potential alternative to standalone desktop applications for local automation tasks.
+- **Core Directive**: When a tool returns a list, always check for a total count field and inform the user if the list is truncated.
+- **Core Directive**: Prioritize reading documentation before inspecting source code.
+
+---
+**2026-01-14T02:54:52.118Z**
+- **Stumped Protocol**: If stumped, create a GitHub issue assigned to 'jasonbender-c3x' with 'urgent' and 'copilot' labels.
+- **Prioritize Documentation**: Always read documentation before source code.
+- **User Preference**: Browser extensions are the preferred solution for local automation tasks, over standalone desktop applications.
+
+---
+**2026-01-14T02:55:59.651Z**
+- **Core Directive**: When performing analysis, gather all necessary data in a single, chained tool call whenever possible, rather than reading and processing files one by one. This is more efficient and aligns with user expectations.
+
+---
+**2026-01-14T03:18:47.990Z**
+- **User Preference**: My cell phone number is +14252708646.
+
+---
+**2026-01-14T03:37:36.263Z**
+- **Core Directive**: When creating webhooks or services that interact with external systems (like Twilio), always confirm and clarify the target environment (development vs. production) to prevent unintended consequences.
+- **User Preference**: The user is highly interested in real-time, interactive capabilities, particularly for voice and SMS. Prioritize features that enhance conversational flow and reduce latency.
+
+---
+**2026-01-14T03:47:18.739Z**
+- **Core Directive**: When asked to create an "extensive document," synthesize information from reliable sources (like technical blogs or official documentation) into a well-structured and detailed markdown file. Provide clear explanations, code examples, and architectural diagrams where applicable.
+
+---
+**2026-01-14T07:03:56.111Z**
+- **Core Directive**: When creating markdown links for files in the workspace, use standard relative paths (e.g., `docs/filename.md`) instead of internal aliases like `w/`, as the aliases are not resolvable in the chat interface.
+
+---
+**2026-01-14T07:05:47.137Z**
+- **Core Directive**: When creating markdown links for files in the workspace, use standard relative paths (e.g., `docs/filename.md`) instead of internal aliases like `w/`, as the aliases are not resolvable in the chat interface.
+
+---
+**2026-01-14T07:32:10.007Z**
+- **Core Directive**: The `<ctrl42>call:` directive is a system-level command intended only for the `say` tool's utterance. It should never be visible in the chat window. Its appearance indicates a parsing failure because it was sent to the wrong output (`send_chat`).
+- **Core Directive**: Be precise when reporting outcomes from terminal commands. A tool like `grep` issuing a warning when encountering a binary file is expected behavior, not a failure of the tool itself.
+
+---
+**2026-01-14T07:37:31.939Z**
+- **Core Directive**: Prefer using the `github_code_search` tool for repository code searches over local filesystem tools like `grep`. It is more efficient and avoids issues with binary files.
+
+---
+**2026-01-14T07:45:34.077Z**
+- **Core Directive**: The `<ctrl42>call:` directive is a system-level command intended only for the `say` tool's utterance. It should never be visible in the chat window. Its appearance indicates a parsing failure because it was sent to the wrong output (`send_chat`).
+- **Core Directive**: Be precise when reporting outcomes from terminal commands. A tool like `grep` issuing a warning when encountering a binary file is expected behavior, not a failure of the tool itself.
+
+---
+**2026-01-14T07:46:51.115Z**
+- **Core Directive**: When a tool returns a list, always check for a total count field and inform the user if the list is truncated.
+- **Core Directive**: Prioritize reading documentation before inspecting source code.
+- **Core Directive**: The `<ctrl42>call:` directive is a system-level command intended only for the `say` tool's utterance. It should never be visible in the chat window. Its appearance indicates a parsing failure because it was sent to the wrong output (`send_chat`).
+- **Core Directive**: Be precise when reporting outcomes from terminal commands. A tool like `grep` issuing a warning when encountering a binary file is expected behavior, not a failure of the tool itself.
+- **Core Directive**: Prefer using the `github_code_search` tool for repository code searches over local filesystem tools like `grep`. It is more efficient and avoids issues with binary files.
+- **Core Directive**: The user wants the ability for me to schedule my own callbacks to handle long-running, asynchronous tasks. This involves a new tool for scheduling and crafting prompts with conditional logic for retries and error handling.
+
+---
+**2026-01-14T07:48:37.056Z**
+- **Core Directive**: When debugging, a broad search is a good starting point, but I should look for central components like dispatchers or handlers to narrow the search as quickly as possible, incorporating user feedback.
+
+---
+**2026-01-14T07:49:38.863Z**
+- **Core Directive**: When the user asks for a broad analysis or examination of the codebase, the first and primary tool to use is `codebase_analyze`. Do not default to lower-level tools like `grep` or `github_code_search` for initial exploration.
+- **Core Directive**: Strive to accomplish the maximum amount of work in a single turn by chaining dependent tool calls logically. For example, if one search fails, immediately pivot to a corrected search in the same turn. Acknowledge the correction and proceed.
