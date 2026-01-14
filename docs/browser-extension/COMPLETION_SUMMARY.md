@@ -68,8 +68,11 @@ This document confirms that all tasks for fixing and deploying the Meowstik Auto
 browser-extension/.gitignore
 browser-extension/build.sh (executable)
 browser-extension/validate.sh (executable)
-browser-extension/DEPLOYMENT_CHECKLIST.md
-browser-extension/RELEASE_NOTES.md
+docs/browser-extension/DEPLOYMENT_CHECKLIST.md
+docs/browser-extension/RELEASE_NOTES.md
+docs/browser-extension/PROPOSAL_AND_IMPLEMENTATION.md
+docs/browser-extension/COMPLETION_SUMMARY.md
+docs/browser-extension/IMPLEMENTATION_STATUS.md
 browser-extension/icons/icon16.png (PNG image)
 browser-extension/icons/icon32.png (PNG image)
 browser-extension/icons/icon48.png (PNG image)
@@ -166,8 +169,8 @@ cd browser-extension
 | Document | Purpose | Status |
 |----------|---------|--------|
 | browser-extension/README.md | Complete extension documentation | ✅ |
-| browser-extension/DEPLOYMENT_CHECKLIST.md | Deployment guide | ✅ |
-| browser-extension/RELEASE_NOTES.md | Version 1.0.0 notes | ✅ |
+| docs/browser-extension/DEPLOYMENT_CHECKLIST.md | Deployment guide | ✅ |
+| docs/browser-extension/RELEASE_NOTES.md | Version 1.0.0 notes | ✅ |
 | docs/BROWSER_EXTENSION_QUICKSTART.md | User quick start | ✅ |
 | README.md | Main project reference | ✅ |
 

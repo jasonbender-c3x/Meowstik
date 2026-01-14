@@ -53,9 +53,9 @@ cd browser-extension
 - Chrome Web Store distribution pending
 
 ## Documentation
-- [README.md](README.md) - Complete documentation
+- [README.md](../../browser-extension/README.md) - Complete documentation
 - [DEPLOYMENT_CHECKLIST.md](DEPLOYMENT_CHECKLIST.md) - Deployment guide
-- [../docs/BROWSER_EXTENSION_QUICKSTART.md](../docs/BROWSER_EXTENSION_QUICKSTART.md) - User quick start
+- [../BROWSER_EXTENSION_QUICKSTART.md](../BROWSER_EXTENSION_QUICKSTART.md) - User quick start
 
 ## Changes from Previous Version
 This is the initial production release. Previous versions were incomplete with:
