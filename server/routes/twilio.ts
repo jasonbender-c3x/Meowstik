@@ -7,6 +7,8 @@
 import { Router, Request, Response } from "express";
 import * as twilioIntegration from "../integrations/twilio";
 import twilio from "twilio";
+import { storage } from "../storage";
+import { insertSmsMessageSchema } from "@shared/schema";
 
 const VoiceResponse = twilio.twiml.VoiceResponse;
 const MessagingResponse = twilio.twiml.MessagingResponse;
@@ -149,25 +151,140 @@ router.get("/calls", async (req: Request, res: Response) => {
 });
 
 /**
+ * Get stored SMS messages with filtering
+ */
+router.get("/sms/stored", async (req: Request, res: Response) => {
+  try {
+    const direction = req.query.direction as 'inbound' | 'outbound' | undefined;
+    const processed = req.query.processed === 'true' ? true : req.query.processed === 'false' ? false : undefined;
+    const limit = parseInt(req.query.limit as string) || 50;
+    const phoneNumber = req.query.phoneNumber as string | undefined;
+
+    const messages = await storage.getSmsMessages({ 
+      direction, 
+      processed, 
+      limit,
+      phoneNumber
+    });
+    
+    res.json({ messages, count: messages.length });
+  } catch (error) {
+    res.status(500).json({ 
+      error: error instanceof Error ? error.message : "Failed to get SMS messages" 
+    });
+  }
+});
+
+/**
+ * Get a specific stored SMS by ID
+ */
+router.get("/sms/stored/:id", async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const sms = await storage.getSmsById(id);
+    
+    if (!sms) {
+      return res.status(404).json({ error: "SMS message not found" });
+    }
+    
+    res.json(sms);
+  } catch (error) {
+    res.status(500).json({ 
+      error: error instanceof Error ? error.message : "Failed to get SMS message" 
+    });
+  }
+});
+
+/**
+ * Mark SMS as processed
+ */
+router.post("/sms/stored/:id/mark-processed", async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { chatId, responseMessageSid } = req.body;
+    
+    await storage.markSmsAsProcessed(id, chatId, responseMessageSid);
+    
+    res.json({ success: true, message: "SMS marked as processed" });
+  } catch (error) {
+    res.status(500).json({ 
+      error: error instanceof Error ? error.message : "Failed to mark SMS as processed" 
+    });
+  }
+});
+
+/**
  * Webhook for incoming SMS
+ * This endpoint is called by Twilio when an SMS is received
  */
 router.post("/webhook/sms", async (req: Request, res: Response) => {
   try {
-    const { From, Body, MessageSid } = req.body;
+    const { From, To, Body, MessageSid, AccountSid, NumMedia, MediaUrl0, MediaUrl1, MediaUrl2, MediaUrl3 } = req.body;
     
-    console.log(`[Twilio] Incoming SMS from ${From}: ${Body}`);
+    console.log(`[Twilio] Incoming SMS from ${From} to ${To}: ${Body}`);
+    
+    // Validate webhook signature for security
+    const signature = req.headers['x-twilio-signature'] as string;
+    if (signature && process.env.TWILIO_AUTH_TOKEN) {
+      const url = `${req.protocol}://${req.get('host')}${req.originalUrl}`;
+      const isValid = twilioIntegration.validateWebhookSignature(signature, url, req.body);
+      
+      if (!isValid) {
+        console.error("[Twilio] Invalid webhook signature");
+        return res.status(403).send("Forbidden");
+      }
+    }
+    
+    // Collect media URLs if present
+    const mediaUrls = [];
+    if (NumMedia && parseInt(NumMedia) > 0) {
+      if (MediaUrl0) mediaUrls.push(MediaUrl0);
+      if (MediaUrl1) mediaUrls.push(MediaUrl1);
+      if (MediaUrl2) mediaUrls.push(MediaUrl2);
+      if (MediaUrl3) mediaUrls.push(MediaUrl3);
+    }
+    
+    // Store the SMS message in database
+    const smsData = {
+      messageSid: MessageSid,
+      accountSid: AccountSid,
+      from: From,
+      to: To,
+      body: Body || "",
+      direction: "inbound" as const,
+      status: "received",
+      numMedia: parseInt(NumMedia || "0"),
+      mediaUrls: mediaUrls.length > 0 ? mediaUrls : null,
+      processed: false,
+    };
+    
+    const result = insertSmsMessageSchema.safeParse(smsData);
+    if (!result.success) {
+      console.error("[Twilio] Invalid SMS data:", result.error);
+      return res.status(400).send("Invalid SMS data");
+    }
+    
+    const smsRecord = await storage.createSmsMessage(result.data);
+    console.log(`[Twilio] SMS stored with ID: ${smsRecord.id}`);
     
     // Create a TwiML response
     const twiml = new MessagingResponse();
-    twiml.message("Thanks for your message! The AI is processing your request.");
     
-    // TODO: Forward message to AI for processing
-    // This would integrate with the chat system
+    // Send a simple acknowledgment
+    twiml.message("Thank you for your message! Meowstik AI has received it and will process your request shortly.");
+    
+    // TODO: Process SMS asynchronously via queue system
+    // This could integrate with the chat system to create AI responses
+    // For now, we just store it and acknowledge receipt
     
     res.type("text/xml").send(twiml.toString());
   } catch (error) {
     console.error("[Twilio] SMS webhook error:", error);
-    res.status(500).send("Error processing SMS");
+    
+    // Still send a valid TwiML response even on error
+    const twiml = new MessagingResponse();
+    twiml.message("Sorry, there was an error processing your message. Please try again later.");
+    res.type("text/xml").send(twiml.toString());
   }
 });
 
