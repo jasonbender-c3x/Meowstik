@@ -49,11 +49,12 @@ export const geminiFunctionDeclarations: FunctionDeclaration[] = [
   // ═══════════════════════════════════════════════════════════════════════════
   {
     name: "file_get",
-    description: "Read file content. Prefix path with 'editor:' for Monaco canvas files.",
+    description: "Read file content. Prefix path with 'editor:' for Monaco canvas files. By default, returns full file content without truncation.",
     parametersJsonSchema: {
       type: "object",
       properties: {
-        path: { type: "string", description: "File path to read" }
+        path: { type: "string", description: "File path to read" },
+        maxLength: { type: "number", description: "Optional maximum content length in characters. If omitted, returns full content without truncation." }
       },
       required: ["path"]
     }
