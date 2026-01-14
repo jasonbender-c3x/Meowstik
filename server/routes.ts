@@ -595,8 +595,7 @@ export async function registerRoutes(
       const verbosityMode = req.body.verbosityMode || "normal";
       const useVoice = verbosityMode !== "mute";
       
-      // Determine verbosity content level (low or normal)
-      // Low: concise responses, high: all content spoken, demo-hd/podcast: special modes
+      // Determine content verbosity level for prompt context (low = concise, normal = balanced)
       const contentVerbosity = verbosityMode === "low" ? "low" : "normal";
       
       const composedPrompt = await promptComposer.compose({

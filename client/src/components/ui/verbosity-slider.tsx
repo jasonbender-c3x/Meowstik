@@ -11,7 +11,7 @@
  */
 
 import { useTTS, type VerbosityMode } from "@/contexts/tts-context";
-import { VolumeX, Volume1, Volume2, Sparkles, Mic2, Radio } from "lucide-react";
+import { VolumeX, Volume1, Volume2, Sparkles, Radio } from "lucide-react";
 import { motion } from "framer-motion";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
