@@ -65,6 +65,8 @@ import {
   type InsertAgentIdentity,
   type AgentActivityLog,
   type InsertAgentActivityLog,
+  type SmsMessage,
+  type InsertSmsMessage,
   type CallConversation,
   type InsertCallConversation,
   type CallTurn,
@@ -87,6 +89,7 @@ import {
   llmUsage,
   agentIdentities,
   agentActivityLog,
+  smsMessages
   callConversations,
   callTurns
 } from "@shared/schema";
@@ -484,6 +487,57 @@ export interface IStorage {
   getRecentAgentActivity(limit?: number): Promise<(AgentActivityLog & { agent: AgentIdentity })[]>;
 
   // =========================================================================
+  // SMS MESSAGE OPERATIONS (Twilio Integration)
+  // =========================================================================
+  
+  /**
+   * Creates a new SMS message record
+   * @param sms - The SMS message data
+   * @returns The created SMS message with auto-generated id and timestamp
+   */
+  createSmsMessage(sms: InsertSmsMessage): Promise<SmsMessage>;
+  
+  /**
+   * Retrieves all SMS messages with optional filtering
+   * @param options - Filter options (direction, processed status, limit)
+   * @returns Array of SMS messages, sorted by createdAt descending
+   */
+  getSmsMessages(options?: { 
+    direction?: 'inbound' | 'outbound'; 
+    processed?: boolean; 
+    limit?: number;
+    phoneNumber?: string;
+  }): Promise<SmsMessage[]>;
+  
+  /**
+   * Finds a specific SMS message by Twilio Message SID
+   * @param messageSid - The Twilio message SID
+   * @returns The SMS message if found, undefined otherwise
+   */
+  getSmsByMessageSid(messageSid: string): Promise<SmsMessage | undefined>;
+  
+  /**
+   * Finds a specific SMS message by ID
+   * @param id - The UUID of the SMS message
+   * @returns The SMS message if found, undefined otherwise
+   */
+  getSmsById(id: string): Promise<SmsMessage | undefined>;
+  
+  /**
+   * Marks an SMS message as processed by AI
+   * @param id - The UUID of the SMS message
+   * @param chatId - Optional chat ID if a chat was created for this SMS
+   * @param responseMessageSid - Optional SID of the response message sent
+   */
+  markSmsAsProcessed(id: string, chatId?: string, responseMessageSid?: string): Promise<void>;
+  
+  /**
+   * Updates an SMS message's processing error
+   * @param id - The UUID of the SMS message
+   * @param errorCode - Twilio error code
+   * @param errorMessage - Error message details
+   */
+  updateSmsError(id: string, errorCode: number, errorMessage: string): Promise<void>;
   // TWILIO CALL CONVERSATION OPERATIONS
   // =========================================================================
 
@@ -1707,6 +1761,13 @@ export class DrizzleStorage implements IStorage {
   }
 
   // =========================================================================
+  // SMS MESSAGE OPERATIONS (Twilio Integration)
+  // =========================================================================
+
+  async createSmsMessage(sms: InsertSmsMessage): Promise<SmsMessage> {
+    const [created] = await this.getDb()
+      .insert(smsMessages)
+      .values(sms)
   // TWILIO CALL CONVERSATION OPERATIONS
   // =========================================================================
 
@@ -1718,6 +1779,75 @@ export class DrizzleStorage implements IStorage {
     return created;
   }
 
+  async getSmsMessages(options?: { 
+    direction?: 'inbound' | 'outbound'; 
+    processed?: boolean; 
+    limit?: number;
+    phoneNumber?: string;
+  }): Promise<SmsMessage[]> {
+    const conditions = [];
+    
+    if (options?.direction) {
+      conditions.push(eq(smsMessages.direction, options.direction));
+    }
+    
+    if (options?.processed !== undefined) {
+      conditions.push(eq(smsMessages.processed, options.processed));
+    }
+    
+    if (options?.phoneNumber) {
+      conditions.push(or(
+        eq(smsMessages.from, options.phoneNumber),
+        eq(smsMessages.to, options.phoneNumber)
+      ));
+    }
+
+    let query = this.getDb()
+      .select()
+      .from(smsMessages);
+
+    if (conditions.length > 0) {
+      query = query.where(and(...conditions));
+    }
+
+    return query
+      .orderBy(desc(smsMessages.createdAt))
+      .limit(options?.limit || 100);
+  }
+
+  async getSmsByMessageSid(messageSid: string): Promise<SmsMessage | undefined> {
+    const [sms] = await this.getDb()
+      .select()
+      .from(smsMessages)
+      .where(eq(smsMessages.messageSid, messageSid));
+    return sms;
+  }
+
+  async getSmsById(id: string): Promise<SmsMessage | undefined> {
+    const [sms] = await this.getDb()
+      .select()
+      .from(smsMessages)
+      .where(eq(smsMessages.id, id));
+    return sms;
+  }
+
+  async markSmsAsProcessed(id: string, chatId?: string, responseMessageSid?: string): Promise<void> {
+    await this.getDb()
+      .update(smsMessages)
+      .set({ 
+        processed: true, 
+        processedAt: new Date(),
+        chatId,
+        responseMessageSid
+      })
+      .where(eq(smsMessages.id, id));
+  }
+
+  async updateSmsError(id: string, errorCode: number, errorMessage: string): Promise<void> {
+    await this.getDb()
+      .update(smsMessages)
+      .set({ errorCode, errorMessage })
+      .where(eq(smsMessages.id, id));
   async getCallConversationBySid(callSid: string): Promise<CallConversation | undefined> {
     const [conversation] = await this.getDb()
       .select()

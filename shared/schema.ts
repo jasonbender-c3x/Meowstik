@@ -2320,6 +2320,54 @@ export const insertSshKeySchema = createInsertSchema(sshKeys).omit({
 export type InsertSshKey = z.infer<typeof insertSshKeySchema>;
 export type SshKey = typeof sshKeys.$inferSelect;
 
+// ============================================================================
+// SMS MESSAGES - Twilio Inbound SMS Storage
+// ============================================================================
+
+/**
+ * SMS MESSAGES TABLE
+ * ------------------
+ * Stores inbound and outbound SMS messages from Twilio integration.
+ * Used for tracking conversations via SMS and enabling AI responses.
+ */
+export const smsMessages = pgTable("sms_messages", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  
+  // Twilio identifiers
+  messageSid: varchar("message_sid").unique().notNull(), // Twilio's unique message ID
+  accountSid: varchar("account_sid").notNull(), // Twilio account SID
+  
+  // Message content
+  from: varchar("from").notNull(), // Sender phone number
+  to: varchar("to").notNull(), // Recipient phone number
+  body: text("body").notNull(), // Message content
+  
+  // Message metadata - using varchar with specific constraints for type safety
+  direction: varchar("direction", { length: 20 }).notNull(), // "inbound" or "outbound"
+  status: varchar("status", { length: 50 }).notNull(), // Twilio message status (received, sent, failed, etc.)
+  numMedia: integer("num_media").default(0), // Number of media attachments
+  mediaUrls: jsonb("media_urls"), // Array of media URLs if present
+  
+  // Processing state
+  processed: boolean("processed").default(false).notNull(), // Whether AI has processed this message
+  chatId: varchar("chat_id").references(() => chats.id, { onDelete: "set null" }), // Link to chat if AI responded
+  responseMessageSid: varchar("response_message_sid"), // SID of the response message we sent
+  
+  // Error tracking
+  errorCode: integer("error_code"), // Twilio error code if any
+  errorMessage: text("error_message"), // Error details
+  
+  // Timestamps
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  processedAt: timestamp("processed_at"), // When AI processed the message
+});
+
+export const insertSmsMessageSchema = createInsertSchema(smsMessages).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertSmsMessage = z.infer<typeof insertSmsMessageSchema>;
+export type SmsMessage = typeof smsMessages.$inferSelect;
 // =============================================================================
 // TWILIO CONVERSATIONAL CALLING SYSTEM
 // =============================================================================
