@@ -9,3 +9,5 @@ attached_assets/*.json
 logs/cache.md
 logs/execution.md
 repos/
+test-file-get.js
+test-data/
