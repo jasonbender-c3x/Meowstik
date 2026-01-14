@@ -1736,7 +1736,7 @@ export class DrizzleStorage implements IStorage {
       .from(smsMessages);
 
     if (conditions.length > 0) {
-      query = query.where(and(...conditions)) as typeof query;
+      query = query.where(and(...conditions));
     }
 
     return query

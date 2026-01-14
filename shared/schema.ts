@@ -2315,9 +2315,9 @@ export const smsMessages = pgTable("sms_messages", {
   to: varchar("to").notNull(), // Recipient phone number
   body: text("body").notNull(), // Message content
   
-  // Message metadata
-  direction: text("direction").notNull(), // "inbound" or "outbound"
-  status: text("status").notNull(), // Twilio message status (received, sent, failed, etc.)
+  // Message metadata - using varchar with specific constraints for type safety
+  direction: varchar("direction", { length: 20 }).notNull(), // "inbound" or "outbound"
+  status: varchar("status", { length: 50 }).notNull(), // Twilio message status (received, sent, failed, etc.)
   numMedia: integer("num_media").default(0), // Number of media attachments
   mediaUrls: jsonb("media_urls"), // Array of media URLs if present
   

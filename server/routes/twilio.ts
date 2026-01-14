@@ -223,21 +223,30 @@ router.post("/webhook/sms", async (req: Request, res: Response) => {
     
     console.log(`[Twilio] Incoming SMS from ${From} to ${To}: ${Body}`);
     
-    // Validate webhook signature for security
+    // Validate webhook signature for security - this is mandatory
     const signature = req.headers['x-twilio-signature'] as string;
-    if (signature && process.env.TWILIO_AUTH_TOKEN) {
-      const url = `${req.protocol}://${req.get('host')}${req.originalUrl}`;
-      const isValid = twilioIntegration.validateWebhookSignature(signature, url, req.body);
-      
-      if (!isValid) {
-        console.error("[Twilio] Invalid webhook signature");
-        return res.status(403).send("Forbidden");
-      }
+    if (!signature) {
+      console.error("[Twilio] Missing webhook signature");
+      return res.status(403).send("Forbidden - Missing signature");
+    }
+    
+    if (!process.env.TWILIO_AUTH_TOKEN) {
+      console.error("[Twilio] TWILIO_AUTH_TOKEN not configured");
+      return res.status(500).send("Server configuration error");
+    }
+    
+    const url = `${req.protocol}://${req.get('host')}${req.originalUrl}`;
+    const isValid = twilioIntegration.validateWebhookSignature(signature, url, req.body);
+    
+    if (!isValid) {
+      console.error("[Twilio] Invalid webhook signature");
+      return res.status(403).send("Forbidden - Invalid signature");
     }
     
     // Collect media URLs if present
     const mediaUrls = [];
-    if (NumMedia && parseInt(NumMedia) > 0) {
+    const numMedia = parseInt(NumMedia || '0', 10);
+    if (!isNaN(numMedia) && numMedia > 0) {
       if (MediaUrl0) mediaUrls.push(MediaUrl0);
       if (MediaUrl1) mediaUrls.push(MediaUrl1);
       if (MediaUrl2) mediaUrls.push(MediaUrl2);
@@ -253,7 +262,7 @@ router.post("/webhook/sms", async (req: Request, res: Response) => {
       body: Body || "",
       direction: "inbound" as const,
       status: "received",
-      numMedia: parseInt(NumMedia || "0"),
+      numMedia: isNaN(numMedia) ? 0 : numMedia,
       mediaUrls: mediaUrls.length > 0 ? mediaUrls : null,
       processed: false,
     };
