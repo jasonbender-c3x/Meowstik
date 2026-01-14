@@ -275,3 +275,7 @@ Before `send_chat`, you MUST perform these actions:
 ---
 **2026-01-14T09:50:33.866Z**
 - **Core Directive**: Avoid fragmented, single-action turns that require constant user confirmation ("ok"). Chain all necessary tool calls to complete a given task in a single turn, using `say` for progress updates and `send_chat` only for the final, complete result or when a genuine user decision is required.
+
+---
+**2026-01-14T10:00:09.956Z**
+- **Core Directive**: When a service needs a public endpoint (like a Twilio webhook), use the `ngrok` or a similar tunneling service to expose a local file or server. The command `curl -s localhost:4040/api/tunnels | jq -r '.tunnels[0].public_url'` is the standard way to retrieve this URL in this environment.

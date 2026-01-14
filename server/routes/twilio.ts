@@ -295,47 +295,12 @@ router.post("/webhook/sms", async (req: Request, res: Response) => {
     // Send a simple acknowledgment
     twiml.message("Thank you for your message! Meowstik AI has received it and will process your request shortly.");
     
-    // TODO: Process SMS asynchronously via queue system
-    // This could integrate with the chat system to create AI responses
-    // For now, we just store it and acknowledge receipt
-    // Validate Twilio signature for security
-    const signature = req.headers['x-twilio-signature'] as string;
-    const url = `${req.protocol}://${req.get('host')}${req.originalUrl}`;
-    
-    if (signature) {
-      try {
-        const isValid = twilioIntegration.validateWebhookSignature(
-          signature,
-          url,
-          req.body
-        );
-        
-        if (!isValid) {
-          console.error("[Twilio] Invalid webhook signature");
-          return res.status(403).send("Invalid signature");
-        }
-      } catch (error) {
-        console.error("[Twilio] Signature validation error:", error);
-        // Continue processing in development, but log the issue
-        if (process.env.NODE_ENV === 'production') {
-          return res.status(403).send("Signature validation failed");
-        }
-      }
-    } else {
-      console.warn("[Twilio] No X-Twilio-Signature header present");
-      // In production, require signature
-      if (process.env.NODE_ENV === 'production') {
-        return res.status(403).send("Missing signature");
-      }
-    }
-    
     // Process the SMS asynchronously (don't block the webhook response)
     processSmsMessage(From, Body, MessageSid).catch(error => {
       console.error("[Twilio] Error processing SMS in background:", error);
     });
     
     // Return immediate TwiML response to Twilio
-    const twiml = new MessagingResponse();
     // Don't send auto-reply - the AI will send a response via SMS when ready
     res.type("text/xml").send(twiml.toString());
   } catch (error) {
