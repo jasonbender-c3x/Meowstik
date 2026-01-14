@@ -101,7 +101,26 @@ High-quality voice capabilities powered by Google Cloud Text-to-Speech API and W
 > 
 > ⚠️ **Troubleshooting**: If you get "Insufficient Permission" errors, see [docs/TTS_IAM_PERMISSION_FIX.md](docs/TTS_IAM_PERMISSION_FIX.md) for IAM setup instructions
 
-### 6. Modern UI/UX
+### 6. Direct HTTP Client Access
+
+Advanced web interaction capabilities for API integrations and automated data exchange.
+
+- **HTTP GET**: Fetch data from any web API or endpoint with custom headers and query parameters
+- **HTTP POST**: Submit data to APIs, webhooks, and web services
+- **HTTP PUT**: Update resources via RESTful APIs
+- **Custom Headers**: Full control over HTTP headers for authentication and content negotiation
+- **Automatic Parsing**: Smart content-type handling for JSON, text, and binary data
+- **Security Built-in**: URL validation, header sanitization, timeout protection, and size limits
+
+> 📖 **Documentation**: See [docs/http-client-tools.md](docs/http-client-tools.md) for detailed usage guide with examples
+
+#### Key Capabilities
+- **API Integration**: Connect to any third-party API (GitHub, weather, databases, etc.)
+- **Raw Data Access**: GET files, JSON data, and resources directly from the web
+- **Advanced Automation**: POST and PUT data to perform actions on other platforms
+- **Webhook Integration**: Send notifications and trigger automated workflows
+
+### 7. Modern UI/UX
 
 - **Google-esque Design**: Clean, airy aesthetic with lots of whitespace
 - **Responsive Layout**: Works on mobile, tablet, and desktop
