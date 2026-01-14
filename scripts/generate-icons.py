@@ -9,6 +9,9 @@ background and white circle design.
 Usage:
     python3 scripts/generate-icons.py
     
+Requirements:
+    pip3 install Pillow
+    
 The script will generate icons and place them in:
 - browser-extension/icons/
 - extension/icons/
@@ -16,9 +19,15 @@ The script will generate icons and place them in:
 - public/icons/
 """
 
-from PIL import Image, ImageDraw
 import os
 import sys
+
+try:
+    from PIL import Image, ImageDraw
+except ImportError:
+    print("❌ Error: PIL (Pillow) is not installed.")
+    print("Please install it with: pip3 install Pillow")
+    sys.exit(1)
 
 # Color constants
 TAILWIND_BLUE_500 = (59, 130, 246)  # Main background color
@@ -27,13 +36,14 @@ WHITE = (255, 255, 255)  # Circle color
 def create_icon(size, filename, output_dir):
     """Create an icon with a blue background and white circle."""
     # Create a new image with Tailwind Blue-500 background
-    img = Image.new('RGBA', (size, size), color=TAILWIND_BLUE_500)
+    # Using RGBA mode for compatibility with all browsers and potential transparency in future
+    img = Image.new('RGBA', (size, size), color=TAILWIND_BLUE_500 + (255,))
     
     draw = ImageDraw.Draw(img)
     
     # Draw a white circle in the middle
     padding = size // 4
-    draw.ellipse([padding, padding, size - padding, size - padding], fill=WHITE)
+    draw.ellipse([padding, padding, size - padding, size - padding], fill=WHITE + (255,))
     
     # Ensure directory exists
     os.makedirs(output_dir, exist_ok=True)
@@ -87,10 +97,6 @@ def main():
 if __name__ == '__main__':
     try:
         main()
-    except ImportError:
-        print("❌ Error: PIL (Pillow) is not installed.")
-        print("Please install it with: pip3 install Pillow")
-        sys.exit(1)
     except Exception as e:
         print(f"❌ Error: {e}")
         sys.exit(1)
