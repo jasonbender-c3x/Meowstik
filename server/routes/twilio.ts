@@ -240,17 +240,40 @@ async function processSmsMessage(from: string, body: string, messageSid: string)
     } else {
       // Search contacts for this phone number
       try {
-        // Try to find contact by phone number
-        const contacts = await googleContacts.searchContacts(from, 10);
+        // Search contacts - Google People API searches across names, emails, and phone numbers
+        // Note: The search may not be perfect for phone numbers, so we do additional filtering
+        const contacts = await googleContacts.searchContacts(from, 30);
         
-        if (contacts.length > 0) {
-          const contact = contacts[0];
+        // Filter contacts to find exact phone number match
+        let matchedContact = null;
+        for (const contact of contacts) {
+          for (const phoneNumber of contact.phoneNumbers) {
+            if (normalizePhoneNumber(phoneNumber) === normalizePhoneNumber(from)) {
+              matchedContact = contact;
+              break;
+            }
+          }
+          if (matchedContact) break;
+        }
+        
+        // If no exact match, try searching by the number itself (without special chars)
+        if (!matchedContact && contacts.length > 0) {
+          // Use first result if it has this phone number
+          const firstContact = contacts[0];
+          if (firstContact.phoneNumbers.some(p => 
+            normalizePhoneNumber(p) === normalizePhoneNumber(from)
+          )) {
+            matchedContact = firstContact;
+          }
+        }
+        
+        if (matchedContact) {
           senderContext.isKnownContact = true;
-          senderContext.name = contact.displayName;
+          senderContext.name = matchedContact.displayName;
           
           // Check for special relationships
-          if (contact.displayName.toLowerCase().includes('mother') || 
-              contact.displayName.toLowerCase().includes('mom')) {
+          if (matchedContact.displayName.toLowerCase().includes('mother') || 
+              matchedContact.displayName.toLowerCase().includes('mom')) {
             senderContext.relationship = "The creator's mother";
           }
           
@@ -265,6 +288,9 @@ async function processSmsMessage(from: string, body: string, messageSid: string)
     }
     
     // Determine authentication context
+    // Note: Only the owner gets full authentication and tool access
+    // Known contacts are treated as guests (limited tools) but with enhanced context
+    // in the system prompt to allow answering personal questions about the owner
     const authStatus = {
       isAuthenticated: senderContext.isOwner,
       userId: senderContext.isOwner ? process.env.OWNER_USER_ID || null : null,
@@ -408,10 +434,21 @@ async function processSmsMessage(from: string, body: string, messageSid: string)
 }
 
 /**
- * Normalize phone number for comparison (remove +, spaces, hyphens)
+ * Normalize phone number for comparison
+ * Removes formatting but preserves country code
+ * E.g., "+1 (555) 123-4567" -> "+15551234567"
  */
 function normalizePhoneNumber(phone: string): string {
-  return phone.replace(/[\s\-\+\(\)]/g, '');
+  // Remove spaces, hyphens, parentheses but keep the leading +
+  let normalized = phone.replace(/[\s\-\(\)]/g, '');
+  
+  // Ensure it starts with + if it has digits
+  if (normalized && !normalized.startsWith('+')) {
+    // If it doesn't start with +, assume US number and prepend +1
+    normalized = '+1' + normalized;
+  }
+  
+  return normalized;
 }
 
 /**
