@@ -289,7 +289,7 @@ router.post("/webhook/speech-result", async (req: Request, res: Response) => {
     console.log(`[Twilio Speech] Transcribed: "${SpeechResult}" (confidence: ${Confidence})`);
     
     if (!conversationId) {
-      throw new Error("Missing conversationId in query parameters");
+      throw new Error("Missing required conversationId parameter in request");
     }
     
     // Retrieve conversation
@@ -344,18 +344,19 @@ Rules for phone conversations:
 Current user request: ${SpeechResult}`;
       
       try {
-        const result = await genAI.models.generateContent({
-          model: "gemini-2.0-flash",
-          config: {
-            systemInstruction: systemPrompt,
-          },
+        const model = genAI.getGenerativeModel({ 
+          model: "gemini-2.0-flash-exp",
+          systemInstruction: systemPrompt,
+        });
+        
+        const result = await model.generateContent({
           contents: [
             ...history,
             { role: "user", parts: [{ text: SpeechResult }] }
           ],
         });
         
-        aiResponseText = result.text?.trim() || "I'm sorry, I couldn't process that. Could you please repeat your question?";
+        aiResponseText = result.response.text()?.trim() || "I'm sorry, I couldn't process that. Could you please repeat your question?";
         console.log(`[Twilio Speech] AI response: "${aiResponseText.substring(0, 100)}..."`);
       } catch (aiError) {
         console.error("[Twilio Speech] Error generating AI response:", aiError);

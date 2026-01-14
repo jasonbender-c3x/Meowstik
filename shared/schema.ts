@@ -2368,7 +2368,7 @@ export const callTurns = pgTable("call_turns", {
   
   // User speech input
   userSpeech: text("user_speech"), // Transcribed user speech from Twilio
-  speechConfidence: text("speech_confidence"), // Twilio confidence score (0.0-1.0)
+  speechConfidence: text("speech_confidence"), // Twilio confidence score (0.0-1.0) stored as text from webhook
   
   // AI response
   aiResponse: text("ai_response").notNull(), // AI-generated response text
