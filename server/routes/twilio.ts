@@ -149,7 +149,14 @@ router.get("/calls", async (req: Request, res: Response) => {
 });
 
 /**
- * Webhook for incoming SMS
+ * Webhook for incoming SMS - Process real-time SMS messages from Twilio
+ * 
+ * This endpoint:
+ * 1. Validates the X-Twilio-Signature to ensure requests are from Twilio
+ * 2. Looks up the sender in Google Contacts
+ * 3. Creates a chat with appropriate context (owner, contact, or guest)
+ * 4. Processes the message through the AI system
+ * 5. Returns a TwiML response
  */
 router.post("/webhook/sms", async (req: Request, res: Response) => {
   try {
@@ -157,19 +164,276 @@ router.post("/webhook/sms", async (req: Request, res: Response) => {
     
     console.log(`[Twilio] Incoming SMS from ${From}: ${Body}`);
     
-    // Create a TwiML response
+    // Validate Twilio signature for security
+    const signature = req.headers['x-twilio-signature'] as string;
+    const url = `${req.protocol}://${req.get('host')}${req.originalUrl}`;
+    
+    if (signature) {
+      try {
+        const isValid = twilioIntegration.validateWebhookSignature(
+          signature,
+          url,
+          req.body
+        );
+        
+        if (!isValid) {
+          console.error("[Twilio] Invalid webhook signature");
+          return res.status(403).send("Invalid signature");
+        }
+      } catch (error) {
+        console.error("[Twilio] Signature validation error:", error);
+        // Continue processing in development, but log the issue
+        if (process.env.NODE_ENV === 'production') {
+          return res.status(403).send("Signature validation failed");
+        }
+      }
+    } else {
+      console.warn("[Twilio] No X-Twilio-Signature header present");
+      // In production, require signature
+      if (process.env.NODE_ENV === 'production') {
+        return res.status(403).send("Missing signature");
+      }
+    }
+    
+    // Process the SMS asynchronously (don't block the webhook response)
+    processSmsMessage(From, Body, MessageSid).catch(error => {
+      console.error("[Twilio] Error processing SMS in background:", error);
+    });
+    
+    // Return immediate TwiML response to Twilio
     const twiml = new MessagingResponse();
-    twiml.message("Thanks for your message! The AI is processing your request.");
-    
-    // TODO: Forward message to AI for processing
-    // This would integrate with the chat system
-    
+    // Don't send auto-reply - the AI will send a response via SMS when ready
     res.type("text/xml").send(twiml.toString());
   } catch (error) {
     console.error("[Twilio] SMS webhook error:", error);
     res.status(500).send("Error processing SMS");
   }
 });
+
+/**
+ * Process incoming SMS message and generate AI response
+ */
+async function processSmsMessage(from: string, body: string, messageSid: string): Promise<void> {
+  try {
+    const { storage } = await import("../storage");
+    const { GoogleGenAI, FunctionCallingConfigMode } = await import("@google/genai");
+    const { promptComposer } = await import("../services/prompt-composer");
+    const { ragDispatcher } = await import("../services/rag-dispatcher");
+    const { getToolDeclarations } = await import("../gemini-tools-guest");
+    const googleContacts = await import("../integrations/google-contacts");
+    
+    // Lookup sender in contacts
+    let senderContext = {
+      phoneNumber: from,
+      name: null as string | null,
+      relationship: null as string | null,
+      isOwner: false,
+      isKnownContact: false,
+    };
+    
+    // Check if this is the owner's number (from environment or user profile)
+    const ownerPhone = process.env.OWNER_PHONE_NUMBER;
+    if (ownerPhone && normalizePhoneNumber(from) === normalizePhoneNumber(ownerPhone)) {
+      senderContext.isOwner = true;
+      senderContext.name = "You (Owner)";
+      console.log(`[Twilio] SMS from owner: ${from}`);
+    } else {
+      // Search contacts for this phone number
+      try {
+        // Search contacts - Google People API searches across names, emails, and phone numbers
+        // Limit to 10 results for performance, then filter for exact matches
+        const contacts = await googleContacts.searchContacts(from, 10);
+        
+        // Filter contacts to find exact phone number match
+        let matchedContact = null;
+        for (const contact of contacts) {
+          for (const phoneNumber of contact.phoneNumbers) {
+            if (normalizePhoneNumber(phoneNumber) === normalizePhoneNumber(from)) {
+              matchedContact = contact;
+              break;
+            }
+          }
+          if (matchedContact) break;
+        }
+        
+        if (matchedContact) {
+          senderContext.isKnownContact = true;
+          senderContext.name = matchedContact.displayName;
+          
+          // Check for special relationships
+          if (matchedContact.displayName.toLowerCase().includes('mother') || 
+              matchedContact.displayName.toLowerCase().includes('mom')) {
+            senderContext.relationship = "The creator's mother";
+          }
+          
+          console.log(`[Twilio] SMS from known contact: ${senderContext.name} (${from})`);
+        } else {
+          console.log(`[Twilio] SMS from unknown number: ${from}`);
+        }
+      } catch (contactError) {
+        console.error("[Twilio] Error looking up contact:", contactError);
+        // Continue as guest if contact lookup fails
+      }
+    }
+    
+    // Determine authentication context
+    // Note: Only the owner gets full authentication and tool access
+    // Known contacts are treated as guests (limited tools) but with enhanced context
+    // in the system prompt to allow answering personal questions about the owner
+    const authStatus = {
+      isAuthenticated: senderContext.isOwner,
+      userId: senderContext.isOwner ? process.env.OWNER_USER_ID || null : null,
+      isGuest: !senderContext.isOwner,
+    };
+    
+    // Create or find existing chat for this phone number
+    // Use a consistent chat title format for SMS conversations
+    const chatTitle = senderContext.name 
+      ? `SMS from ${senderContext.name}` 
+      : `SMS from ${from}`;
+    
+    const chat = await storage.createChat({
+      title: chatTitle,
+      userId: authStatus.userId,
+      isGuest: authStatus.isGuest,
+    });
+    
+    // Format message with sender context
+    let messageContent = `SMS from ${from}`;
+    if (senderContext.name) {
+      messageContent = `SMS from ${from} (${senderContext.name})`;
+    }
+    if (senderContext.relationship) {
+      messageContent = `SMS from ${from} (${senderContext.relationship})`;
+    }
+    messageContent += `:\n\n${body}`;
+    
+    // Save user message
+    const userMessage = await storage.addMessage({
+      chatId: chat.id,
+      role: "user",
+      content: messageContent,
+    });
+    
+    // Compose system prompt with appropriate context
+    const composedPrompt = await promptComposer.compose({
+      textContent: messageContent,
+      voiceTranscript: "",
+      attachments: [],
+      history: [],
+      chatId: chat.id,
+      userId: authStatus.userId,
+    });
+    
+    // Add SMS-specific context to system prompt
+    let smsContext = "\n\n## SMS CONVERSATION CONTEXT\n";
+    smsContext += `You are responding to an SMS message from ${from}.\n`;
+    
+    if (senderContext.isOwner) {
+      smsContext += "This is your owner. Respond as if they are logged in with full access to their personal information.\n";
+    } else if (senderContext.isKnownContact) {
+      smsContext += `This is ${senderContext.name}, a contact from your owner's address book.\n`;
+      if (senderContext.relationship) {
+        smsContext += `Special relationship: ${senderContext.relationship}.\n`;
+      }
+      smsContext += "You can answer personal questions about your owner's whereabouts and activities.\n";
+      smsContext += `Address them as ${senderContext.name}.\n`;
+    } else {
+      smsContext += "This is an unknown number. Treat them as a guest with limited access.\n";
+    }
+    
+    smsContext += "\nIMPORTANT:\n";
+    smsContext += "1. Keep your responses concise and suitable for SMS (avoid very long messages).\n";
+    smsContext += `2. Use the \`sms_send\` tool to send your response back to ${from}.\n`;
+    smsContext += `3. The recipient phone number is: ${from}\n`;
+    smsContext += "4. After sending the SMS, call `send_chat` to log the response in the chat system.\n";
+    
+    const finalSystemPrompt = composedPrompt.systemPrompt + smsContext;
+    
+    // Process with AI
+    const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
+    const toolDeclarations = getToolDeclarations(authStatus.isAuthenticated);
+    
+    const result = await genAI.models.generateContent({
+      model: "gemini-2.5-flash", // Use flash for faster SMS responses
+      config: {
+        systemInstruction: finalSystemPrompt,
+        tools: [{ functionDeclarations: toolDeclarations }],
+        toolConfig: {
+          functionCallingConfig: {
+            mode: FunctionCallingConfigMode.ANY,
+          },
+        },
+      },
+      contents: [
+        {
+          role: "user",
+          parts: [{ text: messageContent }],
+        },
+      ],
+    });
+    
+    // Collect response and execute tool calls
+    let fullResponse = "";
+    const collectedFunctionCalls: any[] = [];
+    
+    for await (const chunk of result) {
+      const text = chunk.text || "";
+      if (text) {
+        fullResponse += text;
+      }
+      
+      if (chunk.functionCalls && chunk.functionCalls.length > 0) {
+        collectedFunctionCalls.push(...chunk.functionCalls);
+      }
+    }
+    
+    // Convert and execute function calls
+    if (collectedFunctionCalls.length > 0) {
+      for (const fc of collectedFunctionCalls) {
+        const toolCall = {
+          id: `fc_sms_${Date.now()}`,
+          type: fc.name,
+          operation: fc.name || "execute",
+          parameters: (fc.args as Record<string, unknown>) || {},
+          priority: 0,
+        };
+        
+        console.log(`[Twilio] Executing tool: ${toolCall.type}`);
+        
+        try {
+          await ragDispatcher.executeToolCall(toolCall, userMessage.id);
+        } catch (toolError) {
+          console.error(`[Twilio] Tool execution error:`, toolError);
+        }
+      }
+    }
+    
+    // Save AI response
+    await storage.addMessage({
+      chatId: chat.id,
+      role: "ai",
+      content: fullResponse || "[AI processed the SMS message]",
+    });
+    
+    console.log(`[Twilio] SMS processing complete for ${from}`);
+  } catch (error) {
+    console.error("[Twilio] Error in processSmsMessage:", error);
+  }
+}
+
+/**
+ * Normalize phone number for comparison
+ * Removes formatting but preserves country code
+ * E.g., "+1 (555) 123-4567" -> "+15551234567"
+ * 
+ * Note: If a number doesn't have a country code (+), it returns it as-is
+ * without assuming a default country. This avoids incorrect matches.
+ */
+function normalizePhoneNumber(phone: string): string {
+  // Remove spaces, hyphens, parentheses but keep the leading +
+  return phone.replace(/[\s\-\(\)]/g, '');
+}
 
 /**
  * Webhook for incoming voice calls
