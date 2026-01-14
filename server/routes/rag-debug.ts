@@ -211,4 +211,173 @@ router.post("/evaluation/reset", async (req, res) => {
   }
 });
 
+// ============================================================================
+// RAG TRACEABILITY ENDPOINTS
+// ============================================================================
+
+/**
+ * GET /api/debug/rag/traceability/traces
+ * Get persistent traces from database with filtering
+ */
+router.get("/traceability/traces", async (req, res) => {
+  try {
+    const { storage } = await import("../storage");
+    const result = await storage.getRagTraces({
+      type: req.query.type as string,
+      userId: req.query.userId as string,
+      documentId: req.query.documentId as string,
+      from: req.query.from ? new Date(req.query.from as string) : undefined,
+      to: req.query.to ? new Date(req.query.to as string) : undefined,
+      limit: parseInt(req.query.limit as string) || 50,
+      offset: parseInt(req.query.offset as string) || 0,
+    });
+    res.json(result);
+  } catch (error) {
+    console.error("Error fetching traces:", error);
+    res.status(500).json({ error: "Failed to fetch traces" });
+  }
+});
+
+/**
+ * GET /api/debug/rag/traceability/traces/:traceId
+ * Get all events for a specific trace ID from database
+ */
+router.get("/traceability/traces/:traceId", async (req, res) => {
+  try {
+    const { storage } = await import("../storage");
+    const events = await storage.getRagTracesByTraceId(req.params.traceId);
+    
+    if (events.length === 0) {
+      return res.status(404).json({ error: "Trace not found" });
+    }
+    
+    // Build summary
+    const firstEvent = events[0];
+    const lastEvent = events[events.length - 1];
+    
+    const summary = {
+      traceId: req.params.traceId,
+      type: firstEvent.traceType,
+      query: firstEvent.queryText,
+      documentId: firstEvent.documentId,
+      results: firstEvent.searchResults,
+      duration: lastEvent.durationMs,
+      success: !events.some(e => e.errorMessage),
+      startTime: firstEvent.timestamp,
+      endTime: lastEvent.timestamp,
+    };
+    
+    res.json({
+      traceId: req.params.traceId,
+      type: firstEvent.traceType,
+      summary,
+      events: events.map(e => ({
+        stage: e.stage,
+        timestamp: e.timestamp,
+        durationMs: e.durationMs,
+        chunksCreated: e.chunksCreated,
+        searchResults: e.searchResults,
+        scores: e.scores,
+        tokensUsed: e.tokensUsed,
+        errorMessage: e.errorMessage,
+      })),
+    });
+  } catch (error) {
+    console.error("Error fetching trace details:", error);
+    res.status(500).json({ error: "Failed to fetch trace details" });
+  }
+});
+
+/**
+ * GET /api/debug/rag/traceability/lineage/:chunkId
+ * Get chunk lineage information
+ */
+router.get("/traceability/lineage/:chunkId", async (req, res) => {
+  try {
+    const { storage } = await import("../storage");
+    const lineage = await storage.getChunkLineage(req.params.chunkId);
+    
+    if (!lineage) {
+      return res.status(404).json({ error: "Chunk not found" });
+    }
+    
+    // Get ingestion trace if available
+    let ingestionTrace = null;
+    if (lineage.ingestionTraceId) {
+      const traces = await storage.getRagTracesByTraceId(lineage.ingestionTraceId);
+      if (traces.length > 0) {
+        ingestionTrace = {
+          traceId: lineage.ingestionTraceId,
+          timestamp: traces[0].timestamp,
+          events: traces.map(t => ({
+            stage: t.stage,
+            timestamp: t.timestamp,
+            durationMs: t.durationMs,
+          })),
+        };
+      }
+    }
+    
+    // Get recent retrievals
+    const retrievals = await storage.getRetrievalResultsByChunk(req.params.chunkId, 10);
+    
+    res.json({
+      chunk: {
+        id: lineage.chunkId,
+        documentId: lineage.documentId,
+        source: {
+          type: lineage.sourceType,
+          id: lineage.sourceId,
+          filename: lineage.filename,
+        },
+        ingestedAt: lineage.ingestedAt,
+        contentPreview: lineage.contentPreview,
+        contentLength: lineage.contentLength,
+        retrievalCount: lineage.retrievalCount,
+        lastRetrievedAt: lineage.lastRetrievedAt,
+        avgSimilarityScore: lineage.avgSimilarityScore,
+      },
+      ingestionTrace,
+      retrievals: retrievals.map(r => ({
+        traceId: r.traceId,
+        query: r.queryText,
+        score: r.similarityScore,
+        rank: r.rank,
+        timestamp: r.retrievedAt,
+      })),
+    });
+  } catch (error) {
+    console.error("Error fetching lineage:", error);
+    res.status(500).json({ error: "Failed to fetch lineage" });
+  }
+});
+
+/**
+ * GET /api/debug/rag/traceability/metrics
+ * Get aggregated metrics for a time period
+ */
+router.get("/traceability/metrics", async (req, res) => {
+  try {
+    const { storage } = await import("../storage");
+    
+    // Default to last 24 hours if not specified
+    const to = req.query.to ? new Date(req.query.to as string) : new Date();
+    const from = req.query.from 
+      ? new Date(req.query.from as string) 
+      : new Date(to.getTime() - 24 * 60 * 60 * 1000);
+    
+    const metrics = await storage.getRagMetrics(from, to);
+    
+    res.json({
+      period: req.query.period || "hour",
+      from,
+      to,
+      metrics,
+    });
+  } catch (error) {
+    console.error("Error fetching metrics:", error);
+    res.status(500).json({ error: "Failed to fetch metrics" });
+  }
+});
+
 export default router;
