@@ -103,6 +103,65 @@ Examples:
 | `browserbase_load` | `url` |
 | `browserbase_screenshot` | `sessionId` |
 
+### HTTP Client (Direct API Access)
+
+Use these tools for direct HTTP requests to APIs, webhooks, and web services. They provide more control than `web_search` or `browser_scrape`.
+
+| Tool | Parameters | Description |
+|------|------------|-------------|
+| `http_get` | `url`, `headers?`, `params?`, `timeout?` | GET request to fetch data from any API or endpoint |
+| `http_post` | `url`, `headers?`, `body`, `timeout?` | POST request to submit data to APIs or webhooks |
+| `http_put` | `url`, `headers?`, `body`, `timeout?` | PUT request to update resources via RESTful APIs |
+
+**When to use HTTP client tools:**
+- Need to authenticate with API keys or tokens (via `headers`)
+- Must send structured JSON data in request body
+- Interacting with RESTful APIs that require POST/PUT operations
+- Need to set custom headers (Content-Type, Authorization, Accept, etc.)
+- Want raw response data (JSON, text, or binary as base64)
+
+**Parameters:**
+- `url` (required): Full URL starting with `http://` or `https://`
+- `headers` (optional): Object with header key-value pairs, e.g., `{"Authorization": "Bearer TOKEN", "Content-Type": "application/json"}`
+- `params` (optional, GET only): Query parameters as object, automatically appended to URL
+- `body` (required for POST/PUT): String or object to send (objects are JSON stringified automatically)
+- `timeout` (optional): Request timeout in milliseconds (default: 30000)
+
+**Response includes:**
+- `success`: Boolean indicating if request succeeded (HTTP 2xx status)
+- `status`: HTTP status code (200, 404, 500, etc.)
+- `headers`: Response headers as object
+- `data`: Parsed response body (JSON object, text string, or base64 for binary)
+- `error`: Error message if request failed
+
+**Examples:**
+```json
+// GET with authentication
+{"type": "http_get", "parameters": {
+  "url": "https://api.github.com/user/repos",
+  "headers": {"Authorization": "token ghp_xxx"}
+}}
+
+// POST JSON data
+{"type": "http_post", "parameters": {
+  "url": "https://api.example.com/webhook",
+  "body": {"event": "deploy", "status": "success"}
+}}
+
+// PUT to update resource
+{"type": "http_put", "parameters": {
+  "url": "https://api.example.com/tasks/123",
+  "headers": {"Authorization": "Bearer xxx"},
+  "body": {"status": "completed"}
+}}
+```
+
+**Security features:**
+- URL validation (HTTP/HTTPS only)
+- Header sanitization (removes control characters)
+- Timeout protection (30s default, configurable)
+- Response size limit (10MB max)
+
 ---
 
 ## SSH (Remote Server Access)
