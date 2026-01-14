@@ -741,6 +741,21 @@ export default function Home() {
                 }
               }
 
+              // Handle openUrl event - open URL in new tab
+              if (data.openUrl) {
+                console.log('[OPEN_URL] Received openUrl event:', data.openUrl);
+                const openUrlData = data.openUrl as { url: string };
+                if (openUrlData.url) {
+                  try {
+                    console.log('[OPEN_URL] Opening URL in new tab:', openUrlData.url);
+                    window.open(openUrlData.url, '_blank');
+                    console.log('[OPEN_URL] ✓ Successfully triggered window.open()');
+                  } catch (err) {
+                    console.error('[OPEN_URL] Error opening URL:', err);
+                  }
+                }
+              }
+
               // Handle metadata event (tool results, file ops, autoexec)
               if (data.metadata) {
                 streamMetadata = data.metadata;

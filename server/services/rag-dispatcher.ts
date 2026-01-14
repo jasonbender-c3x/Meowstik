@@ -659,6 +659,20 @@ export class RAGDispatcher {
         case "say":
           result = await this.executeSay(toolCall);
           break;
+        case "open_url":
+          // open_url is a client-side operation - just validate and pass through
+          const openUrlParams = toolCall.parameters as { url?: string };
+          if (!openUrlParams?.url) {
+            throw new Error("URL parameter is required");
+          }
+          // Validate URL format
+          try {
+            new URL(openUrlParams.url);
+          } catch (e) {
+            throw new Error("Invalid URL format");
+          }
+          result = { url: openUrlParams.url, success: true };
+          break;
         case "send_chat":
           // send_chat is special - it returns the content directly to terminate the agentic loop
           const sendChatParams = toolCall.parameters as { content?: string };
