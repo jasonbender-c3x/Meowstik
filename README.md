@@ -474,3 +474,32 @@ The application runs on port 5000 with the following routes:
 - **Code Editor**: Monaco Editor
 - **Animations**: Framer Motion
 - **Form Validation**: Zod + React Hook Form
+
+---
+
+## Code Quality and Documentation
+
+Meowstik maintains code quality through modern tooling. For detailed information about code analysis and documentation tools:
+
+- **[Code Analysis & Documentation Tools Guide](docs/CODE_ANALYSIS_AND_DOCUMENTATION_TOOLS.md)** - Comprehensive research on open-source tools for linting, security scanning, formatting, and documentation generation
+- **[Quick Start Guide](docs/QUICK_START_CODE_TOOLS.md)** - Fast implementation guide for essential code quality tools
+
+### Recommended Tools
+
+| Category | Tool | Purpose |
+|----------|------|---------|
+| **Linting** | ESLint + TypeScript | Code quality and bug detection |
+| **Formatting** | Prettier | Automatic code formatting |
+| **Documentation** | TypeDoc + TSDoc | API documentation generation |
+| **Security** | Semgrep | SAST security scanning |
+| **Type Checking** | TypeScript | Static type analysis |
+
+To get started with code quality tools:
+
+```bash
+# See Quick Start Guide for full setup instructions
+npm run check        # TypeScript type checking (already configured)
+npm run lint         # ESLint (to be configured)
+npm run format       # Prettier (to be configured)
+npm run docs:generate # TypeDoc (to be configured)
+```
