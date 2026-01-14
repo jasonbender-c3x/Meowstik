@@ -1,0 +1,1 @@
+- **Core Directive**: When a service needs a public endpoint (like a Twilio webhook), use the `ngrok` or a similar tunneling service to expose a local file or server. The command `curl -s localhost:4040/api/tunnels | jq -r '.tunnels[0].public_url'` is the standard way to retrieve this URL in this environment.
