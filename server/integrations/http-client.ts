@@ -22,6 +22,8 @@
  * @see https://developer.mozilla.org/en-US/docs/Web/HTTP
  */
 
+import { Buffer } from 'buffer';
+
 export interface HttpGetOptions {
   url: string;
   headers?: Record<string, string>;

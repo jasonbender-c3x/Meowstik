@@ -911,14 +911,8 @@ export class RAGDispatcher {
       throw new Error(result.error || `HTTP ${methodName} request failed`);
     }
 
-    return {
-      success: true,
-      status: result.status,
-      statusText: result.statusText,
-      headers: result.headers,
-      contentType: result.contentType,
-      data: result.data
-    };
+    // Return the complete HTTP response
+    return result;
   }
 
   /**
