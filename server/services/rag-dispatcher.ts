@@ -43,11 +43,15 @@ import {
   webSearchParamsSchema,
   googleSearchParamsSchema,
   duckduckgoSearchParamsSchema,
-  browserScrapeParamsSchema
+  browserScrapeParamsSchema,
+  httpGetParamsSchema,
+  httpPostParamsSchema,
+  httpPutParamsSchema
 } from "@shared/schema";
 import { webSearch, formatSearchResult } from "../integrations/web-search";
 import { searchWeb } from "../integrations/web-scraper";
 import { browserScrape } from "../integrations/browser-scraper";
+import { httpGet, httpPost, httpPut, type HttpResponse } from "../integrations/http-client";
 import { tavilySearch, tavilyQnA, tavilyDeepResearch } from "../integrations/tavily";
 import { perplexitySearch, perplexityQuickAnswer, perplexityDeepResearch, perplexityNews } from "../integrations/perplexity";
 import * as googleTasks from "../integrations/google-tasks";
@@ -384,6 +388,15 @@ export class RAGDispatcher {
           break;
         case "browser_scrape":
           result = await this.executeBrowserScrape(toolCall);
+          break;
+        case "http_get":
+          result = await this.executeHttpGet(toolCall);
+          break;
+        case "http_post":
+          result = await this.executeHttpPost(toolCall);
+          break;
+        case "http_put":
+          result = await this.executeHttpPut(toolCall);
           break;
         case "file_ingest":
           result = await this.executeFileOperation(toolCall);
@@ -874,6 +887,70 @@ export class RAGDispatcher {
       content: result.content
     };
   }
+
+  /**
+   * Generic HTTP request executor that handles validation and error handling
+   * @private
+   */
+  private async executeHttpRequest<T extends z.ZodType>(
+    toolCall: ToolCall,
+    schema: T,
+    httpMethod: (options: z.infer<T>) => Promise<HttpResponse>,
+    methodName: string
+  ): Promise<unknown> {
+    const parseResult = schema.safeParse(toolCall.parameters);
+    
+    if (!parseResult.success) {
+      throw new Error(`Invalid HTTP ${methodName} parameters: ${parseResult.error.message}`);
+    }
+
+    const params = parseResult.data;
+    const result = await httpMethod(params);
+
+    if (!result.success) {
+      throw new Error(result.error || `HTTP ${methodName} request failed`);
+    }
+
+    // Return the complete HTTP response
+    return result;
+  }
+
+  /**
+   * Execute HTTP GET request
+   */
+  private async executeHttpGet(toolCall: ToolCall): Promise<unknown> {
+    return this.executeHttpRequest(
+      toolCall,
+      httpGetParamsSchema,
+      httpGet,
+      'GET'
+    );
+  }
+
+  /**
+   * Execute HTTP POST request
+   */
+  private async executeHttpPost(toolCall: ToolCall): Promise<unknown> {
+    return this.executeHttpRequest(
+      toolCall,
+      httpPostParamsSchema,
+      httpPost,
+      'POST'
+    );
+  }
+
+  /**
+   * Execute HTTP PUT request
+   */
+  private async executeHttpPut(toolCall: ToolCall): Promise<unknown> {
+    return this.executeHttpRequest(
+      toolCall,
+      httpPutParamsSchema,
+      httpPut,
+      'PUT'
+    );
+  }
+
 
   /**
    * Execute file ingest/upload operations

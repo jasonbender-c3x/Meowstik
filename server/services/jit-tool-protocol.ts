@@ -134,6 +134,11 @@ const ALL_TOOLS: ToolDef[] = [
   { name: "perplexity_research", params: "query:string", category: "search" },
   { name: "perplexity_news", params: "query:string", category: "search" },
   
+  // === HTTP CLIENT (3) ===
+  { name: "http_get", params: "url:string, headers?:object, params?:object, timeout?:number", category: "search" },
+  { name: "http_post", params: "url:string, headers?:object, body:string|object, timeout?:number", category: "search" },
+  { name: "http_put", params: "url:string, headers?:object, body:string|object, timeout?:number", category: "search" },
+  
   // === BROWSER (3) ===
   { name: "browserbase_load", params: "url:string, waitFor?", category: "browser" },
   { name: "browserbase_screenshot", params: "url:string, fullPage?", category: "browser" },
