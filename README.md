@@ -500,3 +500,39 @@ The application runs on port 5000 with the following routes:
 - **Code Editor**: Monaco Editor
 - **Animations**: Framer Motion
 - **Form Validation**: Zod + React Hook Form
+
+---
+
+## Documentation
+
+Comprehensive documentation is available in the `/docs` directory:
+
+- **[Documentation Index](docs/INDEX.md)** - Complete documentation catalog
+- **[Quick Start](docs/current/QUICK_START.md)** - Get started in minutes
+- **[System Overview](docs/current/SYSTEM_OVERVIEW.md)** - Architecture and design
+- **[RAG Ingestion Guide](docs/current/HOW_TO_INITIATE_RAG_INGESTION.md)** - Document/repo ingestion
+- **[Features Guide](docs/current/FEATURES.md)** - All features explained
+
+### Documentation Structure
+
+```
+docs/
+├── INDEX.md                    # Master documentation index
+├── current/                    # Active documentation (28 files)
+│   ├── Quick Start, System Overview, Features
+│   ├── RAG & Knowledge Management (6 docs)
+│   ├── Architecture & Design (6 docs)
+│   ├── Setup & Configuration (5 docs)
+│   └── Development (7 docs)
+├── ragent/                     # Agent system docs (12 files)
+├── v2-roadmap/                 # Future plans (9 files)
+├── idea-extraction/            # Vision documents (2 files)
+└── archive/                    # Historical docs (10 files)
+```
+
+**Quick Links:**
+- 📚 [Full Documentation Index](docs/INDEX.md)
+- 🚀 [Quick Start Guide](docs/current/QUICK_START.md)
+- 🔍 [RAG Ingestion](docs/current/HOW_TO_INITIATE_RAG_INGESTION.md)
+- 🏗️ [Architecture](docs/current/COGNITIVE_ARCHITECTURE_2.0.md)
+- 🗺️ [Roadmap](docs/v2-roadmap/MASTER-ROADMAP.md)
