@@ -65,6 +65,10 @@ import {
   type InsertAgentIdentity,
   type AgentActivityLog,
   type InsertAgentActivityLog,
+  type CallConversation,
+  type InsertCallConversation,
+  type CallTurn,
+  type InsertCallTurn,
   chats,
   messages,
   attachments,
@@ -82,7 +86,9 @@ import {
   executorState,
   llmUsage,
   agentIdentities,
-  agentActivityLog
+  agentActivityLog,
+  callConversations,
+  callTurns
 } from "@shared/schema";
 import { drizzle, NodePgDatabase } from "drizzle-orm/node-postgres";
 import { eq, desc, and, lte, lt, or, sql, isNull, isNotNull, inArray, arrayContains } from "drizzle-orm";
@@ -476,6 +482,66 @@ export interface IStorage {
    * @returns Array of activity logs with agent info, sorted by createdAt descending
    */
   getRecentAgentActivity(limit?: number): Promise<(AgentActivityLog & { agent: AgentIdentity })[]>;
+
+  // =========================================================================
+  // TWILIO CALL CONVERSATION OPERATIONS
+  // =========================================================================
+
+  /**
+   * Creates a new call conversation
+   * @param conversation - The call conversation data
+   * @returns The created conversation with auto-generated id and timestamps
+   */
+  createCallConversation(conversation: InsertCallConversation): Promise<CallConversation>;
+
+  /**
+   * Retrieves a call conversation by Twilio call SID
+   * @param callSid - The Twilio call SID
+   * @returns The conversation if found, undefined otherwise
+   */
+  getCallConversationBySid(callSid: string): Promise<CallConversation | undefined>;
+
+  /**
+   * Retrieves a call conversation by ID
+   * @param id - The conversation UUID
+   * @returns The conversation if found, undefined otherwise
+   */
+  getCallConversationById(id: string): Promise<CallConversation | undefined>;
+
+  /**
+   * Updates a call conversation
+   * @param id - The conversation UUID
+   * @param updates - Partial conversation data to update
+   * @returns The updated conversation
+   */
+  updateCallConversation(id: string, updates: Partial<InsertCallConversation> & {
+    status?: string;
+    turnCount?: number;
+    endedAt?: Date;
+    duration?: number;
+    errorMessage?: string;
+  }): Promise<CallConversation>;
+
+  /**
+   * Adds a turn to a call conversation
+   * @param turn - The call turn data
+   * @returns The created turn with auto-generated id and timestamp
+   */
+  createCallTurn(turn: InsertCallTurn): Promise<CallTurn>;
+
+  /**
+   * Retrieves all turns for a call conversation
+   * @param conversationId - The conversation UUID
+   * @returns Array of turns, sorted by turnNumber ascending
+   */
+  getCallTurns(conversationId: string): Promise<CallTurn[]>;
+
+  /**
+   * Retrieves recent call conversations
+   * @param limit - Maximum number of conversations to retrieve
+   * @returns Array of conversations, sorted by startedAt descending
+   */
+  getRecentCallConversations(limit?: number): Promise<CallConversation[]>;
 }
 
 /**
@@ -1638,6 +1704,78 @@ export class DrizzleStorage implements IStorage {
       ...agent_activity_log,
       agent: agent_identities
     }));
+  }
+
+  // =========================================================================
+  // TWILIO CALL CONVERSATION OPERATIONS
+  // =========================================================================
+
+  async createCallConversation(conversation: InsertCallConversation): Promise<CallConversation> {
+    const [created] = await this.getDb()
+      .insert(callConversations)
+      .values(conversation)
+      .returning();
+    return created;
+  }
+
+  async getCallConversationBySid(callSid: string): Promise<CallConversation | undefined> {
+    const [conversation] = await this.getDb()
+      .select()
+      .from(callConversations)
+      .where(eq(callConversations.callSid, callSid))
+      .limit(1);
+    return conversation;
+  }
+
+  async getCallConversationById(id: string): Promise<CallConversation | undefined> {
+    const [conversation] = await this.getDb()
+      .select()
+      .from(callConversations)
+      .where(eq(callConversations.id, id))
+      .limit(1);
+    return conversation;
+  }
+
+  async updateCallConversation(
+    id: string,
+    updates: Partial<InsertCallConversation> & {
+      status?: string;
+      turnCount?: number;
+      endedAt?: Date;
+      duration?: number;
+      errorMessage?: string;
+    }
+  ): Promise<CallConversation> {
+    const [updated] = await this.getDb()
+      .update(callConversations)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(callConversations.id, id))
+      .returning();
+    return updated;
+  }
+
+  async createCallTurn(turn: InsertCallTurn): Promise<CallTurn> {
+    const [created] = await this.getDb()
+      .insert(callTurns)
+      .values(turn)
+      .returning();
+    return created;
+  }
+
+  async getCallTurns(conversationId: string): Promise<CallTurn[]> {
+    return this.getDb()
+      .select()
+      .from(callTurns)
+      .where(eq(callTurns.conversationId, conversationId))
+      .orderBy(callTurns.turnNumber);
+  }
+
+  async getRecentCallConversations(limit = 20): Promise<CallConversation[]> {
+    return this.getDb()
+      .select()
+      .from(callConversations)
+      .orderBy(desc(callConversations.startedAt))
+      .limit(limit);
   }
 }
 
