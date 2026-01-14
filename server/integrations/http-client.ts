@@ -177,6 +177,30 @@ function hasContentType(headers: Record<string, string>): boolean {
 }
 
 /**
+ * Prepare request body and set appropriate Content-Type header if not already set
+ */
+function prepareRequestBody(
+  body: string | Record<string, unknown>, 
+  headers: Record<string, string>
+): string {
+  let result: string;
+  
+  if (typeof body === 'string') {
+    result = body;
+    if (!hasContentType(headers)) {
+      headers['Content-Type'] = 'text/plain';
+    }
+  } else {
+    result = JSON.stringify(body);
+    if (!hasContentType(headers)) {
+      headers['Content-Type'] = 'application/json';
+    }
+  }
+  
+  return result;
+}
+
+/**
  * Perform an HTTP GET request
  * 
  * @param options - Request options including URL, headers, and query params
@@ -229,19 +253,8 @@ export async function httpPost(options: HttpPostOptions): Promise<HttpResponse> 
     const headers = sanitizeHeaders(options.headers);
     const timeout = options.timeout || DEFAULT_TIMEOUT;
     
-    // Prepare body
-    let body: string;
-    if (typeof options.body === 'string') {
-      body = options.body;
-      if (!hasContentType(headers)) {
-        headers['Content-Type'] = 'text/plain';
-      }
-    } else {
-      body = JSON.stringify(options.body);
-      if (!hasContentType(headers)) {
-        headers['Content-Type'] = 'application/json';
-      }
-    }
+    // Prepare body and set Content-Type if needed
+    const body = prepareRequestBody(options.body, headers);
     
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeout);
@@ -283,19 +296,8 @@ export async function httpPut(options: HttpPutOptions): Promise<HttpResponse> {
     const headers = sanitizeHeaders(options.headers);
     const timeout = options.timeout || DEFAULT_TIMEOUT;
     
-    // Prepare body
-    let body: string;
-    if (typeof options.body === 'string') {
-      body = options.body;
-      if (!hasContentType(headers)) {
-        headers['Content-Type'] = 'text/plain';
-      }
-    } else {
-      body = JSON.stringify(options.body);
-      if (!hasContentType(headers)) {
-        headers['Content-Type'] = 'application/json';
-      }
-    }
+    // Prepare body and set Content-Type if needed
+    const body = prepareRequestBody(options.body, headers);
     
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeout);

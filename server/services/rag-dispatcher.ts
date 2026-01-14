@@ -51,7 +51,7 @@ import {
 import { webSearch, formatSearchResult } from "../integrations/web-search";
 import { searchWeb } from "../integrations/web-scraper";
 import { browserScrape } from "../integrations/browser-scraper";
-import { httpGet, httpPost, httpPut } from "../integrations/http-client";
+import { httpGet, httpPost, httpPut, type HttpResponse } from "../integrations/http-client";
 import { tavilySearch, tavilyQnA, tavilyDeepResearch } from "../integrations/tavily";
 import { perplexitySearch, perplexityQuickAnswer, perplexityDeepResearch, perplexityNews } from "../integrations/perplexity";
 import * as googleTasks from "../integrations/google-tasks";
@@ -889,25 +889,26 @@ export class RAGDispatcher {
   }
 
   /**
-   * Execute HTTP GET request
+   * Generic HTTP request executor that handles validation and error handling
+   * @private
    */
-  private async executeHttpGet(toolCall: ToolCall): Promise<unknown> {
-    const parseResult = httpGetParamsSchema.safeParse(toolCall.parameters);
+  private async executeHttpRequest<T extends z.ZodType>(
+    toolCall: ToolCall,
+    schema: T,
+    httpMethod: (options: z.infer<T>) => Promise<HttpResponse>,
+    methodName: string
+  ): Promise<unknown> {
+    const parseResult = schema.safeParse(toolCall.parameters);
     
     if (!parseResult.success) {
-      throw new Error(`Invalid HTTP GET parameters: ${parseResult.error.message}`);
+      throw new Error(`Invalid HTTP ${methodName} parameters: ${parseResult.error.message}`);
     }
 
     const params = parseResult.data;
-    const result = await httpGet({
-      url: params.url,
-      headers: params.headers,
-      params: params.params,
-      timeout: params.timeout
-    });
+    const result = await httpMethod(params);
 
     if (!result.success) {
-      throw new Error(result.error || "HTTP GET request failed");
+      throw new Error(result.error || `HTTP ${methodName} request failed`);
     }
 
     return {
@@ -918,70 +919,42 @@ export class RAGDispatcher {
       contentType: result.contentType,
       data: result.data
     };
+  }
+
+  /**
+   * Execute HTTP GET request
+   */
+  private async executeHttpGet(toolCall: ToolCall): Promise<unknown> {
+    return this.executeHttpRequest(
+      toolCall,
+      httpGetParamsSchema,
+      httpGet,
+      'GET'
+    );
   }
 
   /**
    * Execute HTTP POST request
    */
   private async executeHttpPost(toolCall: ToolCall): Promise<unknown> {
-    const parseResult = httpPostParamsSchema.safeParse(toolCall.parameters);
-    
-    if (!parseResult.success) {
-      throw new Error(`Invalid HTTP POST parameters: ${parseResult.error.message}`);
-    }
-
-    const params = parseResult.data;
-    const result = await httpPost({
-      url: params.url,
-      headers: params.headers,
-      body: params.body,
-      timeout: params.timeout
-    });
-
-    if (!result.success) {
-      throw new Error(result.error || "HTTP POST request failed");
-    }
-
-    return {
-      success: true,
-      status: result.status,
-      statusText: result.statusText,
-      headers: result.headers,
-      contentType: result.contentType,
-      data: result.data
-    };
+    return this.executeHttpRequest(
+      toolCall,
+      httpPostParamsSchema,
+      httpPost,
+      'POST'
+    );
   }
 
   /**
    * Execute HTTP PUT request
    */
   private async executeHttpPut(toolCall: ToolCall): Promise<unknown> {
-    const parseResult = httpPutParamsSchema.safeParse(toolCall.parameters);
-    
-    if (!parseResult.success) {
-      throw new Error(`Invalid HTTP PUT parameters: ${parseResult.error.message}`);
-    }
-
-    const params = parseResult.data;
-    const result = await httpPut({
-      url: params.url,
-      headers: params.headers,
-      body: params.body,
-      timeout: params.timeout
-    });
-
-    if (!result.success) {
-      throw new Error(result.error || "HTTP PUT request failed");
-    }
-
-    return {
-      success: true,
-      status: result.status,
-      statusText: result.statusText,
-      headers: result.headers,
-      contentType: result.contentType,
-      data: result.data
-    };
+    return this.executeHttpRequest(
+      toolCall,
+      httpPutParamsSchema,
+      httpPut,
+      'PUT'
+    );
   }
 
 
