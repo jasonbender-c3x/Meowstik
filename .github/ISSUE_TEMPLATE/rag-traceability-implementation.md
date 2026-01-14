@@ -13,8 +13,8 @@ assignees: ''
 Implement comprehensive traceability for Meowstik's RAG (Retrieval-Augmented Generation) pipeline to provide end-to-end visibility into ingestion and query operations.
 
 **Related Documents:**
-- 📄 [Technical Proposal](/docs/proposals/RAG_TRACEABILITY_PROPOSAL.md)
-- 📄 [Implementation Guide](/docs/proposals/RAG_TRACEABILITY_IMPLEMENTATION.md)
+- 📄 [Technical Proposal](/docs/RAG_TRACEABILITY_PROPOSAL.md)
+- 📄 [Implementation Guide](/docs/RAG_TRACEABILITY_IMPLEMENTATION.md)
 
 ## Goals
 

@@ -238,8 +238,8 @@ Let's talk through it synchronously
 **Resources**:
 - [Technical Proposal](./RAG_TRACEABILITY_PROPOSAL.md)
 - [Implementation Guide](./RAG_TRACEABILITY_IMPLEMENTATION.md)
-- [Issue Template](../../.github/ISSUE_TEMPLATE/rag-traceability-implementation.md)
-- [Existing RAG Docs](../RAG_PIPELINE.md)
+- [Issue Template](../.github/ISSUE_TEMPLATE/rag-traceability-implementation.md)
+- [Existing RAG Docs](./RAG_PIPELINE.md)
 
 ---
 
