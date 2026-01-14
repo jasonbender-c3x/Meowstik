@@ -297,6 +297,43 @@ export function ChatInputArea({ onSend, isLoading, promptHistory = [], onStop }:
   }, [input]);
 
   /**
+   * Effect: Handle VS Code Extension messages
+   * Listens for code snippets sent from VS Code "Send to Meowstik" command/menu
+   */
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      // Security check: ensure the message is what we expect
+      if (event.data && event.data.type === 'MEOWSTIK_INSERT_CODE') {
+        const code = event.data.code;
+        if (!code) return;
+
+        // Verify if we are inside VS Code iframe by checking if parent is different
+        // or just by the nature of receiving this specific event type
+        
+        const codeBlock = `\n\`\`\`\n${code}\n\`\`\`\n`;
+        // Append to existing input or start fresh
+        setInput((prev) => {
+            const prefix = prev.trim() ? prev + '\n\n' : "Explain this code:\n";
+            return prefix + codeBlock;
+        });
+        
+        // Focus the textarea and trigger resize
+        setTimeout(() => {
+            if (textareaRef.current) {
+                textareaRef.current.focus();
+                // Trigger resize
+                textareaRef.current.style.height = "auto";
+                textareaRef.current.style.height = textareaRef.current.scrollHeight + "px";
+            }
+        }, 100);
+      }
+    };
+
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, []);
+
+  /**
    * Effect: Update input with voice transcript
    * Only inserts the NEW portion of the transcript (delta since last update)
    * This prevents duplication when the transcript accumulates

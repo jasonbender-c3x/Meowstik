@@ -2292,3 +2292,69 @@ export const insertSshKeySchema = createInsertSchema(sshKeys).omit({
 });
 export type InsertSshKey = z.infer<typeof insertSshKeySchema>;
 export type SshKey = typeof sshKeys.$inferSelect;
+
+// =============================================================================
+// GENERATED DOCUMENTATION
+// Self-documentation system for AI-generated docs
+// =============================================================================
+
+/**
+ * GENERATED DOCUMENTATION TABLE
+ * ------------------------------
+ * Stores AI-generated documentation including tutorials, guides, and API references.
+ * The AI can analyze the codebase and generate comprehensive documentation dynamically.
+ */
+export const generatedDocs = pgTable("generated_docs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  
+  // Document metadata
+  title: text("title").notNull(),
+  slug: text("slug").notNull().unique(), // URL-friendly identifier
+  type: text("type").notNull(), // "api-reference", "tutorial", "guide", "overview"
+  category: text("category"), // Optional categorization (e.g., "database", "api", "ui")
+  
+  // Content
+  content: text("content").notNull(), // Markdown content
+  summary: text("summary"), // Brief description
+  
+  // Generation metadata
+  generatedBy: text("generated_by").default("Meowstik AI"), // AI agent that generated it
+  sourceFiles: text("source_files").array(), // Files analyzed to generate the doc
+  version: text("version").default("1.0.0"), // Documentation version
+  
+  // Status and visibility
+  published: boolean("published").default(false), // Whether to show in public docs
+  featured: boolean("featured").default(false), // Highlight in documentation homepage
+  
+  // Timestamps
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertGeneratedDocSchema = createInsertSchema(generatedDocs).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const updateGeneratedDocSchema = createInsertSchema(generatedDocs).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+}).partial();
+
+export type InsertGeneratedDoc = z.infer<typeof insertGeneratedDocSchema>;
+export type UpdateGeneratedDoc = z.infer<typeof updateGeneratedDocSchema>;
+export type GeneratedDoc = typeof generatedDocs.$inferSelect;
+
+/**
+ * Document type constants
+ */
+export const DocTypes = {
+  API_REFERENCE: "api-reference",
+  TUTORIAL: "tutorial",
+  GUIDE: "guide",
+  OVERVIEW: "overview",
+} as const;
+
+export type DocType = typeof DocTypes[keyof typeof DocTypes];
