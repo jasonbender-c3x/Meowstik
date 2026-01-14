@@ -1509,9 +1509,12 @@ export class RAGDispatcher {
    * - server:path or just path → Read from server filesystem (default)
    * - client:path → Read from client via desktop-app
    * - editor:path → Read from Monaco editor canvas
+   * 
+   * Supports optional maxLength parameter to truncate content if needed.
+   * If maxLength is omitted, returns full content without truncation.
    */
   private async executeFileGet(toolCall: ToolCall): Promise<unknown> {
-    const params = toolCall.parameters as { path: string; encoding?: string };
+    const params = toolCall.parameters as { path: string; encoding?: string; maxLength?: number };
     
     if (!params.path || typeof params.path !== 'string') {
       throw new Error('file_get requires a path parameter');
@@ -1529,6 +1532,7 @@ export class RAGDispatcher {
         path: actualPath,
         source: 'editor',
         encoding: params.encoding || 'utf8',
+        noTruncate: !params.maxLength, // Signal to routes.ts to skip auto-truncation
         message: `Request to read file from editor canvas: ${actualPath}`
       };
     }
@@ -1541,14 +1545,22 @@ export class RAGDispatcher {
         throw new Error('No desktop agent connected. Start the Meowstik desktop app on your computer to use client: paths.');
       }
       
-      const content = await clientRouter.readFile(actualPath, params.encoding || 'utf8');
+      let content = await clientRouter.readFile(actualPath, params.encoding || 'utf8');
+      
+      // Apply maxLength if specified
+      const truncated = params.maxLength && typeof content === 'string' && content.length > params.maxLength;
+      if (truncated) {
+        content = content.substring(0, params.maxLength) + `\n... [truncated to ${params.maxLength} characters]`;
+      }
       
       return {
         type: 'file_get',
         path: actualPath,
         source: 'client',
         content,
-        encoding: params.encoding || 'utf8'
+        encoding: params.encoding || 'utf8',
+        truncated,
+        noTruncate: !params.maxLength // Signal to routes.ts to skip auto-truncation
       };
     }
 
@@ -1557,14 +1569,22 @@ export class RAGDispatcher {
     const fullPath = path.join(this.workspaceDir, sanitizedPath);
     
     try {
-      const content = await fs.readFile(fullPath, params.encoding === 'base64' ? 'base64' : 'utf8');
+      let content = await fs.readFile(fullPath, params.encoding === 'base64' ? 'base64' : 'utf8');
+      
+      // Apply maxLength if specified
+      const truncated = params.maxLength && typeof content === 'string' && content.length > params.maxLength;
+      if (truncated) {
+        content = content.substring(0, params.maxLength) + `\n... [truncated to ${params.maxLength} characters]`;
+      }
       
       return {
         type: 'file_get',
         path: sanitizedPath,
         source: 'server',
         content,
-        encoding: params.encoding || 'utf8'
+        encoding: params.encoding || 'utf8',
+        truncated,
+        noTruncate: !params.maxLength // Signal to routes.ts to skip auto-truncation
       };
     } catch (error: any) {
       if (error.code === 'ENOENT') {

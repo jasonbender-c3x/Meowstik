@@ -550,10 +550,22 @@ export async function registerRoutes(
         const metadata = msg.metadata as { toolResults?: Array<{ type: string; result: unknown; success: boolean }> } | null;
         
         if (isLastAiMessage && metadata?.toolResults?.length) {
-          // Append tool results to the most recent AI message (up to 5000 chars per tool)
+          // Append tool results to the most recent AI message
+          // Check each tool result for noTruncate flag before applying length limit
           const toolSummary = metadata.toolResults
             .filter(tr => tr.success)
-            .map(tr => `[Tool ${tr.type} returned: ${JSON.stringify(tr.result).slice(0, 5000)}]`)
+            .map(tr => {
+              const resultStr = JSON.stringify(tr.result);
+              // Check if this tool result has noTruncate flag (e.g., file_get)
+              const hasNoTruncate = typeof tr.result === 'object' && 
+                tr.result !== null && 
+                'noTruncate' in tr.result && 
+                (tr.result as any).noTruncate === true;
+              
+              // If noTruncate is set, return full result, otherwise limit to 5000 chars
+              const limitedResult = hasNoTruncate ? resultStr : resultStr.slice(0, 5000);
+              return `[Tool ${tr.type} returned: ${limitedResult}]`;
+            })
             .join("\n");
           content = content + "\n\n" + toolSummary;
         } else if (content.length > MAX_CONTENT_LENGTH) {
@@ -937,7 +949,9 @@ The user has voice output enabled. You MUST use the \`say\` tool to speak your r
                 if ("screenshot" in sanitized && typeof sanitized.screenshot === "string" && (sanitized.screenshot as string).length > 100) {
                   sanitized.screenshot = "[screenshot captured]";
                 }
-                if ("content" in sanitized && typeof sanitized.content === "string" && (sanitized.content as string).length > 2000) {
+                // Check for noTruncate flag (used by file_get tool) - skip content truncation
+                const shouldTruncate = !("noTruncate" in sanitized && sanitized.noTruncate === true);
+                if ("content" in sanitized && typeof sanitized.content === "string" && shouldTruncate && (sanitized.content as string).length > 2000) {
                   sanitized.content = (sanitized.content as string).substring(0, 2000) + "... [truncated]";
                 }
                 resultSummary = sanitized;
