@@ -64,12 +64,14 @@ function classifyError(error: any, context: 'keygen' | 'connection' | 'execution
   }
 
   // Key format errors
-  if (lowerMsg.includes('key') && (lowerMsg.includes('invalid') || lowerMsg.includes('format') || lowerMsg.includes('corrupt'))) {
+  if ((lowerMsg.includes('ssh key') || lowerMsg.includes('private key') || lowerMsg.includes('public key')) && 
+      (lowerMsg.includes('invalid') || lowerMsg.includes('format') || lowerMsg.includes('corrupt'))) {
     return 'Invalid SSH key format. Please ensure:\n  • The private key is properly formatted\n  • The key is not corrupted\n  • The key matches the expected type (e.g., ed25519, RSA)\n  • The key is stored correctly in Replit Secrets';
   }
 
   // Authentication errors (general)
-  if (lowerMsg.includes('auth') || lowerMsg.includes('authentication failed')) {
+  if (lowerMsg.includes('authentication failed') || lowerMsg.includes('auth failed') || 
+      lowerMsg.includes('authentication error')) {
     return 'Authentication failed. Please verify:\n  • Your credentials (SSH key or password) are correct\n  • The authentication method is supported by the server\n  • The key is properly configured in Replit Secrets';
   }
 
