@@ -76,6 +76,13 @@ function isUuid(value: unknown): boolean {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
 }
 
+function isHash(value: unknown): boolean {
+  if (typeof value !== "string") return false;
+  // Detect common hash formats (SHA-1, SHA-256, MD5, etc.)
+  // Typically 32+ hex characters
+  return /^[0-9a-f]{32,}$/i.test(value);
+}
+
 function CellValue({ value, columnName, recordId }: { value: unknown; columnName: string; recordId: string }) {
   if (value === null || value === undefined) {
     return <span className="text-muted-foreground italic">null</span>;
@@ -102,7 +109,15 @@ function CellValue({ value, columnName, recordId }: { value: unknown; columnName
   if (isUuid(value)) {
     return (
       <code className="text-xs bg-muted px-1.5 py-0.5 rounded font-mono text-primary">
-        {strValue.slice(0, 8)}...
+        {strValue.slice(0, 5)}...
+      </code>
+    );
+  }
+
+  if (isHash(value)) {
+    return (
+      <code className="text-xs bg-muted px-1.5 py-0.5 rounded font-mono text-primary">
+        {strValue.slice(0, 5)}...
       </code>
     );
   }
@@ -786,7 +801,7 @@ export default function DatabaseExplorerPage() {
                 </div>
               )}
 
-              <div className="flex-1 overflow-auto">
+              <div className="flex-1 overflow-x-auto overflow-y-auto">
                 {isLoadingData ? (
                   <div className="flex items-center justify-center h-64">
                     <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -801,11 +816,11 @@ export default function DatabaseExplorerPage() {
                     </div>
                   </div>
                 ) : (
-                  <div className="min-w-max">
-                    <table className="w-full border-collapse">
+                  <div className="overflow-x-auto">
+                    <table className="w-full border-collapse min-w-max">
                       <thead className="bg-muted/50 sticky top-0 z-10">
                         <tr>
-                          <th className="border-b px-4 py-3 text-left w-10">
+                          <th className="border-b px-4 py-3 text-left w-10 sticky left-0 bg-muted/50 z-20">
                             <Checkbox
                               checked={selectedRows.size === filteredRows.length && filteredRows.length > 0}
                               onCheckedChange={toggleSelectAll}
@@ -820,7 +835,7 @@ export default function DatabaseExplorerPage() {
                               {col}
                             </th>
                           ))}
-                          <th className="border-b px-4 py-3 text-right text-sm font-medium text-muted-foreground w-24">
+                          <th className="border-b px-4 py-3 text-right text-sm font-medium text-muted-foreground w-24 sticky right-0 bg-muted/50 z-20">
                             Actions
                           </th>
                         </tr>
@@ -836,7 +851,7 @@ export default function DatabaseExplorerPage() {
                             onClick={() => setViewingRecord(row)}
                             data-testid={`row-${row.id}`}
                           >
-                            <td className="border-b px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                            <td className="border-b px-4 py-3 sticky left-0 bg-background z-10" onClick={(e) => e.stopPropagation()}>
                               <Checkbox
                                 checked={selectedRows.has(String(row.id))}
                                 onCheckedChange={() => toggleRowSelection(String(row.id))}
@@ -851,7 +866,7 @@ export default function DatabaseExplorerPage() {
                                 <CellValue value={row[col]} columnName={col} recordId={String(row.id)} />
                               </td>
                             ))}
-                            <td className="border-b px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                            <td className="border-b px-4 py-3 sticky right-0 bg-background z-10" onClick={(e) => e.stopPropagation()}>
                               <div className="flex items-center justify-end gap-1">
                                 <Button
                                   variant="ghost"
