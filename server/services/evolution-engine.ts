@@ -18,6 +18,7 @@ import { GoogleGenAI } from "@google/genai";
 import { storage } from "../storage";
 import { Feedback } from "@shared/schema";
 import * as github from "../integrations/github";
+import { addCommentWithAgent } from "../integrations/github";
 
 const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
@@ -344,6 +345,28 @@ Please review the suggestions and:
       console.warn("Failed to log agent activity:", logError);
     }
 
+    // Add a comment tagging @copilot to trigger implementation workflow
+    try {
+      const commentBody = `@copilot This PR contains AI-generated improvements based on user feedback.
+
+Please review and implement the proposed changes.
+
+**Summary**: ${report.summary}
+
+**Action Items**: See PR description for detailed instructions.`;
+
+      await addCommentWithAgent(
+        targetRepo.owner,
+        targetRepo.repo,
+        pr.number,
+        commentBody,
+        agent
+      );
+    } catch (commentError) {
+      console.warn("Failed to add @copilot comment:", commentError);
+      // Don't fail the entire operation if comment fails
+    }
+
     return {
       success: true,
       prUrl: pr.htmlUrl,
@@ -566,6 +589,29 @@ ${actionableFeedback.map(f => `- **${f.feedbackType.toUpperCase()}**: ${f.summar
     );
 
     if (prResult && prResult.htmlUrl) {
+      // Add a comment tagging @copilot to trigger implementation workflow
+      try {
+        const commentBody = `@copilot This PR contains feedback extracted from recent user messages.
+
+Please review the feedback and address the actionable items.
+
+**Total feedback items**: ${feedbackFound.length}
+**Actionable items**: ${actionableFeedback.length}
+
+**Action Items**: See PR description for detailed feedback breakdown.`;
+
+        await addCommentWithAgent(
+          repo.owner,
+          repo.repo,
+          prResult.number,
+          commentBody,
+          agent
+        );
+      } catch (commentError) {
+        console.warn("Failed to add @copilot comment:", commentError);
+        // Don't fail the entire operation if comment fails
+      }
+
       return {
         success: true,
         messagesScanned: messages.length,
