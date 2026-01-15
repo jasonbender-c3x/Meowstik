@@ -18,7 +18,6 @@ import { GoogleGenAI } from "@google/genai";
 import { storage } from "../storage";
 import { Feedback } from "@shared/schema";
 import * as github from "../integrations/github";
-import { addCommentWithAgent } from "../integrations/github";
 
 const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
@@ -355,7 +354,7 @@ Please review and implement the proposed changes.
 
 **Action Items**: See PR description for detailed instructions.`;
 
-      await addCommentWithAgent(
+      await github.addCommentWithAgent(
         targetRepo.owner,
         targetRepo.repo,
         pr.number,
@@ -600,7 +599,7 @@ Please review the feedback and address the actionable items.
 
 **Action Items**: See PR description for detailed feedback breakdown.`;
 
-        await addCommentWithAgent(
+        await github.addCommentWithAgent(
           repo.owner,
           repo.repo,
           prResult.number,
