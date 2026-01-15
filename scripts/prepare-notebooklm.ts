@@ -45,18 +45,12 @@ const EXCLUDED_DIRECTORIES = [
   'node_modules',
   'dist',
   'build',
-  '.git',
-  '.github',
-  '.vscode',
   'coverage',
   '.cache',
   'tmp',
   'temp',
   '__pycache__',
   'venv',
-  '.env',
-  '.replit',
-  '.ssh',
   'logs',
   'repos', // Exclude cloned repositories
   'attached_assets',
@@ -84,14 +78,26 @@ function parseArgs(): Options {
     switch (arg) {
       case '--source':
       case '-s':
+        if (i + 1 >= args.length) {
+          console.error('Error: --source requires a directory argument');
+          process.exit(1);
+        }
         options.sourceDir = args[++i];
         break;
       case '--output':
       case '-o':
+        if (i + 1 >= args.length) {
+          console.error('Error: --output requires a directory argument');
+          process.exit(1);
+        }
         options.outputDir = args[++i];
         break;
       case '--extensions':
       case '-e':
+        if (i + 1 >= args.length) {
+          console.error('Error: --extensions requires a comma-separated list');
+          process.exit(1);
+        }
         options.extensions = args[++i].split(',').map(ext => ext.trim());
         break;
       case '--help':
@@ -182,7 +188,7 @@ function traverseDirectory(
 /**
  * Main function to prepare files for NotebookLM
  */
-async function prepareForNotebookLM() {
+function prepareForNotebookLM() {
   console.log('📚 Preparing files for NotebookLM ingestion...\n');
 
   const options = parseArgs();
@@ -245,7 +251,4 @@ async function prepareForNotebookLM() {
 }
 
 // Run the script
-prepareForNotebookLM().catch((error) => {
-  console.error('❌ Error:', error);
-  process.exit(1);
-});
+prepareForNotebookLM();
