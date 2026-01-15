@@ -140,7 +140,7 @@ export async function generateSshKey(name: string, comment?: string): Promise<Ke
   
   // Generate ed25519 key (most secure and compact)
   try {
-    await execAsync(`ssh-keygen -t ed25519 -f "${keyPath}" -N "" -C "${commentStr}" -q`);
+    await execAsync(`/usr/bin/ssh-keygen -t ed25519 -f "${keyPath}" -N "" -C "${commentStr}" -q`);
   } catch (error) {
     // Cleanup on error
     fs.rmSync(tmpDir, { recursive: true, force: true });
@@ -153,7 +153,7 @@ export async function generateSshKey(name: string, comment?: string): Promise<Ke
   const publicKey = fs.readFileSync(`${keyPath}.pub`, 'utf-8').trim();
   
   // Get fingerprint
-  const { stdout: fingerprint } = await execAsync(`ssh-keygen -lf "${keyPath}.pub"`);
+  const { stdout: fingerprint } = await execAsync(`/usr/bin/ssh-keygen -lf "${keyPath}.pub"`);
   const fpMatch = fingerprint.match(/SHA256:[^\s]+/);
   
   // SECURITY: Delete temporary files immediately
