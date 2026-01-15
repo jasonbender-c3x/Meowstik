@@ -1,5 +1,6 @@
 import type { Request, Response, NextFunction, RequestHandler } from "express";
 import { logBuffer } from "../services/log-buffer";
+import { isHomeDevMode, createHomeDevSession } from "../homeDevAuth";
 
 export type AsyncHandler = (
   req: Request,
@@ -172,6 +173,10 @@ export const serverError = (message: string) => createApiError(message, 500);
  * Checks if the user is authenticated and attaches auth status to the request.
  * This middleware does NOT block requests - it simply determines authentication status.
  * 
+ * HOME DEV MODE:
+ * When HOME_DEV_MODE is enabled, this middleware automatically authenticates
+ * the request with a default developer user, bypassing the standard OAuth flow.
+ * 
  * Authenticated users get:
  * - Full set of powerful tools
  * - Access to personal data and services
@@ -183,13 +188,23 @@ export const serverError = (message: string) => createApiError(message, 500);
  * - Data routed to a temporary "guest bucket"
  */
 export const checkAuthStatus: RequestHandler = (req: Request, _res: Response, next: NextFunction) => {
-  const user = req.user as any;
+  let user = req.user as any;
+  
+  // In home dev mode, auto-authenticate with default developer user
+  if (isHomeDevMode() && !req.isAuthenticated?.()) {
+    user = createHomeDevSession();
+    req.user = user;
+    // Mark session as authenticated (simulate passport authentication)
+    (req as any).session = (req as any).session || {};
+    (req as any).session.passport = { user };
+  }
   
   // Attach auth status to request
+  const isAuthFn = req.isAuthenticated?.() || false;
   (req as any).authStatus = {
-    isAuthenticated: req.isAuthenticated() && !!user?.claims?.sub,
+    isAuthenticated: (isAuthFn && !!user?.claims?.sub) || (isHomeDevMode() && !!user?.claims?.sub),
     userId: user?.claims?.sub || null,
-    isGuest: !req.isAuthenticated() || !user?.claims?.sub,
+    isGuest: !user?.claims?.sub,
   };
   
   next();
