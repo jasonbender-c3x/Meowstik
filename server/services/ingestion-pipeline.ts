@@ -3,6 +3,7 @@ import { evidence, entities, entityMentions, knowledgeEmbeddings, Evidence, Enti
 import { eq, sql, and, ilike, or, isNull } from 'drizzle-orm';
 import { GoogleGenAI } from '@google/genai';
 import { EmbeddingService } from './embedding-service';
+import { PERSONAL_LOG_SOURCE_TYPE } from './personal-log-constants';
 
 const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' });
 const embeddingService = new EmbeddingService();
@@ -11,7 +12,7 @@ function getDb() {
   return storage.getDb();
 }
 
-export type SourceType = 'gmail' | 'drive' | 'upload' | 'screenshot' | 'audio' | 'chat' | 'web';
+export type SourceType = 'gmail' | 'drive' | 'upload' | 'screenshot' | 'audio' | 'chat' | 'web' | 'personal_log';
 export type Modality = 'text' | 'image' | 'audio' | 'document' | 'email' | 'conversation';
 export type KnowledgeBucket = 'PERSONAL_LIFE' | 'CREATOR' | 'PROJECTS';
 
@@ -213,6 +214,54 @@ export class IngestionPipeline {
       return { text: '', entities: [], bucket: 'PERSONAL_LIFE', confidence: 50 };
     }
 
+    // Special handling for personal log entries
+    // Use shared constant to ensure consistency
+    const isPersonalLog = item.sourceType === PERSONAL_LOG_SOURCE_TYPE;
+    
+    if (isPersonalLog) {
+      // Personal log entries always go to PERSONAL_LIFE bucket
+      try {
+        const prompt = `Extract entities from this personal reflection/log entry.
+
+Content:
+"""
+${text.slice(0, 8000)}
+"""
+
+Respond with JSON only:
+{
+  "summary": "2-3 sentence summary of the reflection",
+  "entities": [
+    {"name": "Entity Name", "type": "person|place|organization|concept|project|technology", "context": "brief context"}
+  ]
+}`;
+
+        const result = await genAI.models.generateContent({
+          model: 'gemini-2.0-flash-lite',
+          contents: prompt,
+        });
+        const responseText = result.text || '';
+        
+        const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+        if (!jsonMatch) {
+          return { text, entities: [], bucket: 'PERSONAL_LIFE', confidence: 100 };
+        }
+        
+        const parsed = JSON.parse(jsonMatch[0]);
+        
+        return {
+          text,
+          summary: parsed.summary,
+          bucket: 'PERSONAL_LIFE',
+          confidence: 100,
+          entities: parsed.entities || [],
+        };
+      } catch (error) {
+        console.error('AI extraction failed for personal log:', error);
+        return { text, entities: [], bucket: 'PERSONAL_LIFE', confidence: 100 };
+      }
+    }
+
     try {
       const prompt = `Analyze this content and extract structured information.
 
@@ -232,7 +281,7 @@ Respond with JSON only:
 }
 
 Bucket definitions:
-- PERSONAL_LIFE: Personal relationships, health, finances, daily life
+- PERSONAL_LIFE: Personal relationships, health, finances, daily life, personal reflections, feelings, emotions
 - CREATOR: Creative work, design, coding, scientific research
 - PROJECTS: Specific project work, tasks, deadlines`;
 

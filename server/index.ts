@@ -301,6 +301,25 @@ app.use((req, res, next) => {
   });
 
   /**
+   * INITIALIZE PERSONAL LOG INGESTION (NON-BLOCKING)
+   * -------------------------------------------------
+   * Start monitoring the personal log file (logs/personal.md) for automatic
+   * ingestion into the RAG system. This enables contextual understanding of
+   * personal reflections and growth over time.
+   * 
+   * Features:
+   * - Automatic ingestion of new log entries
+   * - File watching for real-time updates
+   * - Classified into PERSONAL_LIFE knowledge bucket
+   * 
+   * This is non-blocking to prevent server startup delays.
+   */
+  const { personalLogIngestion } = await import("./services/personal-log-ingestion");
+  personalLogIngestion.start().catch((error) => {
+    console.warn('Non-blocking: Failed to initialize personal log ingestion on startup:', error instanceof Error ? error.message : error);
+  });
+
+  /**
    * GLOBAL ERROR HANDLER
    * --------------------
    * Catches any unhandled errors from route handlers and middleware.

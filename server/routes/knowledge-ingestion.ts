@@ -8,6 +8,7 @@ import * as fs from "fs";
 import * as path from "path";
 import { ingestionPipeline } from "../services/ingestion-pipeline";
 import { retrievalOrchestrator } from "../services/retrieval-orchestrator";
+import { personalLogIngestion } from "../services/personal-log-ingestion";
 
 function getDb() {
   return storage.getDb();
@@ -585,6 +586,51 @@ router.get("/pipeline/retrieval-stats", async (req, res) => {
     res.json(stats);
   } catch (error: any) {
     console.error("Error fetching retrieval stats:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// =============================================================================
+// PERSONAL LOG INGESTION ENDPOINTS
+// =============================================================================
+
+/**
+ * Get personal log ingestion statistics
+ */
+router.get("/personal-log/stats", (req, res) => {
+  try {
+    const stats = personalLogIngestion.getStats();
+    res.json(stats);
+  } catch (error: any) {
+    console.error("Error fetching personal log stats:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * Manually trigger personal log ingestion
+ * (useful for testing or catching up after downtime)
+ */
+router.post("/personal-log/ingest", async (req, res) => {
+  try {
+    const { force } = req.body;
+    
+    let result;
+    if (force) {
+      // Force re-ingestion of all entries
+      result = await personalLogIngestion.reingestAll();
+    } else {
+      // Just ingest new entries (this happens automatically, but can be triggered manually)
+      res.json({ 
+        success: true, 
+        message: "Personal log is automatically ingested. Use force=true to re-ingest all entries." 
+      });
+      return;
+    }
+    
+    res.json(result);
+  } catch (error: any) {
+    console.error("Error ingesting personal log:", error);
     res.status(500).json({ error: error.message });
   }
 });
