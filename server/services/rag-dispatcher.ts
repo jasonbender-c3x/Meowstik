@@ -2876,10 +2876,10 @@ export class RAGDispatcher {
       
       // Start analysis (may take time for large codebases)
       // Skip RAG ingestion for external codebases (paths outside the project)
-      const isExternal = path.isAbsolute(rootPath) && 
-                         (rootPath.startsWith("/tmp") || 
-                          rootPath.startsWith("/home") || 
-                          rootPath.startsWith(os.tmpdir()));
+      // Check if path is outside current working directory to detect external codebases
+      const resolvedPath = path.resolve(rootPath);
+      const cwd = process.cwd();
+      const isExternal = !resolvedPath.startsWith(cwd) && path.isAbsolute(rootPath);
       const shouldSkipIngestion = isExternal;
       
       const result = await codebaseAnalyzer.analyzeCodebase(rootPath, shouldSkipIngestion);
@@ -2922,6 +2922,10 @@ export class RAGDispatcher {
       const { codebaseAnalyzer } = await import("./codebase-analyzer");
       const progress = codebaseAnalyzer.getProgress();
       
+      const percentComplete = progress.filesDiscovered > 0 
+        ? Math.round((progress.filesProcessed / progress.filesDiscovered) * 100) 
+        : 0;
+      
       return {
         type: "codebase_progress",
         success: true,
@@ -2933,9 +2937,7 @@ export class RAGDispatcher {
           chunksIngested: progress.chunksIngested,
           currentFile: progress.currentFile,
           errors: progress.errors,
-          percentComplete: progress.filesDiscovered > 0 
-            ? Math.round((progress.filesProcessed / progress.filesDiscovered) * 100) 
-            : 0
+          percentComplete
         },
         message: `Analysis phase: ${progress.phase} (${progress.filesProcessed}/${progress.filesDiscovered} files processed)`
       };
