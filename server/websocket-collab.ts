@@ -21,7 +21,7 @@ import { WebSocketServer, WebSocket } from "ws";
 import type { Server } from "http";
 import type { IncomingMessage } from "http";
 import type { Duplex } from "stream";
-import { db } from "./db";
+import { db, getDb } from "./db";
 import { collaborativeSessions, sessionParticipants, cursorPositions, editOperations } from "@shared/schema";
 import { eq, and } from "drizzle-orm";
 import { collabIntegration } from "./services/collab-integration";
@@ -119,7 +119,7 @@ async function handleCollabConnection(ws: WebSocket, sessionId: string, url: str
 
   let session = sessions.get(sessionId);
   if (!session) {
-    const [dbSession] = await db.select().from(collaborativeSessions).where(eq(collaborativeSessions.id, sessionId));
+    const [dbSession] = await getDb().select().from(collaborativeSessions).where(eq(collaborativeSessions.id, sessionId));
     if (!dbSession) {
       ws.close(4004, "Session not found");
       return;
@@ -139,7 +139,7 @@ async function handleCollabConnection(ws: WebSocket, sessionId: string, url: str
     sessions.set(sessionId, session);
   }
 
-  const [participant] = await db.insert(sessionParticipants).values({
+  const [participant] = await getDb().insert(sessionParticipants).values({
     sessionId,
     userId,
     participantType,
@@ -296,7 +296,7 @@ async function handleCursorUpdate(session: Session, participantId: string, data:
     },
   }, participantId);
 
-  await db.insert(cursorPositions).values({
+  await getDb().insert(cursorPositions).values({
     sessionId: session.id,
     participantId,
     filePath: data.filePath,
@@ -317,7 +317,7 @@ async function handleCursorUpdate(session: Session, participantId: string, data:
       selectionEndColumn: data.selection?.endColumn,
     },
   }).catch(() => {
-    db.insert(cursorPositions).values({
+    getDb().insert(cursorPositions).values({
       sessionId: session.id,
       participantId,
       filePath: data.filePath,
@@ -376,7 +376,7 @@ async function handleEditOperation(session: Session, participantId: string, op: 
     },
   }, participantId);
 
-  await db.insert(editOperations).values({
+  await getDb().insert(editOperations).values({
     sessionId: session.id,
     participantId,
     filePath: op.filePath,
@@ -439,7 +439,7 @@ async function handleDisconnect(session: Session, participantId: string): Promis
 
   session.participants.delete(participantId);
 
-  await db.update(sessionParticipants)
+  await getDb().update(sessionParticipants)
     .set({ isActive: false, leftAt: new Date() })
     .where(eq(sessionParticipants.id, participantId));
 
