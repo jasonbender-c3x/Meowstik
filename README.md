@@ -147,9 +147,14 @@ npm install
 # Push database schema to PostgreSQL
 npm run db:push
 
+# Setup memory log protection (recommended for contributors)
+./scripts/setup-memory-protection.sh
+
 # Start development server
 npm run dev
 ```
+
+> 🛡️ **Memory Protection**: The repository includes automatic protection for memory log files to prevent data loss during git operations. See [docs/MEMORY_LOG_PROTECTION.md](docs/MEMORY_LOG_PROTECTION.md) for details.
 
 ### Environment Variables
 
