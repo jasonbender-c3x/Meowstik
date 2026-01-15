@@ -869,6 +869,24 @@ The user has voice output enabled. You MUST use the \`say\` tool to speak your r
                 console.log(`[Routes][SAY] ✗ No audioBase64 in result. Keys:`, Object.keys(sayResult || {}));
               }
             }
+            
+            // Special handling for open_url tool - send event to frontend to open URL
+            if (toolCall.type === "open_url" && toolResult.success) {
+              console.log(`[Routes][OPEN_URL] Sending open_url event`);
+              const openUrlResult = toolResult.result as { url?: string; success?: boolean };
+              if (openUrlResult?.url) {
+                res.write(
+                  `data: ${JSON.stringify({
+                    openUrl: {
+                      url: openUrlResult.url,
+                    },
+                  })}\n\n`,
+                );
+                console.log(`[Routes][OPEN_URL] ✓ Sent URL to open: ${openUrlResult.url}`);
+              } else {
+                console.log(`[Routes][OPEN_URL] ✗ No URL in result`);
+              }
+            }
           } catch (err: any) {
             console.error(`[Routes] Tool execution error:`, err);
             results.push({

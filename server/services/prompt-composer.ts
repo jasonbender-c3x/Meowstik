@@ -38,6 +38,7 @@
 import { storage } from "../storage";
 import type { Draft, Attachment, Message } from "@shared/schema";
 import { ragService } from "./rag-service";
+import { retrievalOrchestrator } from "./retrieval-orchestrator";
 import { tavilySearch } from "../integrations/tavily";
 import * as fs from "fs";
 import * as path from "path";
@@ -310,24 +311,116 @@ You can analyze data, read and write files, search the web, and interact with Go
   }
 
   /**
-   * The primary composition method.
-   * (This is a placeholder for the full implementation that would use the system prompt)
+   * Determines if attachment content should be treated as base64-encoded.
+   * Binary content types (images, audio, video, PDFs) are base64-encoded.
+   * 
+   * @param mimeType - MIME type of the attachment
+   * @returns true if content is base64-encoded, false otherwise
+   * 
+   * @note This covers common binary types. Text-based types (text/*, application/json, etc.)
+   *       are assumed to be plain text. Extend as needed for other binary types.
    */
-  public async compose(draft: Draft, history: Message[]): Promise<ComposedPrompt> {
-    const systemPrompt = this.getSystemPrompt();
+  private isBase64Content(mimeType: string | undefined | null): boolean {
+    if (!mimeType) return false;
+    return (
+      mimeType.startsWith("image/") ||
+      mimeType.startsWith("audio/") ||
+      mimeType.startsWith("video/") ||
+      mimeType === "application/pdf" ||
+      mimeType === "application/octet-stream"
+    );
+  }
 
-    // ... rest of the compose logic would go here ...
-    
+  /**
+   * The primary composition method.
+   * Composes a complete prompt with system instructions, RAG context, and conversation history.
+   * 
+   * @param options - Composition options
+   * @param options.textContent - User's text input
+   * @param options.voiceTranscript - Optional voice transcript
+   * @param options.attachments - Optional array of file/screenshot attachments
+   * @param options.history - Optional array of previous messages for context
+   * @param options.chatId - Chat identifier
+   * @param options.userId - User identifier for RAG data isolation
+   * @returns Complete composed prompt ready for LLM processing
+   * 
+   * @note This method signature replaces the previous `compose(draft: Draft, history: Message[])`.
+   *       The new signature better matches the actual usage in routes.ts.
+   */
+  public async compose(options: {
+    textContent: string;
+    voiceTranscript?: string;
+    attachments?: Attachment[];
+    history?: Message[];
+    chatId: string;
+    userId?: string;
+  }): Promise<ComposedPrompt> {
+    // Build base system prompt from modular files
+    let systemPrompt = this.getSystemPrompt();
+
+    // Enrich system prompt with RAG context if user message exists
+    if (options.textContent && options.textContent.trim()) {
+      try {
+        // Use retrieval orchestrator to get relevant knowledge and format it
+        const enrichedPrompt = await retrievalOrchestrator.enrichPrompt(
+          options.textContent,
+          systemPrompt
+        );
+        systemPrompt = enrichedPrompt;
+      } catch (error) {
+        console.warn(`[PromptComposer] RAG enrichment failed for query "${options.textContent.slice(0, 50)}...", continuing without enrichment:`, error);
+      }
+    }
+
+    // Process attachments into composed format
+    const composedAttachments: ComposedAttachment[] = [];
+    let hasScreenshots = false;
+    let hasFileAttachments = false;
+
+    if (options.attachments && options.attachments.length > 0) {
+      for (const att of options.attachments) {
+        if (att.type === "screenshot") {
+          hasScreenshots = true;
+        } else if (att.type === "file") {
+          hasFileAttachments = true;
+        }
+
+        composedAttachments.push({
+          type: att.type as "file" | "screenshot" | "voice_transcript",
+          filename: att.filename,
+          mimeType: att.mimeType || undefined,
+          content: att.content || "",
+          isBase64: this.isBase64Content(att.mimeType),
+        });
+      }
+    }
+
+    // Build conversation history in the expected format
+    const conversationHistory: ConversationTurn[] = [];
+    if (options.history && options.history.length > 0) {
+      for (const msg of options.history) {
+        conversationHistory.push({
+          role: msg.role === "user" ? "user" : "ai",
+          content: msg.content,
+          timestamp: msg.createdAt,
+        });
+      }
+    }
+
+    // Determine user message (text or voice transcript)
+    const userMessage = options.textContent || options.voiceTranscript || "";
+    const hasVoiceInput = !!options.voiceTranscript;
+
     return {
       systemPrompt,
-      userMessage: draft.content,
-      attachments: [], // Placeholder
-      conversationHistory: [], // Placeholder
+      userMessage,
+      attachments: composedAttachments,
+      conversationHistory,
       metadata: {
-        chatId: draft.chatId,
-        hasVoiceInput: false,
-        hasFileAttachments: false,
-        hasScreenshots: false,
+        chatId: options.chatId,
+        hasVoiceInput,
+        hasFileAttachments,
+        hasScreenshots,
         composedAt: new Date(),
       },
     };

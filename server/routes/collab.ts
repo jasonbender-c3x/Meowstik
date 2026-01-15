@@ -5,7 +5,7 @@
  */
 
 import { Router } from "express";
-import { db } from "../db";
+import { db, getDb } from "../db";
 import { collaborativeSessions, sessionParticipants } from "@shared/schema";
 import { eq } from "drizzle-orm";
 import { randomUUID } from "crypto";
@@ -21,7 +21,7 @@ router.post("/sessions", async (req, res) => {
   try {
     const { filePath, title } = req.body;
 
-    const [session] = await db.insert(collaborativeSessions).values({
+    const [session] = await getDb().insert(collaborativeSessions).values({
       id: randomUUID(),
       creatorUserId: null,
       title: title || "Untitled Session",
@@ -46,7 +46,7 @@ router.post("/sessions", async (req, res) => {
  */
 router.get("/sessions", async (_req, res) => {
   try {
-    const sessions = await db.select().from(collaborativeSessions).where(eq(collaborativeSessions.isActive, true));
+    const sessions = await getDb().select().from(collaborativeSessions).where(eq(collaborativeSessions.isActive, true));
     const activeSessions = getActiveSessions();
 
     const result = sessions.map(session => {
@@ -75,12 +75,12 @@ router.get("/sessions/:sessionId", async (req, res) => {
   try {
     const { sessionId } = req.params;
 
-    const [session] = await db.select().from(collaborativeSessions).where(eq(collaborativeSessions.id, sessionId));
+    const [session] = await getDb().select().from(collaborativeSessions).where(eq(collaborativeSessions.id, sessionId));
     if (!session) {
       return res.status(404).json({ error: "Session not found" });
     }
 
-    const participants = await db.select().from(sessionParticipants).where(eq(sessionParticipants.sessionId, sessionId));
+    const participants = await getDb().select().from(sessionParticipants).where(eq(sessionParticipants.sessionId, sessionId));
 
     res.json({
       id: session.id,
@@ -111,7 +111,7 @@ router.post("/sessions/:sessionId/join", async (req, res) => {
   try {
     const { sessionId } = req.params;
 
-    const [session] = await db.select().from(collaborativeSessions).where(eq(collaborativeSessions.id, sessionId));
+    const [session] = await getDb().select().from(collaborativeSessions).where(eq(collaborativeSessions.id, sessionId));
     if (!session) {
       return res.status(404).json({ error: "Session not found" });
     }
@@ -139,7 +139,7 @@ router.delete("/sessions/:sessionId", async (req, res) => {
   try {
     const { sessionId } = req.params;
 
-    await db.update(collaborativeSessions)
+    await getDb().update(collaborativeSessions)
       .set({ isActive: false, endedAt: new Date() })
       .where(eq(collaborativeSessions.id, sessionId));
 
