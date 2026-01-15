@@ -763,13 +763,12 @@ export default function Home() {
                 // Handle tool results - check for send_chat and file_put
                 if (streamMetadata.toolResults) {
                   for (const toolResult of streamMetadata.toolResults) {
-                    // Handle send_chat tool - extract content for chat display
+                    // Handle send_chat tool - extract content for TTS
                     if (toolResult.type === 'send_chat' && toolResult.success && toolResult.result) {
                       const { content } = toolResult.result as { content: string };
-                      if (content && !aiMessageContent.includes(content)) {
-                        aiMessageContent = content;
-                      }
                       // Track clean content for browser TTS (avoid speaking raw JSON)
+                      // Note: Don't replace aiMessageContent here - send_chat content is already
+                      // streamed via text events, so replacing would overwrite say/thinking content
                       if (content) {
                         cleanContentForTTS = content;
                       }
