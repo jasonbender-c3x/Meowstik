@@ -38,6 +38,7 @@
 import { storage } from "../storage";
 import type { Draft, Attachment, Message } from "@shared/schema";
 import { ragService } from "./rag-service";
+import { retrievalOrchestrator } from "./retrieval-orchestrator";
 import { tavilySearch } from "../integrations/tavily";
 import * as fs from "fs";
 import * as path from "path";
@@ -311,23 +312,85 @@ You can analyze data, read and write files, search the web, and interact with Go
 
   /**
    * The primary composition method.
-   * (This is a placeholder for the full implementation that would use the system prompt)
+   * Composes a complete prompt with system instructions, RAG context, and conversation history.
+   * 
+   * @param options - Composition options including text content, attachments, history, etc.
+   * @returns Complete composed prompt ready for LLM processing
    */
-  public async compose(draft: Draft, history: Message[]): Promise<ComposedPrompt> {
-    const systemPrompt = this.getSystemPrompt();
+  public async compose(options: {
+    textContent: string;
+    voiceTranscript?: string;
+    attachments?: Attachment[];
+    history?: Message[];
+    chatId: string;
+    userId?: string;
+  }): Promise<ComposedPrompt> {
+    // Build base system prompt from modular files
+    let systemPrompt = this.getSystemPrompt();
 
-    // ... rest of the compose logic would go here ...
-    
+    // Enrich system prompt with RAG context if user message exists
+    if (options.textContent && options.textContent.trim()) {
+      try {
+        // Use retrieval orchestrator to get relevant knowledge and format it
+        const enrichedPrompt = await retrievalOrchestrator.enrichPrompt(
+          options.textContent,
+          systemPrompt
+        );
+        systemPrompt = enrichedPrompt;
+      } catch (error) {
+        console.warn("[PromptComposer] RAG enrichment failed, continuing without:", error);
+      }
+    }
+
+    // Process attachments into composed format
+    const composedAttachments: ComposedAttachment[] = [];
+    let hasScreenshots = false;
+    let hasFileAttachments = false;
+
+    if (options.attachments && options.attachments.length > 0) {
+      for (const att of options.attachments) {
+        if (att.type === "screenshot") {
+          hasScreenshots = true;
+        } else if (att.type === "file") {
+          hasFileAttachments = true;
+        }
+
+        composedAttachments.push({
+          type: att.type as "file" | "screenshot" | "voice_transcript",
+          filename: att.filename,
+          mimeType: att.mimeType || undefined,
+          content: att.content || "",
+          isBase64: att.mimeType?.startsWith("image/") || att.mimeType?.startsWith("audio/") || false,
+        });
+      }
+    }
+
+    // Build conversation history in the expected format
+    const conversationHistory: ConversationTurn[] = [];
+    if (options.history && options.history.length > 0) {
+      for (const msg of options.history) {
+        conversationHistory.push({
+          role: msg.role === "user" ? "user" : "ai",
+          content: msg.content,
+          timestamp: msg.createdAt,
+        });
+      }
+    }
+
+    // Determine user message (text or voice transcript)
+    const userMessage = options.textContent || options.voiceTranscript || "";
+    const hasVoiceInput = !!options.voiceTranscript;
+
     return {
       systemPrompt,
-      userMessage: draft.content,
-      attachments: [], // Placeholder
-      conversationHistory: [], // Placeholder
+      userMessage,
+      attachments: composedAttachments,
+      conversationHistory,
       metadata: {
-        chatId: draft.chatId,
-        hasVoiceInput: false,
-        hasFileAttachments: false,
-        hasScreenshots: false,
+        chatId: options.chatId,
+        hasVoiceInput,
+        hasFileAttachments,
+        hasScreenshots,
         composedAt: new Date(),
       },
     };
