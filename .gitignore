@@ -11,3 +11,4 @@ repos/
 .env
 notebooklm-output/
 test-personal-log.ts
+test-integration.ts
