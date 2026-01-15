@@ -6,8 +6,7 @@ vite.config.ts.*
 *.tar.gz 
 google-credentials.json
 attached_assets/*.json
-logs/cache.md
-logs/execution.md
 repos/
 /icons/
 .env
+notebooklm-output/

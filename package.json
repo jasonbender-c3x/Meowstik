@@ -18,7 +18,8 @@
     "test:home-dev": "tsx scripts/test-home-dev-mode.ts",
     "diagnose:tts-iam": "node scripts/diagnose-tts-iam.cjs",
     "dev:ext": "vite -c vite.config.extension.ts --mode development",
-    "build:ext": "vite build -c vite.config.extension.ts --mode production"
+    "build:ext": "vite build -c vite.config.extension.ts --mode production",
+    "prepare:notebooklm": "tsx scripts/prepare-notebooklm.ts"
   },
   "dependencies": {
     "@browserbasehq/sdk": "^2.6.0",
@@ -130,6 +131,7 @@
     "@types/node": "^20.19.0",
     "@types/passport": "^1.0.16",
     "@types/passport-local": "^1.0.38",
-    "@types/react": "^19.2.0"
+    "@types/react": "^19.2.0",
+    "tsx": "^4.21.0"
   }
 }
