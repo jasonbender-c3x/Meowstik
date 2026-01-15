@@ -2,9 +2,32 @@ import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Redirect } from "wouter";
 import logo from "@assets/generated_images/cute_cat_logo_icon.png";
+import { useEffect, useState } from "react";
 
 export default function LoginPage() {
   const { isAuthenticated, isLoading } = useAuth();
+  const [isHomeDevMode, setIsHomeDevMode] = useState(false);
+
+  // Check if HOME_DEV_MODE is enabled by checking if we can access /api/auth/user without login
+  useEffect(() => {
+    const checkHomeDevMode = async () => {
+      try {
+        const response = await fetch("/api/auth/user");
+        if (response.ok) {
+          // If we can access the user endpoint without being authenticated through normal flow,
+          // we're in home dev mode
+          setIsHomeDevMode(true);
+        }
+      } catch (error) {
+        // Normal behavior - not in home dev mode
+        setIsHomeDevMode(false);
+      }
+    };
+
+    if (!isAuthenticated && !isLoading) {
+      checkHomeDevMode();
+    }
+  }, [isAuthenticated, isLoading]);
 
   if (isLoading) {
     return (
@@ -17,7 +40,8 @@ export default function LoginPage() {
     );
   }
 
-  if (isAuthenticated) {
+  // In home dev mode, redirect immediately to home
+  if (isAuthenticated || isHomeDevMode) {
     return <Redirect to="/" />;
   }
 
