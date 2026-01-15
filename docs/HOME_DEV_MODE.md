@@ -20,7 +20,15 @@ Add the following to your `.env` file:
 HOME_DEV_MODE=true
 ```
 
-### 2. Start the Server
+### 2. (Optional) Customize Developer Email
+
+By default, the developer user email is `developer@home.local`. You can customize it:
+
+```bash
+HOME_DEV_EMAIL=your-email@example.com
+```
+
+### 3. Start the Server
 
 ```bash
 npm run dev
@@ -38,7 +46,7 @@ Navigate to `http://localhost:5000` in your browser. You will be automatically l
    ```typescript
    {
      id: "home-dev-user",
-     email: "developer@home.local",
+     email: process.env.HOME_DEV_EMAIL || "developer@home.local",
      firstName: "Developer",
      lastName: "User"
    }

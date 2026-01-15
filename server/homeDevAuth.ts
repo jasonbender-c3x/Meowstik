@@ -22,15 +22,20 @@ import { storage } from "./storage";
 import type { User } from "@shared/schema";
 
 /**
- * Default developer user for home dev mode
+ * Get the developer user configuration from environment
+ * Allows customization of the email address via HOME_DEV_EMAIL
  */
-const DEFAULT_DEV_USER = {
-  id: "home-dev-user",
-  email: "developer@home.local",
-  firstName: "Developer",
-  lastName: "User",
-  profileImageUrl: null,
-};
+function getDevUserConfig() {
+  const email = process.env.HOME_DEV_EMAIL || "developer@home.local";
+  
+  return {
+    id: "home-dev-user",
+    email,
+    firstName: "Developer",
+    lastName: "User",
+    profileImageUrl: null,
+  };
+}
 
 /**
  * Check if home dev mode is enabled
@@ -52,8 +57,9 @@ export async function initializeHomeDevMode(): Promise<void> {
 
   try {
     // Ensure the default developer user exists in the database
-    await storage.upsertUser(DEFAULT_DEV_USER);
-    console.log("✅ [Home Dev Mode] Default developer user initialized");
+    const devUser = getDevUserConfig();
+    await storage.upsertUser(devUser);
+    console.log(`✅ [Home Dev Mode] Default developer user initialized: ${devUser.email}`);
   } catch (error) {
     console.error("❌ [Home Dev Mode] Failed to initialize developer user:", error);
   }
@@ -67,12 +73,13 @@ export async function getHomeDevUser(): Promise<User> {
     throw new Error("Home dev mode is not enabled");
   }
 
-  const user = await storage.getUser(DEFAULT_DEV_USER.id);
+  const devUser = getDevUserConfig();
+  const user = await storage.getUser(devUser.id);
   
   if (!user) {
     // If user doesn't exist, create it
-    await storage.upsertUser(DEFAULT_DEV_USER);
-    const newUser = await storage.getUser(DEFAULT_DEV_USER.id);
+    await storage.upsertUser(devUser);
+    const newUser = await storage.getUser(devUser.id);
     if (!newUser) {
       throw new Error("Failed to create home dev user");
     }
@@ -87,13 +94,15 @@ export async function getHomeDevUser(): Promise<User> {
  * This mimics the structure expected by the Replit auth flow
  */
 export function createHomeDevSession() {
+  const devUser = getDevUserConfig();
+  
   return {
     claims: {
-      sub: DEFAULT_DEV_USER.id,
-      email: DEFAULT_DEV_USER.email,
-      first_name: DEFAULT_DEV_USER.firstName,
-      last_name: DEFAULT_DEV_USER.lastName,
-      profile_image_url: DEFAULT_DEV_USER.profileImageUrl,
+      sub: devUser.id,
+      email: devUser.email,
+      first_name: devUser.firstName,
+      last_name: devUser.lastName,
+      profile_image_url: devUser.profileImageUrl,
       exp: Math.floor(Date.now() / 1000) + (365 * 24 * 60 * 60), // Expires in 1 year
     },
     access_token: "home-dev-token",
