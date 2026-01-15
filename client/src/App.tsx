@@ -92,7 +92,6 @@ import PythonSandboxPage from "@/pages/python-sandbox";
 import WebSearchPage from "@/pages/web-search";
 import KnowledgeIngestionPage from "@/pages/knowledge-ingestion";
 import MarkdownPlaygroundPage from "@/pages/markdown-playground";
-import EvolutionPage from "@/pages/evolution";
 import TaskQueuePage from "@/pages/task-queue";
 import SchedulesPage from "@/pages/schedules";
 import BrowserPage from "@/pages/browser";
@@ -215,10 +214,6 @@ function Router() {
 
       <Route path="/markdown">
         {() => <ProtectedRoute><MarkdownPlaygroundPage /></ProtectedRoute>}
-      </Route>
-      
-      <Route path="/evolution">
-        {() => <ProtectedRoute><EvolutionPage /></ProtectedRoute>}
       </Route>
       
       <Route path="/queue">

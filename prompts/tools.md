@@ -227,6 +227,25 @@ Use these tools for direct HTTP requests to APIs, webhooks, and web services. Th
 | `github_pr_create` | `owner`, `repo`, `title`, `body?`, `head`, `base` | Create PR |
 | `github_pr_merge` | `owner`, `repo`, `pullNumber`, `commitTitle?`, `commitMessage?`, `mergeMethod?` | Merge PR (merge/squash/rebase) |
 | `github_pr_review_request` | `owner`, `repo`, `pullNumber`, `reviewers`, `teamReviewers?` | Request reviewers |
+| `github_issue_comment` | `owner`, `repo`, `issueNumber`, `body` | Add comment to issue or PR |
+
+**Important: When creating PRs for complex problems:**
+
+After creating a PR with `github_pr_create`, you **must** use `github_issue_comment` to add a detailed comment tagging @copilot:
+
+```json
+{
+  "type": "github_issue_comment",
+  "parameters": {
+    "owner": "username",
+    "repo": "repository",
+    "issueNumber": 123,
+    "body": "@copilot Please produce a highly detailed, graphical, meta analysis of the problem, and your ideas on how to resolve it, then produce a step by step implementation plan, we discuss and iterate, then you code"
+  }
+}
+```
+
+This triggers GitHub Copilot's implementation workflow with proper context and collaboration.
 
 ### Branch & Commit Operations
 | Tool | Parameters | Description |

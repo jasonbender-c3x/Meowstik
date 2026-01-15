@@ -714,23 +714,6 @@ export function Sidebar({ isOpen, setIsOpen, onNewChat, chats, currentChatId, on
                   </Button>
                 </Link>
 
-                {/* Evolution Engine Button */}
-                <Link href="/evolution">
-                  <Button 
-                    variant="ghost" 
-                    className={cn(
-                      "font-normal text-muted-foreground hover:text-foreground",
-                      effectiveCollapsed ? "w-12 h-9 p-0 justify-center" : "w-full justify-start gap-3",
-                      location === "/evolution" && "bg-secondary/50 text-foreground"
-                    )}
-                    title={effectiveCollapsed ? "Evolution Engine" : undefined}
-                    data-testid="button-evolution"
-                  >
-                    <RefreshCw className="h-4 w-4" />
-                    {!effectiveCollapsed && "Evolution Engine"}
-                  </Button>
-                </Link>
-
                 {/* Task Queue Button */}
                 <Link href="/queue">
                   <Button 

@@ -62,20 +62,13 @@ import { EnhancedMarkdown } from "@/components/ui/enhanced-markdown";
 
 /**
  * Lucide Icons for action buttons
- * - Copy: Copy message to clipboard
- * - RefreshCw: Regenerate response
  * - File/FileCode: File operation indicators
  * - Wrench: Tool execution indicator
  * - CheckCircle/XCircle: Success/error status
  */
-import { Copy, RefreshCw, File, FileCode, Wrench, CheckCircle2, XCircle, Loader2, Terminal, Mail, Calendar, Brain, ChevronDown, ChevronRight } from "lucide-react";
+import { File, FileCode, Wrench, CheckCircle2, XCircle, Loader2, Terminal, Mail, Calendar, Brain, ChevronDown, ChevronRight } from "lucide-react";
 
 import { useState } from "react";
-
-/**
- * FeedbackPanel - Expandable feedback component for AI responses
- */
-import { FeedbackPanel } from "@/components/ui/feedback-panel";
 
 /**
  * Button component from shadcn/ui
@@ -625,37 +618,6 @@ export function ChatMessage({ role, content, isThinking, metadata, createdAt, id
                   {metadata.autoexecResult.output || "(no output)"}
                 </pre>
               </div>
-            </div>
-          </div>
-        )}
-
-        {/* 
-         * Action Buttons (AI messages only, not during thinking)
-         * Provides interaction options for the AI response
-         * All 4 icons in a single row: Copy, Regenerate, ThumbsUp, ThumbsDown
-         */}
-        {role === "ai" && !isThinking && (
-          <div className="mt-4 pt-2">
-            <div className="flex items-center gap-2">
-              {/* Copy to Clipboard Button */}
-              <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground">
-                <Copy className="h-4 w-4" />
-              </Button>
-              
-              {/* Regenerate Response Button */}
-              <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground">
-                <RefreshCw className="h-4 w-4" />
-              </Button>
-              
-              {/* Feedback Panel - Inline thumbs up/down */}
-              {id && (
-                <FeedbackPanel 
-                  messageId={id}
-                  chatId={chatId}
-                  promptSnapshot={promptSnapshot}
-                  responseSnapshot={content}
-                />
-              )}
             </div>
           </div>
         )}
