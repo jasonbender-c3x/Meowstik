@@ -213,6 +213,54 @@ export class IngestionPipeline {
       return { text: '', entities: [], bucket: 'PERSONAL_LIFE', confidence: 50 };
     }
 
+    // Special handling for personal log entries
+    const isPersonalLog = item.sourceType === 'personal_log' || 
+                          (item.title && item.title.includes('Personal Reflection'));
+    
+    if (isPersonalLog) {
+      // Personal log entries always go to PERSONAL_LIFE bucket
+      try {
+        const prompt = `Extract entities from this personal reflection/log entry.
+
+Content:
+"""
+${text.slice(0, 8000)}
+"""
+
+Respond with JSON only:
+{
+  "summary": "2-3 sentence summary of the reflection",
+  "entities": [
+    {"name": "Entity Name", "type": "person|place|organization|concept|project|technology", "context": "brief context"}
+  ]
+}`;
+
+        const result = await genAI.models.generateContent({
+          model: 'gemini-2.0-flash-lite',
+          contents: prompt,
+        });
+        const responseText = result.text || '';
+        
+        const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+        if (!jsonMatch) {
+          return { text, entities: [], bucket: 'PERSONAL_LIFE', confidence: 100 };
+        }
+        
+        const parsed = JSON.parse(jsonMatch[0]);
+        
+        return {
+          text,
+          summary: parsed.summary,
+          bucket: 'PERSONAL_LIFE',
+          confidence: 100,
+          entities: parsed.entities || [],
+        };
+      } catch (error) {
+        console.error('AI extraction failed for personal log:', error);
+        return { text, entities: [], bucket: 'PERSONAL_LIFE', confidence: 100 };
+      }
+    }
+
     try {
       const prompt = `Analyze this content and extract structured information.
 
@@ -232,7 +280,7 @@ Respond with JSON only:
 }
 
 Bucket definitions:
-- PERSONAL_LIFE: Personal relationships, health, finances, daily life
+- PERSONAL_LIFE: Personal relationships, health, finances, daily life, personal reflections, feelings, emotions
 - CREATOR: Creative work, design, coding, scientific research
 - PROJECTS: Specific project work, tasks, deadlines`;
 
