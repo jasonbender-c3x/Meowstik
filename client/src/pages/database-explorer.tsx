@@ -36,7 +36,8 @@ import {
   Copy,
   ExternalLink,
   FileJson,
-  FileCode
+  FileCode,
+  Terminal
 } from "lucide-react";
 import { Link } from "wouter";
 import { cn } from "@/lib/utils";
@@ -575,16 +576,22 @@ export default function DatabaseExplorerPage() {
               <ArrowLeft className="h-4 w-4" />
             </Button>
           </Link>
-          <h1 className="text-xl font-semibold flex items-center gap-2">
-            <Database className="h-5 w-5 text-primary" />
-            Database Explorer
-          </h1>
-          <div className="ml-auto flex items-center gap-2">
+          <div className="flex-1">
+            <h1 className="text-xl font-semibold flex items-center gap-2">
+              <Database className="h-5 w-5 text-primary" />
+              Database Explorer
+            </h1>
+            <p className="text-sm text-muted-foreground">
+              Manage your PostgreSQL database • Export, import, and browse tables
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
             <Button
               variant="outline"
               size="sm"
               onClick={() => setShowImportDialog(true)}
               data-testid="button-import"
+              className="hidden sm:flex"
             >
               <Upload className="h-4 w-4 mr-2" />
               Import
@@ -605,6 +612,7 @@ export default function DatabaseExplorerPage() {
               disabled={isExporting}
               title="Export schema only (no data)"
               data-testid="button-export-schema"
+              className="hidden md:flex"
             >
               {isExporting ? (
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -632,46 +640,78 @@ export default function DatabaseExplorerPage() {
 
       <div className="flex flex-1 overflow-hidden">
         <aside className="w-64 border-r bg-muted/20 p-4 flex-shrink-0 overflow-auto">
-          <h2 className="font-semibold mb-3 text-sm text-muted-foreground uppercase tracking-wider">
-            Tables
-          </h2>
+          <div className="mb-4">
+            <h2 className="font-semibold mb-1 text-sm text-muted-foreground uppercase tracking-wider">
+              Tables
+            </h2>
+            <p className="text-xs text-muted-foreground mb-3">
+              {tables.length} {tables.length === 1 ? 'table' : 'tables'} • Click to browse
+            </p>
+          </div>
           <div className="space-y-1">
-            {tables.map((table) => (
-              <button
-                key={table.name}
-                onClick={() => handleSelectTable(table)}
-                className={cn(
-                  "w-full text-left px-3 py-2 rounded-md transition-colors flex items-center justify-between group",
-                  selectedTable?.name === table.name
-                    ? "bg-primary text-primary-foreground"
-                    : "hover:bg-muted"
-                )}
-                data-testid={`button-table-${table.name}`}
-              >
-                <span className="flex items-center gap-2">
-                  <Table2 className="h-4 w-4" />
-                  <span className="text-sm font-medium">{table.name}</span>
-                </span>
-                <Badge
-                  variant={selectedTable?.name === table.name ? "secondary" : "outline"}
-                  className="text-xs"
+            {tables.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <Database className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                <p className="text-xs">No tables found</p>
+              </div>
+            ) : (
+              tables.map((table) => (
+                <button
+                  key={table.name}
+                  onClick={() => handleSelectTable(table)}
+                  className={cn(
+                    "w-full text-left px-3 py-2 rounded-md transition-colors flex items-center justify-between group",
+                    selectedTable?.name === table.name
+                      ? "bg-primary text-primary-foreground"
+                      : "hover:bg-muted"
+                  )}
+                  data-testid={`button-table-${table.name}`}
                 >
-                  {table.rowCount}
-                </Badge>
-              </button>
-            ))}
+                  <span className="flex items-center gap-2 min-w-0 flex-1">
+                    <Table2 className="h-4 w-4 flex-shrink-0" />
+                    <span className="text-sm font-medium truncate">{table.name}</span>
+                  </span>
+                  <Badge
+                    variant={selectedTable?.name === table.name ? "secondary" : "outline"}
+                    className="text-xs ml-2 flex-shrink-0"
+                  >
+                    {table.rowCount.toLocaleString()}
+                  </Badge>
+                </button>
+              ))
+            )}
           </div>
         </aside>
 
         <main className="flex-1 flex flex-col overflow-hidden">
           {!selectedTable ? (
             <div className="flex-1 flex items-center justify-center">
-              <div className="text-center">
-                <Database className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
+              <div className="text-center max-w-md px-4">
+                <Database className="h-16 w-16 text-muted-foreground mx-auto mb-4 opacity-50" />
                 <h2 className="text-xl font-semibold mb-2">Select a Table</h2>
-                <p className="text-muted-foreground">
-                  Choose a table from the sidebar to view its records
+                <p className="text-muted-foreground mb-6">
+                  Choose a table from the sidebar to view and manage its records
                 </p>
+                <div className="bg-muted/50 rounded-lg p-4 text-left">
+                  <h3 className="font-medium mb-2 flex items-center gap-2">
+                    <FileText className="h-4 w-4 text-primary" />
+                    Quick Actions
+                  </h3>
+                  <ul className="text-sm text-muted-foreground space-y-2">
+                    <li className="flex items-start gap-2">
+                      <Download className="h-4 w-4 mt-0.5 text-primary flex-shrink-0" />
+                      <span><strong>Export:</strong> Download your database as SQL file</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <FileCode className="h-4 w-4 mt-0.5 text-primary flex-shrink-0" />
+                      <span><strong>Schema:</strong> Export table structures only</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <Upload className="h-4 w-4 mt-0.5 text-primary flex-shrink-0" />
+                      <span><strong>Import:</strong> Restore from backup file</span>
+                    </li>
+                  </ul>
+                </div>
               </div>
             </div>
           ) : (
@@ -1093,9 +1133,25 @@ export default function DatabaseExplorerPage() {
           </DialogHeader>
 
           <div className="space-y-4 py-4">
+            <div className="bg-blue-500/10 border border-blue-500/30 rounded-md p-4">
+              <p className="font-medium mb-2 flex items-center gap-2 text-blue-600 dark:text-blue-400">
+                <Terminal className="h-4 w-4" />
+                Recommended: Use CLI
+              </p>
+              <p className="text-sm text-muted-foreground mb-3">
+                For best results, use the command line interface:
+              </p>
+              <div className="bg-[#1e1e1e] rounded-md p-3 font-mono text-xs text-[#d4d4d4] overflow-x-auto">
+                <div className="mb-2">
+                  <span className="text-[#9cdcfe]">npm run</span> db:import -- \<br/>
+                  <span className="ml-4">--file=</span><span className="text-[#ce9178]">path/to/backup.sql</span>
+                </div>
+              </div>
+            </div>
+
             <div className="space-y-2">
               <Label htmlFor="import-file" className="text-sm font-medium">
-                Select SQL File
+                Or Select SQL File (Web Upload - Requires Multer)
               </Label>
               <Input
                 id="import-file"
@@ -1126,22 +1182,25 @@ export default function DatabaseExplorerPage() {
             )}
 
             {importError && (
-              <div className="bg-destructive/10 border border-destructive/30 rounded-md p-3 flex items-start gap-2 text-destructive">
-                <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
-                <div className="text-sm">
-                  <p className="font-medium">Import failed</p>
-                  <p className="mt-1">{importError}</p>
+              <div className="bg-amber-500/10 border border-amber-500/30 rounded-md p-3 text-amber-600 dark:text-amber-400">
+                <div className="flex items-start gap-2">
+                  <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                  <div className="text-sm space-y-2">
+                    <p className="font-medium">Web upload not configured</p>
+                    <p className="text-xs">Use the CLI command above for reliable imports.</p>
+                    <p className="text-xs">To enable web uploads, install multer: <code className="bg-[#1e1e1e] px-1 py-0.5 rounded">npm install multer @types/multer</code></p>
+                  </div>
                 </div>
               </div>
             )}
 
-            <div className="bg-blue-500/10 border border-blue-500/30 rounded-md p-3 text-sm text-blue-600 dark:text-blue-400">
+            <div className="bg-muted/50 border rounded-md p-3 text-xs text-muted-foreground">
               <p className="font-medium mb-1">⚠️ Important Notes:</p>
-              <ul className="list-disc list-inside space-y-1 text-xs">
+              <ul className="list-disc list-inside space-y-1">
                 <li>This will import data into the current database</li>
                 <li>Existing data may be preserved (uses ON CONFLICT handling)</li>
-                <li>Large files may take several minutes to import</li>
-                <li>Make sure you have a backup before importing</li>
+                <li>Large files may take several minutes</li>
+                <li>Always backup before importing</li>
               </ul>
             </div>
           </div>
@@ -1160,7 +1219,7 @@ export default function DatabaseExplorerPage() {
               }}
               disabled={isImporting}
             >
-              Cancel
+              Close
             </Button>
             <Button
               onClick={handleImport}
@@ -1175,7 +1234,7 @@ export default function DatabaseExplorerPage() {
               ) : (
                 <>
                   <Upload className="h-4 w-4 mr-2" />
-                  Import
+                  Try Import
                 </>
               )}
             </Button>
