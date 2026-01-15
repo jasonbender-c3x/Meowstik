@@ -365,16 +365,20 @@ Bucket definitions:
     // CRITICAL: Filter by userId at database level for efficiency and security
     if (userId !== undefined) {
       const targetUserId = userId || null;
-      queryBuilder = queryBuilder.where(
-        or(
-          eq(knowledgeEmbeddings.userId, targetUserId),
-          // Handle case where guest data might have GUEST_USER_ID or null
-          and(
-            targetUserId === null ? isNull(knowledgeEmbeddings.userId) : sql`false`,
-            or(isNull(knowledgeEmbeddings.userId), eq(knowledgeEmbeddings.userId, GUEST_USER_ID))
+      if (targetUserId === null) {
+        // Guest users: match null or GUEST_USER_ID
+        queryBuilder = queryBuilder.where(
+          or(
+            isNull(knowledgeEmbeddings.userId),
+            eq(knowledgeEmbeddings.userId, GUEST_USER_ID)
           )
-        )
-      );
+        );
+      } else {
+        // Authenticated users: exact match only
+        queryBuilder = queryBuilder.where(
+          eq(knowledgeEmbeddings.userId, targetUserId)
+        );
+      }
     }
     
     let allEmbeddings = await queryBuilder;
