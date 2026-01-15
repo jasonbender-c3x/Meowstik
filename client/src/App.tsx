@@ -110,6 +110,7 @@ import LandingPage from "@/pages/landing";
 import InstallPage from "@/pages/install";
 import RagDebugPage from "@/pages/rag-debug";
 import LoginPage from "@/pages/login";
+import AudioSettingsPage from "@/pages/audio-settings";
 
 import { TTSProvider } from "@/contexts/tts-context";
 import { ProtectedRoute } from "@/components/protected-route";
@@ -197,6 +198,10 @@ function Router() {
       
       <Route path="/settings">
         {() => <ProtectedRoute><SettingsPage /></ProtectedRoute>}
+      </Route>
+      
+      <Route path="/audio">
+        {() => <ProtectedRoute><AudioSettingsPage /></ProtectedRoute>}
       </Route>
       
       <Route path="/python">

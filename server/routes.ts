@@ -741,6 +741,29 @@ The user has voice output enabled. You MUST use the \`say\` tool to speak your r
       let parsedResponse: { toolCalls?: ToolCall[] } | null = null;
       
       for await (const chunk of result) {
+        // FIX: Explicitly capture "Thinking" content from Gemini 2.0 Flash Thinking
+        // Check for thought parts in the chunk candidates
+        let thoughtText = "";
+        if (chunk.candidates?.[0]?.content?.parts) {
+          for (const part of chunk.candidates[0].content.parts) {
+            // Check for 'thought' property (Gemini 2.0 Flash Thinking)
+            // @ts-ignore - 'thought' might not be in the type definition yet
+            if (part.thought) { 
+              thoughtText += part.thought; 
+            }
+          }
+        }
+
+        // If we have thought text, wrap it so it persists in storage
+        if (thoughtText) {
+          const thoughtChunk = `<thinking>${thoughtText}</thinking>\n\n`;
+          fullResponse += thoughtChunk;
+          cleanContentForStorage += thoughtChunk; // CRITICAL FIX: Add to storage!
+          
+          // Stream it to the client immediately
+          res.write(`data: ${JSON.stringify({ text: thoughtChunk })}\n\n`);
+        }
+
         // Capture any text content (rare with function calling mode)
         const text = chunk.text || "";
         if (text) {
