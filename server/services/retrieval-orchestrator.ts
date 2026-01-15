@@ -1,6 +1,6 @@
 import { storage } from '../storage';
 import { evidence, entities, entityMentions, knowledgeEmbeddings, crossReferences, Evidence, Entity } from '@shared/schema';
-import { eq, sql, ilike, desc, or } from 'drizzle-orm';
+import { eq, sql, ilike, desc, or, and, isNull } from 'drizzle-orm';
 import { ingestionPipeline, KnowledgeBucket } from './ingestion-pipeline';
 import { EmbeddingService } from './embedding-service';
 
@@ -109,23 +109,31 @@ export class RetrievalOrchestrator {
     const results: RetrievedItem[] = [];
 
     for (const keyword of keywords.slice(0, 3)) {
-      let matches = await getDb().select()
-        .from(evidence)
-        .where(
-          or(
-            ilike(evidence.title, `%${keyword}%`),
-            ilike(evidence.extractedText, `%${keyword}%`),
-            ilike(evidence.summary, `%${keyword}%`)
-          )
+      // Build query with userId filter at database level
+      let queryConditions: any[] = [
+        or(
+          ilike(evidence.title, `%${keyword}%`),
+          ilike(evidence.extractedText, `%${keyword}%`),
+          ilike(evidence.summary, `%${keyword}%`)
         )
-        .limit(limit * 2);
+      ];
 
-      // CRITICAL: Filter by userId for data isolation
+      // CRITICAL: Add userId filter at database level
       if (userId !== undefined) {
         const targetUserId = userId || null;
-        matches = matches.filter(m => m.userId === targetUserId);
+        if (targetUserId === null) {
+          queryConditions.push(isNull(evidence.userId));
+        } else {
+          queryConditions.push(eq(evidence.userId, targetUserId));
+        }
       }
 
+      let matches = await getDb().select()
+        .from(evidence)
+        .where(and(...queryConditions))
+        .limit(limit * 2);
+
+      // In-memory filter for buckets (no index yet)
       if (buckets && buckets.length > 0) {
         matches = matches.filter(m => m.bucket && buckets.includes(m.bucket as KnowledgeBucket));
       }

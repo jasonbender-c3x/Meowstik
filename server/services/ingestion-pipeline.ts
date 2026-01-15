@@ -1,6 +1,6 @@
 import { storage } from '../storage';
-import { evidence, entities, entityMentions, knowledgeEmbeddings, Evidence, Entity } from '@shared/schema';
-import { eq, sql, and, ilike } from 'drizzle-orm';
+import { evidence, entities, entityMentions, knowledgeEmbeddings, Evidence, Entity, GUEST_USER_ID } from '@shared/schema';
+import { eq, sql, and, ilike, or, isNull } from 'drizzle-orm';
 import { GoogleGenAI } from '@google/genai';
 import { EmbeddingService } from './embedding-service';
 
@@ -46,7 +46,7 @@ export class IngestionPipeline {
   async ingestText(envelope: EvidenceEnvelope): Promise<Evidence> {
     const wordCount = envelope.extractedText?.split(/\s+/).length || 0;
     const userId = envelope.userId || null;
-    const isGuest = !userId;
+    const isGuest = !userId || userId === GUEST_USER_ID; // Handle both null and GUEST_USER_ID
     
     const [result] = await getDb().insert(evidence).values({
       sourceType: envelope.sourceType,
@@ -359,15 +359,27 @@ Bucket definitions:
     
     const queryEmbedding = await embeddingService.embed(query);
     
-    let allEmbeddings = await getDb().select()
-      .from(knowledgeEmbeddings);
+    // Build database query with userId filter at query level (not in-memory)
+    let queryBuilder = getDb().select().from(knowledgeEmbeddings);
     
-    // CRITICAL: Filter by userId for data isolation
+    // CRITICAL: Filter by userId at database level for efficiency and security
     if (userId !== undefined) {
       const targetUserId = userId || null;
-      allEmbeddings = allEmbeddings.filter((e) => e.userId === targetUserId);
+      queryBuilder = queryBuilder.where(
+        or(
+          eq(knowledgeEmbeddings.userId, targetUserId),
+          // Handle case where guest data might have GUEST_USER_ID or null
+          and(
+            targetUserId === null ? isNull(knowledgeEmbeddings.userId) : sql`false`,
+            or(isNull(knowledgeEmbeddings.userId), eq(knowledgeEmbeddings.userId, GUEST_USER_ID))
+          )
+        )
+      );
     }
     
+    let allEmbeddings = await queryBuilder;
+    
+    // Additional in-memory filters for bucket and modality (these don't have indexes yet)
     if (bucket) {
       allEmbeddings = allEmbeddings.filter((e) => e.bucket === bucket);
     }
