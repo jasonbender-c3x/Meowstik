@@ -18,6 +18,82 @@ const execAsync = promisify(exec);
 // Active SSH connections indexed by host alias
 const activeConnections = new Map<string, NodeSSH>();
 
+// =============================================================================
+// ERROR CLASSIFICATION HELPERS
+// =============================================================================
+
+/**
+ * Classify SSH-related errors and provide user-friendly error messages
+ */
+function classifyError(error: any, context: 'keygen' | 'connection' | 'execution'): string {
+  const errorMsg = error.message || String(error);
+  const lowerMsg = errorMsg.toLowerCase();
+
+  // Permission denied errors (check before command not found)
+  if (lowerMsg.includes('permission denied') || lowerMsg.includes('eacces')) {
+    if (context === 'keygen') {
+      return 'Permission denied while generating SSH key. Check file system permissions for the temporary directory or try running with appropriate permissions.';
+    }
+    if (context === 'connection') {
+      return 'Authentication failed: Permission denied. Please verify:\n  • The SSH key or password is correct\n  • The public key is added to the server\'s ~/.ssh/authorized_keys\n  • The username is correct\n  • The server allows key-based or password authentication';
+    }
+    return 'Permission denied. Check that you have appropriate access rights.';
+  }
+
+  // Command not found errors
+  if (lowerMsg.includes('command not found') || lowerMsg.includes('enoent')) {
+    if (context === 'keygen') {
+      return 'SSH tool not available on this system. The ssh-keygen command is required but was not found. Try using Replit Deployments instead, or ensure OpenSSH tools are installed.';
+    }
+    return 'SSH command not found. Ensure SSH tools are properly installed on the system.';
+  }
+
+  // Connection refused errors
+  if (lowerMsg.includes('connection refused') || lowerMsg.includes('econnrefused')) {
+    return 'Connection refused: Cannot connect to the server. Please verify:\n  • The hostname or IP address is correct\n  • The port number is correct (default: 22)\n  • The SSH server is running on the remote host\n  • Firewall rules allow connections on the SSH port';
+  }
+
+  // Timeout errors
+  if (lowerMsg.includes('timeout') || lowerMsg.includes('timed out') || lowerMsg.includes('etimedout')) {
+    return 'Connection timeout: The server did not respond in time. Please check:\n  • Network connectivity to the server\n  • The hostname resolves correctly\n  • Firewall rules are not blocking the connection\n  • The server is online and responsive';
+  }
+
+  // Host not found / DNS errors
+  if (lowerMsg.includes('getaddrinfo') || lowerMsg.includes('enotfound') || lowerMsg.includes('host not found')) {
+    return 'Host not found: Cannot resolve the hostname. Please verify:\n  • The hostname or IP address is spelled correctly\n  • DNS is configured properly\n  • The host exists and is reachable';
+  }
+
+  // Key format errors
+  if ((lowerMsg.includes('ssh key') || lowerMsg.includes('private key') || lowerMsg.includes('public key')) && 
+      (lowerMsg.includes('invalid') || lowerMsg.includes('format') || lowerMsg.includes('corrupt'))) {
+    return 'Invalid SSH key format. Please ensure:\n  • The private key is properly formatted\n  • The key is not corrupted\n  • The key matches the expected type (e.g., ed25519, RSA)\n  • The key is stored correctly in Replit Secrets';
+  }
+
+  // Authentication errors (general)
+  if (lowerMsg.includes('authentication failed') || lowerMsg.includes('auth failed') || 
+      lowerMsg.includes('authentication error')) {
+    return 'Authentication failed. Please verify:\n  • Your credentials (SSH key or password) are correct\n  • The authentication method is supported by the server\n  • The key is properly configured in Replit Secrets';
+  }
+
+  // Network errors
+  if (lowerMsg.includes('enetunreach') || lowerMsg.includes('network unreachable')) {
+    return 'Network unreachable: Cannot reach the destination network. Check your network configuration and routing.';
+  }
+
+  // Default: return a more contextualized error
+  if (context === 'keygen') {
+    return `Failed to generate SSH key: ${errorMsg}`;
+  }
+  if (context === 'connection') {
+    return `SSH connection failed: ${errorMsg}\n\nIf the problem persists, verify your network connection and server configuration.`;
+  }
+  if (context === 'execution') {
+    return `Command execution failed: ${errorMsg}`;
+  }
+
+  return errorMsg;
+}
+
 // Event listeners for terminal output (WebSocket broadcasts)
 type OutputListener = (data: { type: 'stdout' | 'stderr' | 'system' | 'command'; content: string; source: string }) => void;
 const outputListeners = new Set<OutputListener>();
@@ -68,7 +144,8 @@ export async function generateSshKey(name: string, comment?: string): Promise<Ke
   } catch (error) {
     // Cleanup on error
     fs.rmSync(tmpDir, { recursive: true, force: true });
-    throw new Error(`Failed to generate SSH key: ${error}`);
+    const userMessage = classifyError(error, 'keygen');
+    throw new Error(userMessage);
   }
   
   // Read generated keys
@@ -238,16 +315,16 @@ export async function connectSsh(alias: string): Promise<{ success: boolean; mes
     
     return { success: true, message: `Connected to ${alias}` };
   } catch (error: any) {
-    const errorMsg = error.message || String(error);
+    const userMessage = classifyError(error, 'connection');
     
     // Update error in database
     await getDb().update(sshHosts)
-      .set({ lastError: errorMsg })
+      .set({ lastError: userMessage })
       .where(eq(sshHosts.alias, alias));
     
-    broadcastOutput('stderr', `❌ Failed to connect to ${alias}: ${errorMsg}`, 'ssh');
+    broadcastOutput('stderr', `❌ Failed to connect to ${alias}: ${userMessage}`, 'ssh');
     
-    throw new Error(`SSH connection failed: ${errorMsg}`);
+    throw new Error(userMessage);
   }
 }
 
@@ -321,8 +398,9 @@ export async function executeSshCommand(alias: string, command: string): Promise
       host: alias,
     };
   } catch (error: any) {
-    broadcastOutput('stderr', `Error: ${error.message}`, alias);
-    throw error;
+    const userMessage = classifyError(error, 'execution');
+    broadcastOutput('stderr', `Error: ${userMessage}`, alias);
+    throw new Error(userMessage);
   }
 }
 

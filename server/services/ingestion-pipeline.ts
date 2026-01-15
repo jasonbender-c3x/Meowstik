@@ -1,6 +1,6 @@
 import { storage } from '../storage';
-import { evidence, entities, entityMentions, knowledgeEmbeddings, Evidence, Entity } from '@shared/schema';
-import { eq, sql, and, ilike } from 'drizzle-orm';
+import { evidence, entities, entityMentions, knowledgeEmbeddings, Evidence, Entity, GUEST_USER_ID } from '@shared/schema';
+import { eq, sql, and, ilike, or, isNull } from 'drizzle-orm';
 import { GoogleGenAI } from '@google/genai';
 import { EmbeddingService } from './embedding-service';
 
@@ -27,6 +27,7 @@ export interface EvidenceEnvelope {
   author?: string;
   participants?: string[];
   contentDate?: Date;
+  userId?: string | null; // User ID for data isolation
 }
 
 export interface ExtractionResult {
@@ -44,6 +45,8 @@ export interface ExtractionResult {
 export class IngestionPipeline {
   async ingestText(envelope: EvidenceEnvelope): Promise<Evidence> {
     const wordCount = envelope.extractedText?.split(/\s+/).length || 0;
+    const userId = envelope.userId || null;
+    const isGuest = !userId || userId === GUEST_USER_ID; // Handle both null and GUEST_USER_ID
     
     const [result] = await getDb().insert(evidence).values({
       sourceType: envelope.sourceType,
@@ -59,6 +62,8 @@ export class IngestionPipeline {
       contentDate: envelope.contentDate,
       wordCount,
       status: 'pending',
+      userId,
+      isGuest,
     }).returning();
     
     return result;
@@ -330,6 +335,8 @@ Bucket definitions:
         bucket: evidenceItem.bucket,
         modality: evidenceItem.modality,
         sourceType: evidenceItem.sourceType,
+        userId: evidenceItem.userId,
+        isGuest: evidenceItem.isGuest,
       });
       
       console.log(`Generated embedding for evidence ${evidenceId}`);
@@ -345,15 +352,38 @@ Bucket definitions:
       modality?: string;
       limit?: number;
       threshold?: number;
+      userId?: string | null; // CRITICAL: Add userId for data isolation
     } = {}
   ): Promise<Array<{ evidenceId: string; content: string; score: number }>> {
-    const { limit = 10, threshold = 0.5, bucket, modality } = options;
+    const { limit = 10, threshold = 0.5, bucket, modality, userId } = options;
     
     const queryEmbedding = await embeddingService.embed(query);
     
-    let allEmbeddings = await getDb().select()
-      .from(knowledgeEmbeddings);
+    // Build database query with userId filter at query level (not in-memory)
+    let queryBuilder = getDb().select().from(knowledgeEmbeddings);
     
+    // CRITICAL: Filter by userId at database level for efficiency and security
+    if (userId !== undefined) {
+      const targetUserId = userId || null;
+      if (targetUserId === null) {
+        // Guest users: match null or GUEST_USER_ID
+        queryBuilder = queryBuilder.where(
+          or(
+            isNull(knowledgeEmbeddings.userId),
+            eq(knowledgeEmbeddings.userId, GUEST_USER_ID)
+          )
+        );
+      } else {
+        // Authenticated users: exact match only
+        queryBuilder = queryBuilder.where(
+          eq(knowledgeEmbeddings.userId, targetUserId)
+        );
+      }
+    }
+    
+    let allEmbeddings = await queryBuilder;
+    
+    // Additional in-memory filters for bucket and modality (these don't have indexes yet)
     if (bucket) {
       allEmbeddings = allEmbeddings.filter((e) => e.bucket === bucket);
     }
