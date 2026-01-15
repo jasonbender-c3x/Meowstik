@@ -22,8 +22,8 @@
  * Configuration for different vector store backends
  */
 export interface VectorStoreConfig {
-  /** Which backend to use: 'pgvector' | 'vertex' | 'memory' | 'pinecone' */
-  backend: 'pgvector' | 'vertex' | 'memory' | 'pinecone';
+  /** Which backend to use: 'pgvector' | 'vertex' | 'hybrid' | 'memory' | 'pinecone' */
+  backend: 'pgvector' | 'vertex' | 'hybrid' | 'memory' | 'pinecone';
   
   /** Database connection string (for pgvector) */
   databaseUrl?: string;
@@ -36,6 +36,9 @@ export interface VectorStoreConfig {
   
   /** Vertex AI RAG corpus name (for vertex backend) */
   vertexCorpusName?: string;
+  
+  /** Enable fallback to pgVector (for hybrid backend) */
+  fallbackToPgVector?: boolean;
   
   /** Pinecone API key (for pinecone backend) */
   pineconeApiKey?: string;

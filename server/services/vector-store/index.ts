@@ -46,6 +46,7 @@ export { DEFAULT_CONFIG } from "./types";
 import { createPgVectorAdapter } from "./pgvector-adapter";
 import { createMemoryAdapter } from "./memory-adapter";
 import { createVertexAdapter } from "./vertex-adapter";
+import { createHybridAdapter } from "./hybrid-adapter";
 import type { VectorStoreConfig, VectorStoreAdapter } from "./types";
 
 /**
@@ -134,6 +135,9 @@ export function createVectorStore(config?: Partial<VectorStoreConfig>): VectorSt
     case "vertex":
       return createVertexAdapter(fullConfig);
 
+    case "hybrid":
+      return createHybridAdapter(fullConfig);
+
     case "memory":
       return createMemoryAdapter(fullConfig);
 
@@ -206,3 +210,4 @@ export async function checkVectorStoreHealth(): Promise<{
 export { createPgVectorAdapter } from "./pgvector-adapter";
 export { createMemoryAdapter, MemoryAdapter } from "./memory-adapter";
 export { createVertexAdapter, VertexAdapter } from "./vertex-adapter";
+export { createHybridAdapter, HybridAdapter } from "./hybrid-adapter";

@@ -56,6 +56,9 @@ export function loadConfigFromEnv(): VectorStoreConfig {
     vertexProjectId: process.env.GOOGLE_CLOUD_PROJECT,
     vertexLocation: process.env.GOOGLE_CLOUD_LOCATION || "us-central1",
     vertexCorpusName: process.env.VERTEX_RAG_CORPUS,
+    
+    // Hybrid mode settings
+    fallbackToPgVector: process.env.FALLBACK_TO_PGVECTOR !== "false", // default true
 
     // Pinecone
     pineconeApiKey: process.env.PINECONE_API_KEY,
