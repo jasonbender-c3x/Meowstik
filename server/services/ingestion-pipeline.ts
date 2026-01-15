@@ -3,6 +3,7 @@ import { evidence, entities, entityMentions, knowledgeEmbeddings, Evidence, Enti
 import { eq, sql, and, ilike, or, isNull } from 'drizzle-orm';
 import { GoogleGenAI } from '@google/genai';
 import { EmbeddingService } from './embedding-service';
+import { PERSONAL_LOG_SOURCE_TYPE } from './personal-log-constants';
 
 const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' });
 const embeddingService = new EmbeddingService();
@@ -214,8 +215,8 @@ export class IngestionPipeline {
     }
 
     // Special handling for personal log entries
-    const isPersonalLog = item.sourceType === 'personal_log' || 
-                          (item.title && item.title.includes('Personal Reflection'));
+    // Use shared constant to ensure consistency
+    const isPersonalLog = item.sourceType === PERSONAL_LOG_SOURCE_TYPE;
     
     if (isPersonalLog) {
       // Personal log entries always go to PERSONAL_LIFE bucket

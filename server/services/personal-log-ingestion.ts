@@ -32,9 +32,9 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { ingestionPipeline } from './ingestion-pipeline';
 import type { Evidence } from '@shared/schema';
+import { PERSONAL_LOG_SOURCE_TYPE, PERSONAL_LOG_TIMESTAMP_REGEX } from './personal-log-constants';
 
 const PERSONAL_LOG_PATH = path.join(process.cwd(), 'logs', 'personal.md');
-const LOG_SOURCE_TYPE = 'personal_log';
 const CHECK_INTERVAL_MS = 60000; // Check every minute
 
 interface LogEntry {
@@ -61,8 +61,8 @@ export class PersonalLogIngestionService {
       const trimmed = section.trim();
       if (!trimmed) continue;
       
-      // Extract timestamp from markdown bold format: **YYYY-MM-DDTHH:mm:ss.sssZ**
-      const timestampMatch = trimmed.match(/^\*\*([0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\.[0-9]{3}Z)\*\*/);
+      // Extract timestamp using shared regex constant
+      const timestampMatch = trimmed.match(PERSONAL_LOG_TIMESTAMP_REGEX);
       
       if (timestampMatch) {
         const timestamp = new Date(timestampMatch[1]);
@@ -131,7 +131,7 @@ export class PersonalLogIngestionService {
       for (const entry of newEntries) {
         try {
           const evidence = await ingestionPipeline.ingestText({
-            sourceType: 'personal_log',
+            sourceType: PERSONAL_LOG_SOURCE_TYPE,
             sourceId: `personal-log-${entry.timestamp.toISOString()}`,
             modality: 'text',
             mimeType: 'text/markdown',
