@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -7,6 +7,8 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
   ArrowLeft, 
   Database, 
@@ -32,7 +34,10 @@ import {
   Upload,
   Tag,
   Copy,
-  ExternalLink
+  ExternalLink,
+  FileJson,
+  FileCode,
+  Terminal
 } from "lucide-react";
 import { Link } from "wouter";
 import { cn } from "@/lib/utils";
@@ -71,7 +76,16 @@ function isUuid(value: unknown): boolean {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
 }
 
+function isHash(value: unknown): boolean {
+  if (typeof value !== "string") return false;
+  // Detect common hash formats (SHA-1, SHA-256, MD5, etc.)
+  // Typically 32+ hex characters
+  return /^[0-9a-f]{32,}$/i.test(value);
+}
+
 function CellValue({ value, columnName, recordId }: { value: unknown; columnName: string; recordId: string }) {
+  const [expanded, setExpanded] = useState(false);
+
   if (value === null || value === undefined) {
     return <span className="text-muted-foreground italic">null</span>;
   }
@@ -96,8 +110,30 @@ function CellValue({ value, columnName, recordId }: { value: unknown; columnName
 
   if (isUuid(value)) {
     return (
-      <code className="text-xs bg-muted px-1.5 py-0.5 rounded font-mono text-primary">
-        {strValue.slice(0, 8)}...
+      <code 
+        className="text-xs bg-muted px-1.5 py-0.5 rounded font-mono text-primary cursor-pointer hover:bg-muted/80 transition-colors"
+        onClick={(e) => {
+          e.stopPropagation();
+          setExpanded(!expanded);
+        }}
+        title={expanded ? "Click to collapse" : "Click to expand"}
+      >
+        {expanded ? strValue : `${strValue.slice(0, 5)}...`}
+      </code>
+    );
+  }
+
+  if (isHash(value)) {
+    return (
+      <code 
+        className="text-xs bg-muted px-1.5 py-0.5 rounded font-mono text-primary cursor-pointer hover:bg-muted/80 transition-colors"
+        onClick={(e) => {
+          e.stopPropagation();
+          setExpanded(!expanded);
+        }}
+        title={expanded ? "Click to collapse" : "Click to expand"}
+      >
+        {expanded ? strValue : `${strValue.slice(0, 5)}...`}
       </code>
     );
   }
@@ -111,15 +147,46 @@ function CellValue({ value, columnName, recordId }: { value: unknown; columnName
   }
 
   if (typeof value === "object") {
+    const isTruncated = strValue.length > 50;
     return (
-      <code className="text-xs bg-muted px-1.5 py-0.5 rounded font-mono max-w-xs truncate block">
-        {strValue.slice(0, 50)}{strValue.length > 50 ? "..." : ""}
+      <code 
+        className={cn(
+          "text-xs bg-muted px-1.5 py-0.5 rounded font-mono max-w-xs block",
+          isTruncated && "cursor-pointer hover:bg-muted/80 transition-colors"
+        )}
+        onClick={(e) => {
+          if (isTruncated) {
+            e.stopPropagation();
+            setExpanded(!expanded);
+          }
+        }}
+        title={isTruncated ? (expanded ? "Click to collapse" : "Click to expand") : undefined}
+      >
+        {expanded ? strValue : `${strValue.slice(0, 50)}${isTruncated ? "..." : ""}`}
       </code>
     );
   }
 
-  const displayValue = strValue.length > 100 ? strValue.slice(0, 100) + "..." : strValue;
-  return <span className="max-w-xs truncate block">{displayValue}</span>;
+  const isTruncated = strValue.length > 100;
+  const displayValue = isTruncated && !expanded ? strValue.slice(0, 100) + "..." : strValue;
+  return (
+    <span 
+      className={cn(
+        "max-w-xs block",
+        isTruncated && "cursor-pointer hover:underline",
+        !expanded && "truncate"
+      )}
+      onClick={(e) => {
+        if (isTruncated) {
+          e.stopPropagation();
+          setExpanded(!expanded);
+        }
+      }}
+      title={isTruncated ? (expanded ? "Click to collapse" : "Click to expand") : undefined}
+    >
+      {displayValue}
+    </span>
+  );
 }
 
 function RecordViewer({ record, tableName, onClose, onEdit, onDelete }: RecordViewerProps) {
@@ -307,6 +374,21 @@ export default function DatabaseExplorerPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
 
+  // Import/Export state
+  const [showExportDialog, setShowExportDialog] = useState(false);
+  const [showImportDialog, setShowImportDialog] = useState(false);
+  const [exportOptions, setExportOptions] = useState({
+    includeSchema: true,
+    includeData: true,
+    format: "sql" as "sql" | "sql.gz"
+  });
+  const [isExporting, setIsExporting] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
+  const [importFile, setImportFile] = useState<File | null>(null);
+  const [importSuccess, setImportSuccess] = useState(false);
+  const [importError, setImportError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   const loadTables = useCallback(async () => {
     setIsLoading(true);
     try {
@@ -444,6 +526,107 @@ export default function DatabaseExplorerPage() {
     }
   };
 
+  const handleExport = async () => {
+    setIsExporting(true);
+    try {
+      const response = await fetch("/api/database/export", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(exportOptions)
+      });
+
+      if (!response.ok) {
+        throw new Error("Export failed");
+      }
+
+      // Download the file
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `meowstik-export-${Date.now()}.${exportOptions.format}`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+
+      setShowExportDialog(false);
+    } catch (error) {
+      console.error("Export failed:", error);
+      alert("Export failed. Please try again.");
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const handleImport = async () => {
+    if (!importFile) return;
+
+    setIsImporting(true);
+    setImportError(null);
+    setImportSuccess(false);
+
+    try {
+      // Note: For now, this is a placeholder since multer isn't installed
+      // In production, you'd need to upload the file to the server first
+      // For demo purposes, we'll show an informational message
+      
+      setImportError("File upload requires multer middleware. To use import:\n1. Install multer: npm install multer @types/multer\n2. Update server/routes/database-admin.ts to handle file uploads\n3. Or use CLI: npm run db:import -- --file=path/to/file.sql");
+      
+      // Uncomment this when multer is installed:
+      // const formData = new FormData();
+      // formData.append("file", importFile);
+      // const response = await fetch("/api/database/import", {
+      //   method: "POST",
+      //   body: formData
+      // });
+      // if (!response.ok) {
+      //   const data = await response.json();
+      //   throw new Error(data.message || "Import failed");
+      // }
+      // setImportSuccess(true);
+      
+    } catch (error) {
+      setImportError(error instanceof Error ? error.message : "Import failed");
+    } finally {
+      setIsImporting(false);
+    }
+  };
+
+  const handleExportSchema = async () => {
+    setIsExporting(true);
+    try {
+      const response = await fetch("/api/database/export", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          includeSchema: true,
+          includeData: false,
+          format: "sql"
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error("Schema export failed");
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `meowstik-schema-${Date.now()}.sql`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (error) {
+      console.error("Schema export failed:", error);
+      alert("Schema export failed. Please try again.");
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   const totalPages = tableData ? Math.ceil(tableData.total / pageSize) : 0;
 
   return (
@@ -455,17 +638,22 @@ export default function DatabaseExplorerPage() {
               <ArrowLeft className="h-4 w-4" />
             </Button>
           </Link>
-          <h1 className="text-xl font-semibold flex items-center gap-2">
-            <Database className="h-5 w-5 text-primary" />
-            Database Explorer
-          </h1>
-          <div className="ml-auto flex items-center gap-2">
+          <div className="flex-1">
+            <h1 className="text-xl font-semibold flex items-center gap-2">
+              <Database className="h-5 w-5 text-primary" />
+              Database Explorer
+            </h1>
+            <p className="text-sm text-muted-foreground">
+              Manage your PostgreSQL database • Export, import, and browse tables
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
             <Button
               variant="outline"
               size="sm"
-              disabled
-              title="Coming soon"
+              onClick={() => setShowImportDialog(true)}
               data-testid="button-import"
+              className="hidden sm:flex"
             >
               <Upload className="h-4 w-4 mr-2" />
               Import
@@ -473,12 +661,27 @@ export default function DatabaseExplorerPage() {
             <Button
               variant="outline"
               size="sm"
-              disabled
-              title="Coming soon"
+              onClick={() => setShowExportDialog(true)}
               data-testid="button-export"
             >
               <Download className="h-4 w-4 mr-2" />
               Export
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleExportSchema}
+              disabled={isExporting}
+              title="Export schema only (no data)"
+              data-testid="button-export-schema"
+              className="hidden md:flex"
+            >
+              {isExporting ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <FileCode className="h-4 w-4 mr-2" />
+              )}
+              Schema
             </Button>
             <Button
               variant="outline"
@@ -499,46 +702,78 @@ export default function DatabaseExplorerPage() {
 
       <div className="flex flex-1 overflow-hidden">
         <aside className="w-64 border-r bg-muted/20 p-4 flex-shrink-0 overflow-auto">
-          <h2 className="font-semibold mb-3 text-sm text-muted-foreground uppercase tracking-wider">
-            Tables
-          </h2>
+          <div className="mb-4">
+            <h2 className="font-semibold mb-1 text-sm text-muted-foreground uppercase tracking-wider">
+              Tables
+            </h2>
+            <p className="text-xs text-muted-foreground mb-3">
+              {tables.length} {tables.length === 1 ? 'table' : 'tables'} • Click to browse
+            </p>
+          </div>
           <div className="space-y-1">
-            {tables.map((table) => (
-              <button
-                key={table.name}
-                onClick={() => handleSelectTable(table)}
-                className={cn(
-                  "w-full text-left px-3 py-2 rounded-md transition-colors flex items-center justify-between group",
-                  selectedTable?.name === table.name
-                    ? "bg-primary text-primary-foreground"
-                    : "hover:bg-muted"
-                )}
-                data-testid={`button-table-${table.name}`}
-              >
-                <span className="flex items-center gap-2">
-                  <Table2 className="h-4 w-4" />
-                  <span className="text-sm font-medium">{table.name}</span>
-                </span>
-                <Badge
-                  variant={selectedTable?.name === table.name ? "secondary" : "outline"}
-                  className="text-xs"
+            {tables.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <Database className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                <p className="text-xs">No tables found</p>
+              </div>
+            ) : (
+              tables.map((table) => (
+                <button
+                  key={table.name}
+                  onClick={() => handleSelectTable(table)}
+                  className={cn(
+                    "w-full text-left px-3 py-2 rounded-md transition-colors flex items-center justify-between group",
+                    selectedTable?.name === table.name
+                      ? "bg-primary text-primary-foreground"
+                      : "hover:bg-muted"
+                  )}
+                  data-testid={`button-table-${table.name}`}
                 >
-                  {table.rowCount}
-                </Badge>
-              </button>
-            ))}
+                  <span className="flex items-center gap-2 min-w-0 flex-1">
+                    <Table2 className="h-4 w-4 flex-shrink-0" />
+                    <span className="text-sm font-medium truncate">{table.name}</span>
+                  </span>
+                  <Badge
+                    variant={selectedTable?.name === table.name ? "secondary" : "outline"}
+                    className="text-xs ml-2 flex-shrink-0"
+                  >
+                    {table.rowCount.toLocaleString()}
+                  </Badge>
+                </button>
+              ))
+            )}
           </div>
         </aside>
 
         <main className="flex-1 flex flex-col overflow-hidden">
           {!selectedTable ? (
             <div className="flex-1 flex items-center justify-center">
-              <div className="text-center">
-                <Database className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
+              <div className="text-center max-w-md px-4">
+                <Database className="h-16 w-16 text-muted-foreground mx-auto mb-4 opacity-50" />
                 <h2 className="text-xl font-semibold mb-2">Select a Table</h2>
-                <p className="text-muted-foreground">
-                  Choose a table from the sidebar to view its records
+                <p className="text-muted-foreground mb-6">
+                  Choose a table from the sidebar to view and manage its records
                 </p>
+                <div className="bg-muted/50 rounded-lg p-4 text-left">
+                  <h3 className="font-medium mb-2 flex items-center gap-2">
+                    <FileText className="h-4 w-4 text-primary" />
+                    Quick Actions
+                  </h3>
+                  <ul className="text-sm text-muted-foreground space-y-2">
+                    <li className="flex items-start gap-2">
+                      <Download className="h-4 w-4 mt-0.5 text-primary flex-shrink-0" />
+                      <span><strong>Export:</strong> Download your database as SQL file</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <FileCode className="h-4 w-4 mt-0.5 text-primary flex-shrink-0" />
+                      <span><strong>Schema:</strong> Export table structures only</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <Upload className="h-4 w-4 mt-0.5 text-primary flex-shrink-0" />
+                      <span><strong>Import:</strong> Restore from backup file</span>
+                    </li>
+                  </ul>
+                </div>
               </div>
             </div>
           ) : (
@@ -613,7 +848,7 @@ export default function DatabaseExplorerPage() {
                 </div>
               )}
 
-              <div className="flex-1 overflow-auto">
+              <div className="flex-1 overflow-x-auto overflow-y-auto">
                 {isLoadingData ? (
                   <div className="flex items-center justify-center h-64">
                     <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -628,11 +863,11 @@ export default function DatabaseExplorerPage() {
                     </div>
                   </div>
                 ) : (
-                  <div className="min-w-max">
-                    <table className="w-full border-collapse">
+                  <div className="overflow-x-auto">
+                    <table className="w-full border-collapse min-w-max">
                       <thead className="bg-muted/50 sticky top-0 z-10">
                         <tr>
-                          <th className="border-b px-4 py-3 text-left w-10">
+                          <th className="border-b px-4 py-3 text-left w-10 sticky left-0 bg-muted/50 z-20">
                             <Checkbox
                               checked={selectedRows.size === filteredRows.length && filteredRows.length > 0}
                               onCheckedChange={toggleSelectAll}
@@ -647,7 +882,7 @@ export default function DatabaseExplorerPage() {
                               {col}
                             </th>
                           ))}
-                          <th className="border-b px-4 py-3 text-right text-sm font-medium text-muted-foreground w-24">
+                          <th className="border-b px-4 py-3 text-right text-sm font-medium text-muted-foreground w-24 sticky right-0 bg-muted/50 z-20">
                             Actions
                           </th>
                         </tr>
@@ -663,7 +898,7 @@ export default function DatabaseExplorerPage() {
                             onClick={() => setViewingRecord(row)}
                             data-testid={`row-${row.id}`}
                           >
-                            <td className="border-b px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                            <td className="border-b px-4 py-3 sticky left-0 bg-background z-10" onClick={(e) => e.stopPropagation()}>
                               <Checkbox
                                 checked={selectedRows.has(String(row.id))}
                                 onCheckedChange={() => toggleRowSelection(String(row.id))}
@@ -678,7 +913,7 @@ export default function DatabaseExplorerPage() {
                                 <CellValue value={row[col]} columnName={col} recordId={String(row.id)} />
                               </td>
                             ))}
-                            <td className="border-b px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                            <td className="border-b px-4 py-3 sticky right-0 bg-background z-10" onClick={(e) => e.stopPropagation()}>
                               <div className="flex items-center justify-end gap-1">
                                 <Button
                                   variant="ghost"
@@ -837,6 +1072,231 @@ export default function DatabaseExplorerPage() {
                 <>
                   <Trash2 className="h-4 w-4 mr-2" />
                   Delete
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Export Dialog */}
+      <Dialog open={showExportDialog} onOpenChange={setShowExportDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Download className="h-5 w-5 text-primary" />
+              Export Database
+            </DialogTitle>
+            <DialogDescription>
+              Export your database schema and/or data to a SQL file
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="include-schema"
+                checked={exportOptions.includeSchema}
+                onCheckedChange={(checked) => 
+                  setExportOptions({ ...exportOptions, includeSchema: !!checked })
+                }
+                data-testid="checkbox-export-schema"
+              />
+              <Label htmlFor="include-schema" className="text-sm font-medium cursor-pointer">
+                Include Schema (CREATE TABLE statements)
+              </Label>
+            </div>
+            
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="include-data"
+                checked={exportOptions.includeData}
+                onCheckedChange={(checked) => 
+                  setExportOptions({ ...exportOptions, includeData: !!checked })
+                }
+                data-testid="checkbox-export-data"
+              />
+              <Label htmlFor="include-data" className="text-sm font-medium cursor-pointer">
+                Include Data (INSERT statements)
+              </Label>
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Format</Label>
+              <Tabs
+                value={exportOptions.format}
+                onValueChange={(value) => 
+                  setExportOptions({ ...exportOptions, format: value as "sql" | "sql.gz" })
+                }
+              >
+                <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger value="sql" data-testid="tab-format-sql">
+                    <FileText className="h-4 w-4 mr-2" />
+                    SQL
+                  </TabsTrigger>
+                  <TabsTrigger value="sql.gz" data-testid="tab-format-gz">
+                    <FileJson className="h-4 w-4 mr-2" />
+                    SQL.GZ (Compressed)
+                  </TabsTrigger>
+                </TabsList>
+              </Tabs>
+            </div>
+
+            {!exportOptions.includeSchema && !exportOptions.includeData && (
+              <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-md p-3 flex items-start gap-2 text-yellow-600 dark:text-yellow-400">
+                <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                <span className="text-sm">
+                  Please select at least one option (Schema or Data) to export.
+                </span>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShowExportDialog(false)}
+              disabled={isExporting}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleExport}
+              disabled={isExporting || (!exportOptions.includeSchema && !exportOptions.includeData)}
+              data-testid="button-confirm-export"
+            >
+              {isExporting ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Exporting...
+                </>
+              ) : (
+                <>
+                  <Download className="h-4 w-4 mr-2" />
+                  Export
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Import Dialog */}
+      <Dialog open={showImportDialog} onOpenChange={setShowImportDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Upload className="h-5 w-5 text-primary" />
+              Import Database
+            </DialogTitle>
+            <DialogDescription>
+              Import a SQL file to restore or migrate your database
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <div className="bg-blue-500/10 border border-blue-500/30 rounded-md p-4">
+              <p className="font-medium mb-2 flex items-center gap-2 text-blue-600 dark:text-blue-400">
+                <Terminal className="h-4 w-4" />
+                Recommended: Use CLI
+              </p>
+              <p className="text-sm text-muted-foreground mb-3">
+                For best results, use the command line interface:
+              </p>
+              <div className="bg-[#1e1e1e] rounded-md p-3 font-mono text-xs text-[#d4d4d4] overflow-x-auto">
+                <div className="mb-2">
+                  <span className="text-[#9cdcfe]">npm run</span> db:import -- \<br/>
+                  <span className="ml-4">--file=</span><span className="text-[#ce9178]">path/to/backup.sql</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="import-file" className="text-sm font-medium">
+                Or Select SQL File (Web Upload - Requires Multer)
+              </Label>
+              <Input
+                id="import-file"
+                type="file"
+                accept=".sql,.sql.gz,.gz"
+                ref={fileInputRef}
+                onChange={(e) => {
+                  setImportFile(e.target.files?.[0] || null);
+                  setImportError(null);
+                }}
+                data-testid="input-import-file"
+                disabled={isImporting}
+              />
+              {importFile && (
+                <p className="text-sm text-muted-foreground">
+                  Selected: {importFile.name} ({(importFile.size / 1024 / 1024).toFixed(2)} MB)
+                </p>
+              )}
+            </div>
+
+            {importSuccess && (
+              <div className="bg-green-500/10 border border-green-500/30 rounded-md p-3 flex items-center gap-2 text-green-600 dark:text-green-400">
+                <Check className="h-4 w-4" />
+                <span className="text-sm font-medium">
+                  Import completed successfully!
+                </span>
+              </div>
+            )}
+
+            {importError && (
+              <div className="bg-amber-500/10 border border-amber-500/30 rounded-md p-3 text-amber-600 dark:text-amber-400">
+                <div className="flex items-start gap-2">
+                  <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                  <div className="text-sm space-y-2">
+                    <p className="font-medium">Web upload not configured</p>
+                    <p className="text-xs">Use the CLI command above for reliable imports.</p>
+                    <p className="text-xs">To enable web uploads, install multer: <code className="bg-[#1e1e1e] px-1 py-0.5 rounded">npm install multer @types/multer</code></p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div className="bg-muted/50 border rounded-md p-3 text-xs text-muted-foreground">
+              <p className="font-medium mb-1">⚠️ Important Notes:</p>
+              <ul className="list-disc list-inside space-y-1">
+                <li>This will import data into the current database</li>
+                <li>Existing data may be preserved (uses ON CONFLICT handling)</li>
+                <li>Large files may take several minutes</li>
+                <li>Always backup before importing</li>
+              </ul>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowImportDialog(false);
+                setImportFile(null);
+                setImportError(null);
+                setImportSuccess(false);
+                if (fileInputRef.current) {
+                  fileInputRef.current.value = "";
+                }
+              }}
+              disabled={isImporting}
+            >
+              Close
+            </Button>
+            <Button
+              onClick={handleImport}
+              disabled={isImporting || !importFile || importSuccess}
+              data-testid="button-confirm-import"
+            >
+              {isImporting ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Importing...
+                </>
+              ) : (
+                <>
+                  <Upload className="h-4 w-4 mr-2" />
+                  Try Import
                 </>
               )}
             </Button>
