@@ -8,15 +8,16 @@ export default function LoginPage() {
   const { isAuthenticated, isLoading } = useAuth();
   const [isHomeDevMode, setIsHomeDevMode] = useState(false);
 
-  // Check if HOME_DEV_MODE is enabled by checking if we can access /api/auth/user without login
+  // Check if HOME_DEV_MODE is enabled via the status endpoint
   useEffect(() => {
     const checkHomeDevMode = async () => {
       try {
-        const response = await fetch("/api/auth/user");
+        const response = await fetch("/api/status");
         if (response.ok) {
-          // If we can access the user endpoint without being authenticated through normal flow,
-          // we're in home dev mode
-          setIsHomeDevMode(true);
+          const data = await response.json();
+          if (data.homeDevMode === true) {
+            setIsHomeDevMode(true);
+          }
         }
       } catch (error) {
         // Normal behavior - not in home dev mode

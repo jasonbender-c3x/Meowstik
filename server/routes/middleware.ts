@@ -191,7 +191,7 @@ export const checkAuthStatus: RequestHandler = (req: Request, _res: Response, ne
   let user = req.user as any;
   
   // In home dev mode, auto-authenticate with default developer user
-  if (isHomeDevMode() && (!req.isAuthenticated || !req.isAuthenticated())) {
+  if (isHomeDevMode() && !req.isAuthenticated?.()) {
     user = createHomeDevSession();
     req.user = user;
     // Mark session as authenticated (simulate passport authentication)
@@ -200,7 +200,7 @@ export const checkAuthStatus: RequestHandler = (req: Request, _res: Response, ne
   }
   
   // Attach auth status to request
-  const isAuthFn = req.isAuthenticated ? req.isAuthenticated() : false;
+  const isAuthFn = req.isAuthenticated?.() || false;
   (req as any).authStatus = {
     isAuthenticated: (isAuthFn && !!user?.claims?.sub) || (isHomeDevMode() && !!user?.claims?.sub),
     userId: user?.claims?.sub || null,
