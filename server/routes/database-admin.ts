@@ -133,19 +133,23 @@ router.post('/export', async (req: Request, res: Response) => {
 /**
  * POST /api/database/import
  * Import database from uploaded SQL file
- * NOTE: File upload requires multer middleware - install with: npm install multer @types/multer
+ * NOTE: This simplified version works without multer by using server-side file path
  */
 router.post('/import', async (req: Request, res: Response) => {
   try {
-    // Check if file path is provided
-    const filepath = req.body.filepath;
-    if (!filepath || !existsSync(filepath)) {
-      return res.status(400).json({ error: 'Valid file path required' });
+    // For now, expect a file path in the body since multer isn't installed
+    // In a full implementation, you'd use multer for file uploads
+    const { filepath, targetUrl } = req.body;
+    
+    if (!filepath) {
+      return res.status(400).json({ 
+        error: 'File path required', 
+        message: 'Please provide a filepath parameter with the SQL file path on the server' 
+      });
     }
 
-    const targetUrl = req.body.targetUrl || process.env.DATABASE_URL;
-    if (!targetUrl) {
-      return res.status(400).json({ error: 'Target database URL required' });
+    if (!existsSync(filepath)) {
+      return res.status(400).json({ error: 'File not found', message: `The file ${filepath} does not exist` });
     }
 
     const migrationId = `import-${Date.now()}`;
@@ -158,8 +162,9 @@ router.post('/import', async (req: Request, res: Response) => {
 
     // Execute import
     try {
+      const targetDbUrl = targetUrl || process.env.DATABASE_URL;
       await execAsync(
-        `npx tsx scripts/db-import.ts --file=${filepath} --target=${targetUrl} --skip-errors`
+        `npx tsx scripts/db-import.ts --file=${filepath} --target=${targetDbUrl} --skip-errors`
       );
 
       activeMigrations.set(migrationId, {

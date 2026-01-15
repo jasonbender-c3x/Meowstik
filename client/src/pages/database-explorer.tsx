@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -7,6 +7,8 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
   ArrowLeft, 
   Database, 
@@ -32,7 +34,9 @@ import {
   Upload,
   Tag,
   Copy,
-  ExternalLink
+  ExternalLink,
+  FileJson,
+  FileCode
 } from "lucide-react";
 import { Link } from "wouter";
 import { cn } from "@/lib/utils";
@@ -307,6 +311,21 @@ export default function DatabaseExplorerPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
 
+  // Import/Export state
+  const [showExportDialog, setShowExportDialog] = useState(false);
+  const [showImportDialog, setShowImportDialog] = useState(false);
+  const [exportOptions, setExportOptions] = useState({
+    includeSchema: true,
+    includeData: true,
+    format: "sql" as "sql" | "sql.gz"
+  });
+  const [isExporting, setIsExporting] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
+  const [importFile, setImportFile] = useState<File | null>(null);
+  const [importSuccess, setImportSuccess] = useState(false);
+  const [importError, setImportError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   const loadTables = useCallback(async () => {
     setIsLoading(true);
     try {
@@ -444,6 +463,107 @@ export default function DatabaseExplorerPage() {
     }
   };
 
+  const handleExport = async () => {
+    setIsExporting(true);
+    try {
+      const response = await fetch("/api/database/export", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(exportOptions)
+      });
+
+      if (!response.ok) {
+        throw new Error("Export failed");
+      }
+
+      // Download the file
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `meowstik-export-${Date.now()}.${exportOptions.format}`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+
+      setShowExportDialog(false);
+    } catch (error) {
+      console.error("Export failed:", error);
+      alert("Export failed. Please try again.");
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const handleImport = async () => {
+    if (!importFile) return;
+
+    setIsImporting(true);
+    setImportError(null);
+    setImportSuccess(false);
+
+    try {
+      // Note: For now, this is a placeholder since multer isn't installed
+      // In production, you'd need to upload the file to the server first
+      // For demo purposes, we'll show an informational message
+      
+      setImportError("File upload requires multer middleware. To use import:\n1. Install multer: npm install multer @types/multer\n2. Update server/routes/database-admin.ts to handle file uploads\n3. Or use CLI: npm run db:import -- --file=path/to/file.sql");
+      
+      // Uncomment this when multer is installed:
+      // const formData = new FormData();
+      // formData.append("file", importFile);
+      // const response = await fetch("/api/database/import", {
+      //   method: "POST",
+      //   body: formData
+      // });
+      // if (!response.ok) {
+      //   const data = await response.json();
+      //   throw new Error(data.message || "Import failed");
+      // }
+      // setImportSuccess(true);
+      
+    } catch (error) {
+      setImportError(error instanceof Error ? error.message : "Import failed");
+    } finally {
+      setIsImporting(false);
+    }
+  };
+
+  const handleExportSchema = async () => {
+    setIsExporting(true);
+    try {
+      const response = await fetch("/api/database/export", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          includeSchema: true,
+          includeData: false,
+          format: "sql"
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error("Schema export failed");
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `meowstik-schema-${Date.now()}.sql`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (error) {
+      console.error("Schema export failed:", error);
+      alert("Schema export failed. Please try again.");
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   const totalPages = tableData ? Math.ceil(tableData.total / pageSize) : 0;
 
   return (
@@ -463,8 +583,7 @@ export default function DatabaseExplorerPage() {
             <Button
               variant="outline"
               size="sm"
-              disabled
-              title="Coming soon"
+              onClick={() => setShowImportDialog(true)}
               data-testid="button-import"
             >
               <Upload className="h-4 w-4 mr-2" />
@@ -473,12 +592,26 @@ export default function DatabaseExplorerPage() {
             <Button
               variant="outline"
               size="sm"
-              disabled
-              title="Coming soon"
+              onClick={() => setShowExportDialog(true)}
               data-testid="button-export"
             >
               <Download className="h-4 w-4 mr-2" />
               Export
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleExportSchema}
+              disabled={isExporting}
+              title="Export schema only (no data)"
+              data-testid="button-export-schema"
+            >
+              {isExporting ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <FileCode className="h-4 w-4 mr-2" />
+              )}
+              Schema
             </Button>
             <Button
               variant="outline"
@@ -837,6 +970,212 @@ export default function DatabaseExplorerPage() {
                 <>
                   <Trash2 className="h-4 w-4 mr-2" />
                   Delete
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Export Dialog */}
+      <Dialog open={showExportDialog} onOpenChange={setShowExportDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Download className="h-5 w-5 text-primary" />
+              Export Database
+            </DialogTitle>
+            <DialogDescription>
+              Export your database schema and/or data to a SQL file
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="include-schema"
+                checked={exportOptions.includeSchema}
+                onCheckedChange={(checked) => 
+                  setExportOptions({ ...exportOptions, includeSchema: !!checked })
+                }
+                data-testid="checkbox-export-schema"
+              />
+              <Label htmlFor="include-schema" className="text-sm font-medium cursor-pointer">
+                Include Schema (CREATE TABLE statements)
+              </Label>
+            </div>
+            
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="include-data"
+                checked={exportOptions.includeData}
+                onCheckedChange={(checked) => 
+                  setExportOptions({ ...exportOptions, includeData: !!checked })
+                }
+                data-testid="checkbox-export-data"
+              />
+              <Label htmlFor="include-data" className="text-sm font-medium cursor-pointer">
+                Include Data (INSERT statements)
+              </Label>
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Format</Label>
+              <Tabs
+                value={exportOptions.format}
+                onValueChange={(value) => 
+                  setExportOptions({ ...exportOptions, format: value as "sql" | "sql.gz" })
+                }
+              >
+                <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger value="sql" data-testid="tab-format-sql">
+                    <FileText className="h-4 w-4 mr-2" />
+                    SQL
+                  </TabsTrigger>
+                  <TabsTrigger value="sql.gz" data-testid="tab-format-gz">
+                    <FileJson className="h-4 w-4 mr-2" />
+                    SQL.GZ (Compressed)
+                  </TabsTrigger>
+                </TabsList>
+              </Tabs>
+            </div>
+
+            {!exportOptions.includeSchema && !exportOptions.includeData && (
+              <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-md p-3 flex items-start gap-2 text-yellow-600 dark:text-yellow-400">
+                <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                <span className="text-sm">
+                  Please select at least one option (Schema or Data) to export.
+                </span>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShowExportDialog(false)}
+              disabled={isExporting}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleExport}
+              disabled={isExporting || (!exportOptions.includeSchema && !exportOptions.includeData)}
+              data-testid="button-confirm-export"
+            >
+              {isExporting ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Exporting...
+                </>
+              ) : (
+                <>
+                  <Download className="h-4 w-4 mr-2" />
+                  Export
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Import Dialog */}
+      <Dialog open={showImportDialog} onOpenChange={setShowImportDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Upload className="h-5 w-5 text-primary" />
+              Import Database
+            </DialogTitle>
+            <DialogDescription>
+              Import a SQL file to restore or migrate your database
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="import-file" className="text-sm font-medium">
+                Select SQL File
+              </Label>
+              <Input
+                id="import-file"
+                type="file"
+                accept=".sql,.sql.gz,.gz"
+                ref={fileInputRef}
+                onChange={(e) => {
+                  setImportFile(e.target.files?.[0] || null);
+                  setImportError(null);
+                }}
+                data-testid="input-import-file"
+                disabled={isImporting}
+              />
+              {importFile && (
+                <p className="text-sm text-muted-foreground">
+                  Selected: {importFile.name} ({(importFile.size / 1024 / 1024).toFixed(2)} MB)
+                </p>
+              )}
+            </div>
+
+            {importSuccess && (
+              <div className="bg-green-500/10 border border-green-500/30 rounded-md p-3 flex items-center gap-2 text-green-600 dark:text-green-400">
+                <Check className="h-4 w-4" />
+                <span className="text-sm font-medium">
+                  Import completed successfully!
+                </span>
+              </div>
+            )}
+
+            {importError && (
+              <div className="bg-destructive/10 border border-destructive/30 rounded-md p-3 flex items-start gap-2 text-destructive">
+                <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                <div className="text-sm">
+                  <p className="font-medium">Import failed</p>
+                  <p className="mt-1">{importError}</p>
+                </div>
+              </div>
+            )}
+
+            <div className="bg-blue-500/10 border border-blue-500/30 rounded-md p-3 text-sm text-blue-600 dark:text-blue-400">
+              <p className="font-medium mb-1">⚠️ Important Notes:</p>
+              <ul className="list-disc list-inside space-y-1 text-xs">
+                <li>This will import data into the current database</li>
+                <li>Existing data may be preserved (uses ON CONFLICT handling)</li>
+                <li>Large files may take several minutes to import</li>
+                <li>Make sure you have a backup before importing</li>
+              </ul>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowImportDialog(false);
+                setImportFile(null);
+                setImportError(null);
+                setImportSuccess(false);
+                if (fileInputRef.current) {
+                  fileInputRef.current.value = "";
+                }
+              }}
+              disabled={isImporting}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleImport}
+              disabled={isImporting || !importFile || importSuccess}
+              data-testid="button-confirm-import"
+            >
+              {isImporting ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Importing...
+                </>
+              ) : (
+                <>
+                  <Upload className="h-4 w-4 mr-2" />
+                  Import
                 </>
               )}
             </Button>
