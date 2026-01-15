@@ -2876,19 +2876,15 @@ export class RAGDispatcher {
       
       // Start analysis (may take time for large codebases)
       // Skip RAG ingestion for external codebases (paths outside the project)
-      // Check if path is outside current working directory to detect external codebases
+      // Check if resolved path is outside current working directory
       const resolvedPath = path.resolve(rootPath);
       const cwd = process.cwd();
-      const isExternal = !resolvedPath.startsWith(cwd) && path.isAbsolute(rootPath);
-      const shouldSkipIngestion = isExternal;
+      const isExternal = !resolvedPath.startsWith(cwd + path.sep) && resolvedPath !== cwd;
       
-      const result = await codebaseAnalyzer.analyzeCodebase(rootPath, shouldSkipIngestion);
+      const result = await codebaseAnalyzer.analyzeCodebase(rootPath, isExternal);
       
       // Convert Map to object for JSON serialization
-      const glossaryObj: Record<string, CodeEntity[]> = {};
-      result.glossary.forEach((value, key) => {
-        glossaryObj[key] = value;
-      });
+      const glossaryObj: Record<string, CodeEntity[]> = Object.fromEntries(result.glossary);
       
       return {
         type: "codebase_analyze",
