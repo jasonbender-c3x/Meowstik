@@ -148,13 +148,18 @@ npm install
 npm run db:push
 
 # Setup memory log protection (recommended for contributors)
-./scripts/setup-memory-protection.sh
+./protect-memory.sh          # Easy to use with prompts
+# OR
+./scripts/setup-memory-protection.sh  # Advanced version
+
+# Check protection status anytime
+./check-memory.sh
 
 # Start development server
 npm run dev
 ```
 
-> 🛡️ **Memory Protection**: The repository includes automatic protection for memory log files to prevent data loss during git operations. See [docs/MEMORY_LOG_PROTECTION.md](docs/MEMORY_LOG_PROTECTION.md) for details.
+> 🛡️ **Memory Protection**: The repository includes automatic protection for memory log files to prevent data loss during git operations. Use `./protect-memory.sh` for interactive setup or `./check-memory.sh` to verify protection is active. See [docs/MEMORY_LOG_PROTECTION.md](docs/MEMORY_LOG_PROTECTION.md) for details.
 
 ### Environment Variables
 
