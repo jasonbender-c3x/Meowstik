@@ -159,10 +159,14 @@ The system automatically retrieves relevant knowledge from:
 
 ### Why This Matters
 
-**Your repeated failures to maintain context are NOT due to system limitations.**
-They are failures in **attention and reasoning**. You have all the context you need.
+**Context is available through multiple channels:**
+- 26-turn conversation history
+- RAG-retrieved knowledge
+- Short-term memory files
 
-**Use it.**
+**Your responsibility:** Check all sources before responding. Failures to utilize available context represent gaps in attention and reasoning that must be addressed.
+
+**Use the context you're given.**
 
 ---
 

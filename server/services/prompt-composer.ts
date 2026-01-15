@@ -312,14 +312,23 @@ You can analyze data, read and write files, search the web, and interact with Go
 
   /**
    * Determines if attachment content should be treated as base64-encoded.
-   * Binary content types (images, audio) are base64-encoded.
+   * Binary content types (images, audio, video, PDFs) are base64-encoded.
    * 
    * @param mimeType - MIME type of the attachment
    * @returns true if content is base64-encoded, false otherwise
+   * 
+   * @note This covers common binary types. Text-based types (text/*, application/json, etc.)
+   *       are assumed to be plain text. Extend as needed for other binary types.
    */
   private isBase64Content(mimeType: string | undefined | null): boolean {
     if (!mimeType) return false;
-    return mimeType.startsWith("image/") || mimeType.startsWith("audio/");
+    return (
+      mimeType.startsWith("image/") ||
+      mimeType.startsWith("audio/") ||
+      mimeType.startsWith("video/") ||
+      mimeType === "application/pdf" ||
+      mimeType === "application/octet-stream"
+    );
   }
 
   /**
@@ -359,7 +368,7 @@ You can analyze data, read and write files, search the web, and interact with Go
         );
         systemPrompt = enrichedPrompt;
       } catch (error) {
-        console.warn("[PromptComposer] RAG enrichment failed, continuing without:", error);
+        console.warn(`[PromptComposer] RAG enrichment failed for query "${options.textContent.slice(0, 50)}...", continuing without enrichment:`, error);
       }
     }
 
