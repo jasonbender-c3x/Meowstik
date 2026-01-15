@@ -68,6 +68,7 @@ import * as sshService from "./ssh-service";
 import { ragService } from "./rag-service";
 import { chunkingService } from "./chunking-service";
 import { clientRouter } from "./client-router";
+import type { CodeEntity } from "./codebase-analyzer";
 import { exec } from "child_process";
 import { promisify } from "util";
 import * as fs from "fs/promises";
@@ -2875,13 +2876,16 @@ export class RAGDispatcher {
       
       // Start analysis (may take time for large codebases)
       // Skip RAG ingestion for external codebases (paths outside the project)
-      const isExternal = rootPath.startsWith("/tmp") || rootPath.startsWith("/home") || rootPath.includes("github");
+      const isExternal = path.isAbsolute(rootPath) && 
+                         (rootPath.startsWith("/tmp") || 
+                          rootPath.startsWith("/home") || 
+                          rootPath.startsWith(os.tmpdir()));
       const shouldSkipIngestion = isExternal;
       
       const result = await codebaseAnalyzer.analyzeCodebase(rootPath, shouldSkipIngestion);
       
       // Convert Map to object for JSON serialization
-      const glossaryObj: Record<string, any[]> = {};
+      const glossaryObj: Record<string, CodeEntity[]> = {};
       result.glossary.forEach((value, key) => {
         glossaryObj[key] = value;
       });
