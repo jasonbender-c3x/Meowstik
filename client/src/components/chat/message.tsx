@@ -66,7 +66,7 @@ import { EnhancedMarkdown } from "@/components/ui/enhanced-markdown";
  * - Wrench: Tool execution indicator
  * - CheckCircle/XCircle: Success/error status
  */
-import { File, FileCode, Wrench, CheckCircle2, XCircle, Loader2, Terminal, Mail, Calendar, Brain, ChevronDown, ChevronRight } from "lucide-react";
+import { File, FileCode, Wrench, CheckCircle2, XCircle, Loader2, Terminal, Brain, ChevronDown, ChevronRight } from "lucide-react";
 
 import { useState } from "react";
 
