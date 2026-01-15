@@ -88,7 +88,22 @@ Access and manage your Google account services directly from Meowstik.
 - Create, complete, and delete tasks
 - Organize with multiple task lists
 
-### 5. Voice Interaction
+### 5. Live Voice Mode 🎙️
+
+**Real-time voice-to-voice conversation** with natural, fluid dialogue powered by Gemini Live API.
+
+- **Continuous Listening**: Hands-free operation—no button pressing needed
+- **Voice Activity Detection**: Automatically detects when you speak
+- **Cognitive Endpointing**: AI responds faster by understanding your intent mid-speech
+- **Natural Interruption**: Interrupt AI naturally, just like talking to a person
+- **Interim Transcripts**: See what you're saying in real-time
+- **8 Premium Voices**: Choose from Kore, Puck, Charon, Fenrir, Aoede, Leda, Orus, Zephyr
+- **Low Latency**: ~100ms audio streaming for natural conversation flow
+- **Adjustable Sensitivity**: Fine-tune voice detection to your environment
+
+> 📖 **Detailed Guide**: See [docs/LIVE_MODE_GUIDE.md](docs/LIVE_MODE_GUIDE.md) for complete documentation on features, setup, and troubleshooting
+
+### 6. Traditional Voice Interaction
 
 High-quality voice capabilities powered by Google Cloud Text-to-Speech API and Web Speech API.
 
@@ -101,7 +116,7 @@ High-quality voice capabilities powered by Google Cloud Text-to-Speech API and W
 > 
 > ⚠️ **Troubleshooting**: If you get "Insufficient Permission" errors, see [docs/TTS_IAM_PERMISSION_FIX.md](docs/TTS_IAM_PERMISSION_FIX.md) for IAM setup instructions
 
-### 6. Direct HTTP Client Access
+### 7. Direct HTTP Client Access
 
 Advanced web interaction capabilities for API integrations and automated data exchange.
 
@@ -120,7 +135,7 @@ Advanced web interaction capabilities for API integrations and automated data ex
 - **Advanced Automation**: POST and PUT data to perform actions on other platforms
 - **Webhook Integration**: Send notifications and trigger automated workflows
 
-### 7. Modern UI/UX
+### 8. Modern UI/UX
 
 - **Google-esque Design**: Clean, airy aesthetic with lots of whitespace
 - **Responsive Layout**: Works on mobile, tablet, and desktop
