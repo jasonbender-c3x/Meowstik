@@ -16,28 +16,26 @@ import { ChatProvider } from "@/contexts/ChatContext";
 import { SocketProvider } from "@/contexts/SocketContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import MainLayout from "@/pages/MainLayout";
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import { Switch, Route } from "wouter";
 import LoginPage from "@/pages/LoginPage";
 
 function App() {
   return (
-    <Router>
-      <ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">
-        <TooltipProvider>
-          <SocketProvider>
-            <AuthProvider>
-              <ChatProvider>
-                <Routes>
-                  <Route path="/login" element={<LoginPage />} />
-                  <Route path="/*" element={<MainLayout />} />
-                </Routes>
-                <Toaster />
-              </ChatProvider>
-            </AuthProvider>
-          </SocketProvider>
-        </TooltipProvider>
-      </ThemeProvider>
-    </Router>
+    <ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">
+      <TooltipProvider>
+        <SocketProvider>
+          <AuthProvider>
+            <ChatProvider>
+              <Switch>
+                <Route path="/login" component={LoginPage} />
+                <Route path="/:rest*" component={MainLayout} />
+              </Switch>
+              <Toaster />
+            </ChatProvider>
+          </AuthProvider>
+        </SocketProvider>
+      </TooltipProvider>
+    </ThemeProvider>
   );
 }
 
