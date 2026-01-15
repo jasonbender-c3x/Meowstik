@@ -1294,6 +1294,11 @@ export const evidence = pgTable("evidence", {
   language: text("language").default("en"),
   wordCount: integer("word_count"),
   
+  // User isolation - CRITICAL for data privacy
+  // Note: Uses ON DELETE SET NULL to preserve guest data when users are deleted
+  userId: varchar("user_id").references(() => users.id, { onDelete: "set null" }),
+  isGuest: boolean("is_guest").default(false).notNull(),
+  
   // Temporal
   contentDate: timestamp("content_date"), // When the content was originally created
   createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -1401,6 +1406,11 @@ export const knowledgeEmbeddings = pgTable("knowledge_embeddings", {
   bucket: text("bucket"),
   modality: text("modality"),
   sourceType: text("source_type"),
+  
+  // User isolation - CRITICAL for data privacy
+  // Note: Uses ON DELETE SET NULL to preserve guest data when users are deleted
+  userId: varchar("user_id").references(() => users.id, { onDelete: "set null" }),
+  isGuest: boolean("is_guest").default(false).notNull(),
   
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
