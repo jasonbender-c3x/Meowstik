@@ -1450,6 +1450,23 @@ export class RAGDispatcher {
     const parsed = parsePathPrefix(params.command, 'server');
     const actualCommand = parsed.path;
     
+    // Warn about destructive git operations that could affect memory logs
+    const destructiveGitPatterns = [
+      /git\s+reset\s+--hard/i,
+      /git\s+clean\s+-[fFdD]/i,
+      /git\s+checkout\s+--\s+logs\//i,
+      /rm\s+-[rRfF].*logs/i
+    ];
+    
+    for (const pattern of destructiveGitPatterns) {
+      if (pattern.test(actualCommand)) {
+        console.warn(`⚠️  [MEMORY PROTECTION] Potentially destructive command detected: ${actualCommand}`);
+        console.warn(`⚠️  This command may affect memory logs. Memory files are now git-tracked and will be preserved.`);
+        console.warn(`⚠️  See docs/MEMORY_LOG_PROTECTION.md for details.`);
+        break;
+      }
+    }
+    
     // Route to client if client: prefix
     if (parsed.target === 'client') {
       console.log(`[RAGDispatcher] Routing terminal command to client: ${actualCommand}`);
