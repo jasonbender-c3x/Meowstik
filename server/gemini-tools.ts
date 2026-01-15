@@ -43,17 +43,32 @@ export const geminiFunctionDeclarations: FunctionDeclaration[] = [
       required: ["utterance"]
     }
   },
+  {
+    name: "open_url",
+    description: "Open a URL in a new browser tab. Use this when the user asks to view a webpage, open a link, or navigate to a URL. Does NOT terminate the loop.",
+    parametersJsonSchema: {
+      type: "object",
+      properties: {
+        url: {
+          type: "string",
+          description: "The full URL to open (must include https:// or http://)"
+        }
+      },
+      required: ["url"]
+    }
+  },
 
   // ═══════════════════════════════════════════════════════════════════════════
   // FILE OPERATIONS
   // ═══════════════════════════════════════════════════════════════════════════
   {
     name: "file_get",
-    description: "Read file content. Prefix path with 'editor:' for Monaco canvas files.",
+    description: "Read file content. Prefix path with 'editor:' for Monaco canvas files. By default, returns full file content without truncation.",
     parametersJsonSchema: {
       type: "object",
       properties: {
-        path: { type: "string", description: "File path to read" }
+        path: { type: "string", description: "File path to read" },
+        maxLength: { type: "number", description: "Optional maximum content length in characters. If omitted, returns full content without truncation." }
       },
       required: ["path"]
     }
@@ -666,6 +681,79 @@ export const geminiFunctionDeclarations: FunctionDeclaration[] = [
   },
 
   // ═══════════════════════════════════════════════════════════════════════════
+  // HTTP CLIENT - Direct HTTP Access
+  // ═══════════════════════════════════════════════════════════════════════════
+  {
+    name: "http_get",
+    description: "Perform a direct HTTP GET request to any URL. Useful for API integrations, fetching raw data, JSON, or files directly from the web.",
+    parametersJsonSchema: {
+      type: "object",
+      properties: {
+        url: { type: "string", description: "Full URL to request (must start with http:// or https://)" },
+        headers: { 
+          type: "object", 
+          description: "Optional HTTP headers as key-value pairs (e.g., {'Authorization': 'Bearer token', 'Accept': 'application/json'})" 
+        },
+        params: { 
+          type: "object", 
+          description: "Optional query parameters as key-value pairs (will be appended to URL)" 
+        },
+        timeout: { 
+          type: "number", 
+          description: "Request timeout in milliseconds (default: 30000)" 
+        }
+      },
+      required: ["url"]
+    }
+  },
+  {
+    name: "http_post",
+    description: "Perform a direct HTTP POST request to any URL. Useful for submitting data to APIs, webhooks, or web services.",
+    parametersJsonSchema: {
+      type: "object",
+      properties: {
+        url: { type: "string", description: "Full URL to request (must start with http:// or https://)" },
+        headers: { 
+          type: "object", 
+          description: "Optional HTTP headers as key-value pairs (e.g., {'Content-Type': 'application/json', 'Authorization': 'Bearer token'})" 
+        },
+        body: { 
+          type: ["string", "object"],
+          description: "Request body - can be a string or an object (objects will be JSON stringified automatically)" 
+        },
+        timeout: { 
+          type: "number", 
+          description: "Request timeout in milliseconds (default: 30000)" 
+        }
+      },
+      required: ["url", "body"]
+    }
+  },
+  {
+    name: "http_put",
+    description: "Perform a direct HTTP PUT request to any URL. Useful for updating resources via RESTful APIs.",
+    parametersJsonSchema: {
+      type: "object",
+      properties: {
+        url: { type: "string", description: "Full URL to request (must start with http:// or https://)" },
+        headers: { 
+          type: "object", 
+          description: "Optional HTTP headers as key-value pairs (e.g., {'Content-Type': 'application/json', 'Authorization': 'Bearer token'})" 
+        },
+        body: { 
+          type: ["string", "object"],
+          description: "Request body - can be a string or an object (objects will be JSON stringified automatically)" 
+        },
+        timeout: { 
+          type: "number", 
+          description: "Request timeout in milliseconds (default: 30000)" 
+        }
+      },
+      required: ["url", "body"]
+    }
+  },
+
+  // ═══════════════════════════════════════════════════════════════════════════
   // GITHUB
   // ═══════════════════════════════════════════════════════════════════════════
   {
@@ -1250,6 +1338,31 @@ export const geminiFunctionDeclarations: FunctionDeclaration[] = [
         }
       },
       required: ["delay"]
+    }
+  },
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // CODEBASE ANALYSIS
+  // ═══════════════════════════════════════════════════════════════════════════
+  {
+    name: "codebase_analyze",
+    description: "Analyze a codebase by crawling files, extracting code entities (functions, classes, variables), and optionally ingesting into RAG for semantic search. This is a long-running operation - use codebase_progress to monitor status.",
+    parametersJsonSchema: {
+      type: "object",
+      properties: {
+        path: { 
+          type: "string", 
+          description: "Root directory path to analyze (default: current directory '.')" 
+        }
+      }
+    }
+  },
+  {
+    name: "codebase_progress",
+    description: "Get the current progress of a running codebase analysis. Shows phase, files discovered/processed, entities found, and any errors.",
+    parametersJsonSchema: {
+      type: "object",
+      properties: {}
     }
   },
 

@@ -656,6 +656,8 @@ export const toolCallSchema = z.object({
     "send_chat",
     // Voice output - tool for sending speech in turn-taking voice mode
     "say",
+    // Browser control - open URLs in new tabs
+    "open_url",
     // File operations
     "file_get", "file_put",
     // Search & Scraping
@@ -713,6 +715,21 @@ export const sendChatParamsSchema = z.object({
   content: z.string().min(1, "Content cannot be empty"),
 });
 export type SendChatParams = z.infer<typeof sendChatParamsSchema>;
+
+// =============================================================================
+// BROWSER CONTROL PARAMETER SCHEMA
+// =============================================================================
+
+/**
+ * Open URL Parameters
+ * Tool for opening URLs in new browser tabs
+ * The frontend handles this by executing window.open()
+ */
+export const openUrlParamsSchema = z.object({
+  /** The URL to open in a new tab/window */
+  url: z.string().url("Must be a valid URL"),
+});
+export type OpenUrlParams = z.infer<typeof openUrlParamsSchema>;
 
 // =============================================================================
 // VOICE OUTPUT PARAMETER SCHEMA
@@ -913,6 +930,33 @@ export const browserScrapeParamsSchema = z.object({
   timeout: z.number().optional().default(30000),
 });
 export type BrowserScrapeParams = z.infer<typeof browserScrapeParamsSchema>;
+
+/** HTTP GET parameters for direct web requests */
+export const httpGetParamsSchema = z.object({
+  url: z.string().url(),
+  headers: z.record(z.string()).optional(),
+  params: z.record(z.string()).optional(),
+  timeout: z.number().optional().default(30000),
+});
+export type HttpGetParams = z.infer<typeof httpGetParamsSchema>;
+
+/** HTTP POST parameters for direct web requests */
+export const httpPostParamsSchema = z.object({
+  url: z.string().url(),
+  headers: z.record(z.string()).optional(),
+  body: z.union([z.string(), z.record(z.unknown())]),
+  timeout: z.number().optional().default(30000),
+});
+export type HttpPostParams = z.infer<typeof httpPostParamsSchema>;
+
+/** HTTP PUT parameters for direct web requests */
+export const httpPutParamsSchema = z.object({
+  url: z.string().url(),
+  headers: z.record(z.string()).optional(),
+  body: z.union([z.string(), z.record(z.unknown())]),
+  timeout: z.number().optional().default(30000),
+});
+export type HttpPutParams = z.infer<typeof httpPutParamsSchema>;
 
 /**
  * File Operation Schema
@@ -1250,6 +1294,11 @@ export const evidence = pgTable("evidence", {
   language: text("language").default("en"),
   wordCount: integer("word_count"),
   
+  // User isolation - CRITICAL for data privacy
+  // Note: Uses ON DELETE SET NULL to preserve guest data when users are deleted
+  userId: varchar("user_id").references(() => users.id, { onDelete: "set null" }),
+  isGuest: boolean("is_guest").default(false).notNull(),
+  
   // Temporal
   contentDate: timestamp("content_date"), // When the content was originally created
   createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -1357,6 +1406,11 @@ export const knowledgeEmbeddings = pgTable("knowledge_embeddings", {
   bucket: text("bucket"),
   modality: text("modality"),
   sourceType: text("source_type"),
+  
+  // User isolation - CRITICAL for data privacy
+  // Note: Uses ON DELETE SET NULL to preserve guest data when users are deleted
+  userId: varchar("user_id").references(() => users.id, { onDelete: "set null" }),
+  isGuest: boolean("is_guest").default(false).notNull(),
   
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
@@ -2292,3 +2346,147 @@ export const insertSshKeySchema = createInsertSchema(sshKeys).omit({
 });
 export type InsertSshKey = z.infer<typeof insertSshKeySchema>;
 export type SshKey = typeof sshKeys.$inferSelect;
+
+// ============================================================================
+// SMS MESSAGES - Twilio Inbound SMS Storage
+// ============================================================================
+
+/**
+ * SMS MESSAGES TABLE
+ * ------------------
+ * Stores inbound and outbound SMS messages from Twilio integration.
+ * Used for tracking conversations via SMS and enabling AI responses.
+ */
+export const smsMessages = pgTable("sms_messages", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  
+  // Twilio identifiers
+  messageSid: varchar("message_sid").unique().notNull(), // Twilio's unique message ID
+  accountSid: varchar("account_sid").notNull(), // Twilio account SID
+  
+  // Message content
+  from: varchar("from").notNull(), // Sender phone number
+  to: varchar("to").notNull(), // Recipient phone number
+  body: text("body").notNull(), // Message content
+  
+  // Message metadata - using varchar with specific constraints for type safety
+  direction: varchar("direction", { length: 20 }).notNull(), // "inbound" or "outbound"
+  status: varchar("status", { length: 50 }).notNull(), // Twilio message status (received, sent, failed, etc.)
+  numMedia: integer("num_media").default(0), // Number of media attachments
+  mediaUrls: jsonb("media_urls"), // Array of media URLs if present
+  
+  // Processing state
+  processed: boolean("processed").default(false).notNull(), // Whether AI has processed this message
+  chatId: varchar("chat_id").references(() => chats.id, { onDelete: "set null" }), // Link to chat if AI responded
+  responseMessageSid: varchar("response_message_sid"), // SID of the response message we sent
+  
+  // Error tracking
+  errorCode: integer("error_code"), // Twilio error code if any
+  errorMessage: text("error_message"), // Error details
+  
+  // Timestamps
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  processedAt: timestamp("processed_at"), // When AI processed the message
+});
+
+export const insertSmsMessageSchema = createInsertSchema(smsMessages).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertSmsMessage = z.infer<typeof insertSmsMessageSchema>;
+export type SmsMessage = typeof smsMessages.$inferSelect;
+// =============================================================================
+// TWILIO CONVERSATIONAL CALLING SYSTEM
+// =============================================================================
+
+/**
+ * CALL CONVERSATIONS TABLE
+ * -------------------------
+ * Stores metadata and state for Twilio voice call conversations.
+ * Enables multi-turn, AI-powered phone conversations with context preservation.
+ * 
+ * Each call conversation:
+ * - Tracks caller info and call SID
+ * - Maintains conversation state (active, completed, failed)
+ * - Links to associated chat for full conversation history
+ * - Records call duration and outcome
+ */
+export const callConversations = pgTable("call_conversations", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  
+  // Twilio call identification
+  callSid: text("call_sid").notNull().unique(), // Twilio call identifier
+  fromNumber: text("from_number").notNull(), // Caller's phone number
+  toNumber: text("to_number").notNull(), // Receiving number (our Twilio number)
+  
+  // Associated chat for conversation history
+  chatId: varchar("chat_id").references(() => chats.id, { onDelete: "cascade" }),
+  
+  // Call state
+  status: text("status").default("in_progress").notNull(), // in_progress, completed, failed, no_input
+  
+  // Conversation metadata
+  turnCount: integer("turn_count").default(0).notNull(), // Number of speech turns
+  currentContext: text("current_context"), // Last question asked or context
+  
+  // Timing
+  startedAt: timestamp("started_at").defaultNow().notNull(),
+  endedAt: timestamp("ended_at"),
+  duration: integer("duration"), // Call duration in seconds
+  
+  // Error tracking
+  errorMessage: text("error_message"),
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_call_conversations_sid").on(table.callSid),
+  index("idx_call_conversations_status").on(table.status),
+]);
+
+export const insertCallConversationSchema = createInsertSchema(callConversations).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  endedAt: true,
+});
+export type InsertCallConversation = z.infer<typeof insertCallConversationSchema>;
+export type CallConversation = typeof callConversations.$inferSelect;
+
+/**
+ * CALL TURNS TABLE
+ * ----------------
+ * Stores individual speech turns within a call conversation.
+ * Each turn represents one user speech input and the AI's response.
+ */
+export const callTurns = pgTable("call_turns", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  
+  // Link to parent conversation
+  conversationId: varchar("conversation_id").references(() => callConversations.id, { onDelete: "cascade" }).notNull(),
+  
+  // Turn sequence
+  turnNumber: integer("turn_number").notNull(), // Sequential turn number
+  
+  // User speech input
+  userSpeech: text("user_speech"), // Transcribed user speech from Twilio
+  speechConfidence: text("speech_confidence"), // Twilio confidence score (0.0-1.0) stored as text from webhook
+  
+  // AI response
+  aiResponse: text("ai_response").notNull(), // AI-generated response text
+  aiResponseAudio: text("ai_response_audio"), // TwiML or audio URL if custom TTS
+  
+  // Timing
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  duration: integer("duration"), // Turn duration in seconds
+}, (table) => [
+  index("idx_call_turns_conversation").on(table.conversationId),
+  index("idx_call_turns_number").on(table.conversationId, table.turnNumber),
+]);
+
+export const insertCallTurnSchema = createInsertSchema(callTurns).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertCallTurn = z.infer<typeof insertCallTurnSchema>;
+export type CallTurn = typeof callTurns.$inferSelect;

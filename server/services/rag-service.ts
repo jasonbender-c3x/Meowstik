@@ -74,13 +74,16 @@ export class RAGService {
 
   /**
    * Ingest a document: chunk, embed, and store
+   * 
+   * @param userId - User ID for data isolation (null for guest users)
    */
   async ingestDocument(
     content: string,
     attachmentId: string,
     filename: string,
     mimeType?: string,
-    options?: ChunkingOptions
+    options?: ChunkingOptions,
+    userId?: string | null // Add userId parameter for data isolation
   ): Promise<IngestResult> {
     const documentId = `doc-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     const traceId = ragDebugBuffer.generateTraceId();
@@ -138,6 +141,14 @@ export class RAGService {
 
       const storeStartTime = Date.now();
       for (let i = 0; i < chunks.length; i++) {
+        // Enhance metadata with userId for data isolation
+        const enhancedMetadata = {
+          ...chunks[i].metadata,
+          userId: userId || GUEST_USER_ID,
+          isVerified: !!userId,
+          source: "document",
+        };
+
         // Store in PostgreSQL for persistence
         const savedChunk = await storage.createDocumentChunk({
           documentId,
@@ -145,7 +156,7 @@ export class RAGService {
           chunkIndex: chunks[i].metadata.chunkIndex,
           content: chunks[i].content,
           embedding: embeddings[i].embedding,
-          metadata: chunks[i].metadata,
+          metadata: enhancedMetadata,
         });
 
         // Prepare for vector store (semantic search)
@@ -154,11 +165,10 @@ export class RAGService {
           content: chunks[i].content,
           embedding: embeddings[i].embedding,
           metadata: {
-            ...chunks[i].metadata,
+            ...enhancedMetadata,
             documentId,
             attachmentId,
             chunkIndex: chunks[i].metadata.chunkIndex,
-            source: "document",
           },
         });
       }

@@ -4,7 +4,7 @@ hidden = [".config", ".git", "generated-icon.png", "node_modules", "dist"]
 
 [nix]
 channel = "stable-24_05"
-packages = ["ffmpeg", "chromium", "playwright-driver"]
+packages = ["ffmpeg", "chromium", "playwright-driver", "openssh"]
 
 [deployment]
 deploymentTarget = "autoscale"
@@ -42,6 +42,10 @@ integrations = ["javascript_gemini:1.0.0", "google-drive:1.0.0", "google-mail:1.
 [[ports]]
 localPort = 5000
 externalPort = 80
+
+[[ports]]
+localPort = 5001
+externalPort = 3000
 
 [userenv]
 
