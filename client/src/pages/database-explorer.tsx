@@ -84,6 +84,8 @@ function isHash(value: unknown): boolean {
 }
 
 function CellValue({ value, columnName, recordId }: { value: unknown; columnName: string; recordId: string }) {
+  const [expanded, setExpanded] = useState(false);
+
   if (value === null || value === undefined) {
     return <span className="text-muted-foreground italic">null</span>;
   }
@@ -108,16 +110,30 @@ function CellValue({ value, columnName, recordId }: { value: unknown; columnName
 
   if (isUuid(value)) {
     return (
-      <code className="text-xs bg-muted px-1.5 py-0.5 rounded font-mono text-primary">
-        {strValue.slice(0, 5)}...
+      <code 
+        className="text-xs bg-muted px-1.5 py-0.5 rounded font-mono text-primary cursor-pointer hover:bg-muted/80 transition-colors"
+        onClick={(e) => {
+          e.stopPropagation();
+          setExpanded(!expanded);
+        }}
+        title={expanded ? "Click to collapse" : "Click to expand"}
+      >
+        {expanded ? strValue : `${strValue.slice(0, 5)}...`}
       </code>
     );
   }
 
   if (isHash(value)) {
     return (
-      <code className="text-xs bg-muted px-1.5 py-0.5 rounded font-mono text-primary">
-        {strValue.slice(0, 5)}...
+      <code 
+        className="text-xs bg-muted px-1.5 py-0.5 rounded font-mono text-primary cursor-pointer hover:bg-muted/80 transition-colors"
+        onClick={(e) => {
+          e.stopPropagation();
+          setExpanded(!expanded);
+        }}
+        title={expanded ? "Click to collapse" : "Click to expand"}
+      >
+        {expanded ? strValue : `${strValue.slice(0, 5)}...`}
       </code>
     );
   }
@@ -131,15 +147,46 @@ function CellValue({ value, columnName, recordId }: { value: unknown; columnName
   }
 
   if (typeof value === "object") {
+    const isTruncated = strValue.length > 50;
     return (
-      <code className="text-xs bg-muted px-1.5 py-0.5 rounded font-mono max-w-xs truncate block">
-        {strValue.slice(0, 50)}{strValue.length > 50 ? "..." : ""}
+      <code 
+        className={cn(
+          "text-xs bg-muted px-1.5 py-0.5 rounded font-mono max-w-xs block",
+          isTruncated && "cursor-pointer hover:bg-muted/80 transition-colors"
+        )}
+        onClick={(e) => {
+          if (isTruncated) {
+            e.stopPropagation();
+            setExpanded(!expanded);
+          }
+        }}
+        title={isTruncated ? (expanded ? "Click to collapse" : "Click to expand") : undefined}
+      >
+        {expanded ? strValue : `${strValue.slice(0, 50)}${isTruncated ? "..." : ""}`}
       </code>
     );
   }
 
-  const displayValue = strValue.length > 100 ? strValue.slice(0, 100) + "..." : strValue;
-  return <span className="max-w-xs truncate block">{displayValue}</span>;
+  const isTruncated = strValue.length > 100;
+  const displayValue = isTruncated && !expanded ? strValue.slice(0, 100) + "..." : strValue;
+  return (
+    <span 
+      className={cn(
+        "max-w-xs block",
+        isTruncated && "cursor-pointer hover:underline",
+        !expanded && "truncate"
+      )}
+      onClick={(e) => {
+        if (isTruncated) {
+          e.stopPropagation();
+          setExpanded(!expanded);
+        }
+      }}
+      title={isTruncated ? (expanded ? "Click to collapse" : "Click to expand") : undefined}
+    >
+      {displayValue}
+    </span>
+  );
 }
 
 function RecordViewer({ record, tableName, onClose, onEdit, onDelete }: RecordViewerProps) {
