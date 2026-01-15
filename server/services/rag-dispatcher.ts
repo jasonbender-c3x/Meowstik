@@ -68,6 +68,7 @@ import * as sshService from "./ssh-service";
 import { ragService } from "./rag-service";
 import { chunkingService } from "./chunking-service";
 import { clientRouter } from "./client-router";
+import type { CodeEntity } from "./codebase-analyzer";
 import { exec } from "child_process";
 import { promisify } from "util";
 import * as fs from "fs/promises";
@@ -689,6 +690,13 @@ export class RAGDispatcher {
           break;
         case "db_delete":
           result = await this.executeDbDelete(toolCall);
+          break;
+        // Codebase Analysis Tools
+        case "codebase_analyze":
+          result = await this.executeCodebaseAnalyze(toolCall);
+          break;
+        case "codebase_progress":
+          result = await this.executeCodebaseProgress(toolCall);
           break;
         // SSH Tools
         case "ssh_key_generate":
@@ -2848,6 +2856,95 @@ export class RAGDispatcher {
         error: errorMessage,
         table: params.table,
         message: `Delete failed: ${errorMessage}`
+      };
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // CODEBASE ANALYSIS HANDLERS
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  /**
+   * Analyze a codebase - crawl files, extract entities, ingest to RAG
+   */
+  private async executeCodebaseAnalyze(toolCall: ToolCall): Promise<unknown> {
+    const params = toolCall.parameters as { path?: string };
+    const rootPath = params.path || ".";
+    
+    try {
+      const { codebaseAnalyzer } = await import("./codebase-analyzer");
+      
+      // Start analysis (may take time for large codebases)
+      // Skip RAG ingestion for external codebases (paths outside the project)
+      // Check if resolved path is outside current working directory
+      const resolvedPath = path.resolve(rootPath);
+      const cwd = process.cwd();
+      const isExternal = resolvedPath !== cwd && !resolvedPath.startsWith(cwd + path.sep);
+      
+      const result = await codebaseAnalyzer.analyzeCodebase(rootPath, isExternal);
+      
+      // Convert Map to object for JSON serialization
+      const glossaryObj = Object.fromEntries(result.glossary);
+      
+      return {
+        type: "codebase_analyze",
+        success: true,
+        rootPath: result.rootPath,
+        totalFiles: result.totalFiles,
+        totalEntities: result.totalEntities,
+        totalChunks: result.totalChunks,
+        duration: result.duration,
+        errors: result.errors,
+        glossary: glossaryObj,
+        message: `Analysis complete: ${result.totalFiles} files, ${result.totalEntities} entities found in ${Math.round(result.duration / 1000)}s`
+      };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "Unknown error";
+      console.error("[Codebase Analyze] Error:", error);
+      return {
+        type: "codebase_analyze",
+        success: false,
+        error: errorMessage,
+        message: `Failed to analyze codebase: ${errorMessage}`
+      };
+    }
+  }
+
+  /**
+   * Get current progress of codebase analysis
+   */
+  private async executeCodebaseProgress(toolCall: ToolCall): Promise<unknown> {
+    try {
+      const { codebaseAnalyzer } = await import("./codebase-analyzer");
+      const progress = codebaseAnalyzer.getProgress();
+      
+      const percentComplete = progress.filesDiscovered > 0 
+        ? Math.round((progress.filesProcessed / progress.filesDiscovered) * 100) 
+        : 0;
+      
+      return {
+        type: "codebase_progress",
+        success: true,
+        progress: {
+          phase: progress.phase,
+          filesDiscovered: progress.filesDiscovered,
+          filesProcessed: progress.filesProcessed,
+          entitiesFound: progress.entitiesFound,
+          chunksIngested: progress.chunksIngested,
+          currentFile: progress.currentFile,
+          errors: progress.errors,
+          percentComplete
+        },
+        message: `Analysis phase: ${progress.phase} (${progress.filesProcessed}/${progress.filesDiscovered} files processed)`
+      };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "Unknown error";
+      console.error("[Codebase Progress] Error:", error);
+      return {
+        type: "codebase_progress",
+        success: false,
+        error: errorMessage,
+        message: `Failed to get progress: ${errorMessage}`
       };
     }
   }
