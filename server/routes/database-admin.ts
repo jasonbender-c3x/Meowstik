@@ -22,19 +22,12 @@ import { storage } from '../storage';
 import { CloudSqlProvisioner, CloudSqlConfig } from '../services/cloud-sql-provisioner';
 import { writeFileSync, existsSync, unlinkSync, readFileSync } from 'fs';
 import { z } from 'zod';
-import multer from 'multer';
 import path from 'path';
 import { exec } from 'child_process';
 import { promisify } from 'util';
 
 const router = Router();
 const execAsync = promisify(exec);
-
-// Configure file upload
-const upload = multer({
-  dest: '/tmp/uploads/',
-  limits: { fileSize: 100 * 1024 * 1024 }, // 100 MB max
-});
 
 // Track active migrations
 const activeMigrations = new Map<string, {
@@ -140,11 +133,14 @@ router.post('/export', async (req: Request, res: Response) => {
 /**
  * POST /api/database/import
  * Import database from uploaded SQL file
+ * NOTE: File upload requires multer middleware - install with: npm install multer @types/multer
  */
-router.post('/import', upload.single('file'), async (req: Request, res: Response) => {
+router.post('/import', async (req: Request, res: Response) => {
   try {
-    if (!req.file) {
-      return res.status(400).json({ error: 'No file uploaded' });
+    // Check if file path is provided
+    const filepath = req.body.filepath;
+    if (!filepath || !existsSync(filepath)) {
+      return res.status(400).json({ error: 'Valid file path required' });
     }
 
     const targetUrl = req.body.targetUrl || process.env.DATABASE_URL;
@@ -163,7 +159,7 @@ router.post('/import', upload.single('file'), async (req: Request, res: Response
     // Execute import
     try {
       await execAsync(
-        `npx tsx scripts/db-import.ts --file=${req.file.path} --target=${targetUrl} --skip-errors`
+        `npx tsx scripts/db-import.ts --file=${filepath} --target=${targetUrl} --skip-errors`
       );
 
       activeMigrations.set(migrationId, {
@@ -172,11 +168,6 @@ router.post('/import', upload.single('file'), async (req: Request, res: Response
         message: 'Import complete',
         startedAt: activeMigrations.get(migrationId)!.startedAt,
       });
-
-      // Clean up uploaded file
-      if (existsSync(req.file.path)) {
-        unlinkSync(req.file.path);
-      }
 
       res.json({
         success: true,
