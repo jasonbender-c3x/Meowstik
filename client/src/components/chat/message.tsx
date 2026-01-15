@@ -180,10 +180,18 @@ function truncateParams(params: Record<string, any>, maxLength: number = 200): R
 
 /**
  * Extract the "thinking" portion from message content
- * The backend format is: [JSON tool calls]\n\n✂️🐱\n\nmarkdown content
- * This function extracts everything BEFORE the delimiter as the thinking/reasoning.
+ * Supports two formats:
+ * 1. Legacy: [JSON tool calls]\n\n✂️🐱\n\nmarkdown content
+ * 2. New: <thinking>thought content</thinking> (from Gemini 2.0 Flash Thinking)
  */
 function extractThinking(content: string): string | null {
+  // Check for new <thinking> tag format first
+  const thinkingMatch = content.match(/<thinking>([\s\S]*?)<\/thinking>/);
+  if (thinkingMatch && thinkingMatch[1].trim()) {
+    return thinkingMatch[1].trim();
+  }
+  
+  // Fall back to legacy delimiter format
   const delimiterIndex = content.indexOf('✂️🐱');
   if (delimiterIndex === -1) return null;
   
@@ -216,19 +224,22 @@ function extractThinking(content: string): string | null {
 }
 
 /**
- * Strip tool call blocks from message content
- * The backend format is: [JSON tool calls]\n\n✂️🐱\n\nmarkdown content
- * This function removes everything up to and including the delimiter,
- * keeping only the clean markdown content for display.
- * Also handles legacy JSON patterns for backwards compatibility.
+ * Strip tool call blocks and thinking tags from message content
+ * Handles multiple formats:
+ * 1. Backend delimiter format: [JSON tool calls]\n\n✂️🐱\n\nmarkdown content
+ * 2. Thinking tags: <thinking>...</thinking> (from Gemini 2.0 Flash Thinking)
+ * 3. Legacy JSON patterns for backwards compatibility
  */
 function stripToolCalls(content: string): string {
+  // NEW: Remove <thinking> tags and their content (already shown in separate section)
+  let cleaned = content.replace(/<thinking>[\s\S]*?<\/thinking>\s*/g, '');
+  
   // Primary: Remove everything up to and including the ✂️🐱 delimiter
   // Backend format is: [JSON tool calls]\n\n✂️🐱\n\nmarkdown content
-  const delimiterIndex = content.indexOf('✂️🐱');
-  let cleaned = delimiterIndex !== -1 
-    ? content.substring(delimiterIndex + '✂️🐱'.length).trim()
-    : content;
+  const delimiterIndex = cleaned.indexOf('✂️🐱');
+  cleaned = delimiterIndex !== -1 
+    ? cleaned.substring(delimiterIndex + '✂️🐱'.length).trim()
+    : cleaned;
   
   // Legacy: Remove delimited tool call blocks (🐱✂️ ... ✂️🐱)
   const delimiterPattern = /🐱✂️[\s\S]*?✂️🐱/g;
