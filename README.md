@@ -138,6 +138,14 @@ Advanced web interaction capabilities for API integrations and automated data ex
 - PostgreSQL database (automatically configured via `DATABASE_URL`)
 - Google Gemini API key (set as `GEMINI_API_KEY` environment variable)
 
+### Self-Hosting / Platform Independence
+
+Want to run Meowstik on your own hardware? Check out our comprehensive guides:
+
+- 📘 **[Home Dev Server Implementation Plan](docs/HOME_DEV_SERVER_IMPLEMENTATION_PLAN.md)**: Complete setup guide for self-hosting
+- ⚡ **[Home Dev Server Quick Start](docs/HOME_DEV_SERVER_QUICKSTART.md)**: Condensed checklist for rapid deployment
+- 🛣️ **[Platform Independence Roadmap](docs/roadmap-platform-independence.md)**: Strategic migration plan
+
 ### Installation
 
 ```bash
