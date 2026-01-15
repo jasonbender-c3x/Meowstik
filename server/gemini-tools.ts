@@ -1342,6 +1342,31 @@ export const geminiFunctionDeclarations: FunctionDeclaration[] = [
   },
 
   // ═══════════════════════════════════════════════════════════════════════════
+  // CODEBASE ANALYSIS
+  // ═══════════════════════════════════════════════════════════════════════════
+  {
+    name: "codebase_analyze",
+    description: "Analyze a codebase by crawling files, extracting code entities (functions, classes, variables), and optionally ingesting into RAG for semantic search. This is a long-running operation - use codebase_progress to monitor status.",
+    parametersJsonSchema: {
+      type: "object",
+      properties: {
+        path: { 
+          type: "string", 
+          description: "Root directory path to analyze (default: current directory '.')" 
+        }
+      }
+    }
+  },
+  {
+    name: "codebase_progress",
+    description: "Get the current progress of a running codebase analysis. Shows phase, files discovered/processed, entities found, and any errors.",
+    parametersJsonSchema: {
+      type: "object",
+      properties: {}
+    }
+  },
+
+  // ═══════════════════════════════════════════════════════════════════════════
   // DATABASE OPERATIONS
   // ═══════════════════════════════════════════════════════════════════════════
   {
