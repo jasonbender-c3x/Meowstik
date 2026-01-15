@@ -9,3 +9,4 @@ attached_assets/*.json
 repos/
 /icons/
 .env
+notebooklm-output/
