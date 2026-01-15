@@ -206,34 +206,6 @@ Add ability to automatically rotate SSH keys on a schedule for improved security
 
 ---
 
-## Priority 4: Architecture Improvements
-
-### Issue 8: Auto-Tag Copilot in Evolution PRs
-
-**Title**: Automatically tag @copilot in evolution engine PRs
-
-**Description**:  
-When evolution engine creates a PR, automatically add a comment tagging @copilot to trigger implementation.
-
-**Files**:
-- `server/services/evolution-engine.ts`
-
-**Implementation**:
-```typescript
-// After creating PR
-await github.createIssueComment(
-  repo.owner,
-  repo.repo,
-  pr.number,
-  `@copilot This PR contains AI-generated improvements based on user feedback.\n\nPlease review and implement the proposed changes.\n\n**Summary**: ${report.summary}\n\n**Action Items**: See PR description for detailed instructions.`
-);
-```
-
-**Assignee**: @copilot  
-**Labels**: enhancement, orchestration, p4
-
----
-
 ## Summary
 
 | Priority | Count | Status |
@@ -241,10 +213,9 @@ await github.createIssueComment(
 | P1 (Critical) | 2 | Ready |
 | P2 (Documentation) | 2 | Ready |
 | P3 (Enhancement) | 3 | Ready |
-| P4 (Architecture) | 1 | Future |
 
-**Total Issues**: 8  
-**Assignee**: @copilot (7), @jasonbender-c3x (1)
+**Total Issues**: 7  
+**Assignee**: @copilot (6), @jasonbender-c3x (1)
 
 ---
 
