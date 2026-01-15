@@ -506,7 +506,7 @@ export default function Home() {
         body: JSON.stringify({ 
           content,
           model: modelMode, // "pro" or "flash"
-          verbosityMode: verbosityMode, // "mute", "quiet", "verbose", "experimental"
+          verbosityMode: verbosityMode, // "mute", "low", "normal", "high", "demo-hd", "podcast"
           attachments: attachments.map(a => ({
             filename: a.filename,
             type: a.type,

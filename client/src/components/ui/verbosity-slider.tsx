@@ -1,30 +1,34 @@
 /**
  * VerbositySlider - Controls voice output level
  * 
- * 4 Modes:
+ * 6 Modes:
  * - Mute: Silent (no audio)
- * - Quiet: Only "say" tool output (HD audio)
- * - Verbose: Full chat TTS (browser TTS + HD)
- * - Experimental: Multi-voice (future)
+ * - Low: Low verbosity content, only "say" tool output
+ * - Normal: Normal verbosity content, only "say" tool output (default)
+ * - High: All chat content (except code blocks) spoken via "say" tool
+ * - Demo HD: Premium expressive HD voice model
+ * - Podcast: Dual-voice discussion style with barge-in
  */
 
 import { useTTS, type VerbosityMode } from "@/contexts/tts-context";
-import { VolumeX, Volume1, Volume2, Sparkles } from "lucide-react";
+import { VolumeX, Volume1, Volume2, Sparkles, Radio } from "lucide-react";
 import { motion } from "framer-motion";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 const modes: { id: VerbosityMode; icon: React.ReactNode; label: string; description: string }[] = [
-  { id: "mute", icon: <VolumeX className="h-4 w-4" />, label: "Mute", description: "Silent - no voice output" },
-  { id: "quiet", icon: <Volume1 className="h-4 w-4" />, label: "Quiet", description: "Only speak when I use my voice" },
-  { id: "verbose", icon: <Volume2 className="h-4 w-4" />, label: "Verbose", description: "Speak all responses" },
-  { id: "experimental", icon: <Sparkles className="h-4 w-4" />, label: "Expressive", description: "Multi-voice (experimental)" },
+  { id: "mute", icon: <VolumeX className="h-4 w-4" />, label: "Mute", description: "No speech output" },
+  { id: "low", icon: <Volume1 className="h-4 w-4" />, label: "Low", description: "Low verbosity, say tool only" },
+  { id: "normal", icon: <Volume2 className="h-4 w-4" />, label: "Normal", description: "Normal verbosity, say tool only" },
+  { id: "high", icon: <Volume2 className="h-4 w-4" />, label: "High", description: "All content spoken aloud" },
+  { id: "demo-hd", icon: <Sparkles className="h-4 w-4" />, label: "Demo HD", description: "Premium expressive voice" },
+  { id: "podcast", icon: <Radio className="h-4 w-4" />, label: "Podcast", description: "Dual-voice discussion style" },
 ];
 
 export function VerbositySlider() {
   const { verbosityMode, setVerbosityMode } = useTTS();
   
   const currentIndex = modes.findIndex(m => m.id === verbosityMode);
-  const currentMode = modes[currentIndex] || modes[2];
+  const currentMode = modes[currentIndex] || modes[2]; // Default to "normal"
 
   return (
     <TooltipProvider>
