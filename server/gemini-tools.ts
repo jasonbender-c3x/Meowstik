@@ -43,6 +43,20 @@ export const geminiFunctionDeclarations: FunctionDeclaration[] = [
       required: ["utterance"]
     }
   },
+  {
+    name: "open_url",
+    description: "Open a URL in a new browser tab. Use this when the user asks to view a webpage, open a link, or navigate to a URL. Does NOT terminate the loop.",
+    parametersJsonSchema: {
+      type: "object",
+      properties: {
+        url: {
+          type: "string",
+          description: "The full URL to open (must include https:// or http://)"
+        }
+      },
+      required: ["url"]
+    }
+  },
 
   // ═══════════════════════════════════════════════════════════════════════════
   // FILE OPERATIONS
@@ -1324,6 +1338,31 @@ export const geminiFunctionDeclarations: FunctionDeclaration[] = [
         }
       },
       required: ["delay"]
+    }
+  },
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // CODEBASE ANALYSIS
+  // ═══════════════════════════════════════════════════════════════════════════
+  {
+    name: "codebase_analyze",
+    description: "Analyze a codebase by crawling files, extracting code entities (functions, classes, variables), and optionally ingesting into RAG for semantic search. This is a long-running operation - use codebase_progress to monitor status.",
+    parametersJsonSchema: {
+      type: "object",
+      properties: {
+        path: { 
+          type: "string", 
+          description: "Root directory path to analyze (default: current directory '.')" 
+        }
+      }
+    }
+  },
+  {
+    name: "codebase_progress",
+    description: "Get the current progress of a running codebase analysis. Shows phase, files discovered/processed, entities found, and any errors.",
+    parametersJsonSchema: {
+      type: "object",
+      properties: {}
     }
   },
 

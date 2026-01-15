@@ -9,7 +9,7 @@ import { promisify } from 'util';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as crypto from 'crypto';
-import { db } from '../db';
+import { getDb } from '../db';
 import { sshHosts, sshKeys, InsertSshHost, InsertSshKey } from '../../shared/schema';
 import { eq } from 'drizzle-orm';
 
@@ -86,7 +86,7 @@ export async function generateSshKey(name: string, comment?: string): Promise<Ke
   const privateKeySecretName = `SSH_KEY_${name.toUpperCase().replace(/[^A-Z0-9]/g, '_')}`;
   
   // Save key metadata to database (public key only, not private!)
-  await db.insert(sshKeys).values({
+  await getDb().insert(sshKeys).values({
     name,
     publicKey,
     privateKeySecretName,
@@ -127,14 +127,14 @@ Steps:
  * List all generated SSH keys
  */
 export async function listSshKeys() {
-  return await db.select().from(sshKeys);
+  return await getDb().select().from(sshKeys);
 }
 
 /**
  * Get a specific SSH key's public key
  */
 export async function getSshKeyPublic(name: string) {
-  const [key] = await db.select().from(sshKeys).where(eq(sshKeys.name, name));
+  const [key] = await getDb().select().from(sshKeys).where(eq(sshKeys.name, name));
   return key;
 }
 
@@ -146,7 +146,7 @@ export async function getSshKeyPublic(name: string) {
  * Add a new SSH host profile
  */
 export async function addSshHost(host: InsertSshHost) {
-  const [created] = await db.insert(sshHosts).values(host).returning();
+  const [created] = await getDb().insert(sshHosts).values(host).returning();
   broadcastOutput('system', `✅ Added SSH host "${host.alias}" (${host.username}@${host.hostname}:${host.port || 22})`, 'ssh');
   return created;
 }
@@ -155,14 +155,14 @@ export async function addSshHost(host: InsertSshHost) {
  * List all configured SSH hosts
  */
 export async function listSshHosts() {
-  return await db.select().from(sshHosts);
+  return await getDb().select().from(sshHosts);
 }
 
 /**
  * Get a specific SSH host by alias
  */
 export async function getSshHost(alias: string) {
-  const [host] = await db.select().from(sshHosts).where(eq(sshHosts.alias, alias));
+  const [host] = await getDb().select().from(sshHosts).where(eq(sshHosts.alias, alias));
   return host;
 }
 
@@ -175,7 +175,7 @@ export async function deleteSshHost(alias: string) {
     await disconnectSsh(alias);
   }
   
-  await db.delete(sshHosts).where(eq(sshHosts.alias, alias));
+  await getDb().delete(sshHosts).where(eq(sshHosts.alias, alias));
   broadcastOutput('system', `🗑️ Removed SSH host "${alias}"`, 'ssh');
   return { success: true };
 }
@@ -230,7 +230,7 @@ export async function connectSsh(alias: string): Promise<{ success: boolean; mes
     activeConnections.set(alias, ssh);
     
     // Update last connected time
-    await db.update(sshHosts)
+    await getDb().update(sshHosts)
       .set({ lastConnected: new Date(), lastError: null })
       .where(eq(sshHosts.alias, alias));
     
@@ -241,7 +241,7 @@ export async function connectSsh(alias: string): Promise<{ success: boolean; mes
     const errorMsg = error.message || String(error);
     
     // Update error in database
-    await db.update(sshHosts)
+    await getDb().update(sshHosts)
       .set({ lastError: errorMsg })
       .where(eq(sshHosts.alias, alias));
     

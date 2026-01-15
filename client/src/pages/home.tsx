@@ -741,6 +741,21 @@ export default function Home() {
                 }
               }
 
+              // Handle openUrl event - open URL in new tab
+              if (data.openUrl) {
+                console.log('[OPEN_URL] Received openUrl event:', data.openUrl);
+                const openUrlData = data.openUrl as { url: string };
+                if (openUrlData.url) {
+                  try {
+                    console.log('[OPEN_URL] Opening URL in new tab:', openUrlData.url);
+                    window.open(openUrlData.url, '_blank');
+                    console.log('[OPEN_URL] ✓ Successfully triggered window.open()');
+                  } catch (err) {
+                    console.error('[OPEN_URL] Error opening URL:', err);
+                  }
+                }
+              }
+
               // Handle metadata event (tool results, file ops, autoexec)
               if (data.metadata) {
                 streamMetadata = data.metadata;
@@ -748,13 +763,12 @@ export default function Home() {
                 // Handle tool results - check for send_chat and file_put
                 if (streamMetadata.toolResults) {
                   for (const toolResult of streamMetadata.toolResults) {
-                    // Handle send_chat tool - extract content for chat display
+                    // Handle send_chat tool - extract content for TTS
                     if (toolResult.type === 'send_chat' && toolResult.success && toolResult.result) {
                       const { content } = toolResult.result as { content: string };
-                      if (content && !aiMessageContent.includes(content)) {
-                        aiMessageContent = content;
-                      }
                       // Track clean content for browser TTS (avoid speaking raw JSON)
+                      // Note: Don't replace aiMessageContent here - send_chat content is already
+                      // streamed via text events, so replacing would overwrite say/thinking content
                       if (content) {
                         cleanContentForTTS = content;
                       }

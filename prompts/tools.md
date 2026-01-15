@@ -261,6 +261,7 @@ Use these tools for direct HTTP requests to APIs, webhooks, and web services. Th
 |------|------------|---------|
 | `send_chat` | `content` | **TERMINATES LOOP** - Sends final response to chat window |
 | `say` | `utterance`, `voice?` | Generates HD audio (voices: Kore, Puck, Charon, Fenrir, Aoede, Leda, Orus, Zephyr) |
+| `open_url` | `url` | Opens URL in new browser tab (e.g., GitHub issues, documentation) |
 
 ---
 
@@ -353,4 +354,16 @@ User → You output toolCalls → Executed → Results back → More toolCalls �
 - **Always output JSON** with `toolCalls` array
 - **`send_chat` terminates** the loop and displays content in chat
 - **`say` generates audio** but does NOT terminate the loop
+- **`open_url` opens tabs** without terminating - useful for showing related links
 - Chain independent tools in one turn for efficiency
+
+### Example: Opening URLs
+
+When user asks to open a GitHub issue or view documentation:
+```json
+{"toolCalls": [
+  {"type": "say", "id": "s1", "operation": "speak", "parameters": {"utterance": "Opening the GitHub issue for you now."}},
+  {"type": "open_url", "id": "u1", "operation": "open_browser", "parameters": {"url": "https://github.com/jasonbender-c3x/Meowstik/issues/581"}},
+  {"type": "send_chat", "id": "c1", "operation": "respond", "parameters": {"content": "I've opened [issue #581](https://github.com/jasonbender-c3x/Meowstik/issues/581) for you in a new tab."}}
+]}
+```
