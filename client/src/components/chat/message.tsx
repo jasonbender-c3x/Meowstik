@@ -180,70 +180,25 @@ function truncateParams(params: Record<string, any>, maxLength: number = 200): R
 
 /**
  * Extract the "thinking" portion from message content
- * Supports two formats:
- * 1. Legacy: [JSON tool calls]\n\n✂️🐱\n\nmarkdown content
- * 2. New: <thinking>thought content</thinking> (from Gemini 2.0 Flash Thinking)
+ * Extracts content from <thinking> tags (Gemini 2.0 Flash Thinking)
  */
 function extractThinking(content: string): string | null {
-  // Check for new <thinking> tag format first
+  // Extract <thinking> tag content
   const thinkingMatch = content.match(/<thinking>([\s\S]*?)<\/thinking>/);
   if (thinkingMatch && thinkingMatch[1].trim()) {
     return thinkingMatch[1].trim();
   }
   
-  // Fall back to legacy delimiter format
-  const delimiterIndex = content.indexOf('✂️🐱');
-  if (delimiterIndex === -1) return null;
-  
-  const thinking = content.substring(0, delimiterIndex).trim();
-  if (!thinking || thinking.length < 10) return null;
-  
-  // Try to parse and format the JSON tool calls nicely
-  try {
-    // Check if it starts with [ and contains JSON
-    if (thinking.startsWith('[') || thinking.includes('"type"')) {
-      const jsonMatch = thinking.match(/\[[\s\S]*\]/);
-      if (jsonMatch) {
-        const parsed = JSON.parse(jsonMatch[0]);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          return parsed.map((call: any) => {
-            const type = call.type || 'unknown';
-            const operation = call.operation || '';
-            const truncatedParams = call.parameters ? truncateParams(call.parameters) : null;
-            const params = truncatedParams ? JSON.stringify(truncatedParams, null, 2) : '';
-            return `🔧 ${type}${operation ? `: ${operation}` : ''}\n${params ? `   Parameters: ${params}` : ''}`;
-          }).join('\n\n');
-        }
-      }
-    }
-  } catch {
-    // If parsing fails, just return the raw text
-  }
-  
-  return thinking;
+  return null;
 }
 
 /**
  * Strip tool call blocks and thinking tags from message content
- * Handles multiple formats:
- * 1. Backend delimiter format: [JSON tool calls]\n\n✂️🐱\n\nmarkdown content
- * 2. Thinking tags: <thinking>...</thinking> (from Gemini 2.0 Flash Thinking)
- * 3. Legacy JSON patterns for backwards compatibility
+ * Removes <thinking> tags and cleans up tool call JSON patterns
  */
 function stripToolCalls(content: string): string {
-  // NEW: Remove <thinking> tags and their content (already shown in separate section)
+  // Remove <thinking> tags and their content (already shown in separate section)
   let cleaned = content.replace(/<thinking>[\s\S]*?<\/thinking>\s*/g, '');
-  
-  // Primary: Remove everything up to and including the ✂️🐱 delimiter
-  // Backend format is: [JSON tool calls]\n\n✂️🐱\n\nmarkdown content
-  const delimiterIndex = cleaned.indexOf('✂️🐱');
-  cleaned = delimiterIndex !== -1 
-    ? cleaned.substring(delimiterIndex + '✂️🐱'.length).trim()
-    : cleaned;
-  
-  // Legacy: Remove delimited tool call blocks (🐱✂️ ... ✂️🐱)
-  const delimiterPattern = /🐱✂️[\s\S]*?✂️🐱/g;
-  cleaned = cleaned.replace(delimiterPattern, '');
   
   // Known tool type prefixes for targeted matching
   const toolTypePattern = '(?:github_|gmail_|calendar_|drive_|docs_|sheets_|tasks_|terminal_|tavily_|perplexity_|browserbase_|api_call|search|web_search|google_search|duckduckgo_search|browser_scrape|file_ingest|file_upload)[\\w_]*';
@@ -289,8 +244,7 @@ function stripToolCalls(content: string): string {
   const orphanedJsonKeys = /"(?:operation|parameters|id|type)"\s*:\s*(?:"[^"]*"|\{[^}]*\})/gi;
   cleaned = cleaned.replace(orphanedJsonKeys, '');
   
-  // Remove orphaned delimiters and backticks
-  cleaned = cleaned.replace(/🐱✂️/g, '').replace(/✂️🐱/g, '');
+  // Remove orphaned backticks
   cleaned = cleaned.replace(/```(?:json|tool_code|tool|)?$/g, '');
   cleaned = cleaned.replace(/^```/gm, '');
   
@@ -357,7 +311,7 @@ export function ChatMessage({ role, content, isThinking, metadata, createdAt, id
   const hasFileOps = !!(metadata?.filesCreated?.length) || !!(metadata?.filesModified?.length);
   const hasErrors = !!(metadata?.errors?.length);
   
-  // Extract thinking/reasoning from content (before the ✂️🐱 delimiter)
+  // Extract thinking/reasoning content from <thinking> tags
   const thinkingContent = role === "ai" ? extractThinking(content) : null;
   
   return (
