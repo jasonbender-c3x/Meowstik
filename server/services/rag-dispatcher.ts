@@ -2879,12 +2879,12 @@ export class RAGDispatcher {
       // Check if resolved path is outside current working directory
       const resolvedPath = path.resolve(rootPath);
       const cwd = process.cwd();
-      const isExternal = !resolvedPath.startsWith(cwd + path.sep) && resolvedPath !== cwd;
+      const isExternal = resolvedPath !== cwd && !resolvedPath.startsWith(cwd + path.sep);
       
       const result = await codebaseAnalyzer.analyzeCodebase(rootPath, isExternal);
       
       // Convert Map to object for JSON serialization
-      const glossaryObj: Record<string, CodeEntity[]> = Object.fromEntries(result.glossary);
+      const glossaryObj = Object.fromEntries(result.glossary);
       
       return {
         type: "codebase_analyze",
