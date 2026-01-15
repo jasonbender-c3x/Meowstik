@@ -52,9 +52,13 @@ const EXCLUDED_DIRECTORIES = [
   '__pycache__',
   'venv',
   'logs',
-  'repos', // Exclude cloned repositories
+  'repos', // Project-specific: Exclude nested repository clones
   'attached_assets',
 ];
+
+// Progress reporting configuration
+const INITIAL_FILES_TO_SHOW = 10; // Show first N files individually
+const PROGRESS_INTERVAL = 100; // Show progress every N files after initial batch
 
 interface Options {
   sourceDir: string;
@@ -122,10 +126,12 @@ Options:
 /**
  * Convert a file path to a NotebookLM-friendly filename
  * Example: server/services/ssh-service.ts → server-services-ssh-service-ts.txt
+ * Note: All special characters (/, \, .) are replaced with hyphens for maximum compatibility
  */
 function convertToNotebookLMFilename(relativePath: string): string {
   // Replace directory separators with hyphens
   const pathWithoutExt = relativePath.replace(extname(relativePath), '');
+  // Replace all special characters with hyphens for clean, flat filenames
   const normalized = pathWithoutExt.replace(/[/\\]/g, '-').replace(/\./g, '-');
   
   // Get original extension without the dot
@@ -224,7 +230,7 @@ function prepareForNotebookLM() {
       copyFileSync(filePath, destPath);
       copied++;
 
-      if (copied <= 10 || copied % 100 === 0) {
+      if (copied <= INITIAL_FILES_TO_SHOW || copied % PROGRESS_INTERVAL === 0) {
         console.log(`  ✓ ${relativePath} → ${newFilename}`);
       }
     } catch (error) {
