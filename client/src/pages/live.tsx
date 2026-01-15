@@ -32,6 +32,7 @@ import {
 import { Link } from "wouter";
 import { cn } from "@/lib/utils";
 import { useVoiceActivityDetection } from "@/hooks/use-voice-activity-detection";
+import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
 
 interface TranscriptEntry {
   id: string;
@@ -66,6 +67,7 @@ export default function LivePage() {
   const [continuousMode, setContinuousMode] = useState(true);
   const [vadSensitivity, setVadSensitivity] = useState(0.015);
   const [userInterimTranscript, setUserInterimTranscript] = useState("");
+  const [enableSTT, setEnableSTT] = useState(true);
 
   const sessionIdRef = useRef<string | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -78,6 +80,7 @@ export default function LivePage() {
   const audioQueueRef = useRef<AudioBufferSourceNode[]>([]);
   const workletNodeRef = useRef<AudioWorkletNode | null>(null);
   const userSpeechBufferRef = useRef<string[]>([]);
+  const speechRecognitionRef = useRef<any>(null);
 
   const addTranscriptEntry = useCallback((speaker: "user" | "ai", text: string) => {
     const entry: TranscriptEntry = {
@@ -106,6 +109,35 @@ export default function LivePage() {
     setIsSpeaking(false);
   }, []);
 
+  // Speech recognition for interim transcripts and cognitive endpointing
+  const speechRecognition = useSpeechRecognition(
+    useCallback((result) => {
+      if (result.isFinal) {
+        // Send final transcript through text channel for faster response initiation
+        if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN && result.transcript.trim()) {
+          wsRef.current.send(JSON.stringify({
+            type: "text",
+            text: result.transcript,
+          }));
+        }
+        addTranscriptEntry("user", result.transcript);
+        setUserInterimTranscript("");
+      } else {
+        // Show interim transcript
+        setUserInterimTranscript(result.transcript);
+      }
+    }, [addTranscriptEntry]),
+    useCallback(() => {
+      setUserInterimTranscript("");
+    }, []),
+    { continuous: true, interimResults: true }
+  );
+
+  // Store speech recognition in ref for VAD callbacks
+  useEffect(() => {
+    speechRecognitionRef.current = speechRecognition;
+  }, [speechRecognition]);
+
   // Voice Activity Detection for continuous listening mode
   const vadCallbacks = {
     onSpeechStart: useCallback(() => {
@@ -116,20 +148,24 @@ export default function LivePage() {
       }
       userSpeechBufferRef.current = [];
       setUserInterimTranscript("");
+      
+      // Start speech recognition for transcription
+      if (continuousMode && enableSTT && speechRecognitionRef.current && !speechRecognitionRef.current.isListening) {
+        speechRecognitionRef.current.start();
+      }
     }, [continuousMode, isSpeaking, handleBargeIn]),
     
     onSpeechEnd: useCallback(() => {
       console.log("[Live] User stopped speaking");
-      // Finalize user transcript after speech ends
-      if (userSpeechBufferRef.current.length > 0) {
-        const finalText = userSpeechBufferRef.current.join(" ");
-        if (finalText.trim()) {
-          addTranscriptEntry("user", finalText);
-        }
-        userSpeechBufferRef.current = [];
-        setUserInterimTranscript("");
+      
+      // Stop speech recognition
+      if (speechRecognitionRef.current && speechRecognitionRef.current.isListening) {
+        speechRecognitionRef.current.stop();
       }
-    }, [addTranscriptEntry]),
+      
+      // Clear interim transcript
+      setUserInterimTranscript("");
+    }, []),
     
     onVolumeChange: useCallback((volume: number) => {
       // Could be used for visual feedback in the UI
@@ -537,6 +573,32 @@ export default function LivePage() {
                     <p className="text-xs text-muted-foreground">
                       Lower = more sensitive (picks up quieter speech)
                     </p>
+                  </div>
+                )}
+
+                {continuousMode && (
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="enable-stt" className="text-sm font-medium">
+                        Speech-to-Text (Cognitive Endpointing)
+                      </Label>
+                      <Switch
+                        id="enable-stt"
+                        checked={enableSTT}
+                        onCheckedChange={setEnableSTT}
+                        data-testid="switch-enable-stt"
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      {enableSTT 
+                        ? "Transcribes speech for faster AI response and interim feedback"
+                        : "Uses audio-only processing (slightly slower)"}
+                    </p>
+                    {!speechRecognition.isSupported && (
+                      <p className="text-xs text-amber-600">
+                        ⚠️ Speech recognition not supported in this browser
+                      </p>
+                    )}
                   </div>
                 )}
               </div>
