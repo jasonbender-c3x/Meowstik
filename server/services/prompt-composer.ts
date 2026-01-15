@@ -311,11 +311,32 @@ You can analyze data, read and write files, search the web, and interact with Go
   }
 
   /**
+   * Determines if attachment content should be treated as base64-encoded.
+   * Binary content types (images, audio) are base64-encoded.
+   * 
+   * @param mimeType - MIME type of the attachment
+   * @returns true if content is base64-encoded, false otherwise
+   */
+  private isBase64Content(mimeType: string | undefined | null): boolean {
+    if (!mimeType) return false;
+    return mimeType.startsWith("image/") || mimeType.startsWith("audio/");
+  }
+
+  /**
    * The primary composition method.
    * Composes a complete prompt with system instructions, RAG context, and conversation history.
    * 
-   * @param options - Composition options including text content, attachments, history, etc.
+   * @param options - Composition options
+   * @param options.textContent - User's text input
+   * @param options.voiceTranscript - Optional voice transcript
+   * @param options.attachments - Optional array of file/screenshot attachments
+   * @param options.history - Optional array of previous messages for context
+   * @param options.chatId - Chat identifier
+   * @param options.userId - User identifier for RAG data isolation
    * @returns Complete composed prompt ready for LLM processing
+   * 
+   * @note This method signature replaces the previous `compose(draft: Draft, history: Message[])`.
+   *       The new signature better matches the actual usage in routes.ts.
    */
   public async compose(options: {
     textContent: string;
@@ -360,7 +381,7 @@ You can analyze data, read and write files, search the web, and interact with Go
           filename: att.filename,
           mimeType: att.mimeType || undefined,
           content: att.content || "",
-          isBase64: att.mimeType?.startsWith("image/") || att.mimeType?.startsWith("audio/") || false,
+          isBase64: this.isBase64Content(att.mimeType),
         });
       }
     }
