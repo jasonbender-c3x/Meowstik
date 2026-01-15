@@ -27,6 +27,7 @@ export interface EvidenceEnvelope {
   author?: string;
   participants?: string[];
   contentDate?: Date;
+  userId?: string | null; // User ID for data isolation
 }
 
 export interface ExtractionResult {
@@ -44,6 +45,8 @@ export interface ExtractionResult {
 export class IngestionPipeline {
   async ingestText(envelope: EvidenceEnvelope): Promise<Evidence> {
     const wordCount = envelope.extractedText?.split(/\s+/).length || 0;
+    const userId = envelope.userId || null;
+    const isGuest = !userId;
     
     const [result] = await getDb().insert(evidence).values({
       sourceType: envelope.sourceType,
@@ -59,6 +62,8 @@ export class IngestionPipeline {
       contentDate: envelope.contentDate,
       wordCount,
       status: 'pending',
+      userId,
+      isGuest,
     }).returning();
     
     return result;
@@ -330,6 +335,8 @@ Bucket definitions:
         bucket: evidenceItem.bucket,
         modality: evidenceItem.modality,
         sourceType: evidenceItem.sourceType,
+        userId: evidenceItem.userId,
+        isGuest: evidenceItem.isGuest,
       });
       
       console.log(`Generated embedding for evidence ${evidenceId}`);
@@ -345,14 +352,21 @@ Bucket definitions:
       modality?: string;
       limit?: number;
       threshold?: number;
+      userId?: string | null; // CRITICAL: Add userId for data isolation
     } = {}
   ): Promise<Array<{ evidenceId: string; content: string; score: number }>> {
-    const { limit = 10, threshold = 0.5, bucket, modality } = options;
+    const { limit = 10, threshold = 0.5, bucket, modality, userId } = options;
     
     const queryEmbedding = await embeddingService.embed(query);
     
     let allEmbeddings = await getDb().select()
       .from(knowledgeEmbeddings);
+    
+    // CRITICAL: Filter by userId for data isolation
+    if (userId !== undefined) {
+      const targetUserId = userId || null;
+      allEmbeddings = allEmbeddings.filter((e) => e.userId === targetUserId);
+    }
     
     if (bucket) {
       allEmbeddings = allEmbeddings.filter((e) => e.bucket === bucket);
