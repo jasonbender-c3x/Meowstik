@@ -11,7 +11,7 @@ function getDb() {
   return storage.getDb();
 }
 
-export type SourceType = 'gmail' | 'drive' | 'upload' | 'screenshot' | 'audio' | 'chat' | 'web';
+export type SourceType = 'gmail' | 'drive' | 'upload' | 'screenshot' | 'audio' | 'chat' | 'web' | 'personal_log';
 export type Modality = 'text' | 'image' | 'audio' | 'document' | 'email' | 'conversation';
 export type KnowledgeBucket = 'PERSONAL_LIFE' | 'CREATOR' | 'PROJECTS';
 

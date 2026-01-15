@@ -131,7 +131,7 @@ export class PersonalLogIngestionService {
       for (const entry of newEntries) {
         try {
           const evidence = await ingestionPipeline.ingestText({
-            sourceType: LOG_SOURCE_TYPE as any,
+            sourceType: 'personal_log',
             sourceId: `personal-log-${entry.timestamp.toISOString()}`,
             modality: 'text',
             mimeType: 'text/markdown',
