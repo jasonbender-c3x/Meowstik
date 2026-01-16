@@ -22,6 +22,36 @@ const SSH_KEYGEN_PATH = '/usr/bin/ssh-keygen';
 const activeConnections = new Map<string, NodeSSH>();
 
 // =============================================================================
+// ENVIRONMENT DETECTION
+// =============================================================================
+
+/**
+ * Check if SSH tools are available in the environment
+ * @returns Object with availability status and details
+ */
+export async function checkSSHAvailability(): Promise<{
+  available: boolean;
+  sshKeygen: boolean;
+  message: string;
+}> {
+  try {
+    // Check if ssh-keygen exists
+    await execAsync(`command -v ssh-keygen`);
+    return {
+      available: true,
+      sshKeygen: true,
+      message: 'SSH tools are available'
+    };
+  } catch (error) {
+    return {
+      available: false,
+      sshKeygen: false,
+      message: `SSH tools not found. Please ensure OpenSSH is installed (e.g., via replit.nix with pkgs.openssh)`
+    };
+  }
+}
+
+// =============================================================================
 // ERROR CLASSIFICATION HELPERS
 // =============================================================================
 
