@@ -4,7 +4,7 @@ import { ScreenCapture } from "./screen-capture.js";
 import { InputHandler } from "./input-handler.js";
 
 export interface AgentConfig {
-  token: string;
+  token: string | null;
   serverUrl: string;
   fps: number;
   quality: number;
@@ -38,9 +38,17 @@ export class DesktopAgent {
   }
 
   async connect(): Promise<void> {
-    const wsUrl = `${this.config.serverUrl}/ws/desktop/agent?token=${this.config.token}`;
+    // Build WebSocket URL
+    let wsUrl: string;
+    if (this.config.token) {
+      // Token-based connection (production)
+      wsUrl = `${this.config.serverUrl}/ws/desktop/agent?token=${this.config.token}`;
+    } else {
+      // Tokenless localhost connection (development)
+      wsUrl = `${this.config.serverUrl}/ws/desktop/agent/`;
+    }
     
-    console.log(`Connecting to ${wsUrl}...`);
+    console.log(`Connecting to ${wsUrl.replace(/token=[^&]+/, 'token=***')}...`);
     
     return new Promise((resolve, reject) => {
       this.ws = new WebSocket(wsUrl);
