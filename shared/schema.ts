@@ -616,13 +616,13 @@ export const ToolTypes = {
   // Debug operations
   DEBUG_ECHO: "debug_echo",
   
-  // Chat output - primary tool for sending content to chat window
+  // Chat output - primary tool for sending content to chat window (non-terminating)
   SEND_CHAT: "send_chat",
   
-  // Turn control - terminates the agentic loop
+  // Turn control - terminates the interactive agentic loop (ONLY way to end turn)
   END_TURN: "end_turn",
   
-  // Voice output - tool for sending speech in turn-taking voice mode
+  // Voice output - generates speech concurrently (non-blocking, non-terminating)
   SAY: "say",
   
   // File operations
@@ -714,7 +714,12 @@ export type ToolCall = z.infer<typeof toolCallSchema>;
 /**
  * Send Chat Parameters
  * The primary tool for sending content to the chat window
- * All chat output should go through this tool
+ * 
+ * IMPORTANT: This is NON-TERMINATING - calling this does not end your turn.
+ * You can call send_chat multiple times within a single turn to provide
+ * incremental updates as you work through multi-step operations.
+ * 
+ * Always explicitly call end_turn when you're ready to return control to the user.
  */
 export const sendChatParamsSchema = z.object({
   content: z.string().min(1, "Content cannot be empty"),
@@ -776,8 +781,14 @@ export type SayStyle = typeof SayStyles[number];
 
 /**
  * Say Parameters
- * Voice output tool for turn-taking mode with expressive speech synthesis
+ * Voice output tool with expressive speech synthesis
  * Uses Gemini 2.5 Flash TTS for high-quality audio generation
+ * 
+ * IMPORTANT: This is NON-BLOCKING and NON-TERMINATING
+ * - Speech generation happens asynchronously/concurrently with other operations
+ * - Calling this does not end your turn
+ * - You can use say alongside other tool calls in the same response
+ * - Always explicitly call end_turn when ready to return control to user
  */
 export const sayParamsSchema = z.object({
   /** The text content to be spoken aloud */

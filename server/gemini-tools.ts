@@ -12,7 +12,7 @@ export const geminiFunctionDeclarations: FunctionDeclaration[] = [
   // ═══════════════════════════════════════════════════════════════════════════
   {
     name: "send_chat",
-    description: "Send content to the chat window. Does NOT terminate the agentic loop - use end_turn to complete your turn.",
+    description: "Send content to the chat window. NON-TERMINATING - does not end your turn. You can call this multiple times to provide incremental updates. Must explicitly call end_turn to finish.",
     parametersJsonSchema: {
       type: "object",
       properties: {
@@ -26,7 +26,7 @@ export const geminiFunctionDeclarations: FunctionDeclaration[] = [
   },
   {
     name: "end_turn",
-    description: "Terminate the agent's turn and hand control back to the user. Call this when you have completed your response and are ready for the user to respond.",
+    description: "Terminate your turn in the interactive agentic loop and return control to the user. This is the ONLY way to end your turn - call this when you have completed your response.",
     parametersJsonSchema: {
       type: "object",
       properties: {}
@@ -34,7 +34,7 @@ export const geminiFunctionDeclarations: FunctionDeclaration[] = [
   },
   {
     name: "say",
-    description: "Generate HD voice audio output. Does NOT terminate the loop - use alongside or before send_chat. Required when voice mode is enabled.",
+    description: "Generate HD voice audio output. NON-BLOCKING and NON-TERMINATING - speech generation happens concurrently with other operations. Use alongside or before send_chat. Must call end_turn to finish your turn.",
     parametersJsonSchema: {
       type: "object",
       properties: {
@@ -53,7 +53,7 @@ export const geminiFunctionDeclarations: FunctionDeclaration[] = [
   },
   {
     name: "open_url",
-    description: "Open a URL in a new browser tab. Use this when the user asks to view a webpage, open a link, or navigate to a URL. Does NOT terminate the loop.",
+    description: "Open a URL in a new browser tab. NON-TERMINATING - does not end your turn. Use this when the user asks to view a webpage, open a link, or navigate to a URL.",
     parametersJsonSchema: {
       type: "object",
       properties: {
