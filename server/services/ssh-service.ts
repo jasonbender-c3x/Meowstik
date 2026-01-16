@@ -15,6 +15,9 @@ import { eq } from 'drizzle-orm';
 
 const execAsync = promisify(exec);
 
+// SSH tool path - explicit path to avoid PATH resolution issues
+const SSH_KEYGEN_PATH = '/usr/bin/ssh-keygen';
+
 // Active SSH connections indexed by host alias
 const activeConnections = new Map<string, NodeSSH>();
 
@@ -43,7 +46,7 @@ function classifyError(error: any, context: 'keygen' | 'connection' | 'execution
   // Command not found errors
   if (lowerMsg.includes('command not found') || lowerMsg.includes('enoent')) {
     if (context === 'keygen') {
-      return 'SSH tool not available on this system. The ssh-keygen command is required but was not found. Try using Replit Deployments instead, or ensure OpenSSH tools are installed.';
+      return `SSH tool not available on this system. OpenSSH tools must be installed at ${SSH_KEYGEN_PATH}. Try using Replit Deployments instead, or ensure OpenSSH is properly installed.`;
     }
     return 'SSH command not found. Ensure SSH tools are properly installed on the system.';
   }
@@ -140,7 +143,7 @@ export async function generateSshKey(name: string, comment?: string): Promise<Ke
   
   // Generate ed25519 key (most secure and compact)
   try {
-    await execAsync(`ssh-keygen -t ed25519 -f "${keyPath}" -N "" -C "${commentStr}" -q`);
+    await execAsync(`${SSH_KEYGEN_PATH} -t ed25519 -f "${keyPath}" -N "" -C "${commentStr}" -q`);
   } catch (error) {
     // Cleanup on error
     fs.rmSync(tmpDir, { recursive: true, force: true });
@@ -153,7 +156,7 @@ export async function generateSshKey(name: string, comment?: string): Promise<Ke
   const publicKey = fs.readFileSync(`${keyPath}.pub`, 'utf-8').trim();
   
   // Get fingerprint
-  const { stdout: fingerprint } = await execAsync(`ssh-keygen -lf "${keyPath}.pub"`);
+  const { stdout: fingerprint } = await execAsync(`${SSH_KEYGEN_PATH} -lf "${keyPath}.pub"`);
   const fpMatch = fingerprint.match(/SHA256:[^\s]+/);
   
   // SECURITY: Delete temporary files immediately

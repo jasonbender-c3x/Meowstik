@@ -10,3 +10,5 @@ repos/
 /icons/
 .env
 notebooklm-output/
+test-ssh-*.ts
+test-ssh-*.mjs
