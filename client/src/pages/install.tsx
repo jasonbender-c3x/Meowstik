@@ -270,12 +270,12 @@ export default function InstallPage() {
                     <p className="text-sm font-medium">Global Install:</p>
                     <div className="flex items-center gap-2">
                       <code className="flex-1 bg-muted p-3 rounded text-sm font-mono">
-                        npm install -g meowstik-agent
+                        npm install -g @meowstik/desktop-agent
                       </code>
                       <Button
                         variant="outline"
                         size="icon"
-                        onClick={() => copyToClipboard("npm install -g meowstik-agent", "npm")}
+                        onClick={() => copyToClipboard("npm install -g @meowstik/desktop-agent", "npm")}
                         data-testid="button-copy-npm"
                       >
                         {copiedCommand === "npm" ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
@@ -287,12 +287,12 @@ export default function InstallPage() {
                     <p className="text-sm font-medium">Run with npx (no install):</p>
                     <div className="flex items-center gap-2">
                       <code className="flex-1 bg-muted p-3 rounded text-sm font-mono overflow-x-auto">
-                        npx meowstik-agent --token TOKEN
+                        npx @meowstik/desktop-agent --token TOKEN
                       </code>
                       <Button
                         variant="outline"
                         size="icon"
-                        onClick={() => copyToClipboard("npx meowstik-agent --token YOUR_TOKEN --server wss://your-app.replit.app", "npx")}
+                        onClick={() => copyToClipboard("npx @meowstik/desktop-agent --token YOUR_TOKEN --server wss://your-app.replit.app", "npx")}
                         data-testid="button-copy-npx"
                       >
                         {copiedCommand === "npx" ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}

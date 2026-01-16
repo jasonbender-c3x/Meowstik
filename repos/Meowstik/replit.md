@@ -117,7 +117,7 @@ Comprehensive debugging tools for the Retrieval-Augmented Generation pipeline:
   - `POST /connect` - Establish session
   - `POST /action` - Main action endpoint (requires auth)
   - `POST /chat`, `/screenshot`, `/content`, `/context` - Specialized endpoints
-- **Local Agent:** Node.js package (`packages/meowstik-agent/`) for AI-directed desktop control:
+- **Desktop Agent:** Node.js package (`packages/desktop-agent/`) for AI-directed desktop control:
   - Screen capture at configurable FPS
   - Mouse/keyboard input injection via robotjs
   - WebSocket relay client for server communication

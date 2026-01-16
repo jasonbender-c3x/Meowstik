@@ -589,8 +589,8 @@ MCP (Model Context Protocol) servers provide tool access to AI models.
 ### Running MCP Locally
 
 ```bash
-# The meowstik-agent package includes MCP support
-cd packages/meowstik-agent
+# The desktop-agent package includes MCP support
+cd packages/desktop-agent
 npm install
 npm start
 ```

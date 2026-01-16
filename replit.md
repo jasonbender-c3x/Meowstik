@@ -91,7 +91,7 @@ Stored in `localStorage` with key `meowstik-verbosity-mode`. Uses `tts-context.t
 ### AI Desktop Collaboration
 - **Collaborate Page (`/collaborate`):** TeamViewer-style AI collaboration hub with headless browser or full desktop modes.
 - **Desktop Relay Service:** Cloud relay that fans screen frames to both Gemini Vision and browser, routes input events.
-- **Desktop Agent:** Standalone Node.js package (`meowstik-agent`) for running on user's computer - captures screen/audio, injects mouse/keyboard.
+- **Desktop Agent:** Standalone Node.js package (`@meowstik/desktop-agent`) for running on user's computer - captures screen/audio, injects mouse/keyboard.
 - **Data Flow:** Bidirectional - LLM sends mouse/keyboard commands, desktop sends video/audio to both user and LLM.
 
 ### Developer Tools
@@ -130,7 +130,7 @@ Comprehensive debugging tools for the Retrieval-Augmented Generation pipeline:
   - `POST /connect` - Establish session
   - `POST /action` - Main action endpoint (requires auth)
   - `POST /chat`, `/screenshot`, `/content`, `/context` - Specialized endpoints
-- **Local Agent:** Node.js package (`packages/meowstik-agent/`) for AI-directed desktop control:
+- **Desktop Agent:** Node.js package (`packages/desktop-agent/`) for AI-directed desktop control:
   - Screen capture at configurable FPS
   - Mouse/keyboard input injection via robotjs
   - WebSocket relay client for server communication

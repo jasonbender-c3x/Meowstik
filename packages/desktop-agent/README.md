@@ -1,17 +1,25 @@
 # Meowstik Desktop Agent
 
-Desktop agent for Meowstik AI collaboration. Enables real-time screen sharing and AI-controlled input injection.
+**Full desktop remote control agent** for Meowstik AI collaboration.
+
+This package provides **complete desktop automation** capabilities:
+- 🖥️ **Real-time screen capture** - Streams your desktop screen to the AI
+- 🖱️ **Mouse control** - AI can move cursor, click, and scroll
+- ⌨️ **Keyboard input** - AI can type and trigger keyboard shortcuts
+- 🔄 **Bidirectional control** - Enables true AI-directed desktop interaction
+
+**Not to be confused with the browser extension** (`packages/extension`), which only automates browser tasks. This agent controls your **entire desktop**.
 
 ## Installation
 
 ```bash
-npm install -g meowstik-agent
+npm install -g @meowstik/desktop-agent
 ```
 
 Or run directly with npx:
 
 ```bash
-npx meowstik-agent --token YOUR_SESSION_TOKEN --server wss://your-app.replit.app
+npx @meowstik/desktop-agent --token YOUR_SESSION_TOKEN --server wss://your-app.replit.app
 ```
 
 ## Usage
@@ -22,7 +30,7 @@ When connecting to `localhost` in development, no token is required:
 
 ```bash
 # Connect to local server without token
-meowstik-agent --relay ws://localhost:5000/ws/desktop/agent/
+meowstik-desktop-agent --relay ws://localhost:5000/ws/desktop/agent/
 ```
 
 **Requirements for tokenless mode:**
@@ -38,7 +46,7 @@ See [Localhost Development Mode](../../docs/desktop-agent-localhost-dev.md) for 
 3. Run the agent:
 
 ```bash
-meowstik-agent --token YOUR_TOKEN --relay wss://your-app.replit.app/ws/desktop
+meowstik-desktop-agent --token YOUR_TOKEN --relay wss://your-app.replit.app/ws/desktop
 ```
 
 ## Options
@@ -93,8 +101,8 @@ sudo apt-get install libxtst-dev libpng++-dev
 
 ```bash
 # Clone and install
-git clone https://github.com/your-repo/meowstik-agent
-cd meowstik-agent
+git clone https://github.com/your-repo/meowstik
+cd packages/desktop-agent
 npm install
 
 # Run in development

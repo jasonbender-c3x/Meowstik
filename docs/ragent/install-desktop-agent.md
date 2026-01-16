@@ -33,13 +33,13 @@ Perfect for [Mode B: 2-Way Real-Time](./collaborative-editing.md#mode-b-2-way-re
 ### Option 1: NPM Global Install
 
 ```bash
-npm install -g meowstik-agent
+npm install -g meowstik-desktop-agent
 ```
 
 ### Option 2: Run with npx (No Install)
 
 ```bash
-npx meowstik-agent --token YOUR_TOKEN --server wss://your-app.replit.app
+npx meowstik-desktop-agent --token YOUR_TOKEN --server wss://your-app.replit.app
 ```
 
 ### Option 3: Download Installer
@@ -47,9 +47,9 @@ npx meowstik-agent --token YOUR_TOKEN --server wss://your-app.replit.app
 1. Go to [/collaborate](/collaborate) in Meowstik
 2. Click "Download Desktop Agent"
 3. Run the installer for your platform:
-   - Windows: `meowstik-agent-setup.exe`
-   - macOS: `meowstik-agent.dmg`
-   - Linux: `meowstik-agent.AppImage`
+   - Windows: `meowstik-desktop-agent-setup.exe`
+   - macOS: `meowstik-desktop-agent.dmg`
+   - Linux: `meowstik-desktop-agent.AppImage`
 
 ---
 
@@ -100,7 +100,7 @@ When connecting to `localhost`, you can skip token generation entirely! See [Des
 
 ```bash
 # No token needed for localhost!
-meowstik-agent --relay ws://localhost:5000/ws/desktop/agent/
+meowstik-desktop-agent --relay ws://localhost:5000/ws/desktop/agent/
 ```
 
 ---
@@ -111,7 +111,7 @@ meowstik-agent --relay ws://localhost:5000/ws/desktop/agent/
 
 ```bash
 # Connect to local server without token
-meowstik-agent --relay ws://localhost:5000/ws/desktop/agent/
+meowstik-desktop-agent --relay ws://localhost:5000/ws/desktop/agent/
 ```
 
 **Note**: Tokenless connections only work for `localhost` or `127.0.0.1` in development mode (`NODE_ENV !== "production"`). See [Localhost Development Mode](../desktop-agent-localhost-dev.md).
@@ -119,13 +119,13 @@ meowstik-agent --relay ws://localhost:5000/ws/desktop/agent/
 ### Production (Token Required)
 
 ```bash
-meowstik-agent --token YOUR_TOKEN --relay wss://your-app.replit.app/ws/desktop
+meowstik-desktop-agent --token YOUR_TOKEN --relay wss://your-app.replit.app/ws/desktop
 ```
 
 ### With Options
 
 ```bash
-meowstik-agent \
+meowstik-desktop-agent \
   --token YOUR_TOKEN \
   --relay wss://your-app.replit.app/ws/desktop \
   --fps 1 \
@@ -204,8 +204,8 @@ Error: Cannot find module 'robotjs'
 **Solution:** Install build tools (see above) and reinstall:
 
 ```bash
-npm uninstall -g meowstik-agent
-npm install -g meowstik-agent
+npm uninstall -g meowstik-desktop-agent
+npm install -g meowstik-desktop-agent
 ```
 
 ### Connection Failed
@@ -249,8 +249,8 @@ Warning: Input injection failed
 Run from source for development:
 
 ```bash
-git clone https://github.com/your-repo/meowstik-agent
-cd meowstik-agent
+git clone https://github.com/your-repo/meowstik-desktop-agent
+cd meowstik-desktop-agent
 npm install
 npm run dev -- --token YOUR_TOKEN --server wss://localhost:5000
 ```

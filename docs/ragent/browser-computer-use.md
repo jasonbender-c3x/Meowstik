@@ -170,7 +170,7 @@ These are the official Gemini Computer Use function declarations available in Pr
 │                                                              │
 │  ┌────────────────────┐     ┌────────────────────────────┐  │
 │  │   Desktop Agent    │     │      Any Application       │  │
-│  │   (meowstik-agent) │     │  (Browser, Office, etc)    │  │
+│  │   (desktop-agent) │     │  (Browser, Office, etc)    │  │
 │  └─────────┬──────────┘     └────────────────────────────┘  │
 │            │                           ▲                     │
 │            │ Streams Screen Frames     │ Executes Actions    │

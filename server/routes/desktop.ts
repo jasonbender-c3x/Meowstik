@@ -24,7 +24,7 @@ router.post("/sessions", async (req, res) => {
       token,
       agentUrl: `/ws/desktop/agent/${sessionId}`,
       browserUrl: `/ws/desktop/browser/${sessionId}`,
-      agentCommand: `npx meowstik-agent --token ${token}`,
+      agentCommand: `npx @meowstik/desktop-agent --token ${token}`,
     });
   } catch (error) {
     console.error("[Desktop API] Error creating session:", error);
