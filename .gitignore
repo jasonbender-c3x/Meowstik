@@ -12,3 +12,4 @@ repos/
 notebooklm-output/
 test-ssh-*.ts
 test-ssh-*.mjs
+test-tokenless-connection.ts
