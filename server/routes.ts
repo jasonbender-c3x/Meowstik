@@ -881,9 +881,10 @@ The user has PODCAST mode enabled - dual-voice discussion style.
       const executeToolsAndGetResults = async (
         toolCalls: ToolCall[],
         messageId: string
-      ): Promise<{ results: typeof toolResults; shouldEndTurn: boolean }> => {
+      ): Promise<{ results: typeof toolResults; shouldEndTurn: boolean; sendChatContent: string }> => {
         const results: typeof toolResults = [];
         let endTurn = false;
+        let sendChatContent = ""; // Accumulate send_chat content for storage
         
         for (const toolCall of toolCalls) {
           console.log(`[Routes] Executing tool call: ${toolCall.type} (${toolCall.id})`);
@@ -910,12 +911,14 @@ The user has PODCAST mode enabled - dual-voice discussion style.
               })}\n\n`,
             );
             
-            // Check for send_chat - stream content to client but does NOT terminate loop
+            // Check for send_chat - stream content to client AND accumulate for storage
             if (toolCall.type === "send_chat" && toolResult.success) {
               const sendChatResult = toolResult.result as { content?: string };
               if (sendChatResult?.content) {
                 // Stream the send_chat content to the client
                 res.write(`data: ${JSON.stringify({ text: sendChatResult.content })}\n\n`);
+                // CRITICAL FIX: Accumulate send_chat content so it's saved to database
+                sendChatContent += sendChatResult.content;
               }
             }
             
@@ -997,7 +1000,7 @@ The user has PODCAST mode enabled - dual-voice discussion style.
           }
         }
         
-        return { results, shouldEndTurn: endTurn };
+        return { results, shouldEndTurn: endTurn, sendChatContent };
       };
       
       // Execute initial tool calls if we parsed any
@@ -1020,6 +1023,10 @@ The user has PODCAST mode enabled - dual-voice discussion style.
         toolResults.push(...execResult.results);
         totalToolsExecuted += limitedToolCalls.length;
         shouldEndTurn = execResult.shouldEndTurn;
+        // CRITICAL FIX: Add send_chat content to storage so it persists
+        if (execResult.sendChatContent) {
+          cleanContentForStorage += execResult.sendChatContent;
+        }
         
         // Add model response with function calls to agentic history
         // Use proper function call format for multi-turn context
@@ -1142,6 +1149,10 @@ The user has PODCAST mode enabled - dual-voice discussion style.
             toolResults.push(...loopExecResult.results);
             totalToolsExecuted += limitedLoopToolCalls.length;
             shouldEndTurn = loopExecResult.shouldEndTurn;
+            // CRITICAL FIX: Add send_chat content to storage so it persists
+            if (loopExecResult.sendChatContent) {
+              cleanContentForStorage += loopExecResult.sendChatContent;
+            }
             
             // Update history for next iteration - use proper function call format
             agenticHistory.push({
