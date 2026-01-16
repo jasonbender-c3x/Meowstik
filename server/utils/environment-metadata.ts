@@ -17,7 +17,7 @@
  * =============================================================================
  */
 
-import * as os from "os";
+import { hostname } from "os";
 
 /**
  * Environment metadata structure
@@ -37,6 +37,22 @@ export interface EnvironmentMetadata {
 }
 
 /**
+ * Cached hostname value to avoid repeated system calls
+ */
+let cachedHostname: string | null = null;
+
+/**
+ * Get the server hostname with caching
+ * @returns The server hostname
+ */
+function getHostname(): string {
+  if (cachedHostname === null) {
+    cachedHostname = hostname();
+  }
+  return cachedHostname;
+}
+
+/**
  * Detects and returns current environment metadata.
  * 
  * Environment Detection:
@@ -44,14 +60,14 @@ export interface EnvironmentMetadata {
  * - "local": All other cases (development, test, or unset)
  * 
  * Hostname Detection:
- * - Uses os.hostname() to get the system hostname
+ * - Uses os.hostname() to get the system hostname (cached after first call)
  * 
  * @returns {EnvironmentMetadata} Environment metadata object
  */
 export function getEnvironmentMetadata(): EnvironmentMetadata {
-  const nodeEnv = process.env.NODE_ENV || "development";
+  const nodeEnv = process.env.NODE_ENV;
   const environment = nodeEnv === "production" ? "production" : "local";
-  const server_hostname = os.hostname();
+  const server_hostname = getHostname();
 
   return {
     environment,
