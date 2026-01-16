@@ -675,9 +675,13 @@ export class RAGDispatcher {
           result = { url: openUrlParams.url, success: true };
           break;
         case "send_chat":
-          // send_chat is special - it returns the content directly to terminate the agentic loop
+          // send_chat now only sends content to chat, does NOT terminate the loop
           const sendChatParams = toolCall.parameters as { content?: string };
-          result = { content: sendChatParams?.content || "" };
+          result = { content: sendChatParams?.content || "", success: true };
+          break;
+        case "end_turn":
+          // end_turn is the tool that terminates the agentic loop
+          result = { success: true, shouldEndTurn: true };
           break;
         case "db_tables":
           result = await this.executeDbTables(toolCall);

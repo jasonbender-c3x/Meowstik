@@ -619,6 +619,9 @@ export const ToolTypes = {
   // Chat output - primary tool for sending content to chat window
   SEND_CHAT: "send_chat",
   
+  // Turn control - terminates the agentic loop
+  END_TURN: "end_turn",
+  
   // Voice output - tool for sending speech in turn-taking voice mode
   SAY: "say",
   
@@ -654,6 +657,8 @@ export const toolCallSchema = z.object({
     "api_call", "file_ingest", "search", "web_search", "custom",
     // Chat output - primary tool for sending content to chat window
     "send_chat",
+    // Turn control - terminates the agentic loop
+    "end_turn",
     // Voice output - tool for sending speech in turn-taking voice mode
     "say",
     // Browser control - open URLs in new tabs

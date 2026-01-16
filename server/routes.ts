@@ -866,7 +866,7 @@ The user has PODCAST mode enabled - dual-voice discussion style.
       // Function calls are already extracted above from chunk.functionCalls
 
       // ─────────────────────────────────────────────────────────────────────
-      // AGENTIC LOOP: Execute tools repeatedly until send_chat terminates
+      // AGENTIC LOOP: Execute tools repeatedly until end_turn terminates
       // ─────────────────────────────────────────────────────────────────────
       
       let loopIteration = 0;
@@ -874,16 +874,16 @@ The user has PODCAST mode enabled - dual-voice discussion style.
       const MAX_TOOLS_PER_TURN = 20; // Limit tool calls per turn to prevent runaway
       let totalToolsExecuted = 0;
       const MAX_TOTAL_TOOLS = 50; // Absolute limit across all turns
-      let sendChatContent: string | null = null;
+      let shouldEndTurn = false;
       let agenticHistory = [...history, { role: "user", parts: userParts }];
       
       // Helper function to execute tools and return results
       const executeToolsAndGetResults = async (
         toolCalls: ToolCall[],
         messageId: string
-      ): Promise<{ results: typeof toolResults; sendChatContent: string | null }> => {
+      ): Promise<{ results: typeof toolResults; shouldEndTurn: boolean }> => {
         const results: typeof toolResults = [];
-        let chatContent: string | null = null;
+        let endTurn = false;
         
         for (const toolCall of toolCalls) {
           console.log(`[Routes] Executing tool call: ${toolCall.type} (${toolCall.id})`);
@@ -910,13 +910,20 @@ The user has PODCAST mode enabled - dual-voice discussion style.
               })}\n\n`,
             );
             
-            // Check for send_chat - this terminates the agentic loop
+            // Check for send_chat - stream content to client but does NOT terminate loop
             if (toolCall.type === "send_chat" && toolResult.success) {
               const sendChatResult = toolResult.result as { content?: string };
               if (sendChatResult?.content) {
-                chatContent = sendChatResult.content;
                 // Stream the send_chat content to the client
                 res.write(`data: ${JSON.stringify({ text: sendChatResult.content })}\n\n`);
+              }
+            }
+            
+            // Check for end_turn - this terminates the agentic loop
+            if (toolCall.type === "end_turn" && toolResult.success) {
+              const endTurnResult = toolResult.result as { shouldEndTurn?: boolean };
+              if (endTurnResult?.shouldEndTurn) {
+                endTurn = true;
               }
             }
             
@@ -990,7 +997,7 @@ The user has PODCAST mode enabled - dual-voice discussion style.
           }
         }
         
-        return { results, sendChatContent: chatContent };
+        return { results, shouldEndTurn: endTurn };
       };
       
       // Execute initial tool calls if we parsed any
@@ -1012,7 +1019,7 @@ The user has PODCAST mode enabled - dual-voice discussion style.
         const execResult = await executeToolsAndGetResults(limitedToolCalls, savedMessage.id);
         toolResults.push(...execResult.results);
         totalToolsExecuted += limitedToolCalls.length;
-        sendChatContent = execResult.sendChatContent;
+        shouldEndTurn = execResult.shouldEndTurn;
         
         // Add model response with function calls to agentic history
         // Use proper function call format for multi-turn context
@@ -1022,8 +1029,8 @@ The user has PODCAST mode enabled - dual-voice discussion style.
           parts: collectedFunctionCalls.map(fc => ({ functionCall: fc })) as any
         });
         
-        // AGENTIC LOOP: Continue if send_chat was NOT called
-        while (!sendChatContent && loopIteration < MAX_LOOP_ITERATIONS && totalToolsExecuted < MAX_TOTAL_TOOLS) {
+        // AGENTIC LOOP: Continue if end_turn was NOT called
+        while (!shouldEndTurn && loopIteration < MAX_LOOP_ITERATIONS && totalToolsExecuted < MAX_TOTAL_TOOLS) {
           loopIteration++;
           console.log(`\n${"═".repeat(60)}`);
           console.log(`[AGENTIC LOOP] Turn ${loopIteration} - Feeding tool results back to LLM`);
@@ -1070,7 +1077,7 @@ The user has PODCAST mode enabled - dual-voice discussion style.
           });
           agenticHistory.push({
             role: "user", 
-            parts: [{ text: `Tool results:\n${toolResultsText}\n\nContinue with more tools or call send_chat to respond.` }]
+            parts: [{ text: `Tool results:\n${toolResultsText}\n\nContinue with more tools or call end_turn when ready.` }]
           });
           
           // Call LLM again with native function calling
@@ -1134,7 +1141,7 @@ The user has PODCAST mode enabled - dual-voice discussion style.
             const loopExecResult = await executeToolsAndGetResults(limitedLoopToolCalls, savedMessage.id);
             toolResults.push(...loopExecResult.results);
             totalToolsExecuted += limitedLoopToolCalls.length;
-            sendChatContent = loopExecResult.sendChatContent;
+            shouldEndTurn = loopExecResult.shouldEndTurn;
             
             // Update history for next iteration - use proper function call format
             agenticHistory.push({
@@ -1143,32 +1150,28 @@ The user has PODCAST mode enabled - dual-voice discussion style.
             });
             parsedResponse = loopParsedResponse;
           } else {
-            // No function calls - LLM responded with plain text, treat as implicit send_chat
-            console.log(`[AGENTIC LOOP] Turn ${loopIteration} - No function calls, treating as implicit send_chat`);
-            sendChatContent = loopResponse.trim();
-            if (sendChatContent) {
-              res.write(`data: ${JSON.stringify({ text: sendChatContent })}\n\n`);
+            // No function calls - LLM responded with plain text, treat as implicit end_turn
+            console.log(`[AGENTIC LOOP] Turn ${loopIteration} - No function calls, treating as implicit end_turn`);
+            const plainTextResponse = loopResponse.trim();
+            if (plainTextResponse) {
+              res.write(`data: ${JSON.stringify({ text: plainTextResponse })}\n\n`);
             }
             break;
           }
         }
         
-        if (!sendChatContent) {
+        if (!shouldEndTurn) {
+          let warningMessage = "";
           if (loopIteration >= MAX_LOOP_ITERATIONS) {
             console.warn(`[AGENTIC LOOP] Hit max iterations (${MAX_LOOP_ITERATIONS}), forcing termination`);
-            sendChatContent = "[Loop limit reached - response truncated]";
+            warningMessage = "[Loop limit reached - response truncated]";
           } else if (totalToolsExecuted >= MAX_TOTAL_TOOLS) {
             console.warn(`[AGENTIC LOOP] Hit max total tools (${MAX_TOTAL_TOOLS}), forcing termination`);
-            sendChatContent = "[Tool execution limit reached - response truncated]";
+            warningMessage = "[Tool execution limit reached - response truncated]";
           }
-          if (sendChatContent) {
-            res.write(`data: ${JSON.stringify({ text: sendChatContent })}\n\n`);
+          if (warningMessage) {
+            res.write(`data: ${JSON.stringify({ text: warningMessage })}\n\n`);
           }
-        }
-        
-        // Update cleanContentForStorage with send_chat content if available
-        if (sendChatContent) {
-          cleanContentForStorage = sendChatContent;
         }
       }
 

@@ -18,7 +18,8 @@ The LLM outputs a JSON object containing tool calls. Code fences are optional bu
     {"type": "say", "id": "v1", "operation": "speak", "parameters": {"utterance": "Let me check..."}},
     {"type": "send_chat", "id": "c1", "operation": "respond", "parameters": {"content": "Let me check..."}},
     {"type": "gmail_list", "id": "g1", "operation": "list", "parameters": {"maxResults": 10}},
-    {"type": "send_chat", "id": "c2", "operation": "respond", "parameters": {"content": "Here are your emails..."}}
+    {"type": "send_chat", "id": "c2", "operation": "respond", "parameters": {"content": "Here are your emails..."}},
+    {"type": "end_turn", "id": "e1", "operation": "end_turn", "parameters": {}}
   ]
 }
 ```
@@ -28,6 +29,7 @@ The LLM outputs a JSON object containing tool calls. Code fences are optional bu
 1. **No text before JSON** - Response must start with `{` or `` ```json ``
 2. **All output through tools** - Use `send_chat` for text, `say` for voice, `file_put` for files
 3. **Code fences optional** - Both raw JSON and `` ```json {...} ``` `` are valid
+4. **End with end_turn** - Always call `end_turn` to terminate the agentic loop
 
 ### Example Output
 
@@ -37,7 +39,8 @@ The LLM outputs a JSON object containing tool calls. Code fences are optional bu
     {"type": "say", "id": "v1", "operation": "speak", "parameters": {"utterance": "Checking your emails now."}},
     {"type": "send_chat", "id": "c1", "operation": "respond", "parameters": {"content": "Checking your emails now."}},
     {"type": "gmail_list", "id": "g1", "operation": "list", "parameters": {"maxResults": 10}},
-    {"type": "send_chat", "id": "c2", "operation": "respond", "parameters": {"content": "Here are your recent emails:\n\n1. ..."}}
+    {"type": "send_chat", "id": "c2", "operation": "respond", "parameters": {"content": "Here are your recent emails:\n\n1. ..."}},
+    {"type": "end_turn", "id": "e1", "operation": "end_turn", "parameters": {}}
   ]
 }
 ```
@@ -95,7 +98,8 @@ export type ToolCall = z.infer<typeof toolCallSchema>;
 
 | Type | Description | Key Parameters |
 |------|-------------|----------------|
-| `send_chat` | Send message to chat | `content` |
+| `send_chat` | Send message to chat (does not terminate loop) | `content` |
+| `end_turn` | Terminate agentic loop and return control to user | none |
 | `say` | Speak text with TTS | `utterance`, `voiceId`, `style` |
 | `open_url` | Open URL in new tab | `url` |
 

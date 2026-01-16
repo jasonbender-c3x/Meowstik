@@ -12,7 +12,7 @@ export const geminiFunctionDeclarations: FunctionDeclaration[] = [
   // ═══════════════════════════════════════════════════════════════════════════
   {
     name: "send_chat",
-    description: "Send final response to the chat window. TERMINATES the agentic loop. Use after gathering all information.",
+    description: "Send content to the chat window. Does NOT terminate the agentic loop - use end_turn to complete your turn.",
     parametersJsonSchema: {
       type: "object",
       properties: {
@@ -22,6 +22,14 @@ export const geminiFunctionDeclarations: FunctionDeclaration[] = [
         }
       },
       required: ["content"]
+    }
+  },
+  {
+    name: "end_turn",
+    description: "Terminate the agent's turn and hand control back to the user. Call this when you have completed your response and are ready for the user to respond.",
+    parametersJsonSchema: {
+      type: "object",
+      properties: {}
     }
   },
   {
