@@ -87,19 +87,39 @@ sudo dnf install libXtst-devel libpng-devel gcc-c++
 
 ## Getting Your Token
 
+### For Production/Remote Servers
+
 1. Open Meowstik in your browser
 2. Go to [/collaborate](/collaborate)
 3. Click "Start Desktop Session"
 4. Copy the session token that appears
 
+### For Local Development (Tokenless Mode)
+
+When connecting to `localhost`, you can skip token generation entirely! See [Desktop Agent Localhost Development Mode](../desktop-agent-localhost-dev.md) for details.
+
+```bash
+# No token needed for localhost!
+meowstik-agent --relay ws://localhost:5000/ws/desktop/agent/
+```
+
 ---
 
 ## Running the Agent
 
-### Basic Usage
+### Local Development (No Token Required)
 
 ```bash
-meowstik-agent --token YOUR_TOKEN --server wss://your-app.replit.app
+# Connect to local server without token
+meowstik-agent --relay ws://localhost:5000/ws/desktop/agent/
+```
+
+**Note**: Tokenless connections only work for `localhost` or `127.0.0.1` in development mode (`NODE_ENV !== "production"`). See [Localhost Development Mode](../desktop-agent-localhost-dev.md).
+
+### Production (Token Required)
+
+```bash
+meowstik-agent --token YOUR_TOKEN --relay wss://your-app.replit.app/ws/desktop
 ```
 
 ### With Options
@@ -107,7 +127,7 @@ meowstik-agent --token YOUR_TOKEN --server wss://your-app.replit.app
 ```bash
 meowstik-agent \
   --token YOUR_TOKEN \
-  --server wss://your-app.replit.app \
+  --relay wss://your-app.replit.app/ws/desktop \
   --fps 1 \
   --quality 50 \
   --no-audio
@@ -117,8 +137,8 @@ meowstik-agent \
 
 | Option | Description | Default |
 |--------|-------------|---------|
-| `-t, --token` | Session token (required) | - |
-| `-s, --server` | Server WebSocket URL | - |
+| `-t, --token` | Session token (optional for localhost) | - |
+| `-r, --relay` | Server WebSocket URL | - |
 | `-f, --fps` | Frames per second | 2 |
 | `-q, --quality` | JPEG quality (1-100) | 60 |
 | `--no-audio` | Disable audio capture | enabled |

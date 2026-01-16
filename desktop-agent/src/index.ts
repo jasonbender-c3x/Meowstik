@@ -17,7 +17,7 @@ import * as os from 'os';
 
 interface AgentConfig {
   relayUrl: string;
-  token: string;
+  token?: string; // Optional for localhost development
   captureInterval: number;
   quality: number;
 }
@@ -70,10 +70,15 @@ class DesktopAgent {
 
   private async connect(): Promise<void> {
     try {
+      const headers: Record<string, string> = {};
+      
+      // Only add Authorization header if token is provided
+      if (this.config.token) {
+        headers['Authorization'] = `Bearer ${this.config.token}`;
+      }
+      
       this.ws = new WebSocket(this.config.relayUrl, {
-        headers: {
-          'Authorization': `Bearer ${this.config.token}`,
-        },
+        headers,
       });
 
       this.ws.on('open', () => this.onConnected());
@@ -259,15 +264,25 @@ if (require.main === module) {
   const token = tokenIndex !== -1 ? args[tokenIndex + 1] : process.env.MEOWSTIK_TOKEN || '';
   const relayUrl = urlIndex !== -1 ? args[urlIndex + 1] : process.env.MEOWSTIK_RELAY || 'wss://your-meowstik-instance.replit.app/ws/desktop';
   
-  if (!token) {
-    console.error('❌ Error: --token is required');
+  // Check if connecting to localhost
+  const isLocalhost = relayUrl.includes('localhost') || relayUrl.includes('127.0.0.1');
+  
+  if (!token && !isLocalhost) {
+    console.error('❌ Error: --token is required for non-localhost connections');
     console.error('Usage: meowstik-agent --token YOUR_TOKEN [--relay wss://...]');
+    console.error('');
+    console.error('For local development, you can omit --token when connecting to localhost:');
+    console.error('  meowstik-agent --relay ws://localhost:5000/ws/desktop');
     process.exit(1);
+  }
+  
+  if (!token && isLocalhost) {
+    console.log('🔓 Development Mode: Connecting to localhost without token');
   }
 
   const agent = new DesktopAgent({
     relayUrl,
-    token,
+    token: token || undefined,
     captureInterval: 100, // 10 FPS
     quality: 80,
   });
