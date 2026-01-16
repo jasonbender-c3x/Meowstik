@@ -62,6 +62,36 @@ curl http://localhost:5000/api/agents/activity/recent?limit=20
 
 ## Other Scripts
 
+### NotebookLM Preparation
+Prepare codebase files for ingestion into Google NotebookLM:
+
+```bash
+# Use default settings (entire repository → ./notebooklm-output)
+npm run prepare:notebooklm
+
+# Specify source directory
+npm run prepare:notebooklm -- --source server
+
+# Specify output directory
+npm run prepare:notebooklm -- --output /tmp/my-code
+
+# Specify file extensions
+npm run prepare:notebooklm -- --extensions ts,js,md
+
+# Combine options
+npm run prepare:notebooklm -- --source client --output /tmp/frontend --extensions tsx,ts,css
+```
+
+**What it does:**
+- Traverses project directories recursively
+- Finds files with specified extensions (default: ts, js, tsx, jsx, py, html, css, md, json, yaml, sql, sh, bash, xml)
+- Copies files to output directory with NotebookLM-friendly names
+- Converts paths like `server/services/auth.ts` → `server-services-auth-ts.txt`
+- Excludes build artifacts and dependencies (node_modules, dist, etc.)
+- Handles broken symlinks gracefully
+
+**Use case:** Upload the generated .txt files to Google NotebookLM to enable AI-powered querying of your codebase.
+
 ### Build
 Build the production bundle:
 

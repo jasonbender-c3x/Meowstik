@@ -1,6 +1,7 @@
 import { Router } from "express";
 import * as fs from "fs";
 import * as path from "path";
+import { isHomeDevMode } from "../homeDevAuth";
 
 const router = Router();
 
@@ -54,6 +55,7 @@ router.get("/", async (req, res) => {
   
   const isProduction = process.env.NODE_ENV === "production";
   const isDeployed = !!process.env.WEB_REPL_RENEWAL;
+  const homeDevMode = isHomeDevMode();
   
   const [googleHealth, githubHealth] = await Promise.all([
     checkConnectorHealth("google-drive"),
@@ -72,6 +74,7 @@ router.get("/", async (req, res) => {
     uiRevision,
     revision: `${BUILD_REVISION}.${uiRevision}`,
     environment: isDeployed ? "production" : "development",
+    homeDevMode,
     connectors: {
       google: googleHealth,
       github: githubHealth

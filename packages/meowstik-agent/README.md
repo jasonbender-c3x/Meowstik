@@ -16,20 +16,37 @@ npx meowstik-agent --token YOUR_SESSION_TOKEN --server wss://your-app.replit.app
 
 ## Usage
 
+### Local Development (Tokenless Mode)
+
+When connecting to `localhost` in development, no token is required:
+
+```bash
+# Connect to local server without token
+meowstik-agent --relay ws://localhost:5000/ws/desktop/agent/
+```
+
+**Requirements for tokenless mode:**
+- Relay URL must contain `localhost` or `127.0.0.1`
+- Server must be running in development mode (`NODE_ENV !== "production"`)
+
+See [Localhost Development Mode](../../docs/desktop-agent-localhost-dev.md) for details.
+
+### Production (Token Required)
+
 1. Create a desktop session in the Meowstik web app
 2. Copy the session token
 3. Run the agent:
 
 ```bash
-meowstik-agent --token YOUR_TOKEN --server wss://your-app.replit.app
+meowstik-agent --token YOUR_TOKEN --relay wss://your-app.replit.app/ws/desktop
 ```
 
 ## Options
 
 | Option | Description | Default |
 |--------|-------------|---------|
-| `-t, --token` | Session token (required) | - |
-| `-s, --server` | Server WebSocket URL | - |
+| `-t, --token` | Session token (optional for localhost) | - |
+| `-r, --relay` | Server WebSocket URL | - |
 | `-f, --fps` | Screen capture frames per second | 2 |
 | `-q, --quality` | JPEG quality (1-100) | 60 |
 | `--no-audio` | Disable audio capture | enabled |

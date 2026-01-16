@@ -27,9 +27,12 @@ import desktopRouter from "./desktop";
 import computerUseRouter from "./computer-use";
 import collabRouter from "./collab";
 import jobsRouter from "./jobs";
-import twilioRouter from "./twilio";
+import { twilioRouter } from "./twilio";
 import ragDebugRouter from "./rag-debug";
 import orchestratorRouter from "./orchestrator";
+import databaseAdminRouter from "./database-admin";
+import brandingRouter from "./branding";
+import userAgentsRouter from "./user-agents";
 import { errorHandler } from "./middleware";
 
 export function createApiRouter(): Router {
@@ -66,6 +69,9 @@ export function createApiRouter(): Router {
   router.use("/twilio", twilioRouter);
   router.use("/debug/rag", ragDebugRouter);
   router.use("/orchestrator", orchestratorRouter);
+  router.use("/database", databaseAdminRouter);
+  router.use("/branding", brandingRouter);
+  router.use("/user-agents", userAgentsRouter);
 
   router.use(errorHandler);
 

@@ -7,6 +7,7 @@ import type { Express, RequestHandler } from "express";
 import memoize from "memoizee";
 import connectPg from "connect-pg-simple";
 import { storage } from "./storage";
+import { isHomeDevMode, createHomeDevSession } from "./homeDevAuth";
 
 const getOidcConfig = memoize(
   async () => {
@@ -136,6 +137,14 @@ export async function setupAuth(app: Express) {
 }
 
 export const isAuthenticated: RequestHandler = async (req, res, next) => {
+  // In home dev mode, bypass authentication checks
+  if (isHomeDevMode()) {
+    if (!req.user) {
+      req.user = createHomeDevSession();
+    }
+    return next();
+  }
+
   const user = req.user as any;
 
   if (!req.isAuthenticated() || !user.expires_at) {

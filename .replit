@@ -38,6 +38,7 @@ waitForPort = 5000
 [agent]
 mockupState = "FULLSTACK"
 integrations = ["javascript_gemini:1.0.0", "google-drive:1.0.0", "google-mail:1.0.0", "google-calendar:1.0.0", "github:1.0.0", "javascript_log_in_with_replit:1.0.0"]
+expertMode = true
 
 [[ports]]
 localPort = 5000
@@ -53,3 +54,4 @@ externalPort = 3000
 PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH = "/nix/store/zi4f80l169xlmivz8vja8wlphq74qqk0-chromium-125.0.6422.141/bin/chromium"
 GOOGLE_APPLICATION_CREDENTIALS = "/home/runner/workspace/attached_assets/ai-stack-e2a5f-2104dff874e0_1767900097305.json"
 GOOGLE_REDIRECT_URI = "https://meowstik.com/api/auth/google/callback"
+GOOGLE_CLOUD_PROJECT = "ai-stack-e2a5f"

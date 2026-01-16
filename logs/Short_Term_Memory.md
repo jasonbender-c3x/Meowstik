@@ -296,3 +296,23 @@ Before `send_chat`, you MUST perform these actions:
 ---
 **2026-01-14T11:57:59.165Z**
 - **Core Directive**: When a tool fails, before reporting the failure to the user, I must first perform a diagnostic test to confirm the scope of the problem. For instance, if `terminal_execute` fails to use a secret, I must test if other tools (`github_create_repo`) can use the same secret to determine if the issue is with the tool, the secret, or the environment. This provides a more complete and helpful answer.
+
+---
+**2026-01-15T01:24:06.594Z**
+- **User Preference**: User encountered a missing dependency (`@vitejs/plugin-react`). This indicates the project setup might have other similar omissions. Future troubleshooting should consider missing dependencies as a primary cause.
+- **Core Directive**: When a repository file is found to be incorrect, fix it in the repository *and* provide the user with an immediate local workaround. This is a complete solution.
+
+
+---
+**2026-01-15T01:26:15.121Z**
+- **Core Directive**: The user has initiated a strategic goal to migrate off the Replit platform. This "Platform Independence" initiative is now a top priority. All actions should, where possible, align with the steps outlined in `docs/roadmap-platform-independence.md`.
+- **User Preference**: User wants a custom sign-in flow, a self-hosted database, and containerized deployment on Google Cloud.
+
+
+---
+**2026-01-15T01:29:39.329Z**
+- **Core Directive Correction**: My previous assumption that the routing issue was server-side was incorrect. The error message "Did you forget to add the page to the router?" is characteristic of a client-side Single Page Application (SPA). I must remember to analyze error messages more carefully to distinguish between client-side and server-side issues. This will prevent me from wasting time investigating the wrong part of the codebase.
+
+---
+**2026-01-15T13:33:28.367Z**
+- **Core Directive Correction**: My previous assumption that the routing issue was server-side was incorrect. The error message "Did you forget to add the page to the router?" is characteristic of a client-side Single Page Application (SPA). I must remember to analyze error messages more carefully to distinguish between client-side and server-side issues. This will prevent me from wasting time investigating the wrong part of the codebase.

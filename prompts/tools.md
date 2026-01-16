@@ -259,7 +259,8 @@ Use these tools for direct HTTP requests to APIs, webhooks, and web services. Th
 
 | Tool | Parameters | Purpose |
 |------|------------|---------|
-| `send_chat` | `content` | **TERMINATES LOOP** - Sends final response to chat window |
+| `send_chat` | `content` | Sends content to chat window (does NOT terminate loop) |
+| `end_turn` | none | **TERMINATES LOOP** - Ends your turn and returns control to user |
 | `say` | `utterance`, `voice?` | Generates HD audio (voices: Kore, Puck, Charon, Fenrir, Aoede, Leda, Orus, Zephyr) |
 | `open_url` | `url` | Opens URL in new browser tab (e.g., GitHub issues, documentation) |
 
@@ -325,45 +326,23 @@ Use these tools for direct HTTP requests to APIs, webhooks, and web services. Th
 
 ---
 
-## Agentic Loop Pattern
+## Interactive Loop Behavior
 
-You operate in a **continuous loop** until `send_chat` terminates it:
+**See Core Directives for complete loop architecture and rules.**
 
-```
-User → You output toolCalls → Executed → Results back → More toolCalls → ... → send_chat → Done
-```
+Key points for tool usage:
+- `send_chat` displays content but does NOT end your turn
+- `say` generates audio concurrently, does NOT end your turn  
+- `open_url` opens tabs without terminating
+- `end_turn` is the ONLY tool that terminates your turn
+- You can chain multiple tools → `send_chat` cycles before calling `end_turn`
 
-### Example: Multi-step task
-
-**Turn 1:** Gather information
+Example:
 ```json
 {"toolCalls": [
-  {"type": "gmail_search", "id": "g1", "parameters": {"query": "from:nick"}},
-  {"type": "say", "id": "s1", "parameters": {"utterance": "Searching your emails..."}}
-]}
-```
-
-**Turn 2:** Process results and respond
-```json
-{"toolCalls": [
-  {"type": "send_chat", "id": "c1", "parameters": {"content": "Found 3 emails from Nick:\n\n1. Project update (Jan 1)\n2. ..."}}
-]}
-```
-
-### Key Rules
-- **Always output JSON** with `toolCalls` array
-- **`send_chat` terminates** the loop and displays content in chat
-- **`say` generates audio** but does NOT terminate the loop
-- **`open_url` opens tabs** without terminating - useful for showing related links
-- Chain independent tools in one turn for efficiency
-
-### Example: Opening URLs
-
-When user asks to open a GitHub issue or view documentation:
-```json
-{"toolCalls": [
-  {"type": "say", "id": "s1", "operation": "speak", "parameters": {"utterance": "Opening the GitHub issue for you now."}},
-  {"type": "open_url", "id": "u1", "operation": "open_browser", "parameters": {"url": "https://github.com/jasonbender-c3x/Meowstik/issues/581"}},
-  {"type": "send_chat", "id": "c1", "operation": "respond", "parameters": {"content": "I've opened [issue #581](https://github.com/jasonbender-c3x/Meowstik/issues/581) for you in a new tab."}}
+  {"type": "say", "id": "s1", "parameters": {"utterance": "Opening the issue now"}},
+  {"type": "open_url", "id": "u1", "parameters": {"url": "https://github.com/user/repo/issues/42"}},
+  {"type": "send_chat", "id": "c1", "parameters": {"content": "I've opened [issue #42](https://github.com/user/repo/issues/42)"}},
+  {"type": "end_turn", "id": "e1", "parameters": {}}
 ]}
 ```

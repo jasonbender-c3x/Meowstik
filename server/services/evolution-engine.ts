@@ -24,8 +24,26 @@ const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 /**
  * Get the default agent for Evolution Engine operations
  * This is "Agentia Compiler" with full permissions
+ * If user has custom branding, uses their GitHub signature
  */
-async function getEvolutionAgent(): Promise<github.AgentAuthor> {
+async function getEvolutionAgent(userId?: string): Promise<github.AgentAuthor> {
+  // If userId is provided, check for custom branding
+  if (userId) {
+    try {
+      const branding = await storage.getUserBranding(userId);
+      if (branding?.githubSignature) {
+        return {
+          name: branding.displayName || "Agentia Compiler",
+          email: "compiler@agentia.dev", // Still use compiler email
+          signature: branding.githubSignature
+        };
+      }
+    } catch (error) {
+      console.warn("Failed to fetch user branding for evolution agent:", error);
+    }
+  }
+
+  // Try to find Agentia Compiler agent
   try {
     const agent = await storage.getAgentByName("Agentia Compiler");
     if (agent) {
@@ -265,14 +283,15 @@ export async function generateEvolutionReport(): Promise<EvolutionReport> {
 
 export async function createEvolutionPR(
   report: EvolutionReport,
-  targetRepo: { owner: string; repo: string }
+  targetRepo: { owner: string; repo: string },
+  userId?: string
 ): Promise<PRResult> {
   if (report.suggestions.length === 0) {
     return { success: false, error: "No suggestions to create PR from" };
   }
 
   try {
-    const agent = await getEvolutionAgent();
+    const agent = await getEvolutionAgent(userId);
     const branchName = `evolution/${report.id}`;
     
     await github.createBranch(targetRepo.owner, targetRepo.repo, branchName);
@@ -322,6 +341,29 @@ Please review the suggestions and:
       branchName,
       agent
     );
+
+    // Auto-tag @copilot to trigger implementation phase
+    try {
+      const copilotComment = `@copilot Please review these evolution suggestions and implement the approved improvements.
+
+This PR contains AI-generated improvement suggestions based on user feedback analysis. Please:
+1. Review each suggestion for feasibility and alignment with project goals
+2. Implement the approved changes
+3. Update relevant documentation
+4. Add tests if needed
+
+The full analysis is available in the attached evolution report.`;
+
+      await github.addCommentWithAgent(
+        targetRepo.owner,
+        targetRepo.repo,
+        pr.number,
+        copilotComment,
+        agent
+      );
+    } catch (commentError) {
+      console.warn("Failed to add @copilot comment:", commentError);
+    }
 
     // Log the activity
     try {
@@ -506,7 +548,7 @@ Only include actual feedback - ignore regular questions or chat.`;
     }
 
     // Create a PR with the findings
-    const agent = await getEvolutionAgent();
+    const agent = await getEvolutionAgent(userId);
     const branchName = `evolution/message-scan-${Date.now()}`;
     const fileName = `docs/evolution/message-scan-${new Date().toISOString().split('T')[0]}.md`;
     
@@ -566,6 +608,26 @@ ${actionableFeedback.map(f => `- **${f.feedbackType.toUpperCase()}**: ${f.summar
     );
 
     if (prResult && prResult.htmlUrl) {
+      // Auto-tag @copilot to trigger implementation phase
+      try {
+        const copilotComment = `@copilot Please review this user feedback and implement improvements where appropriate.
+
+This PR contains ${actionableFeedback.length} actionable feedback items from user messages:
+${actionableFeedback.map((f, i) => `${i + 1}. **${f.feedbackType}** (${f.severity || 'unspecified'}): ${f.summary}`).join('\n')}
+
+Please address the high and medium severity items first.`;
+
+        await github.addCommentWithAgent(
+          repo.owner,
+          repo.repo,
+          prResult.number,
+          copilotComment,
+          agent
+        );
+      } catch (commentError) {
+        console.warn("Failed to add @copilot comment:", commentError);
+      }
+
       return {
         success: true,
         messagesScanned: messages.length,

@@ -67,8 +67,9 @@ import { EnhancedMarkdown } from "@/components/ui/enhanced-markdown";
  * - File/FileCode: File operation indicators
  * - Wrench: Tool execution indicator
  * - CheckCircle/XCircle: Success/error status
+ * - Download: Download message content
  */
-import { Copy, RefreshCw, File, FileCode, Wrench, CheckCircle2, XCircle, Loader2, Terminal, Mail, Calendar, Brain, ChevronDown, ChevronRight } from "lucide-react";
+import { Copy, RefreshCw, File, FileCode, Wrench, CheckCircle2, XCircle, Loader2, Terminal, Mail, Calendar, Brain, ChevronDown, ChevronRight, Download } from "lucide-react";
 
 import { useState } from "react";
 
@@ -78,9 +79,19 @@ import { useState } from "react";
 import { FeedbackPanel } from "@/components/ui/feedback-panel";
 
 /**
+ * SourceCitation - Display sources for RAG responses
+ */
+import { SourceCitation } from "@/components/rag/SourceCitation";
+
+/**
  * Button component from shadcn/ui
  */
 import { Button } from "@/components/ui/button";
+
+/**
+ * File picker utilities for saving content
+ */
+import { saveFilePicker } from "@/lib/file-picker";
 
 // ============================================================================
 // TYPE DEFINITIONS
@@ -180,59 +191,25 @@ function truncateParams(params: Record<string, any>, maxLength: number = 200): R
 
 /**
  * Extract the "thinking" portion from message content
- * The backend format is: [JSON tool calls]\n\n✂️🐱\n\nmarkdown content
- * This function extracts everything BEFORE the delimiter as the thinking/reasoning.
+ * Extracts content from <thinking> tags (Gemini 2.0 Flash Thinking)
  */
 function extractThinking(content: string): string | null {
-  const delimiterIndex = content.indexOf('✂️🐱');
-  if (delimiterIndex === -1) return null;
-  
-  const thinking = content.substring(0, delimiterIndex).trim();
-  if (!thinking || thinking.length < 10) return null;
-  
-  // Try to parse and format the JSON tool calls nicely
-  try {
-    // Check if it starts with [ and contains JSON
-    if (thinking.startsWith('[') || thinking.includes('"type"')) {
-      const jsonMatch = thinking.match(/\[[\s\S]*\]/);
-      if (jsonMatch) {
-        const parsed = JSON.parse(jsonMatch[0]);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          return parsed.map((call: any) => {
-            const type = call.type || 'unknown';
-            const operation = call.operation || '';
-            const truncatedParams = call.parameters ? truncateParams(call.parameters) : null;
-            const params = truncatedParams ? JSON.stringify(truncatedParams, null, 2) : '';
-            return `🔧 ${type}${operation ? `: ${operation}` : ''}\n${params ? `   Parameters: ${params}` : ''}`;
-          }).join('\n\n');
-        }
-      }
-    }
-  } catch {
-    // If parsing fails, just return the raw text
+  // Extract <thinking> tag content
+  const thinkingMatch = content.match(/<thinking>([\s\S]*?)<\/thinking>/);
+  if (thinkingMatch && thinkingMatch[1].trim()) {
+    return thinkingMatch[1].trim();
   }
   
-  return thinking;
+  return null;
 }
 
 /**
- * Strip tool call blocks from message content
- * The backend format is: [JSON tool calls]\n\n✂️🐱\n\nmarkdown content
- * This function removes everything up to and including the delimiter,
- * keeping only the clean markdown content for display.
- * Also handles legacy JSON patterns for backwards compatibility.
+ * Strip tool call blocks and thinking tags from message content
+ * Removes <thinking> tags and cleans up tool call JSON patterns
  */
 function stripToolCalls(content: string): string {
-  // Primary: Remove everything up to and including the ✂️🐱 delimiter
-  // Backend format is: [JSON tool calls]\n\n✂️🐱\n\nmarkdown content
-  const delimiterIndex = content.indexOf('✂️🐱');
-  let cleaned = delimiterIndex !== -1 
-    ? content.substring(delimiterIndex + '✂️🐱'.length).trim()
-    : content;
-  
-  // Legacy: Remove delimited tool call blocks (🐱✂️ ... ✂️🐱)
-  const delimiterPattern = /🐱✂️[\s\S]*?✂️🐱/g;
-  cleaned = cleaned.replace(delimiterPattern, '');
+  // Remove <thinking> tags and their content (already shown in separate section)
+  let cleaned = content.replace(/<thinking>[\s\S]*?<\/thinking>\s*/g, '');
   
   // Known tool type prefixes for targeted matching
   const toolTypePattern = '(?:github_|gmail_|calendar_|drive_|docs_|sheets_|tasks_|terminal_|tavily_|perplexity_|browserbase_|api_call|search|web_search|google_search|duckduckgo_search|browser_scrape|file_ingest|file_upload)[\\w_]*';
@@ -278,8 +255,7 @@ function stripToolCalls(content: string): string {
   const orphanedJsonKeys = /"(?:operation|parameters|id|type)"\s*:\s*(?:"[^"]*"|\{[^}]*\})/gi;
   cleaned = cleaned.replace(orphanedJsonKeys, '');
   
-  // Remove orphaned delimiters and backticks
-  cleaned = cleaned.replace(/🐱✂️/g, '').replace(/✂️🐱/g, '');
+  // Remove orphaned backticks
   cleaned = cleaned.replace(/```(?:json|tool_code|tool|)?$/g, '');
   cleaned = cleaned.replace(/^```/gm, '');
   
@@ -346,8 +322,52 @@ export function ChatMessage({ role, content, isThinking, metadata, createdAt, id
   const hasFileOps = !!(metadata?.filesCreated?.length) || !!(metadata?.filesModified?.length);
   const hasErrors = !!(metadata?.errors?.length);
   
-  // Extract thinking/reasoning from content (before the ✂️🐱 delimiter)
+  // Extract thinking/reasoning content from <thinking> tags
   const thinkingContent = role === "ai" ? extractThinking(content) : null;
+  
+  /**
+   * Handle downloading message content to local file system
+   * Uses File System Access API when available, falls back to download link
+   */
+  const handleDownload = async () => {
+    try {
+      // Determine file extension based on content type
+      let extension = 'txt';
+      let fileType: Record<string, string[]> = { 'text/plain': ['.txt'] };
+      
+      // Check if content is code (has code blocks)
+      if (content.includes('```')) {
+        const codeMatch = content.match(/```(\w+)?/);
+        if (codeMatch) {
+          const lang = codeMatch[1] || 'txt';
+          const extMap: Record<string, string> = {
+            'javascript': 'js', 'typescript': 'ts', 'python': 'py',
+            'java': 'java', 'cpp': 'cpp', 'csharp': 'cs',
+            'html': 'html', 'css': 'css', 'json': 'json',
+            'markdown': 'md', 'sql': 'sql', 'xml': 'xml'
+          };
+          extension = extMap[lang] || 'txt';
+        }
+      } else if (content.trim().startsWith('{') || content.trim().startsWith('[')) {
+        // Looks like JSON
+        extension = 'json';
+        fileType = { 'application/json': ['.json'] };
+      }
+      
+      const timestamp = new Date().toISOString().split('T')[0];
+      const suggestedName = `ai-response-${timestamp}.${extension}`;
+      
+      await saveFilePicker(content, {
+        suggestedName,
+        types: [
+          { description: `${extension.toUpperCase()} File`, accept: fileType },
+          { description: 'Text File', accept: { 'text/plain': ['.txt'] } }
+        ]
+      });
+    } catch (error) {
+      console.error('Download failed:', error);
+    }
+  };
   
   return (
     // Animated container with fade-in and slide-up effect
@@ -629,6 +649,25 @@ export function ChatMessage({ role, content, isThinking, metadata, createdAt, id
           </div>
         )}
 
+        {/* RAG Source Citations - Display retrieved sources for AI responses */}
+        {role === "ai" && !isThinking && metadata?.sources && Array.isArray(metadata.sources) && metadata.sources.length > 0 && (
+          <SourceCitation 
+            sources={metadata.sources}
+            onFeedback={(chunkId, relevant) => {
+              // Post feedback to API
+              fetch("/api/debug/rag/evaluation/feedback", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  queryId: id,
+                  chunksRelevant: relevant,
+                  chunkId,
+                }),
+              }).catch(console.error);
+            }}
+          />
+        )}
+
         {/* 
          * Action Buttons (AI messages only, not during thinking)
          * Provides interaction options for the AI response
@@ -638,12 +677,24 @@ export function ChatMessage({ role, content, isThinking, metadata, createdAt, id
           <div className="mt-4 pt-2">
             <div className="flex items-center gap-2">
               {/* Copy to Clipboard Button */}
-              <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground">
+              <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" title="Copy to clipboard">
                 <Copy className="h-4 w-4" />
               </Button>
               
+              {/* Download to File Button */}
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                onClick={handleDownload}
+                title="Download to file"
+                data-testid="button-download-message"
+              >
+                <Download className="h-4 w-4" />
+              </Button>
+              
               {/* Regenerate Response Button */}
-              <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground">
+              <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" title="Regenerate response">
                 <RefreshCw className="h-4 w-4" />
               </Button>
               

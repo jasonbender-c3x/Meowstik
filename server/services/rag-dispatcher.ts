@@ -675,9 +675,13 @@ export class RAGDispatcher {
           result = { url: openUrlParams.url, success: true };
           break;
         case "send_chat":
-          // send_chat is special - it returns the content directly to terminate the agentic loop
+          // send_chat now only sends content to chat, does NOT terminate the loop
           const sendChatParams = toolCall.parameters as { content?: string };
-          result = { content: sendChatParams?.content || "" };
+          result = { content: sendChatParams?.content || "", success: true };
+          break;
+        case "end_turn":
+          // end_turn is the tool that terminates the agentic loop
+          result = { success: true, shouldEndTurn: true };
           break;
         case "db_tables":
           result = await this.executeDbTables(toolCall);
@@ -1449,6 +1453,23 @@ export class RAGDispatcher {
     // Parse prefix to determine target
     const parsed = parsePathPrefix(params.command, 'server');
     const actualCommand = parsed.path;
+    
+    // Warn about destructive git operations that could affect memory logs
+    const destructiveGitPatterns = [
+      /git\s+reset\s+--hard/i,
+      /git\s+clean\s+-[fFdD]/i,
+      /git\s+checkout\s+--\s+logs\//i,
+      /rm\s+-[rRfF].*logs/i
+    ];
+    
+    for (const pattern of destructiveGitPatterns) {
+      if (pattern.test(actualCommand)) {
+        console.warn(`⚠️  [MEMORY PROTECTION] Potentially destructive command detected: ${actualCommand}`);
+        console.warn(`⚠️  This command may affect memory logs. Memory files are now git-tracked and will be preserved.`);
+        console.warn(`⚠️  See docs/MEMORY_LOG_PROTECTION.md for details.`);
+        break;
+      }
+    }
     
     // Route to client if client: prefix
     if (parsed.target === 'client') {

@@ -5,8 +5,11 @@
  * 
  * Circular buffer for RAG pipeline tracing and debugging.
  * Captures ingestion and query events with timing and metadata.
+ * Enhanced with database persistence for long-term traceability.
  * =============================================================================
  */
+
+import type { InsertRagTrace } from "@shared/schema";
 
 export type RagEventStage = 
   | "ingest_start"
@@ -92,6 +95,19 @@ class RagDebugBuffer {
   private readonly maxSize: number = 200;
   private eventId: number = 0;
 
+  // Persistence configuration
+  private writeBuffer: InsertRagTrace[] = [];
+  private readonly batchSize: number = parseInt(process.env.RAG_TRACE_BATCH_SIZE || "20");
+  private readonly flushInterval: number = parseInt(process.env.RAG_TRACE_FLUSH_INTERVAL || "5000");
+  private flushTimer: NodeJS.Timeout | null = null;
+  private readonly persistenceEnabled: boolean = process.env.RAG_TRACE_PERSISTENCE !== "false";
+
+  constructor() {
+    if (this.persistenceEnabled) {
+      this.startPeriodicFlush();
+    }
+  }
+
   generateTraceId(): string {
     return `rag-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`;
   }
@@ -107,12 +123,140 @@ class RagDebugBuffer {
       timestamp: new Date().toISOString(),
     };
 
+    // Add to in-memory circular buffer
     this.events.push(fullEvent);
-
-    // Circular buffer - remove oldest when full
     if (this.events.length > this.maxSize) {
       this.events.shift();
     }
+
+    // Queue for database persistence (async, non-blocking)
+    if (this.persistenceEnabled) {
+      this.queueForPersistence(fullEvent);
+    }
+  }
+
+  /**
+   * Queue event for batch persistence
+   */
+  private queueForPersistence(event: RagTraceEvent): void {
+    const trace = this.eventToTrace(event);
+    this.writeBuffer.push(trace);
+
+    // Flush if batch size reached
+    if (this.writeBuffer.length >= this.batchSize) {
+      void this.flushToDatabase();
+    }
+  }
+
+  /**
+   * Convert RagTraceEvent to InsertRagTrace format
+   */
+  private eventToTrace(event: RagTraceEvent): InsertRagTrace {
+    return {
+      traceId: event.traceId,
+      traceType: this.inferTraceType(event.stage),
+      timestamp: new Date(event.timestamp),
+      durationMs: event.durationMs,
+      stage: event.stage,
+
+      // Content references
+      documentId: event.documentId,
+      chunkIds: event.chunkIds,
+      messageId: event.role ? undefined : event.chatId, // Infer messageId from context
+      chatId: event.chatId,
+      userId: event.userId,
+
+      // Query details
+      queryText: event.query,
+      queryLength: event.queryLength,
+
+      // Ingestion details
+      filename: event.filename,
+      contentType: event.contentType,
+      contentLength: event.contentLength,
+
+      // Chunking details
+      chunksCreated: event.chunksCreated,
+      chunksFiltered: event.chunksFiltered,
+      chunkingStrategy: event.chunkingStrategy,
+
+      // Embedding details (if available in future)
+      embeddingModel: undefined,
+      embeddingDimensions: undefined,
+
+      // Search/retrieval details
+      searchResults: event.searchResults,
+      threshold: event.threshold?.toString(),
+      topK: event.topK,
+      scores: event.scores?.map(s => s.toString()),
+
+      // Context injection
+      tokensUsed: event.tokensUsed,
+      sourcesCount: event.sourcesCount,
+      contextLength: undefined,
+
+      // Error tracking
+      errorMessage: event.error,
+      errorStage: event.error ? event.stage : undefined,
+
+      // Metadata
+      metadata: undefined,
+    };
+  }
+
+  /**
+   * Infer trace type from stage
+   */
+  private inferTraceType(stage: RagEventStage): "ingestion" | "query" {
+    const ingestionStages: RagEventStage[] = [
+      "ingest_start",
+      "chunk",
+      "embed",
+      "store",
+      "ingest_complete",
+      "ingest_filtered"
+    ];
+    return ingestionStages.includes(stage) ? "ingestion" : "query";
+  }
+
+  /**
+   * Flush write buffer to database
+   */
+  private async flushToDatabase(): Promise<void> {
+    if (this.writeBuffer.length === 0) return;
+
+    const batch = [...this.writeBuffer];
+    this.writeBuffer = [];
+
+    try {
+      // Dynamically import storage to avoid circular dependencies
+      const { storage } = await import("../storage");
+      await storage.createRagTraces(batch);
+      console.log(`[RAG Trace] Persisted ${batch.length} traces to database`);
+    } catch (error) {
+      console.error("[RAG Trace] Failed to persist traces:", error);
+      // Don't rethrow - tracing should not break the app
+    }
+  }
+
+  /**
+   * Start periodic flush timer
+   */
+  private startPeriodicFlush(): void {
+    this.flushTimer = setInterval(() => {
+      void this.flushToDatabase();
+    }, this.flushInterval);
+  }
+
+  /**
+   * Stop periodic flush and flush remaining events
+   */
+  async shutdown(): Promise<void> {
+    if (this.flushTimer) {
+      clearInterval(this.flushTimer);
+      this.flushTimer = null;
+    }
+    await this.flushToDatabase();
   }
 
   // Convenience methods for common events
@@ -376,3 +520,15 @@ class RagDebugBuffer {
 }
 
 export const ragDebugBuffer = new RagDebugBuffer();
+
+// Graceful shutdown hook
+process.on("SIGTERM", async () => {
+  console.log("[RAG Trace] Shutting down gracefully...");
+  await ragDebugBuffer.shutdown();
+});
+
+process.on("SIGINT", async () => {
+  console.log("[RAG Trace] Shutting down gracefully...");
+  await ragDebugBuffer.shutdown();
+  process.exit(0);
+});
