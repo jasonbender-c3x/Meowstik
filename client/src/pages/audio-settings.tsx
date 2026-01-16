@@ -89,22 +89,32 @@ export default function AudioSettings() {
               <Label>Verbosity Level: <span className="font-bold uppercase text-primary">{verbosityMode}</span></Label>
             </div>
             <div className="pt-2 px-2">
-              <Slider 
-                value={[
-                  verbosityMode === "mute" ? 0 : 
-                  verbosityMode === "low" ? 33 : 
-                  verbosityMode === "normal" ? 66 : 100
-                ]}
-                max={100} 
-                step={33}
-                onValueChange={(vals) => {
-                  const v = vals[0];
-                  if (v < 15) setVerbosityMode("mute");
-                  else if (v < 50) setVerbosityMode("low");
-                  else if (v < 85) setVerbosityMode("normal");
-                  else setVerbosityMode("experimental");
-                }}
-              />
+              {(() => {
+                // Calculate slider value based on mode
+                // Modes are evenly distributed: 0, 33, 66, 100
+                const SLIDER_MAX = 100;
+                const NUM_MODES = 4;
+                const STEP = SLIDER_MAX / (NUM_MODES - 1); // 33.33
+                
+                const modeIndex = ["mute", "low", "normal", "experimental"].indexOf(verbosityMode);
+                const sliderValue = modeIndex >= 0 ? modeIndex * STEP : 2 * STEP; // Default to "normal"
+                
+                return (
+                  <Slider 
+                    value={[sliderValue]}
+                    max={SLIDER_MAX} 
+                    step={STEP}
+                    onValueChange={(vals) => {
+                      const v = vals[0];
+                      const threshold = STEP / 2; // Midpoint between positions
+                      if (v < threshold) setVerbosityMode("mute");
+                      else if (v < STEP + threshold) setVerbosityMode("low");
+                      else if (v < 2 * STEP + threshold) setVerbosityMode("normal");
+                      else setVerbosityMode("experimental");
+                    }}
+                  />
+                );
+              })()}
               <div className="flex justify-between text-xs text-muted-foreground mt-2">
                 <span>Mute</span>
                 <span>Low (Concise)</span>

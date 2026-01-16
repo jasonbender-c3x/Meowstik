@@ -608,13 +608,13 @@ export async function registerRoutes(
       const useVoice = verbosityMode !== "mute";
       
       // Determine content verbosity level for prompt context
-      // - mute: minimal (alerts only)
-      // - low: concise (brief responses)
-      // - normal: verbose (comprehensive responses, default)
-      // - experimental: discussion (dual-voice mode)
-      const contentVerbosity = verbosityMode === "low" ? "low" : 
-                               verbosityMode === "mute" ? "minimal" : 
-                               "verbose";
+      const contentVerbosity = (() => {
+        switch (verbosityMode) {
+          case "mute": return "minimal";
+          case "low": return "low";
+          default: return "verbose"; // normal and experimental
+        }
+      })();
       
       const composedPrompt = await promptComposer.compose({
         textContent: req.body.content || "",

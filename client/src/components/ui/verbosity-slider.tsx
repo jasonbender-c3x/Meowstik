@@ -20,11 +20,13 @@ const modes: { id: VerbosityMode; icon: React.ReactNode; label: string; descript
   { id: "experimental", icon: <Radio className="h-4 w-4" />, label: "Experimental", description: "Dual-voice discussion mode" },
 ];
 
+const DEFAULT_MODE: VerbosityMode = "normal";
+
 export function VerbositySlider() {
   const { verbosityMode, setVerbosityMode } = useTTS();
   
   const currentIndex = modes.findIndex(m => m.id === verbosityMode);
-  const currentMode = modes[currentIndex] || modes[2]; // Default to "normal" (index 2)
+  const currentMode = modes[currentIndex] !== undefined ? modes[currentIndex] : modes.find(m => m.id === DEFAULT_MODE)!;
 
   return (
     <TooltipProvider>
@@ -69,7 +71,7 @@ export function VerbositySlider() {
 
 export function VerbosityIndicator() {
   const { verbosityMode } = useTTS();
-  const mode = modes.find(m => m.id === verbosityMode) || modes[2];
+  const mode = modes.find(m => m.id === verbosityMode) || modes.find(m => m.id === DEFAULT_MODE)!;
   
   return (
     <TooltipProvider>
