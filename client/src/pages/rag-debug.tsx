@@ -319,7 +319,7 @@ export default function RagDebugPage() {
         <div className="flex items-center gap-3 flex-1">
           <Database className="h-8 w-8 text-primary" />
           <div>
-            <h1 className="text-2xl font-bold" data-testid="page-title">RAG Debug Console</h1>
+            <h1 className="text-2xl font-display font-bold" data-testid="page-title">RAG Debug Console</h1>
             <p className="text-sm text-muted-foreground">
               Monitor ingestion and retrieval pipeline events
             </p>
