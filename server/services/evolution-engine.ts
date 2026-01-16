@@ -342,6 +342,29 @@ Please review the suggestions and:
       agent
     );
 
+    // Auto-tag @copilot to trigger implementation phase
+    try {
+      const copilotComment = `@copilot Please review these evolution suggestions and implement the approved improvements.
+
+This PR contains AI-generated improvement suggestions based on user feedback analysis. Please:
+1. Review each suggestion for feasibility and alignment with project goals
+2. Implement the approved changes
+3. Update relevant documentation
+4. Add tests if needed
+
+The full analysis is available in the attached evolution report.`;
+
+      await github.addCommentWithAgent(
+        targetRepo.owner,
+        targetRepo.repo,
+        pr.number,
+        copilotComment,
+        agent
+      );
+    } catch (commentError) {
+      console.warn("Failed to add @copilot comment:", commentError);
+    }
+
     // Log the activity
     try {
       const agentIdentity = await storage.getAgentByName("Agentia Compiler");
@@ -585,6 +608,26 @@ ${actionableFeedback.map(f => `- **${f.feedbackType.toUpperCase()}**: ${f.summar
     );
 
     if (prResult && prResult.htmlUrl) {
+      // Auto-tag @copilot to trigger implementation phase
+      try {
+        const copilotComment = `@copilot Please review this user feedback and implement improvements where appropriate.
+
+This PR contains ${actionableFeedback.length} actionable feedback items from user messages:
+${actionableFeedback.map((f, i) => `${i + 1}. **${f.feedbackType}** (${f.severity || 'unspecified'}): ${f.summary}`).join('\n')}
+
+Please address the high and medium severity items first.`;
+
+        await github.addCommentWithAgent(
+          repo.owner,
+          repo.repo,
+          prResult.number,
+          copilotComment,
+          agent
+        );
+      } catch (commentError) {
+        console.warn("Failed to add @copilot comment:", commentError);
+      }
+
       return {
         success: true,
         messagesScanned: messages.length,
