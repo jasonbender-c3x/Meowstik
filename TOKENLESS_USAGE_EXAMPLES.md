@@ -4,7 +4,7 @@
 
 ### Starting the Agent
 ```bash
-$ meowstik-agent --relay ws://localhost:5000/ws/desktop/agent/
+$ meowstik-desktop-agent --relay ws://localhost:5000/ws/desktop/agent/
 
 🐱 Meowstik Desktop Agent starting...
 📡 Connecting to relay: ws://localhost:5000/ws/desktop/agent/
@@ -25,18 +25,18 @@ $ meowstik-agent --relay ws://localhost:5000/ws/desktop/agent/
 
 ### Attempting Without Token (Fails)
 ```bash
-$ NODE_ENV=production meowstik-agent --relay ws://localhost:5000/ws/desktop/agent/
+$ NODE_ENV=production meowstik-desktop-agent --relay ws://localhost:5000/ws/desktop/agent/
 
 ❌ Error: --token is required for non-localhost connections
-Usage: meowstik-agent --token YOUR_TOKEN [--relay wss://...]
+Usage: meowstik-desktop-agent --token YOUR_TOKEN [--relay wss://...]
 
 For local development, you can omit --token when connecting to localhost:
-  meowstik-agent --relay ws://localhost:5000/ws/desktop
+  meowstik-desktop-agent --relay ws://localhost:5000/ws/desktop
 ```
 
 ### With Token (Success)
 ```bash
-$ NODE_ENV=production meowstik-agent \
+$ NODE_ENV=production meowstik-desktop-agent \
     --token abc123xyz789 \
     --relay wss://my-app.replit.app/ws/desktop
 
@@ -97,7 +97,7 @@ export NODE_ENV=production
 npm start
 
 # Terminal 2: Try to connect without token (should fail)
-meowstik-agent --relay ws://localhost:5000/ws/desktop/agent/
+meowstik-desktop-agent --relay ws://localhost:5000/ws/desktop/agent/
 
 # Expected: Connection rejected
 # You should see: "❌ Error: --token is required for non-localhost connections"
@@ -115,13 +115,13 @@ open http://localhost:5000/collaborate
 # Step 3: Copy token
 
 # Step 4: Run agent with token
-meowstik-agent --token LONG_TOKEN_STRING --relay ws://localhost:5000/ws/desktop
+meowstik-desktop-agent --token LONG_TOKEN_STRING --relay ws://localhost:5000/ws/desktop
 ```
 
 ### After (Tokenless)
 ```bash
 # Just run the agent!
-meowstik-agent --relay ws://localhost:5000/ws/desktop/agent/
+meowstik-desktop-agent --relay ws://localhost:5000/ws/desktop/agent/
 ```
 
 **Time saved**: ~30 seconds per restart during development
@@ -132,7 +132,7 @@ meowstik-agent --relay ws://localhost:5000/ws/desktop/agent/
 ```bash
 # Local development (safe)
 export NODE_ENV=development
-meowstik-agent --relay ws://localhost:5000/ws/desktop/agent/
+meowstik-desktop-agent --relay ws://localhost:5000/ws/desktop/agent/
 ```
 
 ### ❌ DO NOT DO THIS
@@ -142,7 +142,7 @@ export NODE_ENV=development  # ❌ Dangerous!
 npm start  # This would allow tokenless connections in production!
 
 # Don't try to connect tokenless to remote servers
-meowstik-agent --relay ws://remote-server.com/ws/desktop/agent/  # ❌ Will fail
+meowstik-desktop-agent --relay ws://remote-server.com/ws/desktop/agent/  # ❌ Will fail
 ```
 
 ### 🔒 Production Deployment
@@ -152,7 +152,7 @@ export NODE_ENV=production
 npm start
 
 # Always use tokens for agents
-meowstik-agent \
+meowstik-desktop-agent \
   --token $(cat session-token.txt) \
   --relay wss://secure-app.com/ws/desktop
 ```

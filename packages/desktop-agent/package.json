@@ -1,10 +1,10 @@
 {
-  "name": "meowstik-agent",
+  "name": "@meowstik/desktop-agent",
   "version": "1.0.0",
-  "description": "Desktop agent for Meowstik AI collaboration - screen capture and input injection",
+  "description": "Desktop remote control agent for Meowstik AI - full desktop automation with mouse, keyboard, and screen capture",
   "main": "dist/index.js",
   "bin": {
-    "meowstik-agent": "./dist/cli.js"
+    "meowstik-desktop-agent": "./dist/cli.js"
   },
   "scripts": {
     "build": "tsc",

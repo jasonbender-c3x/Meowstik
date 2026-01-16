@@ -309,7 +309,7 @@ export default function CollaboratePage() {
     setMessages(prev => [...prev, {
       id: Date.now().toString(),
       role: "system",
-      content: `Desktop session created. Run this command on your computer to connect:\n\nnpx meowstik-agent --token ${sessionData.token}`,
+      content: `Desktop session created. Run this command on your computer to connect:\n\nnpx @meowstik/desktop-agent --token ${sessionData.token}`,
       timestamp: new Date(),
     }]);
   };
@@ -374,7 +374,7 @@ export default function CollaboratePage() {
   };
 
   const copyAgentCommand = () => {
-    navigator.clipboard.writeText("npx meowstik-agent --token YOUR_SESSION_TOKEN");
+    navigator.clipboard.writeText("npx @meowstik/desktop-agent --token YOUR_SESSION_TOKEN");
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -509,7 +509,7 @@ export default function CollaboratePage() {
                       <Label className="text-xs text-muted-foreground">First time? Install the agent:</Label>
                       <div className="flex gap-2">
                         <code className="flex-1 bg-muted px-3 py-2 rounded text-xs font-mono truncate">
-                          npx meowstik-agent --token YOUR_TOKEN
+                          npx @meowstik/desktop-agent --token YOUR_TOKEN
                         </code>
                         <Button variant="outline" size="icon" onClick={copyAgentCommand} data-testid="button-copy-agent">
                           {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}

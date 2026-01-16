@@ -25,10 +25,10 @@ interface AgentConfig {
 #### CLI Validation
 ```bash
 # Works without token
-meowstik-agent --relay ws://localhost:5000/ws/desktop/agent/
+meowstik-desktop-agent --relay ws://localhost:5000/ws/desktop/agent/
 
 # Requires token for non-localhost
-meowstik-agent --token TOKEN --relay wss://remote.com/ws/desktop
+meowstik-desktop-agent --token TOKEN --relay wss://remote.com/ws/desktop
 ```
 
 ### 2. Server Changes
@@ -87,7 +87,7 @@ meowstik-agent --token TOKEN --relay wss://remote.com/ws/desktop
 
 #### Updated Files
 - `docs/ragent/install-desktop-agent.md` - Added localhost instructions
-- `packages/meowstik-agent/README.md` - Added development mode section
+- `packages/desktop-agent/README.md` - Added development mode section
 
 ## Security Analysis
 
@@ -156,7 +156,7 @@ In production, the feature is completely disabled:
 NODE_ENV=development npm run dev
 
 # Start agent (no token needed!)
-meowstik-agent --relay ws://localhost:5000/ws/desktop/agent/
+meowstik-desktop-agent --relay ws://localhost:5000/ws/desktop/agent/
 ```
 
 ### Production (Token Required)
@@ -165,7 +165,7 @@ meowstik-agent --relay ws://localhost:5000/ws/desktop/agent/
 NODE_ENV=production npm start
 
 # Start agent (token required)
-meowstik-agent \
+meowstik-desktop-agent \
   --token abc123xyz \
   --relay wss://app.replit.app/ws/desktop
 ```
@@ -192,7 +192,7 @@ No migration needed. Existing token-based connections work unchanged.
 | `server/websocket-desktop.ts` | Tokenless auth logic | ~30 |
 | `docs/desktop-agent-localhost-dev.md` | New documentation | ~400 |
 | `docs/ragent/install-desktop-agent.md` | Updated with localhost info | ~20 |
-| `packages/meowstik-agent/README.md` | Development mode docs | ~15 |
+| `packages/desktop-agent/README.md` | Development mode docs | ~15 |
 
 Total: **6 files changed, 540+ lines added**
 

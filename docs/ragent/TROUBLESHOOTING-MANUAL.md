@@ -183,7 +183,7 @@ project/
 │   └── ragent/             # AI knowledge docs
 ├── packages/               # Monorepo packages
 │   ├── extension/          # Browser extension
-│   └── meowstik-agent/     # Desktop agent
+│   └── desktop-agent/     # Desktop agent
 ├── /tmp/logs/              # Runtime logs (ephemeral)
 ├── package.json            # Dependencies
 ├── tsconfig.json           # TypeScript config

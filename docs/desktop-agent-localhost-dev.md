@@ -46,10 +46,10 @@ graph LR
 
 ```bash
 # Connect to local server without token
-meowstik-agent --relay ws://localhost:5000/ws/desktop/agent/
+meowstik-desktop-agent --relay ws://localhost:5000/ws/desktop/agent/
 
 # Or with WebSocket Secure (if using SSL locally)
-meowstik-agent --relay wss://localhost:5000/ws/desktop/agent/
+meowstik-desktop-agent --relay wss://localhost:5000/ws/desktop/agent/
 ```
 
 ### Expected Output
@@ -65,7 +65,7 @@ meowstik-agent --relay wss://localhost:5000/ws/desktop/agent/
 
 ```bash
 # Token is required for non-localhost connections
-meowstik-agent --token YOUR_SESSION_TOKEN --relay wss://your-app.replit.app/ws/desktop
+meowstik-desktop-agent --token YOUR_SESSION_TOKEN --relay wss://your-app.replit.app/ws/desktop
 ```
 
 ---
@@ -248,10 +248,10 @@ if (process.env.NODE_ENV === "production" && !token) {
 **Solution:** Update the `--relay` argument:
 ```bash
 # ❌ Wrong
-meowstik-agent --relay ws://192.168.1.100:5000/ws/desktop/agent/
+meowstik-desktop-agent --relay ws://192.168.1.100:5000/ws/desktop/agent/
 
 # ✅ Correct
-meowstik-agent --relay ws://localhost:5000/ws/desktop/agent/
+meowstik-desktop-agent --relay ws://localhost:5000/ws/desktop/agent/
 ```
 
 ### Connection Rejected by Server
@@ -279,7 +279,7 @@ meowstik-agent --relay ws://localhost:5000/ws/desktop/agent/
 3. **Docker/Container**: Agent is running in a container
    ```bash
    # Use --network host or configure proper port mapping
-   docker run --network host meowstik-agent --relay ws://localhost:5000/ws/desktop/agent/
+   docker run --network host meowstik-desktop-agent --relay ws://localhost:5000/ws/desktop/agent/
    ```
 
 ### Development Session Not Created
@@ -317,7 +317,7 @@ meowstik-agent --relay ws://localhost:5000/ws/desktop/agent/
 
 1. **Use Localhost URLs**: Always use `localhost` or `127.0.0.1` in development
    ```bash
-   meowstik-agent --relay ws://localhost:5000/ws/desktop/agent/
+   meowstik-desktop-agent --relay ws://localhost:5000/ws/desktop/agent/
    ```
 
 2. **Set NODE_ENV Properly**: Ensure development mode is active
@@ -374,7 +374,7 @@ npm start
 
 # Terminal 2: Agent requires token
 # First, create session via web UI or API to get token
-meowstik-agent \
+meowstik-desktop-agent \
   --token abc123xyz789 \
   --relay wss://your-app.replit.app/ws/desktop
 ```
@@ -391,8 +391,8 @@ A: Security. Without token validation, anyone who can reach your server could co
 
 A: Yes, as long as the hostname is `localhost` or `127.0.0.1`:
 ```bash
-meowstik-agent --relay ws://localhost:8080/ws/desktop/agent/  # ✅ Works
-meowstik-agent --relay ws://127.0.0.1:3000/ws/desktop/agent/  # ✅ Works
+meowstik-desktop-agent --relay ws://localhost:8080/ws/desktop/agent/  # ✅ Works
+meowstik-desktop-agent --relay ws://127.0.0.1:3000/ws/desktop/agent/  # ✅ Works
 ```
 
 **Q: What if I'm using Docker Compose?**
