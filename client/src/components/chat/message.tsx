@@ -67,8 +67,9 @@ import { EnhancedMarkdown } from "@/components/ui/enhanced-markdown";
  * - File/FileCode: File operation indicators
  * - Wrench: Tool execution indicator
  * - CheckCircle/XCircle: Success/error status
+ * - Download: Download message content
  */
-import { Copy, RefreshCw, File, FileCode, Wrench, CheckCircle2, XCircle, Loader2, Terminal, Mail, Calendar, Brain, ChevronDown, ChevronRight } from "lucide-react";
+import { Copy, RefreshCw, File, FileCode, Wrench, CheckCircle2, XCircle, Loader2, Terminal, Mail, Calendar, Brain, ChevronDown, ChevronRight, Download } from "lucide-react";
 
 import { useState } from "react";
 
@@ -86,6 +87,11 @@ import { SourceCitation } from "@/components/rag/SourceCitation";
  * Button component from shadcn/ui
  */
 import { Button } from "@/components/ui/button";
+
+/**
+ * File picker utilities for saving content
+ */
+import { saveFilePicker } from "@/lib/file-picker";
 
 // ============================================================================
 // TYPE DEFINITIONS
@@ -318,6 +324,50 @@ export function ChatMessage({ role, content, isThinking, metadata, createdAt, id
   
   // Extract thinking/reasoning content from <thinking> tags
   const thinkingContent = role === "ai" ? extractThinking(content) : null;
+  
+  /**
+   * Handle downloading message content to local file system
+   * Uses File System Access API when available, falls back to download link
+   */
+  const handleDownload = async () => {
+    try {
+      // Determine file extension based on content type
+      let extension = 'txt';
+      let fileType: any = { 'text/plain': ['.txt'] };
+      
+      // Check if content is code (has code blocks)
+      if (content.includes('```')) {
+        const codeMatch = content.match(/```(\w+)?/);
+        if (codeMatch) {
+          const lang = codeMatch[1] || 'txt';
+          const extMap: Record<string, string> = {
+            'javascript': 'js', 'typescript': 'ts', 'python': 'py',
+            'java': 'java', 'cpp': 'cpp', 'csharp': 'cs',
+            'html': 'html', 'css': 'css', 'json': 'json',
+            'markdown': 'md', 'sql': 'sql', 'xml': 'xml'
+          };
+          extension = extMap[lang] || 'txt';
+        }
+      } else if (content.trim().startsWith('{') || content.trim().startsWith('[')) {
+        // Looks like JSON
+        extension = 'json';
+        fileType = { 'application/json': ['.json'] };
+      }
+      
+      const timestamp = new Date().toISOString().split('T')[0];
+      const suggestedName = `ai-response-${timestamp}.${extension}`;
+      
+      await saveFilePicker(content, {
+        suggestedName,
+        types: [
+          { description: `${extension.toUpperCase()} File`, accept: fileType },
+          { description: 'Text File', accept: { 'text/plain': ['.txt'] } }
+        ]
+      });
+    } catch (error) {
+      console.error('Download failed:', error);
+    }
+  };
   
   return (
     // Animated container with fade-in and slide-up effect
@@ -627,12 +677,24 @@ export function ChatMessage({ role, content, isThinking, metadata, createdAt, id
           <div className="mt-4 pt-2">
             <div className="flex items-center gap-2">
               {/* Copy to Clipboard Button */}
-              <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground">
+              <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" title="Copy to clipboard">
                 <Copy className="h-4 w-4" />
               </Button>
               
+              {/* Download to File Button */}
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                onClick={handleDownload}
+                title="Download to file"
+                data-testid="button-download-message"
+              >
+                <Download className="h-4 w-4" />
+              </Button>
+              
               {/* Regenerate Response Button */}
-              <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground">
+              <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" title="Regenerate response">
                 <RefreshCw className="h-4 w-4" />
               </Button>
               

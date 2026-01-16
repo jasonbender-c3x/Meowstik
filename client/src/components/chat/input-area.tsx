@@ -49,8 +49,9 @@ import { Textarea } from "@/components/ui/textarea";
  * - Sparkles: Loading/AI thinking indicator
  * - Monitor: Screen capture button
  * - X: Remove attachment button
+ * - Folder: Directory picker button
  */
-import { Mic, MicOff, Image, Send, Paperclip, Sparkles, Monitor, X, Camera, PawPrint } from "lucide-react";
+import { Mic, MicOff, Image, Send, Paperclip, Sparkles, Monitor, X, Camera, PawPrint, Folder } from "lucide-react";
 
 /**
  * Voice hook for speech-to-text functionality
@@ -73,6 +74,11 @@ import { motion, AnimatePresence } from "framer-motion";
  * Utility for conditional class names
  */
 import { cn } from "@/lib/utils";
+
+/**
+ * File picker utilities for modern file system access
+ */
+import { openFilePicker, openDirectoryPicker, readFileAsDataURL, isFileSystemAccessSupported } from "@/lib/file-picker";
 
 // ============================================================================
 // IMAGE COMPRESSION UTILITY
@@ -528,6 +534,138 @@ export function ChatInputArea({ onSend, isLoading, promptHistory = [], onStop }:
   };
 
   /**
+   * Handle enhanced file picker using File System Access API
+   * Provides a better native file picker experience in supported browsers
+   */
+  const handleEnhancedFilePicker = async () => {
+    try {
+      const files = await openFilePicker({
+        accept: {
+          'image/*': ['.png', '.jpg', '.jpeg', '.gif', '.webp'],
+          'application/pdf': ['.pdf'],
+          'text/*': ['.txt', '.md', '.json', '.csv'],
+          'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'],
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'],
+        },
+        multiple: true,
+        description: 'Select files to attach'
+      });
+
+      if (files.length === 0) return; // User cancelled
+
+      // Process files similar to handleFileUpload
+      for (const file of files) {
+        const dataUrl = await readFileAsDataURL(file);
+        const isImage = file.type.startsWith("image/");
+        
+        let finalDataUrl = dataUrl;
+        let finalSize = file.size;
+        let finalMimeType = file.type;
+        
+        // Compress images to reduce size
+        if (isImage) {
+          try {
+            const compressed = await compressImage(dataUrl);
+            finalDataUrl = compressed.dataUrl;
+            finalSize = compressed.size;
+            finalMimeType = compressed.mimeType;
+          } catch (error) {
+            console.error("Image compression failed, using original:", error);
+          }
+        }
+        
+        const attachment: Attachment = {
+          id: `file-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          filename: file.name,
+          type: "file",
+          mimeType: finalMimeType,
+          size: finalSize,
+          dataUrl: finalDataUrl,
+          preview: isImage ? finalDataUrl : undefined
+        };
+        
+        setAttachments(prev => [...prev, attachment]);
+      }
+
+      toast({
+        title: "Files Attached",
+        description: `${files.length} file(s) added to the message`
+      });
+    } catch (error) {
+      console.error("Enhanced file picker failed:", error);
+      toast({
+        title: "File Selection Failed",
+        description: "Unable to select files. Please try again.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  /**
+   * Handle directory picker to upload entire folders
+   * Uses File System Access API when available, falls back to webkitdirectory
+   */
+  const handleDirectoryPicker = async () => {
+    try {
+      const entries = await openDirectoryPicker({
+        description: 'Select a folder to upload'
+      });
+
+      if (entries.length === 0) return; // User cancelled
+
+      let fileCount = 0;
+      const maxFiles = 50; // Limit to prevent overwhelming
+
+      for (const entry of entries.slice(0, maxFiles)) {
+        const { file, path } = entry;
+        const dataUrl = await readFileAsDataURL(file);
+        const isImage = file.type.startsWith("image/");
+        
+        let finalDataUrl = dataUrl;
+        let finalSize = file.size;
+        let finalMimeType = file.type;
+        
+        // Compress images to reduce size
+        if (isImage) {
+          try {
+            const compressed = await compressImage(dataUrl);
+            finalDataUrl = compressed.dataUrl;
+            finalSize = compressed.size;
+            finalMimeType = compressed.mimeType;
+          } catch (error) {
+            console.error("Image compression failed, using original:", error);
+          }
+        }
+        
+        const attachment: Attachment = {
+          id: `file-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          filename: path, // Use full path to preserve directory structure
+          type: "file",
+          mimeType: finalMimeType,
+          size: finalSize,
+          dataUrl: finalDataUrl,
+          preview: isImage ? finalDataUrl : undefined
+        };
+        
+        setAttachments(prev => [...prev, attachment]);
+        fileCount++;
+      }
+
+      toast({
+        title: "Folder Uploaded",
+        description: `${fileCount} file(s) from folder added to the message${entries.length > maxFiles ? ` (limited to ${maxFiles} files)` : ''}`
+      });
+    } catch (error) {
+      console.error("Directory picker failed:", error);
+      toast({
+        title: "Folder Selection Failed",
+        description: "Unable to select folder. Please try again.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  /**
    * Handle keyboard events in textarea
    * 
    * Implements:
@@ -877,15 +1015,28 @@ export function ChatInputArea({ onSend, isLoading, promptHistory = [], onStop }:
                 <Monitor className="h-5 w-5" />
               </Button>
               
-              {/* File Attachment Button */}
+              {/* File Attachment Button - uses enhanced picker when available */}
               <Button 
                 variant="ghost" 
                 size="icon" 
-                onClick={() => fileInputRef.current?.click()}
+                onClick={isFileSystemAccessSupported() ? handleEnhancedFilePicker : () => fileInputRef.current?.click()}
                 className="h-9 w-9 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
                 data-testid="button-file-attach"
+                title="Attach files"
               >
                 <Paperclip className="h-5 w-5" />
+              </Button>
+              
+              {/* Directory/Folder Picker Button */}
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                onClick={handleDirectoryPicker}
+                className="h-9 w-9 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+                data-testid="button-folder-attach"
+                title="Attach entire folder"
+              >
+                <Folder className="h-5 w-5" />
               </Button>
               
               {/* Voice Input Button - toggles speech-to-text */}
