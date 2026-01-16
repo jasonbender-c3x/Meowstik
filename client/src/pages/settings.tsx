@@ -3,9 +3,11 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
-import { ArrowLeft, Settings, Palette, Mic, Brain, Bell, Shield, Link2, Check, ExternalLink, Loader2, Database, FileText } from "lucide-react";
+import { ArrowLeft, Settings, Palette, Mic, Brain, Bell, Shield, Link2, Check, ExternalLink, Loader2, Database, FileText, Sparkles } from "lucide-react";
 import { Link } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
@@ -22,6 +24,16 @@ interface AppSettings {
   streamResponses: boolean;
   knowledgeConversationTurns: number;
   knowledgeAutoIngest: boolean;
+}
+
+interface BrandingSettings {
+  agentName: string;
+  displayName: string;
+  avatarUrl?: string;
+  brandColor: string;
+  githubSignature?: string;
+  emailSignature?: string;
+  canonicalDomain?: string;
 }
 
 const defaultSettings: AppSettings = {
@@ -54,6 +66,59 @@ export default function SettingsPage() {
   const [settings, setSettings] = useState<AppSettings>(defaultSettings);
   const [saved, setSaved] = useState(false);
   const queryClient = useQueryClient();
+
+  // Branding settings
+  const { data: brandingData, isLoading: brandingLoading } = useQuery({
+    queryKey: ['/api/branding'],
+    queryFn: async () => {
+      const res = await fetch('/api/branding');
+      if (!res.ok) {
+        // If not authenticated or branding doesn't exist, return defaults
+        return {
+          branding: {
+            agentName: 'Meowstik',
+            displayName: 'Meowstik AI',
+            avatarUrl: '',
+            brandColor: '#4285f4',
+            githubSignature: '',
+            emailSignature: '',
+            canonicalDomain: ''
+          }
+        };
+      }
+      return res.json() as Promise<{ branding: BrandingSettings }>;
+    },
+  });
+
+  const updateBrandingMutation = useMutation({
+    mutationFn: async (branding: Partial<BrandingSettings>) => {
+      const res = await fetch('/api/branding', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(branding),
+      });
+      if (!res.ok) throw new Error('Failed to update branding');
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/branding'] });
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    },
+  });
+
+  const resetBrandingMutation = useMutation({
+    mutationFn: async () => {
+      const res = await fetch('/api/branding', {
+        method: 'DELETE',
+      });
+      if (!res.ok) throw new Error('Failed to reset branding');
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/branding'] });
+    },
+  });
 
   const { data: authStatus, isLoading: authLoading } = useQuery({
     queryKey: ['/api/auth/google/status'],
@@ -174,6 +239,177 @@ export default function SettingsPage() {
                   </SelectContent>
                 </Select>
               </div>
+            </section>
+
+            <section className="p-6 rounded-xl border border-border bg-secondary/20">
+              <div className="flex items-center gap-3 mb-6">
+                <Sparkles className="h-5 w-5 text-primary" />
+                <h2 className="text-xl font-semibold">Custom Branding</h2>
+              </div>
+              
+              {brandingLoading ? (
+                <div className="flex items-center justify-center p-8">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  <p className="text-sm text-muted-foreground">
+                    Customize your AI assistant's identity, name, and signatures for a personalized experience.
+                  </p>
+
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="agent-name">Agent Name</Label>
+                      <Input
+                        id="agent-name"
+                        placeholder="e.g., Catpilot"
+                        defaultValue={brandingData?.branding.agentName || 'Meowstik'}
+                        onBlur={(e) => {
+                          if (e.target.value && e.target.value !== brandingData?.branding.agentName) {
+                            updateBrandingMutation.mutate({ agentName: e.target.value });
+                          }
+                        }}
+                        data-testid="input-agent-name"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        The primary name of your AI assistant (e.g., "Catpilot" instead of "Meowstik")
+                      </p>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="display-name">Display Name</Label>
+                      <Input
+                        id="display-name"
+                        placeholder="e.g., Catpilot Pro"
+                        defaultValue={brandingData?.branding.displayName || 'Meowstik AI'}
+                        onBlur={(e) => {
+                          if (e.target.value && e.target.value !== brandingData?.branding.displayName) {
+                            updateBrandingMutation.mutate({ displayName: e.target.value });
+                          }
+                        }}
+                        data-testid="input-display-name"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Full display name shown in UI (e.g., "Catpilot Pro")
+                      </p>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="canonical-domain">Canonical Domain</Label>
+                      <Input
+                        id="canonical-domain"
+                        placeholder="e.g., catpilot.pro"
+                        defaultValue={brandingData?.branding.canonicalDomain || ''}
+                        onBlur={(e) => {
+                          if (e.target.value !== brandingData?.branding.canonicalDomain) {
+                            updateBrandingMutation.mutate({ canonicalDomain: e.target.value || null });
+                          }
+                        }}
+                        data-testid="input-canonical-domain"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Your custom domain for branding (optional)
+                      </p>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="avatar-url">Avatar URL</Label>
+                      <Input
+                        id="avatar-url"
+                        placeholder="https://example.com/avatar.png"
+                        defaultValue={brandingData?.branding.avatarUrl || ''}
+                        onBlur={(e) => {
+                          if (e.target.value !== brandingData?.branding.avatarUrl) {
+                            updateBrandingMutation.mutate({ avatarUrl: e.target.value || null });
+                          }
+                        }}
+                        data-testid="input-avatar-url"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        URL to your custom avatar image (optional)
+                      </p>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="brand-color">Brand Color</Label>
+                      <div className="flex gap-2">
+                        <Input
+                          id="brand-color"
+                          type="color"
+                          className="w-20 h-10 cursor-pointer"
+                          defaultValue={brandingData?.branding.brandColor || '#4285f4'}
+                          onChange={(e) => {
+                            if (e.target.value !== brandingData?.branding.brandColor) {
+                              updateBrandingMutation.mutate({ brandColor: e.target.value });
+                            }
+                          }}
+                          data-testid="input-brand-color"
+                        />
+                        <Input
+                          value={brandingData?.branding.brandColor || '#4285f4'}
+                          readOnly
+                          className="flex-1"
+                        />
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        Primary brand color for UI elements
+                      </p>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="github-signature">GitHub Signature</Label>
+                      <Textarea
+                        id="github-signature"
+                        placeholder="e.g., 🐱 Automated by Catpilot"
+                        defaultValue={brandingData?.branding.githubSignature || ''}
+                        onBlur={(e) => {
+                          if (e.target.value !== brandingData?.branding.githubSignature) {
+                            updateBrandingMutation.mutate({ githubSignature: e.target.value || null });
+                          }
+                        }}
+                        rows={2}
+                        data-testid="input-github-signature"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Signature added to GitHub commits and PRs (optional)
+                      </p>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="email-signature">Email Signature</Label>
+                      <Textarea
+                        id="email-signature"
+                        placeholder="Best regards,\nYour AI Assistant"
+                        defaultValue={brandingData?.branding.emailSignature || ''}
+                        onBlur={(e) => {
+                          if (e.target.value !== brandingData?.branding.emailSignature) {
+                            updateBrandingMutation.mutate({ emailSignature: e.target.value || null });
+                          }
+                        }}
+                        rows={3}
+                        data-testid="input-email-signature"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Signature added to emails sent by the AI (optional)
+                      </p>
+                    </div>
+
+                    <div className="flex gap-2 pt-4">
+                      <Button
+                        variant="outline"
+                        onClick={() => resetBrandingMutation.mutate()}
+                        disabled={resetBrandingMutation.isPending}
+                        data-testid="button-reset-branding"
+                      >
+                        {resetBrandingMutation.isPending ? (
+                          <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                        ) : null}
+                        Reset to Defaults
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              )}
             </section>
 
             <section className="p-6 rounded-xl border border-border bg-secondary/20">

@@ -53,6 +53,13 @@ import { z } from "zod";
  */
 export const GUEST_USER_ID = "guest";
 
+/**
+ * Default branding values
+ */
+export const DEFAULT_AGENT_NAME = "Meowstik";
+export const DEFAULT_DISPLAY_NAME = "Meowstik AI";
+export const DEFAULT_BRAND_COLOR = "#4285f4";
+
 // =============================================================================
 // REPLIT AUTH TABLES
 // (IMPORTANT) These tables are mandatory for Replit Auth, don't drop them.
@@ -88,6 +95,95 @@ export const users = pgTable("users", {
 
 export type UpsertUser = typeof users.$inferInsert;
 export type User = typeof users.$inferSelect;
+
+/**
+ * USER BRANDING TABLE
+ * -------------------
+ * Stores per-user custom branding configuration.
+ * Allows users to customize agent name, signature, avatar, and domain.
+ */
+export const userBranding = pgTable("user_branding", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").references(() => users.id, { onDelete: "cascade" }).notNull().unique(),
+  
+  // Custom agent identity
+  agentName: varchar("agent_name").default(DEFAULT_AGENT_NAME).notNull(),
+  displayName: varchar("display_name").default(DEFAULT_DISPLAY_NAME).notNull(),
+  
+  // Visual branding
+  avatarUrl: text("avatar_url"), // Custom avatar image URL
+  brandColor: varchar("brand_color").default(DEFAULT_BRAND_COLOR), // Primary brand color (hex)
+  
+  // Signatures and metadata
+  githubSignature: text("github_signature"), // Signature for GitHub commits/PRs
+  emailSignature: text("email_signature"), // Signature for emails
+  
+  // Domain branding
+  canonicalDomain: varchar("canonical_domain"), // e.g., "catpilot.pro"
+  
+  // Timestamps
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertUserBrandingSchema = createInsertSchema(userBranding).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export type InsertUserBranding = z.infer<typeof insertUserBrandingSchema>;
+export type UserBranding = typeof userBranding.$inferSelect;
+
+/**
+ * USER AGENTS TABLE
+ * -----------------
+ * Stores multiple AI agent personas per user.
+ * Allows users to create and switch between different agent identities.
+ */
+export const userAgents = pgTable("user_agents", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
+  
+  // Agent identity
+  name: varchar("name").notNull(), // e.g., "Catpilot", "CodeBot", "Researcher"
+  displayName: varchar("display_name").notNull(), // e.g., "Catpilot Pro"
+  description: text("description"), // Brief description of agent purpose
+  
+  // Agent type/category
+  agentType: varchar("agent_type").default("assistant").notNull(), // assistant, coder, researcher, writer, etc.
+  
+  // Visual branding
+  avatarUrl: text("avatar_url"),
+  brandColor: varchar("brand_color").default(DEFAULT_BRAND_COLOR),
+  
+  // Personality and behavior
+  personalityPrompt: text("personality_prompt"), // Custom personality description
+  systemPromptOverrides: text("system_prompt_overrides"), // Additional system prompt instructions
+  
+  // Signatures
+  githubSignature: text("github_signature"),
+  emailSignature: text("email_signature"),
+  
+  // Settings
+  isDefault: boolean("is_default").default(false).notNull(), // Default agent for this user
+  isActive: boolean("is_active").default(true).notNull(), // Can be disabled without deleting
+  
+  // Metadata
+  canonicalDomain: varchar("canonical_domain"),
+  tags: text("tags").array(), // For categorization/search
+  
+  // Timestamps
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertUserAgentSchema = createInsertSchema(userAgents).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export type InsertUserAgent = z.infer<typeof insertUserAgentSchema>;
+export type UserAgent = typeof userAgents.$inferSelect;
 
 /**
  * CHATS TABLE

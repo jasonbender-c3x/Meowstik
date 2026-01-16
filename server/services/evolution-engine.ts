@@ -24,8 +24,26 @@ const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 /**
  * Get the default agent for Evolution Engine operations
  * This is "Agentia Compiler" with full permissions
+ * If user has custom branding, uses their GitHub signature
  */
-async function getEvolutionAgent(): Promise<github.AgentAuthor> {
+async function getEvolutionAgent(userId?: string): Promise<github.AgentAuthor> {
+  // If userId is provided, check for custom branding
+  if (userId) {
+    try {
+      const branding = await storage.getUserBranding(userId);
+      if (branding?.githubSignature) {
+        return {
+          name: branding.displayName || "Agentia Compiler",
+          email: "compiler@agentia.dev", // Still use compiler email
+          signature: branding.githubSignature
+        };
+      }
+    } catch (error) {
+      console.warn("Failed to fetch user branding for evolution agent:", error);
+    }
+  }
+
+  // Try to find Agentia Compiler agent
   try {
     const agent = await storage.getAgentByName("Agentia Compiler");
     if (agent) {
@@ -265,14 +283,15 @@ export async function generateEvolutionReport(): Promise<EvolutionReport> {
 
 export async function createEvolutionPR(
   report: EvolutionReport,
-  targetRepo: { owner: string; repo: string }
+  targetRepo: { owner: string; repo: string },
+  userId?: string
 ): Promise<PRResult> {
   if (report.suggestions.length === 0) {
     return { success: false, error: "No suggestions to create PR from" };
   }
 
   try {
-    const agent = await getEvolutionAgent();
+    const agent = await getEvolutionAgent(userId);
     const branchName = `evolution/${report.id}`;
     
     await github.createBranch(targetRepo.owner, targetRepo.repo, branchName);
@@ -529,7 +548,7 @@ Only include actual feedback - ignore regular questions or chat.`;
     }
 
     // Create a PR with the findings
-    const agent = await getEvolutionAgent();
+    const agent = await getEvolutionAgent(userId);
     const branchName = `evolution/message-scan-${Date.now()}`;
     const fileName = `docs/evolution/message-scan-${new Date().toISOString().split('T')[0]}.md`;
     

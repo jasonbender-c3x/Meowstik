@@ -37,6 +37,7 @@
 
 import { storage } from "../storage";
 import type { Draft, Attachment, Message } from "@shared/schema";
+import { DEFAULT_AGENT_NAME, DEFAULT_DISPLAY_NAME } from "@shared/schema";
 import { ragService } from "./rag-service";
 import { retrievalOrchestrator } from "./retrieval-orchestrator";
 import { tavilySearch } from "../integrations/tavily";
@@ -254,14 +255,36 @@ These steps are mandatory before sending your response via send_chat.
   /**
    * Assembles and returns the complete system prompt.
    */
-  public getSystemPrompt(): string {
+  /**
+   * Apply custom branding to text by replacing default agent names
+   * @param text - Text to apply branding to
+   * @param agentName - Custom agent name
+   * @returns Text with branding applied
+   */
+  private applyBrandingToText(text: string, agentName: string): string {
+    return text
+      .replace(/Nebula/g, agentName)
+      .replace(/Meowstik/gi, agentName);
+  }
+
+  /**
+   * Generate system prompt with custom branding
+   * @param agentName - Custom agent name (defaults to "Meowstik")
+   * @param displayName - Custom display name (defaults to "Meowstik AI")
+   */
+  public getSystemPrompt(agentName: string = DEFAULT_AGENT_NAME, displayName: string = DEFAULT_DISPLAY_NAME): string {
     // Reload prompts every time to catch dynamic changes to memory files
     this.promptsLoaded = false;
     this.loadPrompts();
 
+    // Inject branding into core directives and personality
+    const brandedCoreDirectives = this.applyBrandingToText(this.coreDirectives, agentName);
+    const brandedPersonality = this.applyBrandingToText(this.personality, agentName);
+
     const components: string[] = [
-      this.coreDirectives,
-      this.personality,
+      `# Agent Identity\nYou are ${displayName}, referred to as ${agentName}.\n`,
+      brandedCoreDirectives,
+      brandedPersonality,
       this.tools,
       this.shortTermMemory, // Persistent user-defined memory
     ];
@@ -355,8 +378,22 @@ You can analyze data, read and write files, search the web, and interact with Go
     chatId: string;
     userId?: string;
   }): Promise<ComposedPrompt> {
-    // Build base system prompt from modular files
-    let systemPrompt = this.getSystemPrompt();
+    // Fetch user branding if userId is provided
+    let agentName = DEFAULT_AGENT_NAME;
+    let displayName = DEFAULT_DISPLAY_NAME;
+    
+    if (options.userId) {
+      try {
+        const branding = await storage.getUserBrandingOrDefault(options.userId);
+        agentName = branding.agentName;
+        displayName = branding.displayName;
+      } catch (error) {
+        console.warn("Failed to fetch user branding, using defaults:", error);
+      }
+    }
+
+    // Build base system prompt from modular files with custom branding
+    let systemPrompt = this.getSystemPrompt(agentName, displayName);
 
     // Enrich system prompt with RAG context if user message exists
     if (options.textContent && options.textContent.trim()) {

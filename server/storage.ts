@@ -41,8 +41,12 @@ import {
   InsertUser,
   InsertSmsMessage,
   InsertCall,
-  InsertCallConversation
-} from '@shared/schemas';
+  InsertCallConversation,
+  InsertUserBranding,
+  UserBranding,
+  InsertUserAgent,
+  UserAgent
+} from '@shared/schema';
 
 // ===========================================================================
 // DATABASE CONNECTION SETUP
@@ -178,5 +182,205 @@ export const storage = {
    */
   insertCallConversation: async (conversation: InsertCallConversation) => {
     return db.insert(schema.callConversations).values(conversation).returning();
+  },
+
+  // ------------------------------------------------------------------------
+  // User Branding Operations
+  // ------------------------------------------------------------------------
+
+  /**
+   * Get user branding configuration
+   * @param userId - The user ID
+   * @returns User branding configuration or null if not set
+   */
+  getUserBranding: async (userId: string): Promise<UserBranding | null> => {
+    const result = await db.query.userBranding.findFirst({
+      where: eq(schema.userBranding.userId, userId),
+    });
+    return result || null;
+  },
+
+  /**
+   * Create or update user branding configuration
+   * @param branding - The branding data (must include userId)
+   * @returns The created/updated branding configuration
+   */
+  upsertUserBranding: async (branding: InsertUserBranding): Promise<UserBranding> => {
+    // Try to find existing branding
+    const existing = await db.query.userBranding.findFirst({
+      where: eq(schema.userBranding.userId, branding.userId),
+    });
+
+    if (existing) {
+      // Update existing
+      const [updated] = await db
+        .update(schema.userBranding)
+        .set({ ...branding, updatedAt: new Date() })
+        .where(eq(schema.userBranding.userId, branding.userId))
+        .returning();
+      return updated;
+    } else {
+      // Insert new
+      const [created] = await db
+        .insert(schema.userBranding)
+        .values(branding)
+        .returning();
+      return created;
+    }
+  },
+
+  /**
+   * Delete user branding configuration
+   * @param userId - The user ID
+   * @returns True if deleted, false if not found
+   */
+  deleteUserBranding: async (userId: string): Promise<boolean> => {
+    const result = await db
+      .delete(schema.userBranding)
+      .where(eq(schema.userBranding.userId, userId));
+    return (result.rowCount ?? 0) > 0;
+  },
+
+  // Helper to get branding with fallback to defaults
+  getUserBrandingOrDefault: async (userId: string): Promise<UserBranding> => {
+    const branding = await storage.getUserBranding(userId);
+    if (branding) return branding;
+
+    // Return default branding using constants from schema
+    return {
+      id: 'default',
+      userId,
+      agentName: schema.DEFAULT_AGENT_NAME,
+      displayName: schema.DEFAULT_DISPLAY_NAME,
+      avatarUrl: null,
+      brandColor: schema.DEFAULT_BRAND_COLOR,
+      githubSignature: null,
+      emailSignature: null,
+      canonicalDomain: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+  },
+
+  // ------------------------------------------------------------------------
+  // User Agents Operations (Multi-Agent Support)
+  // ------------------------------------------------------------------------
+
+  /**
+   * Get all agents for a user
+   * @param userId - The user ID
+   * @param activeOnly - Only return active agents
+   * @returns Array of user agents
+   */
+  getUserAgents: async (userId: string, activeOnly: boolean = true): Promise<UserAgent[]> => {
+    if (activeOnly) {
+      return db.query.userAgents.findMany({
+        where: (agents, { eq, and }) => and(
+          eq(agents.userId, userId),
+          eq(agents.isActive, true)
+        ),
+        orderBy: (agents, { desc }) => [desc(agents.isDefault), desc(agents.createdAt)],
+      });
+    }
+    return db.query.userAgents.findMany({
+      where: eq(schema.userAgents.userId, userId),
+      orderBy: (agents, { desc }) => [desc(agents.isDefault), desc(agents.createdAt)],
+    });
+  },
+
+  /**
+   * Get a specific agent by ID
+   * @param agentId - The agent ID
+   * @returns The agent or null
+   */
+  getUserAgent: async (agentId: string): Promise<UserAgent | null> => {
+    const result = await db.query.userAgents.findFirst({
+      where: eq(schema.userAgents.id, agentId),
+    });
+    return result || null;
+  },
+
+  /**
+   * Get the default agent for a user
+   * @param userId - The user ID
+   * @returns The default agent or null
+   */
+  getDefaultUserAgent: async (userId: string): Promise<UserAgent | null> => {
+    const result = await db.query.userAgents.findFirst({
+      where: (agents, { eq, and }) => and(
+        eq(agents.userId, userId),
+        eq(agents.isDefault, true),
+        eq(agents.isActive, true)
+      ),
+    });
+    return result || null;
+  },
+
+  /**
+   * Create a new agent
+   * @param agent - The agent data
+   * @returns The created agent
+   */
+  createUserAgent: async (agent: InsertUserAgent): Promise<UserAgent> => {
+    // If this is set as default, unset other defaults for this user
+    if (agent.isDefault) {
+      await db
+        .update(schema.userAgents)
+        .set({ isDefault: false })
+        .where(eq(schema.userAgents.userId, agent.userId));
+    }
+
+    const [created] = await db
+      .insert(schema.userAgents)
+      .values(agent)
+      .returning();
+    return created;
+  },
+
+  /**
+   * Update an agent
+   * @param agentId - The agent ID
+   * @param updates - The fields to update
+   * @returns The updated agent
+   */
+  updateUserAgent: async (agentId: string, updates: Partial<InsertUserAgent>): Promise<UserAgent | null> => {
+    // If setting as default, unset other defaults for this user
+    if (updates.isDefault) {
+      const agent = await storage.getUserAgent(agentId);
+      if (agent) {
+        await db
+          .update(schema.userAgents)
+          .set({ isDefault: false })
+          .where(eq(schema.userAgents.userId, agent.userId));
+      }
+    }
+
+    const [updated] = await db
+      .update(schema.userAgents)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(schema.userAgents.id, agentId))
+      .returning();
+    return updated || null;
+  },
+
+  /**
+   * Delete an agent
+   * @param agentId - The agent ID
+   * @returns True if deleted
+   */
+  deleteUserAgent: async (agentId: string): Promise<boolean> => {
+    const result = await db
+      .delete(schema.userAgents)
+      .where(eq(schema.userAgents.id, agentId));
+    return (result.rowCount ?? 0) > 0;
+  },
+
+  /**
+   * Set an agent as default for a user
+   * @param agentId - The agent ID
+   * @returns The updated agent
+   */
+  setDefaultUserAgent: async (agentId: string): Promise<UserAgent | null> => {
+    return storage.updateUserAgent(agentId, { isDefault: true });
   },
 };
