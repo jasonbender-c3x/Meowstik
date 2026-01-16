@@ -6,7 +6,7 @@
 import * as fs from "fs";
 import * as path from "path";
 
-// Mock the formatEnvironmentMetadata function to test integration
+// Import the formatEnvironmentMetadata function to test integration
 import { formatEnvironmentMetadata } from "../server/utils/environment-metadata.js";
 
 console.log("=".repeat(80));
