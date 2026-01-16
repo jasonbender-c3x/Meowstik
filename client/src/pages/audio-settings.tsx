@@ -92,23 +92,23 @@ export default function AudioSettings() {
               <Slider 
                 value={[
                   verbosityMode === "mute" ? 0 : 
-                  verbosityMode === "quiet" ? 33 : 
-                  verbosityMode === "verbose" ? 66 : 100
+                  verbosityMode === "low" ? 33 : 
+                  verbosityMode === "normal" ? 66 : 100
                 ]}
                 max={100} 
                 step={33}
                 onValueChange={(vals) => {
                   const v = vals[0];
                   if (v < 15) setVerbosityMode("mute");
-                  else if (v < 50) setVerbosityMode("quiet");
-                  else if (v < 85) setVerbosityMode("verbose");
+                  else if (v < 50) setVerbosityMode("low");
+                  else if (v < 85) setVerbosityMode("normal");
                   else setVerbosityMode("experimental");
                 }}
               />
               <div className="flex justify-between text-xs text-muted-foreground mt-2">
                 <span>Mute</span>
-                <span>Quiet (Tools Only)</span>
-                <span>Verbose (Full)</span>
+                <span>Low (Concise)</span>
+                <span>Normal (Verbose)</span>
                 <span>Experimental</span>
               </div>
             </div>

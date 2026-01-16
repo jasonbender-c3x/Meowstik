@@ -603,12 +603,18 @@ export async function registerRoutes(
       // - Tools from prompts/tools.md
       // - RAG context from relevant document chunks
       // - Contextual instructions based on attachments
-      // Get verbosity mode from client (mute, low, normal, high, demo-hd, podcast)
+      // Get verbosity mode from client (mute, low, normal, experimental)
       const verbosityMode = req.body.verbosityMode || "normal";
       const useVoice = verbosityMode !== "mute";
       
-      // Determine content verbosity level for prompt context (low = concise, normal = balanced)
-      const contentVerbosity = verbosityMode === "low" ? "low" : "normal";
+      // Determine content verbosity level for prompt context
+      // - mute: minimal (alerts only)
+      // - low: concise (brief responses)
+      // - normal: verbose (comprehensive responses, default)
+      // - experimental: discussion (dual-voice mode)
+      const contentVerbosity = verbosityMode === "low" ? "low" : 
+                               verbosityMode === "mute" ? "minimal" : 
+                               "verbose";
       
       const composedPrompt = await promptComposer.compose({
         textContent: req.body.content || "",
@@ -627,64 +633,65 @@ export async function registerRoutes(
         switch (verbosityMode) {
           case "low":
             voiceInstruction = `
-## VOICE MODE: LOW VERBOSITY
-The user has LOW verbosity mode enabled. Keep responses concise and focused.
-- Use the \`say\` tool for voice output when appropriate
-- Keep responses brief and to-the-point
-- Only speak explicit \`say\` tool calls - chat content is NOT read aloud
+## VERBOSITY MODE: LOW (Concise Text & Speech)
+The user has LOW verbosity mode enabled. Keep both text and speech responses concise.
+- Keep responses brief and focused - aim for 1-3 sentences maximum
+- Use the \`say\` tool to provide concise spoken summaries
+- Provide only essential information without elaboration
+- Example: User asks "What's the weather?" → Response: "It's 72°F and sunny in your area."
 `;
             break;
             
           case "normal":
             voiceInstruction = `
-## VOICE MODE: NORMAL VERBOSITY
-The user has NORMAL verbosity mode enabled (default).
-- Use the \`say\` tool for voice output when appropriate
-- Provide balanced, informative responses
-- Only speak explicit \`say\` tool calls - chat content is NOT read aloud
+## VERBOSITY MODE: NORMAL (Verbose Text & Speech)
+The user has NORMAL verbosity mode enabled. Provide comprehensive, detailed responses in both text and speech.
+- Use the \`say\` tool to speak your complete responses
+- All text sent via \`send_chat\` (except code blocks) should also be spoken
+- Provide thorough explanations with context and details
+- Example: {"toolCalls": [{"type": "say", "id": "s1", "parameters": {"utterance": "Let me provide a comprehensive answer..."}}, {"type": "send_chat", "id": "c1", "parameters": {"content": "Let me provide a comprehensive answer..."}}]}
 `;
             break;
             
-          case "high":
+          case "experimental":
             voiceInstruction = `
-## VOICE MODE: HIGH VERBOSITY
-The user has HIGH verbosity mode enabled. All chat content (except code blocks) will be spoken aloud.
-- Use the \`say\` tool to speak your responses
-- All text sent via \`send_chat\` (except code blocks) will be passed through the \`say\` tool
-- Provide comprehensive, detailed responses
-- Example: {"toolCalls": [{"type": "say", "id": "s1", "parameters": {"utterance": "Here's what I found..."}}, {"type": "send_chat", "id": "c1", "parameters": {"content": "Here's what I found..."}}]}
-`;
-            break;
-            
-          case "demo-hd":
-            voiceInstruction = `
-## VOICE MODE: DEMO HD-EXPRESSIVE
-The user has DEMO HD-EXPRESSIVE mode enabled - premium, expressive voice synthesis.
-- Use the \`say\` tool with expressive, engaging delivery
-- All content will be spoken with high-quality, expressive voice
-- Craft responses that sound natural and engaging when spoken
-- Vary tone and pacing for emphasis and clarity
-`;
-            break;
-            
-          case "podcast":
-            voiceInstruction = `
-## VOICE MODE: PODCAST
-The user has PODCAST mode enabled - dual-voice discussion style.
-- Respond in a conversational, discussion-style format
-- Structure responses as if explaining to a co-host or listener
-- Use natural speech patterns and transitions
-- Support seamless interruptions (barge-in capability active)
+## VERBOSITY MODE: EXPERIMENTAL (Dual-Voice Discussion)
+The user has EXPERIMENTAL mode enabled - generate a two-voice discussion format.
+- Structure your response as a dialogue between two AI personas discussing the topic
+- Use the \`say\` tool to present this discussion format
+- Continue the discussion until the user interrupts (barge-in)
+- Make the conversation natural, with back-and-forth exchanges
+- Example format:
+  Persona A: "That's an interesting question about..."
+  Persona B: "I agree, and I'd add that..."
+  Persona A: "Exactly! And another key point is..."
 `;
             break;
         }
         
         finalSystemPrompt = voiceInstruction + "\n\n" + finalSystemPrompt;
+      } else {
+        // Mute mode - minimal output, alerts only
+        const muteInstruction = `
+## VERBOSITY MODE: MUTE (Alerts Only)
+The user has MUTE mode enabled. Minimize all output.
+- Only respond to critical alerts or explicit user queries
+- Keep responses to absolute minimum (1 sentence or less)
+- No voice output whatsoever
+- Skip conversational niceties and get straight to the essential information
+`;
+        finalSystemPrompt = muteInstruction + "\n\n" + finalSystemPrompt;
       }
       
       // Add content verbosity instruction
       if (contentVerbosity === "low") {
-        const verbosityNote = "\n\n**Content Verbosity: LOW** - Keep all responses concise and focused.\n";
+        const verbosityNote = "\n\n**Content Verbosity: LOW** - Keep all responses concise and focused. Maximum 1-3 sentences.\n";
+        finalSystemPrompt = finalSystemPrompt + verbosityNote;
+      } else if (contentVerbosity === "minimal") {
+        const verbosityNote = "\n\n**Content Verbosity: MINIMAL** - Only respond to critical alerts or explicit queries. Maximum 1 sentence.\n";
+        finalSystemPrompt = finalSystemPrompt + verbosityNote;
+      } else if (contentVerbosity === "verbose") {
+        const verbosityNote = "\n\n**Content Verbosity: VERBOSE** - Provide comprehensive, detailed explanations with context and examples.\n";
         finalSystemPrompt = finalSystemPrompt + verbosityNote;
       }
       
