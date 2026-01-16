@@ -9,6 +9,9 @@ import {
   looksLikeSystemInstruction,
 } from "./llm-call-validator";
 
+// Configuration
+const ERROR_MESSAGE_TRUNCATE_LENGTH = 100;
+
 console.log("=".repeat(60));
 console.log("LLM Call Validator Runtime Tests");
 console.log("=".repeat(60));
@@ -102,7 +105,7 @@ const buggyAgentWorker = [
 ];
 const result6 = validateMessageHistory(buggyAgentWorker);
 console.log(`  Result: ${!result6.valid ? "PASS ✓" : "FAIL ✗"} (should be invalid)`);
-if (!result6.valid) console.log(`  Detected error:`, result6.errors[0].substring(0, 100) + "...");
+if (!result6.valid) console.log(`  Detected error:`, result6.errors[0].substring(0, ERROR_MESSAGE_TRUNCATE_LENGTH) + "...");
 
 // Summary
 console.log("\n" + "=".repeat(60));

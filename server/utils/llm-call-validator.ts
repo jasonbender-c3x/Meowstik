@@ -11,6 +11,10 @@
  * =============================================================================
  */
 
+// Configuration constants
+const MIN_SYSTEM_INSTRUCTION_LENGTH = 50; // Minimum length to flag as potential system instruction
+const MIN_TEXT_LENGTH_FOR_PATTERN_CHECK = 20; // Minimum text length to check for patterns
+
 /**
  * Validate that a message history array contains only user/model messages
  * and does NOT contain embedded system instructions
@@ -67,7 +71,7 @@ export function validateMessageHistory(
             text.trim().startsWith(pattern)
           );
 
-          if (startsWithSystemPattern && text.length > 50) {
+          if (startsWithSystemPattern && text.length > MIN_SYSTEM_INSTRUCTION_LENGTH) {
             // Only flag if it's substantial (>50 chars) to avoid false positives
             errors.push(
               `Message ${i}, part ${j}: Potential system instruction detected in message content. ` +
@@ -200,7 +204,7 @@ export async function safeGenerateContentStream(
  * Helper to detect if a string likely contains system instructions
  */
 export function looksLikeSystemInstruction(text: string): boolean {
-  if (!text || typeof text !== "string" || text.length < 20) {
+  if (!text || typeof text !== "string" || text.length < MIN_TEXT_LENGTH_FOR_PATTERN_CHECK) {
     return false;
   }
 
