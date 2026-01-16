@@ -26,7 +26,7 @@ import WebSocket from 'ws';
 
 interface DesktopSession {
   id: string;
-  token: string;
+  token: string | null; // null for development sessions
   agentWs: WebSocket | null;
   browserWs: Set<WebSocket>;
   systemInfo: SystemInfo | null;
@@ -36,6 +36,7 @@ interface DesktopSession {
   controlling: 'user' | 'ai' | 'shared';
   aiVisionEnabled: boolean;
   audioEnabled: boolean;
+  isDevSession: boolean; // Indicates if this is a tokenless development session
 }
 
 interface SystemInfo {
@@ -93,12 +94,40 @@ class DesktopRelayService {
       controlling: 'shared',
       aiVisionEnabled: true,
       audioEnabled: true,
+      isDevSession: false,
     };
     
     this.sessions.set(sessionId, session);
     this.tokenToSession.set(token, sessionId);
     
     console.log(`[DesktopRelay] Session created: ${sessionId}`);
+    return sessionId;
+  }
+
+  /**
+   * Create a temporary development session without a token (localhost only)
+   * This should only be used in non-production environments
+   */
+  createDevSession(): string {
+    const sessionId = this.generateSessionId();
+    const session: DesktopSession = {
+      id: sessionId,
+      token: null,
+      agentWs: null,
+      browserWs: new Set(),
+      systemInfo: null,
+      lastFrame: null,
+      frameHistory: [],
+      createdAt: new Date(),
+      controlling: 'shared',
+      aiVisionEnabled: true,
+      audioEnabled: true,
+      isDevSession: true,
+    };
+    
+    this.sessions.set(sessionId, session);
+    
+    console.log(`[DesktopRelay] Development session created (tokenless): ${sessionId}`);
     return sessionId;
   }
 
@@ -117,6 +146,8 @@ class DesktopRelayService {
   validateToken(sessionId: string, token: string): boolean {
     const session = this.sessions.get(sessionId);
     if (!session) return false;
+    // Development sessions don't require tokens
+    if (session.isDevSession) return true;
     return session.token === token;
   }
 

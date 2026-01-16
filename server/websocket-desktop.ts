@@ -38,24 +38,41 @@ export function setupDesktopWebSocket(httpServer: Server): void {
     const token = urlObj.searchParams.get("token");
 
     if (url.startsWith("/ws/desktop/agent/")) {
-      if (!token) {
-        console.log("[Desktop WS] Agent connection rejected: no token");
+      // Check if we're in development mode and connection is from localhost
+      const isDevelopment = process.env.NODE_ENV !== "production";
+      const isLocalhost = 
+        request.socket.remoteAddress === "127.0.0.1" ||
+        request.socket.remoteAddress === "::1" ||
+        request.socket.remoteAddress === "::ffff:127.0.0.1";
+      
+      // Allow tokenless connections for localhost in development
+      if (!token && !(isDevelopment && isLocalhost)) {
+        console.log("[Desktop WS] Agent connection rejected: no token (not localhost or production mode)");
         socket.write("HTTP/1.1 401 Unauthorized\r\n\r\n");
         socket.destroy();
         return;
       }
 
-      const sessionId = desktopRelayService.getSessionIdByToken(token);
-      if (!sessionId) {
-        console.log("[Desktop WS] Agent connection rejected: invalid token");
-        socket.write("HTTP/1.1 401 Unauthorized\r\n\r\n");
-        socket.destroy();
-        return;
+      let sessionId: string | undefined;
+
+      if (token) {
+        // Token-based authentication (normal flow)
+        sessionId = desktopRelayService.getSessionIdByToken(token);
+        if (!sessionId) {
+          console.log("[Desktop WS] Agent connection rejected: invalid token");
+          socket.write("HTTP/1.1 401 Unauthorized\r\n\r\n");
+          socket.destroy();
+          return;
+        }
+      } else {
+        // Tokenless development mode (localhost only)
+        console.log("[Desktop WS] Creating development session for localhost agent (tokenless)");
+        sessionId = desktopRelayService.createDevSession();
       }
 
       wss.handleUpgrade(request, socket, head, (ws) => {
         wss.emit("connection", ws, request);
-        handleAgentConnection(ws, sessionId);
+        handleAgentConnection(ws, sessionId!);
       });
     } else if (url.startsWith("/ws/desktop/browser/")) {
       const sessionId = url.split("/ws/desktop/browser/")[1]?.split("?")[0];
