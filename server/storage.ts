@@ -41,8 +41,10 @@ import {
   InsertUser,
   InsertSmsMessage,
   InsertCall,
-  InsertCallConversation
-} from '@shared/schemas';
+  InsertCallConversation,
+  InsertUserBranding,
+  UserBranding
+} from '@shared/schema';
 
 // ===========================================================================
 // DATABASE CONNECTION SETUP
@@ -178,5 +180,83 @@ export const storage = {
    */
   insertCallConversation: async (conversation: InsertCallConversation) => {
     return db.insert(schema.callConversations).values(conversation).returning();
+  },
+
+  // ------------------------------------------------------------------------
+  // User Branding Operations
+  // ------------------------------------------------------------------------
+
+  /**
+   * Get user branding configuration
+   * @param userId - The user ID
+   * @returns User branding configuration or null if not set
+   */
+  getUserBranding: async (userId: string): Promise<UserBranding | null> => {
+    const result = await db.query.userBranding.findFirst({
+      where: eq(schema.userBranding.userId, userId),
+    });
+    return result || null;
+  },
+
+  /**
+   * Create or update user branding configuration
+   * @param branding - The branding data (must include userId)
+   * @returns The created/updated branding configuration
+   */
+  upsertUserBranding: async (branding: InsertUserBranding): Promise<UserBranding> => {
+    // Try to find existing branding
+    const existing = await db.query.userBranding.findFirst({
+      where: eq(schema.userBranding.userId, branding.userId),
+    });
+
+    if (existing) {
+      // Update existing
+      const [updated] = await db
+        .update(schema.userBranding)
+        .set({ ...branding, updatedAt: new Date() })
+        .where(eq(schema.userBranding.userId, branding.userId))
+        .returning();
+      return updated;
+    } else {
+      // Insert new
+      const [created] = await db
+        .insert(schema.userBranding)
+        .values(branding)
+        .returning();
+      return created;
+    }
+  },
+
+  /**
+   * Delete user branding configuration
+   * @param userId - The user ID
+   * @returns True if deleted, false if not found
+   */
+  deleteUserBranding: async (userId: string): Promise<boolean> => {
+    const result = await db
+      .delete(schema.userBranding)
+      .where(eq(schema.userBranding.userId, userId));
+    return (result.rowCount ?? 0) > 0;
+  },
+
+  // Helper to get branding with fallback to defaults
+  getUserBrandingOrDefault: async (userId: string): Promise<UserBranding> => {
+    const branding = await storage.getUserBranding(userId);
+    if (branding) return branding;
+
+    // Return default branding
+    return {
+      id: 'default',
+      userId,
+      agentName: 'Meowstik',
+      displayName: 'Meowstik AI',
+      avatarUrl: null,
+      brandColor: '#4285f4',
+      githubSignature: null,
+      emailSignature: null,
+      canonicalDomain: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
   },
 };

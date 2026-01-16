@@ -90,6 +90,44 @@ export type UpsertUser = typeof users.$inferInsert;
 export type User = typeof users.$inferSelect;
 
 /**
+ * USER BRANDING TABLE
+ * -------------------
+ * Stores per-user custom branding configuration.
+ * Allows users to customize agent name, signature, avatar, and domain.
+ */
+export const userBranding = pgTable("user_branding", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").references(() => users.id, { onDelete: "cascade" }).notNull().unique(),
+  
+  // Custom agent identity
+  agentName: varchar("agent_name").default("Meowstik").notNull(), // e.g., "Catpilot"
+  displayName: varchar("display_name").default("Meowstik AI").notNull(), // e.g., "Catpilot Pro"
+  
+  // Visual branding
+  avatarUrl: text("avatar_url"), // Custom avatar image URL
+  brandColor: varchar("brand_color").default("#4285f4"), // Primary brand color (hex)
+  
+  // Signatures and metadata
+  githubSignature: text("github_signature"), // Signature for GitHub commits/PRs
+  emailSignature: text("email_signature"), // Signature for emails
+  
+  // Domain branding
+  canonicalDomain: varchar("canonical_domain"), // e.g., "catpilot.pro"
+  
+  // Timestamps
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertUserBrandingSchema = createInsertSchema(userBranding).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export type InsertUserBranding = z.infer<typeof insertUserBrandingSchema>;
+export type UserBranding = typeof userBranding.$inferSelect;
+
+/**
  * CHATS TABLE
  * -----------
  * Stores metadata for each chat conversation in the application.
