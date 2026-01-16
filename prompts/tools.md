@@ -103,6 +103,65 @@ Examples:
 | `browserbase_load` | `url` |
 | `browserbase_screenshot` | `sessionId` |
 
+### HTTP Client (Direct API Access)
+
+Use these tools for direct HTTP requests to APIs, webhooks, and web services. They provide more control than `web_search` or `browser_scrape`.
+
+| Tool | Parameters | Description |
+|------|------------|-------------|
+| `http_get` | `url`, `headers?`, `params?`, `timeout?` | GET request to fetch data from any API or endpoint |
+| `http_post` | `url`, `headers?`, `body`, `timeout?` | POST request to submit data to APIs or webhooks |
+| `http_put` | `url`, `headers?`, `body`, `timeout?` | PUT request to update resources via RESTful APIs |
+
+**When to use HTTP client tools:**
+- Need to authenticate with API keys or tokens (via `headers`)
+- Must send structured JSON data in request body
+- Interacting with RESTful APIs that require POST/PUT operations
+- Need to set custom headers (Content-Type, Authorization, Accept, etc.)
+- Want raw response data (JSON, text, or binary as base64)
+
+**Parameters:**
+- `url` (required): Full URL starting with `http://` or `https://`
+- `headers` (optional): Object with header key-value pairs, e.g., `{"Authorization": "Bearer TOKEN", "Content-Type": "application/json"}`
+- `params` (optional, GET only): Query parameters as object, automatically appended to URL
+- `body` (required for POST/PUT): String or object to send (objects are JSON stringified automatically)
+- `timeout` (optional): Request timeout in milliseconds (default: 30000)
+
+**Response includes:**
+- `success`: Boolean indicating if request succeeded (HTTP 2xx status)
+- `status`: HTTP status code (200, 404, 500, etc.)
+- `headers`: Response headers as object
+- `data`: Parsed response body (JSON object, text string, or base64 for binary)
+- `error`: Error message if request failed
+
+**Examples:**
+```json
+// GET with authentication
+{"type": "http_get", "parameters": {
+  "url": "https://api.github.com/user/repos",
+  "headers": {"Authorization": "token ghp_xxx"}
+}}
+
+// POST JSON data
+{"type": "http_post", "parameters": {
+  "url": "https://api.example.com/webhook",
+  "body": {"event": "deploy", "status": "success"}
+}}
+
+// PUT to update resource
+{"type": "http_put", "parameters": {
+  "url": "https://api.example.com/tasks/123",
+  "headers": {"Authorization": "Bearer xxx"},
+  "body": {"status": "completed"}
+}}
+```
+
+**Security features:**
+- URL validation (HTTP/HTTPS only)
+- Header sanitization (removes control characters)
+- Timeout protection (30s default, configurable)
+- Response size limit (10MB max)
+
 ---
 
 ## SSH (Remote Server Access)
@@ -200,8 +259,10 @@ Examples:
 
 | Tool | Parameters | Purpose |
 |------|------------|---------|
-| `send_chat` | `content` | **TERMINATES LOOP** - Sends final response to chat window |
+| `send_chat` | `content` | Sends content to chat window (does NOT terminate loop) |
+| `end_turn` | none | **TERMINATES LOOP** - Ends your turn and returns control to user |
 | `say` | `utterance`, `voice?` | Generates HD audio (voices: Kore, Puck, Charon, Fenrir, Aoede, Leda, Orus, Zephyr) |
+| `open_url` | `url` | Opens URL in new browser tab (e.g., GitHub issues, documentation) |
 
 ---
 
@@ -265,33 +326,23 @@ Examples:
 
 ---
 
-## Agentic Loop Pattern
+## Interactive Loop Behavior
 
-You operate in a **continuous loop** until `send_chat` terminates it:
+**See Core Directives for complete loop architecture and rules.**
 
-```
-User → You output toolCalls → Executed → Results back → More toolCalls → ... → send_chat → Done
-```
+Key points for tool usage:
+- `send_chat` displays content but does NOT end your turn
+- `say` generates audio concurrently, does NOT end your turn  
+- `open_url` opens tabs without terminating
+- `end_turn` is the ONLY tool that terminates your turn
+- You can chain multiple tools → `send_chat` cycles before calling `end_turn`
 
-### Example: Multi-step task
-
-**Turn 1:** Gather information
+Example:
 ```json
 {"toolCalls": [
-  {"type": "gmail_search", "id": "g1", "parameters": {"query": "from:nick"}},
-  {"type": "say", "id": "s1", "parameters": {"utterance": "Searching your emails..."}}
+  {"type": "say", "id": "s1", "parameters": {"utterance": "Opening the issue now"}},
+  {"type": "open_url", "id": "u1", "parameters": {"url": "https://github.com/user/repo/issues/42"}},
+  {"type": "send_chat", "id": "c1", "parameters": {"content": "I've opened [issue #42](https://github.com/user/repo/issues/42)"}},
+  {"type": "end_turn", "id": "e1", "parameters": {}}
 ]}
 ```
-
-**Turn 2:** Process results and respond
-```json
-{"toolCalls": [
-  {"type": "send_chat", "id": "c1", "parameters": {"content": "Found 3 emails from Nick:\n\n1. Project update (Jan 1)\n2. ..."}}
-]}
-```
-
-### Key Rules
-- **Always output JSON** with `toolCalls` array
-- **`send_chat` terminates** the loop and displays content in chat
-- **`say` generates audio** but does NOT terminate the loop
-- Chain independent tools in one turn for efficiency

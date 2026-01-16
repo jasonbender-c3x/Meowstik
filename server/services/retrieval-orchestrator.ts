@@ -1,6 +1,6 @@
 import { storage } from '../storage';
 import { evidence, entities, entityMentions, knowledgeEmbeddings, crossReferences, Evidence, Entity } from '@shared/schema';
-import { eq, sql, ilike, desc, or } from 'drizzle-orm';
+import { eq, sql, ilike, desc, or, and, isNull } from 'drizzle-orm';
 import { ingestionPipeline, KnowledgeBucket } from './ingestion-pipeline';
 import { EmbeddingService } from './embedding-service';
 
@@ -16,6 +16,7 @@ export interface RetrievalContext {
   maxTokens?: number;
   includeEntities?: boolean;
   includeCrossRefs?: boolean;
+  userId?: string | null; // CRITICAL: Add userId for data isolation
 }
 
 export interface RetrievedItem {
@@ -49,6 +50,7 @@ export class RetrievalOrchestrator {
       limit: 50,        // Increased from 20 for better recall
       threshold: 0.25,  // Lowered from 0.4 for better recall
       bucket: context.buckets?.[0],
+      userId: context.userId, // CRITICAL: Pass userId for data isolation
     });
     const semanticTime = Date.now() - semanticStartTime;
 
@@ -61,7 +63,7 @@ export class RetrievalOrchestrator {
       });
     }
 
-    const keywordResults = await this.keywordSearch(context.query, 10, context.buckets);
+    const keywordResults = await this.keywordSearch(context.query, 10, context.buckets, context.userId);
     for (const result of keywordResults) {
       if (!items.find(i => i.id === result.id)) {
         items.push(result);
@@ -100,24 +102,38 @@ export class RetrievalOrchestrator {
     };
   }
 
-  private async keywordSearch(query: string, limit: number, buckets?: KnowledgeBucket[]): Promise<RetrievedItem[]> {
+  private async keywordSearch(query: string, limit: number, buckets?: KnowledgeBucket[], userId?: string | null): Promise<RetrievedItem[]> {
     const keywords = query.toLowerCase().split(/\s+/).filter(k => k.length > 2);
     if (keywords.length === 0) return [];
 
     const results: RetrievedItem[] = [];
 
     for (const keyword of keywords.slice(0, 3)) {
+      // Build query with userId filter at database level
+      let queryConditions: any[] = [
+        or(
+          ilike(evidence.title, `%${keyword}%`),
+          ilike(evidence.extractedText, `%${keyword}%`),
+          ilike(evidence.summary, `%${keyword}%`)
+        )
+      ];
+
+      // CRITICAL: Add userId filter at database level
+      if (userId !== undefined) {
+        const targetUserId = userId || null;
+        if (targetUserId === null) {
+          queryConditions.push(isNull(evidence.userId));
+        } else {
+          queryConditions.push(eq(evidence.userId, targetUserId));
+        }
+      }
+
       let matches = await getDb().select()
         .from(evidence)
-        .where(
-          or(
-            ilike(evidence.title, `%${keyword}%`),
-            ilike(evidence.extractedText, `%${keyword}%`),
-            ilike(evidence.summary, `%${keyword}%`)
-          )
-        )
+        .where(and(...queryConditions))
         .limit(limit * 2);
 
+      // In-memory filter for buckets (no index yet)
       if (buckets && buckets.length > 0) {
         matches = matches.filter(m => m.bucket && buckets.includes(m.bucket as KnowledgeBucket));
       }
@@ -220,11 +236,12 @@ export class RetrievalOrchestrator {
     return sections.join('');
   }
 
-  async enrichPrompt(userMessage: string, systemContext: string = ''): Promise<string> {
+  async enrichPrompt(userMessage: string, systemContext: string = '', userId?: string | null): Promise<string> {
     const retrievalResult = await this.retrieve({
       query: userMessage,
       maxTokens: 4000,
       includeEntities: true,
+      userId, // CRITICAL: Pass userId for data isolation
     });
 
     const knowledgeContext = this.formatForPrompt(retrievalResult);

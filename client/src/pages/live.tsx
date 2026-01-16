@@ -11,6 +11,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
+import { Slider } from "@/components/ui/slider";
 import {
   Mic,
   MicOff,
@@ -24,9 +27,12 @@ import {
   Radio,
   Waves,
   Settings2,
+  Zap,
 } from "lucide-react";
 import { Link } from "wouter";
 import { cn } from "@/lib/utils";
+import { useVoiceActivityDetection } from "@/hooks/use-voice-activity-detection";
+import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
 
 interface TranscriptEntry {
   id: string;
@@ -58,6 +64,10 @@ export default function LivePage() {
   const [selectedVoice, setSelectedVoice] = useState("Kore");
   const [error, setError] = useState<string | null>(null);
   const [showSettings, setShowSettings] = useState(false);
+  const [continuousMode, setContinuousMode] = useState(true);
+  const [vadSensitivity, setVadSensitivity] = useState(0.015);
+  const [userInterimTranscript, setUserInterimTranscript] = useState("");
+  const [enableSTT, setEnableSTT] = useState(true);
 
   const sessionIdRef = useRef<string | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -68,6 +78,9 @@ export default function LivePage() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const speakingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const audioQueueRef = useRef<AudioBufferSourceNode[]>([]);
+  const workletNodeRef = useRef<AudioWorkletNode | null>(null);
+  const userSpeechBufferRef = useRef<string[]>([]);
+  const speechRecognitionRef = useRef<any>(null);
 
   const addTranscriptEntry = useCallback((speaker: "user" | "ai", text: string) => {
     const entry: TranscriptEntry = {
@@ -78,6 +91,93 @@ export default function LivePage() {
     };
     setTranscript(prev => [...prev, entry]);
   }, []);
+
+  const handleBargeIn = useCallback(() => {
+    audioQueueRef.current.forEach(source => {
+      try { source.stop(); } catch {}
+    });
+    audioQueueRef.current = [];
+    
+    if (speakingTimeoutRef.current) {
+      clearTimeout(speakingTimeoutRef.current);
+      speakingTimeoutRef.current = null;
+    }
+    
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify({ type: "interrupt" }));
+    }
+    setIsSpeaking(false);
+  }, []);
+
+  // Speech recognition for interim transcripts and cognitive endpointing
+  const speechRecognition = useSpeechRecognition(
+    useCallback((result) => {
+      if (result.isFinal) {
+        // Send final transcript through text channel for faster response initiation
+        if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN && result.transcript.trim()) {
+          wsRef.current.send(JSON.stringify({
+            type: "text",
+            text: result.transcript,
+          }));
+        }
+        addTranscriptEntry("user", result.transcript);
+        setUserInterimTranscript("");
+      } else {
+        // Show interim transcript
+        setUserInterimTranscript(result.transcript);
+      }
+    }, [addTranscriptEntry]),
+    useCallback(() => {
+      setUserInterimTranscript("");
+    }, []),
+    { continuous: true, interimResults: true }
+  );
+
+  // Store speech recognition in ref for VAD callbacks
+  useEffect(() => {
+    speechRecognitionRef.current = speechRecognition;
+  }, [speechRecognition]);
+
+  // Voice Activity Detection for continuous listening mode
+  const vadCallbacks = {
+    onSpeechStart: useCallback(() => {
+      console.log("[Live] User started speaking");
+      if (continuousMode && isSpeaking) {
+        // User is interrupting AI - trigger barge-in
+        handleBargeIn();
+      }
+      userSpeechBufferRef.current = [];
+      setUserInterimTranscript("");
+      
+      // Start speech recognition for transcription
+      if (continuousMode && enableSTT && speechRecognitionRef.current && !speechRecognitionRef.current.isListening) {
+        speechRecognitionRef.current.start();
+      }
+    }, [continuousMode, isSpeaking, handleBargeIn]),
+    
+    onSpeechEnd: useCallback(() => {
+      console.log("[Live] User stopped speaking");
+      
+      // Stop speech recognition
+      if (speechRecognitionRef.current && speechRecognitionRef.current.isListening) {
+        speechRecognitionRef.current.stop();
+      }
+      
+      // Clear interim transcript
+      setUserInterimTranscript("");
+    }, []),
+    
+    onVolumeChange: useCallback((volume: number) => {
+      // Could be used for visual feedback in the UI
+    }, []),
+  };
+
+  const vad = useVoiceActivityDetection(
+    vadCallbacks.onSpeechStart,
+    vadCallbacks.onSpeechEnd,
+    vadCallbacks.onVolumeChange,
+    { threshold: vadSensitivity, silenceDuration: 800, speechDuration: 200 }
+  );
 
   const connect = useCallback(async () => {
     setConnectionState("connecting");
@@ -109,6 +209,15 @@ export default function LivePage() {
       ws.onopen = () => {
         console.log("[Live] WebSocket connected");
         setConnectionState("connected");
+        
+        // Auto-start listening in continuous mode
+        if (continuousMode) {
+          setTimeout(() => {
+            startListening().catch(err => {
+              console.error("[Live] Failed to auto-start listening:", err);
+            });
+          }, 100);
+        }
       };
 
       ws.onmessage = (event) => {
@@ -151,7 +260,7 @@ export default function LivePage() {
       setError(err instanceof Error ? err.message : "Failed to connect");
       setConnectionState("error");
     }
-  }, [selectedVoice, addTranscriptEntry, connectionState]);
+  }, [selectedVoice, addTranscriptEntry, connectionState, continuousMode, startListening]);
 
   const disconnect = useCallback(async () => {
     stopListening();
@@ -203,6 +312,7 @@ export default function LivePage() {
           sampleRate: 16000,
           echoCancellation: true,
           noiseSuppression: true,
+          autoGainControl: true,
         },
       });
       streamRef.current = stream;
@@ -219,40 +329,57 @@ export default function LivePage() {
 
       const source = audioContextRef.current.createMediaStreamSource(stream);
       const workletNode = new AudioWorkletNode(audioContextRef.current, "audio-processor");
+      workletNodeRef.current = workletNode;
 
       workletNode.port.onmessage = (event) => {
         if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return;
 
-        // event.data is the ArrayBuffer containing Int16 PCM data
-        const pcmBuffer = event.data;
-        const uint8Array = new Uint8Array(pcmBuffer);
-        
-        // Convert to base64 for transmission
-        let binaryString = "";
-        const len = uint8Array.byteLength;
-        for (let i = 0; i < len; i++) {
-          binaryString += String.fromCharCode(uint8Array[i]);
+        // In continuous mode, only send audio when VAD detects speech
+        // In manual mode, always send audio
+        if (!continuousMode || vad.isSpeaking) {
+          // event.data is the ArrayBuffer containing Int16 PCM data
+          const pcmBuffer = event.data;
+          const uint8Array = new Uint8Array(pcmBuffer);
+          
+          // Convert to base64 for transmission
+          let binaryString = "";
+          const len = uint8Array.byteLength;
+          for (let i = 0; i < len; i++) {
+            binaryString += String.fromCharCode(uint8Array[i]);
+          }
+          const base64 = btoa(binaryString);
+          
+          wsRef.current.send(JSON.stringify({
+            type: "audio",
+            data: base64,
+            mimeType: "audio/pcm",
+          }));
         }
-        const base64 = btoa(binaryString);
-        
-        wsRef.current.send(JSON.stringify({
-          type: "audio",
-          data: base64,
-          mimeType: "audio/pcm",
-        }));
       };
 
       source.connect(workletNode);
       workletNode.connect(audioContextRef.current.destination);
+
+      // Start VAD if in continuous mode
+      if (continuousMode) {
+        try {
+          await vad.start();
+        } catch (e) {
+          console.error("[Live] Failed to start VAD:", e);
+        }
+      }
 
       setIsListening(true);
     } catch (err) {
       console.error("[Live] Failed to start listening:", err);
       setError("Microphone access denied");
     }
-  }, [connectionState]);
+  }, [connectionState, continuousMode, vad]);
 
   const stopListening = useCallback(() => {
+    // Stop VAD
+    vad.stop();
+
     if (streamRef.current) {
       streamRef.current.getTracks().forEach(track => track.stop());
       streamRef.current = null;
@@ -263,8 +390,9 @@ export default function LivePage() {
       audioContextRef.current = null;
     }
 
+    workletNodeRef.current = null;
     setIsListening(false);
-  }, []);
+  }, [vad]);
 
   const playAudioChunk = useCallback((base64Data: string) => {
     if (isMuted) return;
@@ -313,23 +441,6 @@ export default function LivePage() {
       console.error("[Live] Failed to play audio:", err);
     }
   }, [isMuted]);
-
-  const handleBargeIn = useCallback(() => {
-    audioQueueRef.current.forEach(source => {
-      try { source.stop(); } catch {}
-    });
-    audioQueueRef.current = [];
-    
-    if (speakingTimeoutRef.current) {
-      clearTimeout(speakingTimeoutRef.current);
-      speakingTimeoutRef.current = null;
-    }
-    
-    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-      wsRef.current.send(JSON.stringify({ type: "interrupt" }));
-    }
-    setIsSpeaking(false);
-  }, []);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -405,11 +516,11 @@ export default function LivePage() {
               <CardTitle className="text-base">Voice Settings</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-3">
+              <div className="space-y-4">
                 <div>
-                  <label className="text-sm font-medium mb-1.5 block">AI Voice</label>
+                  <Label htmlFor="voice-select" className="text-sm font-medium mb-1.5 block">AI Voice</Label>
                   <Select value={selectedVoice} onValueChange={setSelectedVoice}>
-                    <SelectTrigger data-testid="select-voice">
+                    <SelectTrigger id="voice-select" data-testid="select-voice">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -421,6 +532,75 @@ export default function LivePage() {
                     </SelectContent>
                   </Select>
                 </div>
+
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="continuous-mode" className="text-sm font-medium flex items-center gap-2">
+                      <Zap className="h-4 w-4" />
+                      Continuous Listening
+                    </Label>
+                    <Switch
+                      id="continuous-mode"
+                      checked={continuousMode}
+                      onCheckedChange={setContinuousMode}
+                      data-testid="switch-continuous-mode"
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {continuousMode 
+                      ? "Automatically detects when you speak and responds naturally"
+                      : "Press the mic button each time you want to speak"}
+                  </p>
+                </div>
+
+                {continuousMode && (
+                  <div className="space-y-2">
+                    <Label htmlFor="vad-sensitivity" className="text-sm font-medium">
+                      Voice Detection Sensitivity: {vadSensitivity.toFixed(3)}
+                    </Label>
+                    <Slider
+                      id="vad-sensitivity"
+                      min={0.005}
+                      max={0.05}
+                      step={0.001}
+                      value={[vadSensitivity]}
+                      onValueChange={([value]) => {
+                        setVadSensitivity(value);
+                        vad.updateConfig({ threshold: value });
+                      }}
+                      data-testid="slider-vad-sensitivity"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Lower = more sensitive (picks up quieter speech)
+                    </p>
+                  </div>
+                )}
+
+                {continuousMode && (
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="enable-stt" className="text-sm font-medium">
+                        Speech-to-Text (Cognitive Endpointing)
+                      </Label>
+                      <Switch
+                        id="enable-stt"
+                        checked={enableSTT}
+                        onCheckedChange={setEnableSTT}
+                        data-testid="switch-enable-stt"
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      {enableSTT 
+                        ? "Transcribes speech for faster AI response and interim feedback"
+                        : "Uses audio-only processing (slightly slower)"}
+                    </p>
+                    {!speechRecognition.isSupported && (
+                      <p className="text-xs text-amber-600">
+                        ⚠️ Speech recognition not supported in this browser
+                      </p>
+                    )}
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -453,7 +633,13 @@ export default function LivePage() {
               {connectionState === "disconnected"
                 ? "Connect to start a voice conversation"
                 : connectionState === "connected"
-                ? isListening
+                ? continuousMode
+                  ? vad.isSpeaking
+                    ? "🎤 Listening to you..."
+                    : isListening
+                    ? "👂 Waiting for you to speak..."
+                    : "Ready"
+                  : isListening
                   ? "Listening..."
                   : "Press the mic button to speak"
                 : ""}
@@ -495,6 +681,14 @@ export default function LivePage() {
                       </div>
                     </div>
                   ))}
+                  {userInterimTranscript && (
+                    <div className="flex gap-3 justify-end">
+                      <div className="max-w-[80%] rounded-2xl px-4 py-2 bg-primary/20 border border-primary/50 border-dashed">
+                        <p className="text-sm text-foreground italic">{userInterimTranscript}</p>
+                        <span className="text-xs opacity-60 mt-1 block">Speaking...</span>
+                      </div>
+                    </div>
+                  )}
                   {interimText && (
                     <div className="flex gap-3 justify-start">
                       <div className="max-w-[80%] rounded-2xl px-4 py-2 bg-muted/50 border border-dashed">
@@ -511,15 +705,17 @@ export default function LivePage() {
                           <span className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
                         </div>
                         <span className="text-sm text-muted-foreground">Speaking...</span>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={handleBargeIn}
-                          className="h-6 px-2 text-xs"
-                          data-testid="button-barge-in"
-                        >
-                          Interrupt
-                        </Button>
+                        {continuousMode && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={handleBargeIn}
+                            className="h-6 px-2 text-xs"
+                            data-testid="button-barge-in"
+                          >
+                            Interrupt
+                          </Button>
+                        )}
                       </div>
                     </div>
                   )}
@@ -549,22 +745,25 @@ export default function LivePage() {
             </Button>
           ) : (
             <>
-              <Button
-                size="lg"
-                variant={isListening ? "default" : "outline"}
-                className={cn(
-                  "rounded-full h-16 w-16 transition-all",
-                  isListening && "ring-4 ring-primary/30 animate-pulse"
-                )}
-                onClick={isListening ? stopListening : startListening}
-                data-testid="button-mic"
-              >
-                {isListening ? (
-                  <Mic className="h-6 w-6" />
-                ) : (
-                  <MicOff className="h-6 w-6" />
-                )}
-              </Button>
+              {!continuousMode && (
+                <Button
+                  size="lg"
+                  variant={isListening ? "default" : "outline"}
+                  className={cn(
+                    "rounded-full h-16 w-16 transition-all",
+                    isListening && "ring-4 ring-primary/30 animate-pulse",
+                    vad.isSpeaking && "ring-4 ring-green-500/30"
+                  )}
+                  onClick={isListening ? stopListening : startListening}
+                  data-testid="button-mic"
+                >
+                  {isListening ? (
+                    <Mic className="h-6 w-6" />
+                  ) : (
+                    <MicOff className="h-6 w-6" />
+                  )}
+                </Button>
+              )}
               <Button
                 size="lg"
                 variant="destructive"
@@ -579,7 +778,9 @@ export default function LivePage() {
         </div>
 
         <p className="text-center text-xs text-muted-foreground">
-          {connectionState === "connected" && isListening
+          {connectionState === "connected" && continuousMode
+            ? "Just speak naturally. The AI will listen and respond automatically."
+            : connectionState === "connected" && isListening
             ? "Speak naturally. The AI can hear you in real-time."
             : connectionState === "connected"
             ? "Tap the microphone to start speaking"

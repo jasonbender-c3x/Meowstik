@@ -550,10 +550,22 @@ export async function registerRoutes(
         const metadata = msg.metadata as { toolResults?: Array<{ type: string; result: unknown; success: boolean }> } | null;
         
         if (isLastAiMessage && metadata?.toolResults?.length) {
-          // Append tool results to the most recent AI message (up to 5000 chars per tool)
+          // Append tool results to the most recent AI message
+          // Check each tool result for noTruncate flag before applying length limit
           const toolSummary = metadata.toolResults
             .filter(tr => tr.success)
-            .map(tr => `[Tool ${tr.type} returned: ${JSON.stringify(tr.result).slice(0, 5000)}]`)
+            .map(tr => {
+              const resultStr = JSON.stringify(tr.result);
+              // Check if this tool result has noTruncate flag (e.g., file_get)
+              const hasNoTruncate = typeof tr.result === 'object' && 
+                tr.result !== null && 
+                'noTruncate' in tr.result && 
+                (tr.result as any).noTruncate === true;
+              
+              // If noTruncate is set, return full result, otherwise limit to 5000 chars
+              const limitedResult = hasNoTruncate ? resultStr : resultStr.slice(0, 5000);
+              return `[Tool ${tr.type} returned: ${limitedResult}]`;
+            })
             .join("\n");
           content = content + "\n\n" + toolSummary;
         } else if (content.length > MAX_CONTENT_LENGTH) {
@@ -591,9 +603,12 @@ export async function registerRoutes(
       // - Tools from prompts/tools.md
       // - RAG context from relevant document chunks
       // - Contextual instructions based on attachments
-      // Get verbosity mode from client (mute, quiet, verbose, experimental)
-      const verbosityMode = req.body.verbosityMode || "mute";
+      // Get verbosity mode from client (mute, low, normal, high, demo-hd, podcast)
+      const verbosityMode = req.body.verbosityMode || "normal";
       const useVoice = verbosityMode !== "mute";
+      
+      // Determine content verbosity level for prompt context (low = concise, normal = balanced)
+      const contentVerbosity = verbosityMode === "low" ? "low" : "normal";
       
       const composedPrompt = await promptComposer.compose({
         textContent: req.body.content || "",
@@ -604,17 +619,73 @@ export async function registerRoutes(
         userId: userId, // Pass userId for data isolation in RAG context
       });
       
-      // Add voice instructions if voice mode is enabled
+      // Add voice/verbosity instructions based on mode
       let finalSystemPrompt = composedPrompt.systemPrompt;
       if (useVoice) {
-        const voiceInstruction = `
-## VOICE MODE ENABLED
-The user has voice output enabled. You MUST use the \`say\` tool to speak your responses.
-- Use \`say\` with your response text BEFORE calling \`send_chat\`
-- Both tools can be called in the same turn
+        let voiceInstruction = "";
+        
+        switch (verbosityMode) {
+          case "low":
+            voiceInstruction = `
+## VOICE MODE: LOW VERBOSITY
+The user has LOW verbosity mode enabled. Keep responses concise and focused.
+- Use the \`say\` tool for voice output when appropriate
+- Keep responses brief and to-the-point
+- Only speak explicit \`say\` tool calls - chat content is NOT read aloud
+`;
+            break;
+            
+          case "normal":
+            voiceInstruction = `
+## VOICE MODE: NORMAL VERBOSITY
+The user has NORMAL verbosity mode enabled (default).
+- Use the \`say\` tool for voice output when appropriate
+- Provide balanced, informative responses
+- Only speak explicit \`say\` tool calls - chat content is NOT read aloud
+`;
+            break;
+            
+          case "high":
+            voiceInstruction = `
+## VOICE MODE: HIGH VERBOSITY
+The user has HIGH verbosity mode enabled. All chat content (except code blocks) will be spoken aloud.
+- Use the \`say\` tool to speak your responses
+- All text sent via \`send_chat\` (except code blocks) will be passed through the \`say\` tool
+- Provide comprehensive, detailed responses
 - Example: {"toolCalls": [{"type": "say", "id": "s1", "parameters": {"utterance": "Here's what I found..."}}, {"type": "send_chat", "id": "c1", "parameters": {"content": "Here's what I found..."}}]}
 `;
+            break;
+            
+          case "demo-hd":
+            voiceInstruction = `
+## VOICE MODE: DEMO HD-EXPRESSIVE
+The user has DEMO HD-EXPRESSIVE mode enabled - premium, expressive voice synthesis.
+- Use the \`say\` tool with expressive, engaging delivery
+- All content will be spoken with high-quality, expressive voice
+- Craft responses that sound natural and engaging when spoken
+- Vary tone and pacing for emphasis and clarity
+`;
+            break;
+            
+          case "podcast":
+            voiceInstruction = `
+## VOICE MODE: PODCAST
+The user has PODCAST mode enabled - dual-voice discussion style.
+- Respond in a conversational, discussion-style format
+- Structure responses as if explaining to a co-host or listener
+- Use natural speech patterns and transitions
+- Support seamless interruptions (barge-in capability active)
+`;
+            break;
+        }
+        
         finalSystemPrompt = voiceInstruction + "\n\n" + finalSystemPrompt;
+      }
+      
+      // Add content verbosity instruction
+      if (contentVerbosity === "low") {
+        const verbosityNote = "\n\n**Content Verbosity: LOW** - Keep all responses concise and focused.\n";
+        finalSystemPrompt = finalSystemPrompt + verbosityNote;
       }
       
       // Replace composedPrompt.systemPrompt with our modified version
@@ -729,6 +800,29 @@ The user has voice output enabled. You MUST use the \`say\` tool to speak your r
       let parsedResponse: { toolCalls?: ToolCall[] } | null = null;
       
       for await (const chunk of result) {
+        // FIX: Explicitly capture "Thinking" content from Gemini 2.0 Flash Thinking
+        // Check for thought parts in the chunk candidates
+        let thoughtText = "";
+        if (chunk.candidates?.[0]?.content?.parts) {
+          for (const part of chunk.candidates[0].content.parts) {
+            // Check for 'thought' property (Gemini 2.0 Flash Thinking)
+            // @ts-ignore - 'thought' might not be in the type definition yet
+            if (part.thought) { 
+              thoughtText += part.thought; 
+            }
+          }
+        }
+
+        // If we have thought text, wrap it so it persists in storage
+        if (thoughtText) {
+          const thoughtChunk = `<thinking>${thoughtText}</thinking>\n\n`;
+          fullResponse += thoughtChunk;
+          cleanContentForStorage += thoughtChunk; // CRITICAL FIX: Add to storage!
+          
+          // Stream it to the client immediately
+          res.write(`data: ${JSON.stringify({ text: thoughtChunk })}\n\n`);
+        }
+
         // Capture any text content (rare with function calling mode)
         const text = chunk.text || "";
         if (text) {
@@ -772,7 +866,7 @@ The user has voice output enabled. You MUST use the \`say\` tool to speak your r
       // Function calls are already extracted above from chunk.functionCalls
 
       // ─────────────────────────────────────────────────────────────────────
-      // AGENTIC LOOP: Execute tools repeatedly until send_chat terminates
+      // AGENTIC LOOP: Execute tools repeatedly until end_turn terminates
       // ─────────────────────────────────────────────────────────────────────
       
       let loopIteration = 0;
@@ -780,16 +874,16 @@ The user has voice output enabled. You MUST use the \`say\` tool to speak your r
       const MAX_TOOLS_PER_TURN = 20; // Limit tool calls per turn to prevent runaway
       let totalToolsExecuted = 0;
       const MAX_TOTAL_TOOLS = 50; // Absolute limit across all turns
-      let sendChatContent: string | null = null;
+      let shouldEndTurn = false;
       let agenticHistory = [...history, { role: "user", parts: userParts }];
       
       // Helper function to execute tools and return results
       const executeToolsAndGetResults = async (
         toolCalls: ToolCall[],
         messageId: string
-      ): Promise<{ results: typeof toolResults; sendChatContent: string | null }> => {
+      ): Promise<{ results: typeof toolResults; shouldEndTurn: boolean }> => {
         const results: typeof toolResults = [];
-        let chatContent: string | null = null;
+        let endTurn = false;
         
         for (const toolCall of toolCalls) {
           console.log(`[Routes] Executing tool call: ${toolCall.type} (${toolCall.id})`);
@@ -816,13 +910,20 @@ The user has voice output enabled. You MUST use the \`say\` tool to speak your r
               })}\n\n`,
             );
             
-            // Check for send_chat - this terminates the agentic loop
+            // Check for send_chat - stream content to client but does NOT terminate loop
             if (toolCall.type === "send_chat" && toolResult.success) {
               const sendChatResult = toolResult.result as { content?: string };
               if (sendChatResult?.content) {
-                chatContent = sendChatResult.content;
                 // Stream the send_chat content to the client
                 res.write(`data: ${JSON.stringify({ text: sendChatResult.content })}\n\n`);
+              }
+            }
+            
+            // Check for end_turn - this terminates the agentic loop
+            if (toolCall.type === "end_turn" && toolResult.success) {
+              const endTurnResult = toolResult.result as { shouldEndTurn?: boolean };
+              if (endTurnResult?.shouldEndTurn) {
+                endTurn = true;
               }
             }
             
@@ -857,6 +958,24 @@ The user has voice output enabled. You MUST use the \`say\` tool to speak your r
                 console.log(`[Routes][SAY] ✗ No audioBase64 in result. Keys:`, Object.keys(sayResult || {}));
               }
             }
+            
+            // Special handling for open_url tool - send event to frontend to open URL
+            if (toolCall.type === "open_url" && toolResult.success) {
+              console.log(`[Routes][OPEN_URL] Sending open_url event`);
+              const openUrlResult = toolResult.result as { url?: string; success?: boolean };
+              if (openUrlResult?.url) {
+                res.write(
+                  `data: ${JSON.stringify({
+                    openUrl: {
+                      url: openUrlResult.url,
+                    },
+                  })}\n\n`,
+                );
+                console.log(`[Routes][OPEN_URL] ✓ Sent URL to open: ${openUrlResult.url}`);
+              } else {
+                console.log(`[Routes][OPEN_URL] ✗ No URL in result`);
+              }
+            }
           } catch (err: any) {
             console.error(`[Routes] Tool execution error:`, err);
             results.push({
@@ -878,7 +997,7 @@ The user has voice output enabled. You MUST use the \`say\` tool to speak your r
           }
         }
         
-        return { results, sendChatContent: chatContent };
+        return { results, shouldEndTurn: endTurn };
       };
       
       // Execute initial tool calls if we parsed any
@@ -900,7 +1019,7 @@ The user has voice output enabled. You MUST use the \`say\` tool to speak your r
         const execResult = await executeToolsAndGetResults(limitedToolCalls, savedMessage.id);
         toolResults.push(...execResult.results);
         totalToolsExecuted += limitedToolCalls.length;
-        sendChatContent = execResult.sendChatContent;
+        shouldEndTurn = execResult.shouldEndTurn;
         
         // Add model response with function calls to agentic history
         // Use proper function call format for multi-turn context
@@ -910,8 +1029,8 @@ The user has voice output enabled. You MUST use the \`say\` tool to speak your r
           parts: collectedFunctionCalls.map(fc => ({ functionCall: fc })) as any
         });
         
-        // AGENTIC LOOP: Continue if send_chat was NOT called
-        while (!sendChatContent && loopIteration < MAX_LOOP_ITERATIONS && totalToolsExecuted < MAX_TOTAL_TOOLS) {
+        // AGENTIC LOOP: Continue if end_turn was NOT called
+        while (!shouldEndTurn && loopIteration < MAX_LOOP_ITERATIONS && totalToolsExecuted < MAX_TOTAL_TOOLS) {
           loopIteration++;
           console.log(`\n${"═".repeat(60)}`);
           console.log(`[AGENTIC LOOP] Turn ${loopIteration} - Feeding tool results back to LLM`);
@@ -937,7 +1056,9 @@ The user has voice output enabled. You MUST use the \`say\` tool to speak your r
                 if ("screenshot" in sanitized && typeof sanitized.screenshot === "string" && (sanitized.screenshot as string).length > 100) {
                   sanitized.screenshot = "[screenshot captured]";
                 }
-                if ("content" in sanitized && typeof sanitized.content === "string" && (sanitized.content as string).length > 2000) {
+                // Check for noTruncate flag (used by file_get tool) - skip content truncation
+                const shouldTruncate = !("noTruncate" in sanitized && sanitized.noTruncate === true);
+                if ("content" in sanitized && typeof sanitized.content === "string" && shouldTruncate && (sanitized.content as string).length > 2000) {
                   sanitized.content = (sanitized.content as string).substring(0, 2000) + "... [truncated]";
                 }
                 resultSummary = sanitized;
@@ -956,7 +1077,7 @@ The user has voice output enabled. You MUST use the \`say\` tool to speak your r
           });
           agenticHistory.push({
             role: "user", 
-            parts: [{ text: `Tool results:\n${toolResultsText}\n\nContinue with more tools or call send_chat to respond.` }]
+            parts: [{ text: `Tool results:\n${toolResultsText}\n\nContinue with more tools or call end_turn when ready.` }]
           });
           
           // Call LLM again with native function calling
@@ -1020,7 +1141,7 @@ The user has voice output enabled. You MUST use the \`say\` tool to speak your r
             const loopExecResult = await executeToolsAndGetResults(limitedLoopToolCalls, savedMessage.id);
             toolResults.push(...loopExecResult.results);
             totalToolsExecuted += limitedLoopToolCalls.length;
-            sendChatContent = loopExecResult.sendChatContent;
+            shouldEndTurn = loopExecResult.shouldEndTurn;
             
             // Update history for next iteration - use proper function call format
             agenticHistory.push({
@@ -1029,32 +1150,28 @@ The user has voice output enabled. You MUST use the \`say\` tool to speak your r
             });
             parsedResponse = loopParsedResponse;
           } else {
-            // No function calls - LLM responded with plain text, treat as implicit send_chat
-            console.log(`[AGENTIC LOOP] Turn ${loopIteration} - No function calls, treating as implicit send_chat`);
-            sendChatContent = loopResponse.trim();
-            if (sendChatContent) {
-              res.write(`data: ${JSON.stringify({ text: sendChatContent })}\n\n`);
+            // No function calls - LLM responded with plain text, treat as implicit end_turn
+            console.log(`[AGENTIC LOOP] Turn ${loopIteration} - No function calls, treating as implicit end_turn`);
+            const plainTextResponse = loopResponse.trim();
+            if (plainTextResponse) {
+              res.write(`data: ${JSON.stringify({ text: plainTextResponse })}\n\n`);
             }
             break;
           }
         }
         
-        if (!sendChatContent) {
+        if (!shouldEndTurn) {
+          let warningMessage = "";
           if (loopIteration >= MAX_LOOP_ITERATIONS) {
             console.warn(`[AGENTIC LOOP] Hit max iterations (${MAX_LOOP_ITERATIONS}), forcing termination`);
-            sendChatContent = "[Loop limit reached - response truncated]";
+            warningMessage = "[Loop limit reached - response truncated]";
           } else if (totalToolsExecuted >= MAX_TOTAL_TOOLS) {
             console.warn(`[AGENTIC LOOP] Hit max total tools (${MAX_TOTAL_TOOLS}), forcing termination`);
-            sendChatContent = "[Tool execution limit reached - response truncated]";
+            warningMessage = "[Tool execution limit reached - response truncated]";
           }
-          if (sendChatContent) {
-            res.write(`data: ${JSON.stringify({ text: sendChatContent })}\n\n`);
+          if (warningMessage) {
+            res.write(`data: ${JSON.stringify({ text: warningMessage })}\n\n`);
           }
-        }
-        
-        // Update cleanContentForStorage with send_chat content if available
-        if (sendChatContent) {
-          cleanContentForStorage = sendChatContent;
         }
       }
 

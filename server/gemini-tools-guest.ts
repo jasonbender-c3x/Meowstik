@@ -21,7 +21,7 @@ export const guestToolDeclarations: FunctionDeclaration[] = [
   // ═══════════════════════════════════════════════════════════════════════════
   {
     name: "send_chat",
-    description: "Send final response to the chat window. TERMINATES the agentic loop. Use after gathering all information.",
+    description: "Send content to the chat window. NON-TERMINATING - does not end your turn. You can call this multiple times to provide incremental updates. Must explicitly call end_turn to finish.",
     parametersJsonSchema: {
       type: "object",
       properties: {
@@ -34,8 +34,16 @@ export const guestToolDeclarations: FunctionDeclaration[] = [
     }
   },
   {
+    name: "end_turn",
+    description: "Terminate your turn in the interactive agentic loop and return control to the user. This is the ONLY way to end your turn - call this when you have completed your response.",
+    parametersJsonSchema: {
+      type: "object",
+      properties: {}
+    }
+  },
+  {
     name: "say",
-    description: "Generate HD voice audio output. Does NOT terminate the loop - use alongside or before send_chat. Required when voice mode is enabled.",
+    description: "Generate HD voice audio output. NON-BLOCKING and NON-TERMINATING - speech generation happens concurrently with other operations. Use alongside or before send_chat. Must call end_turn to finish your turn.",
     parametersJsonSchema: {
       type: "object",
       properties: {
@@ -50,6 +58,20 @@ export const guestToolDeclarations: FunctionDeclaration[] = [
         }
       },
       required: ["utterance"]
+    }
+  },
+  {
+    name: "open_url",
+    description: "Open a URL in a new browser tab. NON-TERMINATING - does not end your turn. Use this when the user asks to view a webpage, open a link, or navigate to a URL.",
+    parametersJsonSchema: {
+      type: "object",
+      properties: {
+        url: {
+          type: "string",
+          description: "The full URL to open (must include https:// or http://)"
+        }
+      },
+      required: ["url"]
     }
   },
 

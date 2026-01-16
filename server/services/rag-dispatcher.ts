@@ -43,11 +43,15 @@ import {
   webSearchParamsSchema,
   googleSearchParamsSchema,
   duckduckgoSearchParamsSchema,
-  browserScrapeParamsSchema
+  browserScrapeParamsSchema,
+  httpGetParamsSchema,
+  httpPostParamsSchema,
+  httpPutParamsSchema
 } from "@shared/schema";
 import { webSearch, formatSearchResult } from "../integrations/web-search";
 import { searchWeb } from "../integrations/web-scraper";
 import { browserScrape } from "../integrations/browser-scraper";
+import { httpGet, httpPost, httpPut, type HttpResponse } from "../integrations/http-client";
 import { tavilySearch, tavilyQnA, tavilyDeepResearch } from "../integrations/tavily";
 import { perplexitySearch, perplexityQuickAnswer, perplexityDeepResearch, perplexityNews } from "../integrations/perplexity";
 import * as googleTasks from "../integrations/google-tasks";
@@ -64,6 +68,7 @@ import * as sshService from "./ssh-service";
 import { ragService } from "./rag-service";
 import { chunkingService } from "./chunking-service";
 import { clientRouter } from "./client-router";
+import type { CodeEntity } from "./codebase-analyzer";
 import { exec } from "child_process";
 import { promisify } from "util";
 import * as fs from "fs/promises";
@@ -385,6 +390,15 @@ export class RAGDispatcher {
         case "browser_scrape":
           result = await this.executeBrowserScrape(toolCall);
           break;
+        case "http_get":
+          result = await this.executeHttpGet(toolCall);
+          break;
+        case "http_post":
+          result = await this.executeHttpPost(toolCall);
+          break;
+        case "http_put":
+          result = await this.executeHttpPut(toolCall);
+          break;
         case "file_ingest":
           result = await this.executeFileOperation(toolCall);
           break;
@@ -646,10 +660,28 @@ export class RAGDispatcher {
         case "say":
           result = await this.executeSay(toolCall);
           break;
+        case "open_url":
+          // open_url is a client-side operation - just validate and pass through
+          const openUrlParams = toolCall.parameters as { url?: string };
+          if (!openUrlParams?.url) {
+            throw new Error("URL parameter is required");
+          }
+          // Validate URL format
+          try {
+            new URL(openUrlParams.url);
+          } catch (e) {
+            throw new Error("Invalid URL format");
+          }
+          result = { url: openUrlParams.url, success: true };
+          break;
         case "send_chat":
-          // send_chat is special - it returns the content directly to terminate the agentic loop
+          // send_chat now only sends content to chat, does NOT terminate the loop
           const sendChatParams = toolCall.parameters as { content?: string };
-          result = { content: sendChatParams?.content || "" };
+          result = { content: sendChatParams?.content || "", success: true };
+          break;
+        case "end_turn":
+          // end_turn is the tool that terminates the agentic loop
+          result = { success: true, shouldEndTurn: true };
           break;
         case "db_tables":
           result = await this.executeDbTables(toolCall);
@@ -662,6 +694,13 @@ export class RAGDispatcher {
           break;
         case "db_delete":
           result = await this.executeDbDelete(toolCall);
+          break;
+        // Codebase Analysis Tools
+        case "codebase_analyze":
+          result = await this.executeCodebaseAnalyze(toolCall);
+          break;
+        case "codebase_progress":
+          result = await this.executeCodebaseProgress(toolCall);
           break;
         // SSH Tools
         case "ssh_key_generate":
@@ -874,6 +913,70 @@ export class RAGDispatcher {
       content: result.content
     };
   }
+
+  /**
+   * Generic HTTP request executor that handles validation and error handling
+   * @private
+   */
+  private async executeHttpRequest<T extends z.ZodType>(
+    toolCall: ToolCall,
+    schema: T,
+    httpMethod: (options: z.infer<T>) => Promise<HttpResponse>,
+    methodName: string
+  ): Promise<unknown> {
+    const parseResult = schema.safeParse(toolCall.parameters);
+    
+    if (!parseResult.success) {
+      throw new Error(`Invalid HTTP ${methodName} parameters: ${parseResult.error.message}`);
+    }
+
+    const params = parseResult.data;
+    const result = await httpMethod(params);
+
+    if (!result.success) {
+      throw new Error(result.error || `HTTP ${methodName} request failed`);
+    }
+
+    // Return the complete HTTP response
+    return result;
+  }
+
+  /**
+   * Execute HTTP GET request
+   */
+  private async executeHttpGet(toolCall: ToolCall): Promise<unknown> {
+    return this.executeHttpRequest(
+      toolCall,
+      httpGetParamsSchema,
+      httpGet,
+      'GET'
+    );
+  }
+
+  /**
+   * Execute HTTP POST request
+   */
+  private async executeHttpPost(toolCall: ToolCall): Promise<unknown> {
+    return this.executeHttpRequest(
+      toolCall,
+      httpPostParamsSchema,
+      httpPost,
+      'POST'
+    );
+  }
+
+  /**
+   * Execute HTTP PUT request
+   */
+  private async executeHttpPut(toolCall: ToolCall): Promise<unknown> {
+    return this.executeHttpRequest(
+      toolCall,
+      httpPutParamsSchema,
+      httpPut,
+      'PUT'
+    );
+  }
+
 
   /**
    * Execute file ingest/upload operations
@@ -1351,6 +1454,23 @@ export class RAGDispatcher {
     const parsed = parsePathPrefix(params.command, 'server');
     const actualCommand = parsed.path;
     
+    // Warn about destructive git operations that could affect memory logs
+    const destructiveGitPatterns = [
+      /git\s+reset\s+--hard/i,
+      /git\s+clean\s+-[fFdD]/i,
+      /git\s+checkout\s+--\s+logs\//i,
+      /rm\s+-[rRfF].*logs/i
+    ];
+    
+    for (const pattern of destructiveGitPatterns) {
+      if (pattern.test(actualCommand)) {
+        console.warn(`⚠️  [MEMORY PROTECTION] Potentially destructive command detected: ${actualCommand}`);
+        console.warn(`⚠️  This command may affect memory logs. Memory files are now git-tracked and will be preserved.`);
+        console.warn(`⚠️  See docs/MEMORY_LOG_PROTECTION.md for details.`);
+        break;
+      }
+    }
+    
     // Route to client if client: prefix
     if (parsed.target === 'client') {
       console.log(`[RAGDispatcher] Routing terminal command to client: ${actualCommand}`);
@@ -1432,9 +1552,12 @@ export class RAGDispatcher {
    * - server:path or just path → Read from server filesystem (default)
    * - client:path → Read from client via desktop-app
    * - editor:path → Read from Monaco editor canvas
+   * 
+   * Supports optional maxLength parameter to truncate content if needed.
+   * If maxLength is omitted, returns full content without truncation.
    */
   private async executeFileGet(toolCall: ToolCall): Promise<unknown> {
-    const params = toolCall.parameters as { path: string; encoding?: string };
+    const params = toolCall.parameters as { path: string; encoding?: string; maxLength?: number };
     
     if (!params.path || typeof params.path !== 'string') {
       throw new Error('file_get requires a path parameter');
@@ -1452,6 +1575,7 @@ export class RAGDispatcher {
         path: actualPath,
         source: 'editor',
         encoding: params.encoding || 'utf8',
+        noTruncate: !params.maxLength, // Signal to routes.ts to skip auto-truncation
         message: `Request to read file from editor canvas: ${actualPath}`
       };
     }
@@ -1464,14 +1588,22 @@ export class RAGDispatcher {
         throw new Error('No desktop agent connected. Start the Meowstik desktop app on your computer to use client: paths.');
       }
       
-      const content = await clientRouter.readFile(actualPath, params.encoding || 'utf8');
+      let content = await clientRouter.readFile(actualPath, params.encoding || 'utf8');
+      
+      // Apply maxLength if specified
+      const truncated = params.maxLength && typeof content === 'string' && content.length > params.maxLength;
+      if (truncated) {
+        content = content.substring(0, params.maxLength) + `\n... [truncated to ${params.maxLength} characters]`;
+      }
       
       return {
         type: 'file_get',
         path: actualPath,
         source: 'client',
         content,
-        encoding: params.encoding || 'utf8'
+        encoding: params.encoding || 'utf8',
+        truncated,
+        noTruncate: !params.maxLength // Signal to routes.ts to skip auto-truncation
       };
     }
 
@@ -1480,14 +1612,22 @@ export class RAGDispatcher {
     const fullPath = path.join(this.workspaceDir, sanitizedPath);
     
     try {
-      const content = await fs.readFile(fullPath, params.encoding === 'base64' ? 'base64' : 'utf8');
+      let content = await fs.readFile(fullPath, params.encoding === 'base64' ? 'base64' : 'utf8');
+      
+      // Apply maxLength if specified
+      const truncated = params.maxLength && typeof content === 'string' && content.length > params.maxLength;
+      if (truncated) {
+        content = content.substring(0, params.maxLength) + `\n... [truncated to ${params.maxLength} characters]`;
+      }
       
       return {
         type: 'file_get',
         path: sanitizedPath,
         source: 'server',
         content,
-        encoding: params.encoding || 'utf8'
+        encoding: params.encoding || 'utf8',
+        truncated,
+        noTruncate: !params.maxLength // Signal to routes.ts to skip auto-truncation
       };
     } catch (error: any) {
       if (error.code === 'ENOENT') {
@@ -2737,6 +2877,95 @@ export class RAGDispatcher {
         error: errorMessage,
         table: params.table,
         message: `Delete failed: ${errorMessage}`
+      };
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // CODEBASE ANALYSIS HANDLERS
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  /**
+   * Analyze a codebase - crawl files, extract entities, ingest to RAG
+   */
+  private async executeCodebaseAnalyze(toolCall: ToolCall): Promise<unknown> {
+    const params = toolCall.parameters as { path?: string };
+    const rootPath = params.path || ".";
+    
+    try {
+      const { codebaseAnalyzer } = await import("./codebase-analyzer");
+      
+      // Start analysis (may take time for large codebases)
+      // Skip RAG ingestion for external codebases (paths outside the project)
+      // Check if resolved path is outside current working directory
+      const resolvedPath = path.resolve(rootPath);
+      const cwd = process.cwd();
+      const isExternal = resolvedPath !== cwd && !resolvedPath.startsWith(cwd + path.sep);
+      
+      const result = await codebaseAnalyzer.analyzeCodebase(rootPath, isExternal);
+      
+      // Convert Map to object for JSON serialization
+      const glossaryObj = Object.fromEntries(result.glossary);
+      
+      return {
+        type: "codebase_analyze",
+        success: true,
+        rootPath: result.rootPath,
+        totalFiles: result.totalFiles,
+        totalEntities: result.totalEntities,
+        totalChunks: result.totalChunks,
+        duration: result.duration,
+        errors: result.errors,
+        glossary: glossaryObj,
+        message: `Analysis complete: ${result.totalFiles} files, ${result.totalEntities} entities found in ${Math.round(result.duration / 1000)}s`
+      };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "Unknown error";
+      console.error("[Codebase Analyze] Error:", error);
+      return {
+        type: "codebase_analyze",
+        success: false,
+        error: errorMessage,
+        message: `Failed to analyze codebase: ${errorMessage}`
+      };
+    }
+  }
+
+  /**
+   * Get current progress of codebase analysis
+   */
+  private async executeCodebaseProgress(toolCall: ToolCall): Promise<unknown> {
+    try {
+      const { codebaseAnalyzer } = await import("./codebase-analyzer");
+      const progress = codebaseAnalyzer.getProgress();
+      
+      const percentComplete = progress.filesDiscovered > 0 
+        ? Math.round((progress.filesProcessed / progress.filesDiscovered) * 100) 
+        : 0;
+      
+      return {
+        type: "codebase_progress",
+        success: true,
+        progress: {
+          phase: progress.phase,
+          filesDiscovered: progress.filesDiscovered,
+          filesProcessed: progress.filesProcessed,
+          entitiesFound: progress.entitiesFound,
+          chunksIngested: progress.chunksIngested,
+          currentFile: progress.currentFile,
+          errors: progress.errors,
+          percentComplete
+        },
+        message: `Analysis phase: ${progress.phase} (${progress.filesProcessed}/${progress.filesDiscovered} files processed)`
+      };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "Unknown error";
+      console.error("[Codebase Progress] Error:", error);
+      return {
+        type: "codebase_progress",
+        success: false,
+        error: errorMessage,
+        message: `Failed to get progress: ${errorMessage}`
       };
     }
   }

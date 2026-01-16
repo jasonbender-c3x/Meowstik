@@ -14,11 +14,13 @@ import { createContext, useContext, useState, useEffect, useCallback, useRef, Re
 /**
  * Verbosity Modes:
  * - mute: Silent - no speech output at all
- * - quiet: Only speak "say" tool output (HD audio)
- * - verbose: Speak full chat responses (browser TTS for text, HD for say tool)
- * - experimental: Multi-voice TTS (future - different voices per speaker)
+ * - low: Low verbosity content, only "say" tool output spoken
+ * - normal: Normal verbosity content (default), only "say" tool output spoken
+ * - high: All chat content (except code blocks) passed through "say" tool for speech
+ * - demo-hd: Premium expressive HD voice model for all speech
+ * - podcast: Dual-voice discussion style with barge-in capability
  */
-export type VerbosityMode = "mute" | "quiet" | "verbose" | "experimental";
+export type VerbosityMode = "mute" | "low" | "normal" | "high" | "demo-hd" | "podcast";
 
 interface TTSContextValue {
   verbosityMode: VerbosityMode;
@@ -48,11 +50,15 @@ export function TTSProvider({ children }: { children: ReactNode }) {
   const [verbosityMode, setVerbosityModeState] = useState<VerbosityMode>(() => {
     if (typeof window !== "undefined") {
       const saved = localStorage.getItem(VERBOSITY_STORAGE_KEY);
-      if (saved && ["mute", "quiet", "verbose", "experimental"].includes(saved)) {
+      // Map old values to new ones for backwards compatibility
+      if (saved === "quiet") return "low";
+      if (saved === "verbose") return "normal";
+      if (saved === "experimental") return "podcast";
+      if (saved && ["mute", "low", "normal", "high", "demo-hd", "podcast"].includes(saved)) {
         return saved as VerbosityMode;
       }
     }
-    return "verbose"; // Default: speak full chat responses
+    return "normal"; // Default: normal verbosity, only say tool spoken
   });
   
   const [isMuted, setIsMutedState] = useState(() => {
@@ -213,15 +219,15 @@ export function TTSProvider({ children }: { children: ReactNode }) {
   }, []);
 
   // Helper: Should HD audio from "say" tool be played?
-  // Play in: quiet, verbose, experimental (NOT in mute)
+  // Play in all modes except mute
   const shouldPlayHDAudio = useCallback(() => {
     return !isMuted && verbosityMode !== "mute";
   }, [isMuted, verbosityMode]);
 
   // Helper: Should browser TTS speak the chat response?
-  // Only in verbose and experimental modes (NOT in mute or quiet)
+  // Only in high, demo-hd, and podcast modes
   const shouldPlayBrowserTTS = useCallback(() => {
-    return !isMuted && (verbosityMode === "verbose" || verbosityMode === "experimental");
+    return !isMuted && (verbosityMode === "high" || verbosityMode === "demo-hd" || verbosityMode === "podcast");
   }, [isMuted, verbosityMode]);
 
   const setIsMuted = useCallback((muted: boolean) => {

@@ -2,6 +2,25 @@
 
 Utility scripts for managing the Meowstik application.
 
+## Icon Generation
+
+### Generate Icons
+Generate browser extension icons in multiple sizes:
+
+```bash
+python3 scripts/generate-icons.py
+```
+
+**Requirements:**
+- Python 3.x
+- Pillow library (`pip3 install Pillow`)
+
+**Output:**
+- `browser-extension/icons/` - Icons for the standalone browser extension
+- `extension/icons/` - Icons for the legacy extension
+- `extension-src/icons/` - Icons for the built extension (via Vite)
+- `public/icons/` - Icons for the web app
+
 ## Agent Attribution Scripts
 
 ### Seed Agents
@@ -42,6 +61,36 @@ curl http://localhost:5000/api/agents/activity/recent?limit=20
 ```
 
 ## Other Scripts
+
+### NotebookLM Preparation
+Prepare codebase files for ingestion into Google NotebookLM:
+
+```bash
+# Use default settings (entire repository → ./notebooklm-output)
+npm run prepare:notebooklm
+
+# Specify source directory
+npm run prepare:notebooklm -- --source server
+
+# Specify output directory
+npm run prepare:notebooklm -- --output /tmp/my-code
+
+# Specify file extensions
+npm run prepare:notebooklm -- --extensions ts,js,md
+
+# Combine options
+npm run prepare:notebooklm -- --source client --output /tmp/frontend --extensions tsx,ts,css
+```
+
+**What it does:**
+- Traverses project directories recursively
+- Finds files with specified extensions (default: ts, js, tsx, jsx, py, html, css, md, json, yaml, sql, sh, bash, xml)
+- Copies files to output directory with NotebookLM-friendly names
+- Converts paths like `server/services/auth.ts` → `server-services-auth-ts.txt`
+- Excludes build artifacts and dependencies (node_modules, dist, etc.)
+- Handles broken symlinks gracefully
+
+**Use case:** Upload the generated .txt files to Google NotebookLM to enable AI-powered querying of your codebase.
 
 ### Build
 Build the production bundle:

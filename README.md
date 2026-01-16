@@ -88,7 +88,22 @@ Access and manage your Google account services directly from Meowstik.
 - Create, complete, and delete tasks
 - Organize with multiple task lists
 
-### 5. Voice Interaction
+### 5. Live Voice Mode 🎙️
+
+**Real-time voice-to-voice conversation** with natural, fluid dialogue powered by Gemini Live API.
+
+- **Continuous Listening**: Hands-free operation—no button pressing needed
+- **Voice Activity Detection**: Automatically detects when you speak
+- **Cognitive Endpointing**: AI responds faster by understanding your intent mid-speech
+- **Natural Interruption**: Interrupt AI naturally, just like talking to a person
+- **Interim Transcripts**: See what you're saying in real-time
+- **8 Premium Voices**: Choose from Kore, Puck, Charon, Fenrir, Aoede, Leda, Orus, Zephyr
+- **Low Latency**: ~100ms audio streaming for natural conversation flow
+- **Adjustable Sensitivity**: Fine-tune voice detection to your environment
+
+> 📖 **Detailed Guide**: See [docs/LIVE_MODE_GUIDE.md](docs/LIVE_MODE_GUIDE.md) for complete documentation on features, setup, and troubleshooting
+
+### 6. Traditional Voice Interaction
 
 High-quality voice capabilities powered by Google Cloud Text-to-Speech API and Web Speech API.
 
@@ -101,7 +116,26 @@ High-quality voice capabilities powered by Google Cloud Text-to-Speech API and W
 > 
 > ⚠️ **Troubleshooting**: If you get "Insufficient Permission" errors, see [docs/TTS_IAM_PERMISSION_FIX.md](docs/TTS_IAM_PERMISSION_FIX.md) for IAM setup instructions
 
-### 6. Modern UI/UX
+### 7. Direct HTTP Client Access
+
+Advanced web interaction capabilities for API integrations and automated data exchange.
+
+- **HTTP GET**: Fetch data from any web API or endpoint with custom headers and query parameters
+- **HTTP POST**: Submit data to APIs, webhooks, and web services
+- **HTTP PUT**: Update resources via RESTful APIs
+- **Custom Headers**: Full control over HTTP headers for authentication and content negotiation
+- **Automatic Parsing**: Smart content-type handling for JSON, text, and binary data
+- **Security Built-in**: URL validation, header sanitization, timeout protection, and size limits
+
+> 📖 **Documentation**: See [docs/http-client-tools.md](docs/http-client-tools.md) for detailed usage guide with examples
+
+#### Key Capabilities
+- **API Integration**: Connect to any third-party API (GitHub, weather, databases, etc.)
+- **Raw Data Access**: GET files, JSON data, and resources directly from the web
+- **Advanced Automation**: POST and PUT data to perform actions on other platforms
+- **Webhook Integration**: Send notifications and trigger automated workflows
+
+### 8. Modern UI/UX
 
 - **Google-esque Design**: Clean, airy aesthetic with lots of whitespace
 - **Responsive Layout**: Works on mobile, tablet, and desktop
@@ -128,9 +162,19 @@ npm install
 # Push database schema to PostgreSQL
 npm run db:push
 
+# Setup memory log protection (recommended for contributors)
+./protect-memory.sh          # Easy to use with prompts
+# OR
+./scripts/setup-memory-protection.sh  # Advanced version
+
+# Check protection status anytime
+./check-memory.sh
+
 # Start development server
 npm run dev
 ```
+
+> 🛡️ **Memory Protection**: The repository includes automatic protection for memory log files to prevent data loss during git operations. Use `./protect-memory.sh` for interactive setup or `./check-memory.sh` to verify protection is active. See [docs/MEMORY_LOG_PROTECTION.md](docs/MEMORY_LOG_PROTECTION.md) for details.
 
 ### Environment Variables
 

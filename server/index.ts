@@ -228,6 +228,15 @@ app.use((req, res, next) => {
  */
 (async () => {
   /**
+   * INITIALIZE HOME DEV MODE
+   * ------------------------
+   * If HOME_DEV_MODE is enabled, set up auto-authentication for local development.
+   * This must happen before registering routes.
+   */
+  const { initializeHomeDevMode } = await import("./homeDevAuth");
+  await initializeHomeDevMode();
+
+  /**
    * REGISTER API ROUTES
    * -------------------
    * All API endpoints (/api/chats, /api/messages, etc.) are defined in routes.ts.

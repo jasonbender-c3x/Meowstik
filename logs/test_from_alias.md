@@ -1,1 +1,0 @@
-This is a test write to a path using the 'w/' alias.

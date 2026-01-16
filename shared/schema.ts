@@ -53,6 +53,13 @@ import { z } from "zod";
  */
 export const GUEST_USER_ID = "guest";
 
+/**
+ * Default branding values
+ */
+export const DEFAULT_AGENT_NAME = "Meowstik";
+export const DEFAULT_DISPLAY_NAME = "Meowstik AI";
+export const DEFAULT_BRAND_COLOR = "#4285f4";
+
 // =============================================================================
 // REPLIT AUTH TABLES
 // (IMPORTANT) These tables are mandatory for Replit Auth, don't drop them.
@@ -88,6 +95,95 @@ export const users = pgTable("users", {
 
 export type UpsertUser = typeof users.$inferInsert;
 export type User = typeof users.$inferSelect;
+
+/**
+ * USER BRANDING TABLE
+ * -------------------
+ * Stores per-user custom branding configuration.
+ * Allows users to customize agent name, signature, avatar, and domain.
+ */
+export const userBranding = pgTable("user_branding", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").references(() => users.id, { onDelete: "cascade" }).notNull().unique(),
+  
+  // Custom agent identity
+  agentName: varchar("agent_name").default(DEFAULT_AGENT_NAME).notNull(),
+  displayName: varchar("display_name").default(DEFAULT_DISPLAY_NAME).notNull(),
+  
+  // Visual branding
+  avatarUrl: text("avatar_url"), // Custom avatar image URL
+  brandColor: varchar("brand_color").default(DEFAULT_BRAND_COLOR), // Primary brand color (hex)
+  
+  // Signatures and metadata
+  githubSignature: text("github_signature"), // Signature for GitHub commits/PRs
+  emailSignature: text("email_signature"), // Signature for emails
+  
+  // Domain branding
+  canonicalDomain: varchar("canonical_domain"), // e.g., "catpilot.pro"
+  
+  // Timestamps
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertUserBrandingSchema = createInsertSchema(userBranding).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export type InsertUserBranding = z.infer<typeof insertUserBrandingSchema>;
+export type UserBranding = typeof userBranding.$inferSelect;
+
+/**
+ * USER AGENTS TABLE
+ * -----------------
+ * Stores multiple AI agent personas per user.
+ * Allows users to create and switch between different agent identities.
+ */
+export const userAgents = pgTable("user_agents", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
+  
+  // Agent identity
+  name: varchar("name").notNull(), // e.g., "Catpilot", "CodeBot", "Researcher"
+  displayName: varchar("display_name").notNull(), // e.g., "Catpilot Pro"
+  description: text("description"), // Brief description of agent purpose
+  
+  // Agent type/category
+  agentType: varchar("agent_type").default("assistant").notNull(), // assistant, coder, researcher, writer, etc.
+  
+  // Visual branding
+  avatarUrl: text("avatar_url"),
+  brandColor: varchar("brand_color").default(DEFAULT_BRAND_COLOR),
+  
+  // Personality and behavior
+  personalityPrompt: text("personality_prompt"), // Custom personality description
+  systemPromptOverrides: text("system_prompt_overrides"), // Additional system prompt instructions
+  
+  // Signatures
+  githubSignature: text("github_signature"),
+  emailSignature: text("email_signature"),
+  
+  // Settings
+  isDefault: boolean("is_default").default(false).notNull(), // Default agent for this user
+  isActive: boolean("is_active").default(true).notNull(), // Can be disabled without deleting
+  
+  // Metadata
+  canonicalDomain: varchar("canonical_domain"),
+  tags: text("tags").array(), // For categorization/search
+  
+  // Timestamps
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertUserAgentSchema = createInsertSchema(userAgents).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export type InsertUserAgent = z.infer<typeof insertUserAgentSchema>;
+export type UserAgent = typeof userAgents.$inferSelect;
 
 /**
  * CHATS TABLE
@@ -616,10 +712,13 @@ export const ToolTypes = {
   // Debug operations
   DEBUG_ECHO: "debug_echo",
   
-  // Chat output - primary tool for sending content to chat window
+  // Chat output - primary tool for sending content to chat window (non-terminating)
   SEND_CHAT: "send_chat",
   
-  // Voice output - tool for sending speech in turn-taking voice mode
+  // Turn control - terminates the interactive agentic loop (ONLY way to end turn)
+  END_TURN: "end_turn",
+  
+  // Voice output - generates speech concurrently (non-blocking, non-terminating)
   SAY: "say",
   
   // File operations
@@ -654,8 +753,12 @@ export const toolCallSchema = z.object({
     "api_call", "file_ingest", "search", "web_search", "custom",
     // Chat output - primary tool for sending content to chat window
     "send_chat",
+    // Turn control - terminates the agentic loop
+    "end_turn",
     // Voice output - tool for sending speech in turn-taking voice mode
     "say",
+    // Browser control - open URLs in new tabs
+    "open_url",
     // File operations
     "file_get", "file_put",
     // Search & Scraping
@@ -707,12 +810,32 @@ export type ToolCall = z.infer<typeof toolCallSchema>;
 /**
  * Send Chat Parameters
  * The primary tool for sending content to the chat window
- * All chat output should go through this tool
+ * 
+ * IMPORTANT: This is NON-TERMINATING - calling this does not end your turn.
+ * You can call send_chat multiple times within a single turn to provide
+ * incremental updates as you work through multi-step operations.
+ * 
+ * Always explicitly call end_turn when you're ready to return control to the user.
  */
 export const sendChatParamsSchema = z.object({
   content: z.string().min(1, "Content cannot be empty"),
 });
 export type SendChatParams = z.infer<typeof sendChatParamsSchema>;
+
+// =============================================================================
+// BROWSER CONTROL PARAMETER SCHEMA
+// =============================================================================
+
+/**
+ * Open URL Parameters
+ * Tool for opening URLs in new browser tabs
+ * The frontend handles this by executing window.open()
+ */
+export const openUrlParamsSchema = z.object({
+  /** The URL to open in a new tab/window */
+  url: z.string().url("Must be a valid URL"),
+});
+export type OpenUrlParams = z.infer<typeof openUrlParamsSchema>;
 
 // =============================================================================
 // VOICE OUTPUT PARAMETER SCHEMA
@@ -754,8 +877,14 @@ export type SayStyle = typeof SayStyles[number];
 
 /**
  * Say Parameters
- * Voice output tool for turn-taking mode with expressive speech synthesis
+ * Voice output tool with expressive speech synthesis
  * Uses Gemini 2.5 Flash TTS for high-quality audio generation
+ * 
+ * IMPORTANT: This is NON-BLOCKING and NON-TERMINATING
+ * - Speech generation happens asynchronously/concurrently with other operations
+ * - Calling this does not end your turn
+ * - You can use say alongside other tool calls in the same response
+ * - Always explicitly call end_turn when ready to return control to user
  */
 export const sayParamsSchema = z.object({
   /** The text content to be spoken aloud */
@@ -913,6 +1042,33 @@ export const browserScrapeParamsSchema = z.object({
   timeout: z.number().optional().default(30000),
 });
 export type BrowserScrapeParams = z.infer<typeof browserScrapeParamsSchema>;
+
+/** HTTP GET parameters for direct web requests */
+export const httpGetParamsSchema = z.object({
+  url: z.string().url(),
+  headers: z.record(z.string()).optional(),
+  params: z.record(z.string()).optional(),
+  timeout: z.number().optional().default(30000),
+});
+export type HttpGetParams = z.infer<typeof httpGetParamsSchema>;
+
+/** HTTP POST parameters for direct web requests */
+export const httpPostParamsSchema = z.object({
+  url: z.string().url(),
+  headers: z.record(z.string()).optional(),
+  body: z.union([z.string(), z.record(z.unknown())]),
+  timeout: z.number().optional().default(30000),
+});
+export type HttpPostParams = z.infer<typeof httpPostParamsSchema>;
+
+/** HTTP PUT parameters for direct web requests */
+export const httpPutParamsSchema = z.object({
+  url: z.string().url(),
+  headers: z.record(z.string()).optional(),
+  body: z.union([z.string(), z.record(z.unknown())]),
+  timeout: z.number().optional().default(30000),
+});
+export type HttpPutParams = z.infer<typeof httpPutParamsSchema>;
 
 /**
  * File Operation Schema
@@ -1250,6 +1406,11 @@ export const evidence = pgTable("evidence", {
   language: text("language").default("en"),
   wordCount: integer("word_count"),
   
+  // User isolation - CRITICAL for data privacy
+  // Note: Uses ON DELETE SET NULL to preserve guest data when users are deleted
+  userId: varchar("user_id").references(() => users.id, { onDelete: "set null" }),
+  isGuest: boolean("is_guest").default(false).notNull(),
+  
   // Temporal
   contentDate: timestamp("content_date"), // When the content was originally created
   createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -1357,6 +1518,11 @@ export const knowledgeEmbeddings = pgTable("knowledge_embeddings", {
   bucket: text("bucket"),
   modality: text("modality"),
   sourceType: text("source_type"),
+  
+  // User isolation - CRITICAL for data privacy
+  // Note: Uses ON DELETE SET NULL to preserve guest data when users are deleted
+  userId: varchar("user_id").references(() => users.id, { onDelete: "set null" }),
+  isGuest: boolean("is_guest").default(false).notNull(),
   
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
@@ -2292,3 +2458,374 @@ export const insertSshKeySchema = createInsertSchema(sshKeys).omit({
 });
 export type InsertSshKey = z.infer<typeof insertSshKeySchema>;
 export type SshKey = typeof sshKeys.$inferSelect;
+
+// ============================================================================
+// SMS MESSAGES - Twilio Inbound SMS Storage
+// ============================================================================
+
+/**
+ * SMS MESSAGES TABLE
+ * ------------------
+ * Stores inbound and outbound SMS messages from Twilio integration.
+ * Used for tracking conversations via SMS and enabling AI responses.
+ */
+export const smsMessages = pgTable("sms_messages", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  
+  // Twilio identifiers
+  messageSid: varchar("message_sid").unique().notNull(), // Twilio's unique message ID
+  accountSid: varchar("account_sid").notNull(), // Twilio account SID
+  
+  // Message content
+  from: varchar("from").notNull(), // Sender phone number
+  to: varchar("to").notNull(), // Recipient phone number
+  body: text("body").notNull(), // Message content
+  
+  // Message metadata - using varchar with specific constraints for type safety
+  direction: varchar("direction", { length: 20 }).notNull(), // "inbound" or "outbound"
+  status: varchar("status", { length: 50 }).notNull(), // Twilio message status (received, sent, failed, etc.)
+  numMedia: integer("num_media").default(0), // Number of media attachments
+  mediaUrls: jsonb("media_urls"), // Array of media URLs if present
+  
+  // Processing state
+  processed: boolean("processed").default(false).notNull(), // Whether AI has processed this message
+  chatId: varchar("chat_id").references(() => chats.id, { onDelete: "set null" }), // Link to chat if AI responded
+  responseMessageSid: varchar("response_message_sid"), // SID of the response message we sent
+  
+  // Error tracking
+  errorCode: integer("error_code"), // Twilio error code if any
+  errorMessage: text("error_message"), // Error details
+  
+  // Timestamps
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  processedAt: timestamp("processed_at"), // When AI processed the message
+});
+
+export const insertSmsMessageSchema = createInsertSchema(smsMessages).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertSmsMessage = z.infer<typeof insertSmsMessageSchema>;
+export type SmsMessage = typeof smsMessages.$inferSelect;
+// =============================================================================
+// TWILIO CONVERSATIONAL CALLING SYSTEM
+// =============================================================================
+
+/**
+ * CALL CONVERSATIONS TABLE
+ * -------------------------
+ * Stores metadata and state for Twilio voice call conversations.
+ * Enables multi-turn, AI-powered phone conversations with context preservation.
+ * 
+ * Each call conversation:
+ * - Tracks caller info and call SID
+ * - Maintains conversation state (active, completed, failed)
+ * - Links to associated chat for full conversation history
+ * - Records call duration and outcome
+ */
+export const callConversations = pgTable("call_conversations", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  
+  // Twilio call identification
+  callSid: text("call_sid").notNull().unique(), // Twilio call identifier
+  fromNumber: text("from_number").notNull(), // Caller's phone number
+  toNumber: text("to_number").notNull(), // Receiving number (our Twilio number)
+  
+  // Associated chat for conversation history
+  chatId: varchar("chat_id").references(() => chats.id, { onDelete: "cascade" }),
+  
+  // Call state
+  status: text("status").default("in_progress").notNull(), // in_progress, completed, failed, no_input
+  
+  // Conversation metadata
+  turnCount: integer("turn_count").default(0).notNull(), // Number of speech turns
+  currentContext: text("current_context"), // Last question asked or context
+  
+  // Timing
+  startedAt: timestamp("started_at").defaultNow().notNull(),
+  endedAt: timestamp("ended_at"),
+  duration: integer("duration"), // Call duration in seconds
+  
+  // Error tracking
+  errorMessage: text("error_message"),
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_call_conversations_sid").on(table.callSid),
+  index("idx_call_conversations_status").on(table.status),
+]);
+
+export const insertCallConversationSchema = createInsertSchema(callConversations).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  endedAt: true,
+});
+export type InsertCallConversation = z.infer<typeof insertCallConversationSchema>;
+export type CallConversation = typeof callConversations.$inferSelect;
+
+/**
+ * CALL TURNS TABLE
+ * ----------------
+ * Stores individual speech turns within a call conversation.
+ * Each turn represents one user speech input and the AI's response.
+ */
+export const callTurns = pgTable("call_turns", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  
+  // Link to parent conversation
+  conversationId: varchar("conversation_id").references(() => callConversations.id, { onDelete: "cascade" }).notNull(),
+  
+  // Turn sequence
+  turnNumber: integer("turn_number").notNull(), // Sequential turn number
+  
+  // User speech input
+  userSpeech: text("user_speech"), // Transcribed user speech from Twilio
+  speechConfidence: text("speech_confidence"), // Twilio confidence score (0.0-1.0) stored as text from webhook
+  
+  // AI response
+  aiResponse: text("ai_response").notNull(), // AI-generated response text
+  aiResponseAudio: text("ai_response_audio"), // TwiML or audio URL if custom TTS
+  
+  // Timing
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  duration: integer("duration"), // Turn duration in seconds
+}, (table) => [
+  index("idx_call_turns_conversation").on(table.conversationId),
+  index("idx_call_turns_number").on(table.conversationId, table.turnNumber),
+]);
+
+export const insertCallTurnSchema = createInsertSchema(callTurns).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertCallTurn = z.infer<typeof insertCallTurnSchema>;
+export type CallTurn = typeof callTurns.$inferSelect;
+
+// =============================================================================
+// RAG TRACEABILITY SYSTEM
+// =============================================================================
+/**
+ * RAG_TRACES TABLE
+ * ----------------
+ * Comprehensive tracing for RAG pipeline operations (ingestion and queries).
+ * Enables debugging, performance analysis, and audit trails.
+ */
+export const ragTraces = pgTable("rag_traces", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  
+  // Trace identification
+  traceId: varchar("trace_id", { length: 255 }).notNull(),
+  traceType: varchar("trace_type", { length: 50 }).notNull(), // 'ingestion' | 'query'
+  
+  // Timing
+  timestamp: timestamp("timestamp").notNull().defaultNow(),
+  durationMs: integer("duration_ms"),
+  
+  // Stage
+  stage: varchar("stage", { length: 50 }).notNull(),
+  
+  // Content references
+  documentId: varchar("document_id", { length: 255 }),
+  chunkIds: text("chunk_ids").array(),
+  messageId: varchar("message_id", { length: 255 }),
+  chatId: varchar("chat_id", { length: 255 }),
+  userId: varchar("user_id", { length: 255 }),
+  
+  // Query details
+  queryText: text("query_text"),
+  queryLength: integer("query_length"),
+  
+  // Ingestion details
+  filename: varchar("filename", { length: 500 }),
+  contentType: varchar("content_type", { length: 100 }),
+  contentLength: integer("content_length"),
+  
+  // Chunking details
+  chunksCreated: integer("chunks_created"),
+  chunksFiltered: integer("chunks_filtered"),
+  chunkingStrategy: varchar("chunking_strategy", { length: 50 }),
+  
+  // Embedding details
+  embeddingModel: varchar("embedding_model", { length: 100 }),
+  embeddingDimensions: integer("embedding_dimensions"),
+  
+  // Search/retrieval details
+  searchResults: integer("search_results"),
+  threshold: varchar("threshold", { length: 20 }), // Store as string to avoid float precision issues
+  topK: integer("top_k"),
+  scores: text("scores").array(), // Store as string array
+  
+  // Context injection
+  tokensUsed: integer("tokens_used"),
+  sourcesCount: integer("sources_count"),
+  contextLength: integer("context_length"),
+  
+  // Error tracking
+  errorMessage: text("error_message"),
+  errorStage: varchar("error_stage", { length: 50 }),
+  
+  // Metadata
+  metadata: jsonb("metadata"),
+  
+  // Timestamps
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (table) => [
+  index("idx_rag_traces_trace_id").on(table.traceId),
+  index("idx_rag_traces_timestamp").on(table.timestamp),
+  index("idx_rag_traces_type_stage").on(table.traceType, table.stage),
+]);
+
+export const insertRagTraceSchema = createInsertSchema(ragTraces).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertRagTrace = z.infer<typeof insertRagTraceSchema>;
+export type RagTrace = typeof ragTraces.$inferSelect;
+
+/**
+ * RAG_CHUNK_LINEAGE TABLE
+ * -----------------------
+ * Track chunk lifecycle from creation to retrieval.
+ * Enables understanding of chunk usage and quality metrics.
+ */
+export const ragChunkLineage = pgTable("rag_chunk_lineage", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  
+  // Chunk identification
+  chunkId: varchar("chunk_id", { length: 255 }).notNull().unique(),
+  documentId: varchar("document_id", { length: 255 }).notNull(),
+  
+  // Source tracking
+  sourceType: varchar("source_type", { length: 100 }).notNull(),
+  sourceId: varchar("source_id", { length: 255 }).notNull(),
+  filename: varchar("filename", { length: 500 }),
+  
+  // Ingestion metadata
+  ingestedAt: timestamp("ingested_at").notNull().defaultNow(),
+  ingestionTraceId: varchar("ingestion_trace_id", { length: 255 }),
+  
+  // Chunk details
+  contentPreview: text("content_preview"),
+  contentLength: integer("content_length"),
+  chunkIndex: integer("chunk_index"),
+  
+  // Vector metadata
+  embeddingModel: varchar("embedding_model", { length: 100 }),
+  vectorStore: varchar("vector_store", { length: 100 }),
+  
+  // Usage tracking
+  retrievalCount: integer("retrieval_count").default(0),
+  lastRetrievedAt: timestamp("last_retrieved_at"),
+  avgSimilarityScore: varchar("avg_similarity_score", { length: 20 }),
+  
+  // Quality metrics
+  importanceScore: varchar("importance_score", { length: 20 }),
+  isVerified: boolean("is_verified").default(false),
+  
+  // Metadata
+  tags: text("tags").array(),
+  metadata: jsonb("metadata"),
+  
+  // Timestamps
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+}, (table) => [
+  index("idx_chunk_lineage_document").on(table.documentId),
+  index("idx_chunk_lineage_source").on(table.sourceType, table.sourceId),
+]);
+
+export const insertRagChunkLineageSchema = createInsertSchema(ragChunkLineage).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export type InsertRagChunkLineage = z.infer<typeof insertRagChunkLineageSchema>;
+export type RagChunkLineage = typeof ragChunkLineage.$inferSelect;
+
+/**
+ * RAG_RETRIEVAL_RESULTS TABLE
+ * ---------------------------
+ * Detailed tracking of query results.
+ * Links queries to retrieved chunks with scores and feedback.
+ */
+export const ragRetrievalResults = pgTable("rag_retrieval_results", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  
+  // Query identification
+  traceId: varchar("trace_id", { length: 255 }).notNull(),
+  queryText: text("query_text").notNull(),
+  userId: varchar("user_id", { length: 255 }),
+  chatId: varchar("chat_id", { length: 255 }),
+  
+  // Result details
+  chunkId: varchar("chunk_id", { length: 255 }).notNull(),
+  similarityScore: varchar("similarity_score", { length: 20 }).notNull(),
+  rank: integer("rank").notNull(),
+  
+  // Context inclusion
+  includedInContext: boolean("included_in_context").default(false),
+  contextPosition: integer("context_position"),
+  
+  // Quality feedback
+  wasRelevant: boolean("was_relevant"),
+  feedbackSource: varchar("feedback_source", { length: 50 }),
+  
+  // Timestamps
+  retrievedAt: timestamp("retrieved_at").notNull().defaultNow(),
+}, (table) => [
+  index("idx_retrieval_trace").on(table.traceId),
+  index("idx_retrieval_chunk").on(table.chunkId),
+]);
+
+export const insertRagRetrievalResultSchema = createInsertSchema(ragRetrievalResults).omit({
+  id: true,
+  retrievedAt: true,
+});
+export type InsertRagRetrievalResult = z.infer<typeof insertRagRetrievalResultSchema>;
+export type RagRetrievalResult = typeof ragRetrievalResults.$inferSelect;
+
+/**
+ * RAG_METRICS_HOURLY TABLE
+ * ------------------------
+ * Pre-aggregated performance metrics for efficient analytics.
+ * Updated via scheduled job every hour.
+ */
+export const ragMetricsHourly = pgTable("rag_metrics_hourly", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  
+  // Time bucket
+  hourStart: timestamp("hour_start").notNull().unique(),
+  
+  // Ingestion metrics
+  documentsIngested: integer("documents_ingested").default(0),
+  chunksCreated: integer("chunks_created").default(0),
+  chunksFiltered: integer("chunks_filtered").default(0),
+  avgIngestionDurationMs: integer("avg_ingestion_duration_ms"),
+  
+  // Query metrics
+  queriesProcessed: integer("queries_processed").default(0),
+  avgQueryDurationMs: integer("avg_query_duration_ms"),
+  avgSearchResults: integer("avg_search_results"),
+  avgContextTokens: integer("avg_context_tokens"),
+  
+  // Quality metrics
+  avgSimilarityScore: varchar("avg_similarity_score", { length: 20 }),
+  emptyResultCount: integer("empty_result_count").default(0),
+  errorCount: integer("error_count").default(0),
+  
+  // Cost tracking
+  embeddingApiCalls: integer("embedding_api_calls").default(0),
+  vectorSearchOperations: integer("vector_search_operations").default(0),
+  
+  // Timestamps
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertRagMetricsHourlySchema = createInsertSchema(ragMetricsHourly).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertRagMetricsHourly = z.infer<typeof insertRagMetricsHourlySchema>;
+export type RagMetricsHourly = typeof ragMetricsHourly.$inferSelect;

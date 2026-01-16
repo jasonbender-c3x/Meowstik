@@ -18,7 +18,8 @@ The LLM outputs a JSON object containing tool calls. Code fences are optional bu
     {"type": "say", "id": "v1", "operation": "speak", "parameters": {"utterance": "Let me check..."}},
     {"type": "send_chat", "id": "c1", "operation": "respond", "parameters": {"content": "Let me check..."}},
     {"type": "gmail_list", "id": "g1", "operation": "list", "parameters": {"maxResults": 10}},
-    {"type": "send_chat", "id": "c2", "operation": "respond", "parameters": {"content": "Here are your emails..."}}
+    {"type": "send_chat", "id": "c2", "operation": "respond", "parameters": {"content": "Here are your emails..."}},
+    {"type": "end_turn", "id": "e1", "operation": "end_turn", "parameters": {}}
   ]
 }
 ```
@@ -28,16 +29,35 @@ The LLM outputs a JSON object containing tool calls. Code fences are optional bu
 1. **No text before JSON** - Response must start with `{` or `` ```json ``
 2. **All output through tools** - Use `send_chat` for text, `say` for voice, `file_put` for files
 3. **Code fences optional** - Both raw JSON and `` ```json {...} ``` `` are valid
+4. **End with end_turn** - Always call `end_turn` to terminate the interactive agentic loop
+
+**Interactive Loop Architecture:**
+- Agent can perform multiple (tool → send_chat) cycles in a single turn
+- `say` for voice output (non-blocking, runs concurrently)
+- `send_chat` for chat updates (non-terminating, can be called multiple times)
+- `end_turn` is the ONLY way to conclude the turn and return control to user
+
+See: [prompts/core-directives.md](../prompts/core-directives.md#interactive-agentic-loop) for complete loop architecture.
 
 ### Example Output
 
+**Interactive Loop - Multiple Cycles in One Turn:**
 ```json
 {
   "toolCalls": [
-    {"type": "say", "id": "v1", "operation": "speak", "parameters": {"utterance": "Checking your emails now."}},
-    {"type": "send_chat", "id": "c1", "operation": "respond", "parameters": {"content": "Checking your emails now."}},
-    {"type": "gmail_list", "id": "g1", "operation": "list", "parameters": {"maxResults": 10}},
-    {"type": "send_chat", "id": "c2", "operation": "respond", "parameters": {"content": "Here are your recent emails:\n\n1. ..."}}
+    {"type": "say", "id": "v1", "operation": "speak", "parameters": {"utterance": "Let me search for that"}},
+    {"type": "send_chat", "id": "c1", "operation": "respond", "parameters": {"content": "🔍 Searching now..."}},
+    {"type": "gmail_list", "id": "g1", "operation": "list", "parameters": {"maxResults": 10}}
+  ]
+}
+```
+
+After receiving tool results, agent continues in the same turn:
+```json
+{
+  "toolCalls": [
+    {"type": "send_chat", "id": "c2", "operation": "respond", "parameters": {"content": "Here are your recent emails:\n\n1. ..."}},
+    {"type": "end_turn", "id": "e1", "operation": "end_turn", "parameters": {}}
   ]
 }
 ```
@@ -90,6 +110,15 @@ export type ToolCall = z.infer<typeof toolCallSchema>;
 ---
 
 ## Tool Types Reference
+
+### Core Operations
+
+| Type | Description | Key Parameters |
+|------|-------------|----------------|
+| `send_chat` | Send message to chat (non-terminating, can be called multiple times) | `content` |
+| `end_turn` | Terminate interactive agentic loop and return control to user | none |
+| `say` | Speak text with TTS (non-blocking, runs concurrently) | `utterance`, `voiceId`, `style` |
+| `open_url` | Open URL in new tab (non-terminating) | `url` |
 
 ### Gmail Operations
 
@@ -216,28 +245,40 @@ export function parseLLMOutput(output: string): ParsedLLMOutput {
 
 ## Streaming Parser
 
-For streaming responses, tool calls are extracted from the accumulated JSON after the stream completes:
+For streaming responses, the interactive agentic loop executes tool calls as they're returned by the model:
 
 ```typescript
-// Accumulate streamed chunks
-let accumulated = "";
+// Native function calling returns FunctionCall objects
 for await (const chunk of stream) {
-  accumulated += chunk.text;
-}
-
-// Parse complete JSON response
-const parsed = parseLLMOutput(accumulated);
-
-// Execute tool calls in order
-for (const toolCall of parsed.toolCalls) {
-  await executeToolCall(toolCall);
-  
-  // send_chat tool calls update the chat window
-  if (toolCall.type === 'send_chat') {
-    sendToClient(toolCall.parameters.content);
+  if (chunk.functionCalls) {
+    // Convert to ToolCall format and execute
+    const toolCalls = convertFunctionCalls(chunk.functionCalls);
+    const results = await executeToolCalls(toolCalls);
+    
+    // send_chat tool calls update the chat window immediately
+    for (const toolCall of toolCalls) {
+      if (toolCall.type === 'send_chat') {
+        sendToClient(toolCall.parameters.content);
+      }
+    }
+    
+    // Check if end_turn was called
+    const endTurnCall = toolCalls.find(tc => tc.type === 'end_turn');
+    if (endTurnCall) {
+      break; // Exit loop, return control to user
+    }
+    
+    // Otherwise, feed results back to model for next cycle
+    continueConversation(results);
   }
 }
 ```
+
+Key behaviors:
+- `send_chat` displays content immediately but doesn't break the loop
+- `say` generates audio asynchronously (non-blocking)
+- `end_turn` is the only way to exit the loop
+- Tool results are fed back to the model for the next cycle
 
 ---
 
