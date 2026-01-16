@@ -254,14 +254,29 @@ These steps are mandatory before sending your response via send_chat.
   /**
    * Assembles and returns the complete system prompt.
    */
-  public getSystemPrompt(): string {
+  /**
+   * Generate system prompt with custom branding
+   * @param agentName - Custom agent name (defaults to "Meowstik")
+   * @param displayName - Custom display name (defaults to "Meowstik AI")
+   */
+  public getSystemPrompt(agentName: string = "Meowstik", displayName: string = "Meowstik AI"): string {
     // Reload prompts every time to catch dynamic changes to memory files
     this.promptsLoaded = false;
     this.loadPrompts();
 
+    // Inject branding into core directives and personality
+    const brandedCoreDirectives = this.coreDirectives
+      .replace(/Nebula/g, agentName)
+      .replace(/Meowstik/gi, agentName);
+    
+    const brandedPersonality = this.personality
+      .replace(/Nebula/g, agentName)
+      .replace(/Meowstik/gi, agentName);
+
     const components: string[] = [
-      this.coreDirectives,
-      this.personality,
+      `# Agent Identity\nYou are ${displayName}, referred to as ${agentName}.\n`,
+      brandedCoreDirectives,
+      brandedPersonality,
       this.tools,
       this.shortTermMemory, // Persistent user-defined memory
     ];
@@ -355,8 +370,22 @@ You can analyze data, read and write files, search the web, and interact with Go
     chatId: string;
     userId?: string;
   }): Promise<ComposedPrompt> {
-    // Build base system prompt from modular files
-    let systemPrompt = this.getSystemPrompt();
+    // Fetch user branding if userId is provided
+    let agentName = "Meowstik";
+    let displayName = "Meowstik AI";
+    
+    if (options.userId) {
+      try {
+        const branding = await storage.getUserBrandingOrDefault(options.userId);
+        agentName = branding.agentName;
+        displayName = branding.displayName;
+      } catch (error) {
+        console.warn("Failed to fetch user branding, using defaults:", error);
+      }
+    }
+
+    // Build base system prompt from modular files with custom branding
+    let systemPrompt = this.getSystemPrompt(agentName, displayName);
 
     // Enrich system prompt with RAG context if user message exists
     if (options.textContent && options.textContent.trim()) {
