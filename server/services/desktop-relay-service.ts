@@ -146,7 +146,8 @@ class DesktopRelayService {
   validateToken(sessionId: string, token: string): boolean {
     const session = this.sessions.get(sessionId);
     if (!session) return false;
-    // Development sessions don't require tokens
+    // Development sessions don't require tokens - this bypasses authentication
+    // for localhost-only connections in development mode (NODE_ENV !== "production")
     if (session.isDevSession) return true;
     return session.token === token;
   }

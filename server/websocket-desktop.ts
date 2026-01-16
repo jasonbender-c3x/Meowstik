@@ -72,7 +72,12 @@ export function setupDesktopWebSocket(httpServer: Server): void {
 
       wss.handleUpgrade(request, socket, head, (ws) => {
         wss.emit("connection", ws, request);
-        handleAgentConnection(ws, sessionId!);
+        if (sessionId) {
+          handleAgentConnection(ws, sessionId);
+        } else {
+          console.error("[Desktop WS] Session ID is undefined");
+          socket.destroy();
+        }
       });
     } else if (url.startsWith("/ws/desktop/browser/")) {
       const sessionId = url.split("/ws/desktop/browser/")[1]?.split("?")[0];
