@@ -53,6 +53,13 @@ import { z } from "zod";
  */
 export const GUEST_USER_ID = "guest";
 
+/**
+ * Default branding values
+ */
+export const DEFAULT_AGENT_NAME = "Meowstik";
+export const DEFAULT_DISPLAY_NAME = "Meowstik AI";
+export const DEFAULT_BRAND_COLOR = "#4285f4";
+
 // =============================================================================
 // REPLIT AUTH TABLES
 // (IMPORTANT) These tables are mandatory for Replit Auth, don't drop them.
@@ -100,12 +107,12 @@ export const userBranding = pgTable("user_branding", {
   userId: varchar("user_id").references(() => users.id, { onDelete: "cascade" }).notNull().unique(),
   
   // Custom agent identity
-  agentName: varchar("agent_name").default("Meowstik").notNull(), // e.g., "Catpilot"
-  displayName: varchar("display_name").default("Meowstik AI").notNull(), // e.g., "Catpilot Pro"
+  agentName: varchar("agent_name").default(DEFAULT_AGENT_NAME).notNull(),
+  displayName: varchar("display_name").default(DEFAULT_DISPLAY_NAME).notNull(),
   
   // Visual branding
   avatarUrl: text("avatar_url"), // Custom avatar image URL
-  brandColor: varchar("brand_color").default("#4285f4"), // Primary brand color (hex)
+  brandColor: varchar("brand_color").default(DEFAULT_BRAND_COLOR), // Primary brand color (hex)
   
   // Signatures and metadata
   githubSignature: text("github_signature"), // Signature for GitHub commits/PRs

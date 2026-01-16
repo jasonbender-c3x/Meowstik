@@ -244,14 +244,14 @@ export const storage = {
     const branding = await storage.getUserBranding(userId);
     if (branding) return branding;
 
-    // Return default branding
+    // Return default branding using constants from schema
     return {
       id: 'default',
       userId,
-      agentName: 'Meowstik',
-      displayName: 'Meowstik AI',
+      agentName: schema.DEFAULT_AGENT_NAME,
+      displayName: schema.DEFAULT_DISPLAY_NAME,
       avatarUrl: null,
-      brandColor: '#4285f4',
+      brandColor: schema.DEFAULT_BRAND_COLOR,
       githubSignature: null,
       emailSignature: null,
       canonicalDomain: null,
