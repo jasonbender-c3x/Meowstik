@@ -333,7 +333,7 @@ export function ChatMessage({ role, content, isThinking, metadata, createdAt, id
     try {
       // Determine file extension based on content type
       let extension = 'txt';
-      let fileType: any = { 'text/plain': ['.txt'] };
+      let fileType: Record<string, string[]> = { 'text/plain': ['.txt'] };
       
       // Check if content is code (has code blocks)
       if (content.includes('```')) {

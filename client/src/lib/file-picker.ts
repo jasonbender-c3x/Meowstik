@@ -91,7 +91,7 @@ export async function openFilePicker(options: OpenFileOptions = {}): Promise<Fil
   const { accept = {}, multiple = false, description = 'Select files' } = options;
   
   // Try File System Access API first
-  if (isFileSystemAccessSupported() && 'showOpenFilePicker' in window) {
+  if ('showOpenFilePicker' in window) {
     try {
       const types = Object.keys(accept).length > 0
         ? [{ description, accept }]
@@ -183,7 +183,7 @@ export async function saveFilePicker(
   const { suggestedName = 'download.txt', types } = options;
   
   // Try File System Access API first
-  if (isFileSystemAccessSupported() && 'showSaveFilePicker' in window) {
+  if ('showSaveFilePicker' in window) {
     try {
       const handle = await (window as any).showSaveFilePicker({
         suggestedName,
@@ -276,7 +276,7 @@ export async function openDirectoryPicker(
   options: OpenDirectoryOptions = {}
 ): Promise<DirectoryEntry[]> {
   // Try File System Access API first
-  if (isFileSystemAccessSupported() && 'showDirectoryPicker' in window) {
+  if ('showDirectoryPicker' in window) {
     try {
       const handle = await (window as any).showDirectoryPicker();
       const entries: DirectoryEntry[] = [];

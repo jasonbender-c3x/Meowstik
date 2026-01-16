@@ -32,6 +32,16 @@
  */
 import { useState, useRef, useEffect } from "react";
 
+// ============================================================================
+// CONSTANTS
+// ============================================================================
+
+/**
+ * Maximum number of files to process when uploading a directory
+ * Prevents overwhelming the system with too many files at once
+ */
+const MAX_FOLDER_FILES = 50;
+
 /**
  * UI Components from shadcn/ui
  * - Button: Styled action buttons
@@ -614,9 +624,8 @@ export function ChatInputArea({ onSend, isLoading, promptHistory = [], onStop }:
       if (entries.length === 0) return; // User cancelled
 
       let fileCount = 0;
-      const maxFiles = 50; // Limit to prevent overwhelming
 
-      for (const entry of entries.slice(0, maxFiles)) {
+      for (const entry of entries.slice(0, MAX_FOLDER_FILES)) {
         const { file, path } = entry;
         const dataUrl = await readFileAsDataURL(file);
         const isImage = file.type.startsWith("image/");
@@ -653,7 +662,7 @@ export function ChatInputArea({ onSend, isLoading, promptHistory = [], onStop }:
 
       toast({
         title: "Folder Uploaded",
-        description: `${fileCount} file(s) from folder added to the message${entries.length > maxFiles ? ` (limited to ${maxFiles} files)` : ''}`
+        description: `${fileCount} file(s) from folder added to the message${entries.length > MAX_FOLDER_FILES ? ` (limited to ${MAX_FOLDER_FILES} files)` : ''}`
       });
     } catch (error) {
       console.error("Directory picker failed:", error);
