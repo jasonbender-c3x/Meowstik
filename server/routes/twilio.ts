@@ -145,8 +145,8 @@ twilioRouter.post("/webhooks/handle-speech", async (req: Request, res: Response)
     const speechResult = req.body.SpeechResult;
     const callSid = req.body.CallSid;
 
-    console.log(\`Speech captured from call \${callSid}: \\"\${speechResult}\\"\`);
-    const responseMessage = \`I heard you say: \\"\${speechResult}\\\". This is a placeholder response. Goodbye.\`;
+    console.log(`Speech captured from call ${callSid}: "${speechResult}"`);
+    const responseMessage = `I heard you say: "${speechResult}". This is a placeholder response. Goodbye.`;
 
     speechTwiml.say(responseMessage);
     speechTwiml.hangup();
@@ -169,10 +169,10 @@ twilioRouter.post("/webhooks/handle-speech", async (req: Request, res: Response)
 twilioRouter.post("/webhooks/status", (req: Request, res: Response) => {
   const { CallStatus, MessageStatus, CallSid, MessageSid } = req.body;
   if (CallSid) {
-    console.log(\`Call status update for \${CallSid}: \${CallStatus}\`);
+    console.log(`Call status update for ${CallSid}: ${CallStatus}`);
   }
   if (MessageSid) {
-    console.log(\`Message status update for \${MessageSid}: \${MessageStatus}\`);
+    console.log(`Message status update for ${MessageSid}: ${MessageStatus}`);
   }
   res.status(204).send();
 });
