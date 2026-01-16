@@ -21,7 +21,7 @@ export const twilioRouter = Router();
 twilioRouter.get("/sms", async (req: Request, res: Response) => {
   try {
     const limit = req.query.limit ? parseInt(req.query.limit as string) : 20;
-    const messages = await twilioIntegration.listSmsMessages(limit);
+    const messages = await twilioIntegration.getMessages(limit);
     res.json({ success: true, messages });
   } catch (error) {
     console.error("Error fetching SMS messages:", error);
@@ -35,7 +35,7 @@ twilioRouter.post("/sms", async (req: Request, res: Response) => {
     if (!to || !body) {
       return res.status(400).json({ success: false, error: "Missing 'to' or 'body' in request" });
     }
-    const message = await twilioIntegration.sendSms(to, body);
+    const message = await twilioIntegration.sendSMS(to, body);
     res.json({ success: true, sid: message.sid });
   } catch (error) {
     console.error("Error sending SMS:", error);
@@ -50,7 +50,7 @@ twilioRouter.post("/sms", async (req: Request, res: Response) => {
 twilioRouter.get("/calls", async (req: Request, res: Response) => {
   try {
     const limit = req.query.limit ? parseInt(req.query.limit as string) : 20;
-    const calls = await twilioIntegration.listCalls(limit);
+    const calls = await twilioIntegration.getCalls(limit);
     res.json({ success: true, calls });
   } catch (error) {
     console.error("Error fetching calls:", error);
@@ -64,7 +64,15 @@ twilioRouter.post("/calls", async (req: Request, res: Response) => {
     if (!to) {
       return res.status(400).json({ success: false, error: "Missing 'to' in request" });
     }
-    const call = await twilioIntegration.makeCall(to, message, twimlUrl);
+    // Use makeCallWithMessage if a message is provided, otherwise use makeCall with twimlUrl
+    let call;
+    if (message) {
+      call = await twilioIntegration.makeCallWithMessage(to, message);
+    } else if (twimlUrl) {
+      call = await twilioIntegration.makeCall(to, twimlUrl);
+    } else {
+      return res.status(400).json({ success: false, error: "Either 'message' or 'twimlUrl' is required" });
+    }
     res.json({ success: true, sid: call.sid });
   } catch (error) {
     console.error("Error making call:", error);
@@ -90,7 +98,7 @@ twilioRouter.post("/webhooks/sms", async (req: Request, res: Response) => {
   const signature = req.header("X-Twilio-Signature");
   const url = 'https://' + req.get('host') + req.originalUrl;
 
-  if (!signature || !twilioIntegration.validateRequest(signature, url, req.body)) {
+  if (!signature || !twilioIntegration.validateWebhookSignature(signature, url, req.body)) {
     return res.status(403).send("Forbidden: Invalid Twilio Signature");
   }
 
