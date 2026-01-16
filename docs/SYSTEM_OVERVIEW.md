@@ -153,7 +153,8 @@ All LLM responses follow this structure:
     {"type": "say", "id": "v1", "parameters": {"utterance": "Acknowledgment..."}},
     {"type": "send_chat", "id": "c1", "parameters": {"content": "Acknowledgment..."}},
     ...other tool calls...,
-    {"type": "send_chat", "id": "c2", "parameters": {"content": "Detailed response..."}}
+    {"type": "send_chat", "id": "c2", "parameters": {"content": "Detailed response..."}},
+    {"type": "end_turn", "id": "e1", "parameters": {}}
   ]
 }
 ```
@@ -162,6 +163,7 @@ All LLM responses follow this structure:
 - Handles raw JSON and code-fenced JSON
 - Tool call validation via Zod schemas
 - All text output via `send_chat` tool, voice via `say` tool
+- Loop terminates with `end_turn` tool
 
 See: [05-tool-call-schema.md](./05-tool-call-schema.md)
 
