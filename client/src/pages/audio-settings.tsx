@@ -7,8 +7,9 @@ import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Play, Square, Volume2, Mic } from "lucide-react";
+import { Play, Square, Volume2, Mic, ArrowLeft } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { Link } from "wouter";
 
 // Hardcoded list of Google Neural2 voices (matching server/integrations/expressive-tts.ts)
 const VOICES = [
@@ -64,9 +65,20 @@ export default function AudioSettings() {
 
   return (
     <div className="container mx-auto py-8 max-w-4xl space-y-8">
-      <div className="flex flex-col space-y-2">
-        <h1 className="text-3xl font-bold tracking-tight">Audio & Voice</h1>
-        <p className="text-muted-foreground">Configure synthesis, expressiveness, and speech behavior.</p>
+      {/* Navigation Header */}
+      <div className="flex items-center gap-4 mb-8">
+        <Link href="/">
+          <Button variant="ghost" size="icon" data-testid="button-back-home">
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+        </Link>
+        <div className="flex items-center gap-3 flex-1">
+          <Volume2 className="h-8 w-8 text-primary" />
+          <div className="flex flex-col">
+            <h1 className="text-3xl font-display font-bold">Audio & Voice</h1>
+            <p className="text-sm text-muted-foreground">Configure synthesis, expressiveness, and speech behavior.</p>
+          </div>
+        </div>
       </div>
 
       {/* Global Controls */}
