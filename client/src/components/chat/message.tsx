@@ -78,6 +78,11 @@ import { useState } from "react";
 import { FeedbackPanel } from "@/components/ui/feedback-panel";
 
 /**
+ * SourceCitation - Display sources for RAG responses
+ */
+import { SourceCitation } from "@/components/rag/SourceCitation";
+
+/**
  * Button component from shadcn/ui
  */
 import { Button } from "@/components/ui/button";
@@ -592,6 +597,25 @@ export function ChatMessage({ role, content, isThinking, metadata, createdAt, id
               </div>
             </div>
           </div>
+        )}
+
+        {/* RAG Source Citations - Display retrieved sources for AI responses */}
+        {role === "ai" && !isThinking && metadata?.sources && Array.isArray(metadata.sources) && metadata.sources.length > 0 && (
+          <SourceCitation 
+            sources={metadata.sources}
+            onFeedback={(chunkId, relevant) => {
+              // Post feedback to API
+              fetch("/api/debug/rag/evaluation/feedback", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  queryId: id,
+                  chunksRelevant: relevant,
+                  chunkId,
+                }),
+              }).catch(console.error);
+            }}
+          />
         )}
 
         {/* 

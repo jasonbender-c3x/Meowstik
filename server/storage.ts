@@ -71,6 +71,14 @@ import {
   type InsertCallConversation,
   type CallTurn,
   type InsertCallTurn,
+  type RagTrace,
+  type InsertRagTrace,
+  type RagChunkLineage,
+  type InsertRagChunkLineage,
+  type RagRetrievalResult,
+  type InsertRagRetrievalResult,
+  type RagMetricsHourly,
+  type InsertRagMetricsHourly,
   chats,
   messages,
   attachments,
@@ -91,7 +99,11 @@ import {
   agentActivityLog,
   smsMessages,
   callConversations,
-  callTurns
+  callTurns,
+  ragTraces,
+  ragChunkLineage,
+  ragRetrievalResults,
+  ragMetricsHourly
 } from "@shared/schema";
 import { drizzle, NodePgDatabase } from "drizzle-orm/node-postgres";
 import { eq, desc, and, lte, lt, or, sql, isNull, isNotNull, inArray, arrayContains } from "drizzle-orm";
@@ -596,6 +608,118 @@ export interface IStorage {
    * @returns Array of conversations, sorted by startedAt descending
    */
   getRecentCallConversations(limit?: number): Promise<CallConversation[]>;
+
+  // =========================================================================
+  // RAG TRACEABILITY OPERATIONS
+  // =========================================================================
+
+  /**
+   * Creates a single RAG trace event
+   * @param trace - The trace data
+   * @returns The created trace with auto-generated id and timestamp
+   */
+  createRagTrace(trace: InsertRagTrace): Promise<RagTrace>;
+
+  /**
+   * Creates multiple RAG trace events in a batch
+   * @param traces - Array of trace data
+   * @returns Array of created traces
+   */
+  createRagTraces(traces: InsertRagTrace[]): Promise<RagTrace[]>;
+
+  /**
+   * Retrieves RAG traces with optional filtering
+   * @param options - Filter options (type, userId, documentId, date range, pagination)
+   * @returns Object with traces array and total count
+   */
+  getRagTraces(options: {
+    type?: string;
+    userId?: string;
+    documentId?: string;
+    from?: Date;
+    to?: Date;
+    limit?: number;
+    offset?: number;
+  }): Promise<{ traces: RagTrace[]; total: number }>;
+
+  /**
+   * Retrieves all traces for a specific trace ID
+   * @param traceId - The trace ID to filter by
+   * @returns Array of traces, sorted by timestamp ascending
+   */
+  getRagTracesByTraceId(traceId: string): Promise<RagTrace[]>;
+
+  /**
+   * Creates a chunk lineage record
+   * @param lineage - The lineage data
+   * @returns The created lineage record
+   */
+  createChunkLineage(lineage: InsertRagChunkLineage): Promise<RagChunkLineage>;
+
+  /**
+   * Retrieves lineage information for a specific chunk
+   * @param chunkId - The chunk ID
+   * @returns The lineage record if found, null otherwise
+   */
+  getChunkLineage(chunkId: string): Promise<RagChunkLineage | null>;
+
+  /**
+   * Updates usage statistics for a chunk
+   * @param chunkId - The chunk ID
+   * @param score - The similarity score from this retrieval
+   */
+  updateChunkLineageUsage(chunkId: string, score: number): Promise<void>;
+
+  /**
+   * Creates a single retrieval result record
+   * @param result - The retrieval result data
+   * @returns The created result
+   */
+  createRetrievalResult(result: InsertRagRetrievalResult): Promise<RagRetrievalResult>;
+
+  /**
+   * Creates multiple retrieval results in a batch
+   * @param results - Array of retrieval result data
+   * @returns Array of created results
+   */
+  createRetrievalResults(results: InsertRagRetrievalResult[]): Promise<RagRetrievalResult[]>;
+
+  /**
+   * Retrieves all retrieval results for a specific trace
+   * @param traceId - The trace ID
+   * @returns Array of results, sorted by rank ascending
+   */
+  getRetrievalResultsByTrace(traceId: string): Promise<RagRetrievalResult[]>;
+
+  /**
+   * Retrieves recent retrieval results for a specific chunk
+   * @param chunkId - The chunk ID
+   * @param limit - Maximum number of results (default 20)
+   * @returns Array of results, sorted by retrievedAt descending
+   */
+  getRetrievalResultsByChunk(chunkId: string, limit?: number): Promise<RagRetrievalResult[]>;
+
+  /**
+   * Upserts metrics for a specific hour
+   * @param metrics - The metrics data
+   * @returns The upserted metrics record
+   */
+  upsertRagMetrics(metrics: InsertRagMetricsHourly): Promise<RagMetricsHourly>;
+
+  /**
+   * Retrieves metrics for a date range
+   * @param from - Start date
+   * @param to - End date
+   * @returns Array of metrics, sorted by hourStart ascending
+   */
+  getRagMetrics(from: Date, to: Date): Promise<RagMetricsHourly[]>;
+
+  /**
+   * Deletes old RAG traces older than a specific date
+   * @param olderThan - Date threshold
+   * @returns Number of traces deleted
+   */
+  deleteOldRagTraces(olderThan: Date): Promise<number>;
 }
 
 /**
@@ -1913,6 +2037,166 @@ export class DrizzleStorage implements IStorage {
       .from(callConversations)
       .orderBy(desc(callConversations.startedAt))
       .limit(limit);
+  }
+
+  // =========================================================================
+  // RAG TRACEABILITY METHODS
+  // =========================================================================
+
+  async createRagTrace(trace: InsertRagTrace): Promise<RagTrace> {
+    const [result] = await this.getDb().insert(ragTraces).values(trace).returning();
+    return result;
+  }
+
+  async createRagTraces(traces: InsertRagTrace[]): Promise<RagTrace[]> {
+    if (traces.length === 0) return [];
+    return await this.getDb().insert(ragTraces).values(traces).returning();
+  }
+
+  async getRagTraces(options: {
+    type?: string;
+    userId?: string;
+    documentId?: string;
+    from?: Date;
+    to?: Date;
+    limit?: number;
+    offset?: number;
+  }): Promise<{ traces: RagTrace[]; total: number }> {
+    const conditions = [];
+    
+    if (options.type) {
+      conditions.push(eq(ragTraces.traceType, options.type));
+    }
+    if (options.userId) {
+      conditions.push(eq(ragTraces.userId, options.userId));
+    }
+    if (options.documentId) {
+      conditions.push(eq(ragTraces.documentId, options.documentId));
+    }
+    if (options.from) {
+      conditions.push(sql`${ragTraces.timestamp} >= ${options.from}`);
+    }
+    if (options.to) {
+      conditions.push(sql`${ragTraces.timestamp} <= ${options.to}`);
+    }
+    
+    const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+    
+    // Get total count
+    const [countResult] = await this.getDb()
+      .select({ count: sql<number>`count(*)::int` })
+      .from(ragTraces)
+      .where(whereClause);
+    
+    // Get traces with pagination
+    const traces = await this.getDb()
+      .select()
+      .from(ragTraces)
+      .where(whereClause)
+      .orderBy(desc(ragTraces.timestamp))
+      .limit(options.limit || 50)
+      .offset(options.offset || 0);
+    
+    return {
+      traces,
+      total: countResult.count,
+    };
+  }
+
+  async getRagTracesByTraceId(traceId: string): Promise<RagTrace[]> {
+    return await this.getDb()
+      .select()
+      .from(ragTraces)
+      .where(eq(ragTraces.traceId, traceId))
+      .orderBy(ragTraces.timestamp);
+  }
+
+  async createChunkLineage(lineage: InsertRagChunkLineage): Promise<RagChunkLineage> {
+    const [result] = await this.getDb().insert(ragChunkLineage).values(lineage).returning();
+    return result;
+  }
+
+  async getChunkLineage(chunkId: string): Promise<RagChunkLineage | null> {
+    const [result] = await this.getDb()
+      .select()
+      .from(ragChunkLineage)
+      .where(eq(ragChunkLineage.chunkId, chunkId));
+    return result || null;
+  }
+
+  async updateChunkLineageUsage(chunkId: string, score: number): Promise<void> {
+    const scoreStr = score.toString();
+    await this.getDb()
+      .update(ragChunkLineage)
+      .set({
+        retrievalCount: sql`${ragChunkLineage.retrievalCount} + 1`,
+        lastRetrievedAt: new Date(),
+        avgSimilarityScore: sql`CASE 
+          WHEN ${ragChunkLineage.avgSimilarityScore} IS NULL THEN ${scoreStr}
+          ELSE (CAST(${ragChunkLineage.avgSimilarityScore} AS FLOAT) * 0.9 + ${score} * 0.1)::TEXT
+        END`,
+        updatedAt: new Date(),
+      })
+      .where(eq(ragChunkLineage.chunkId, chunkId));
+  }
+
+  async createRetrievalResult(result: InsertRagRetrievalResult): Promise<RagRetrievalResult> {
+    const [created] = await this.getDb().insert(ragRetrievalResults).values(result).returning();
+    return created;
+  }
+
+  async createRetrievalResults(results: InsertRagRetrievalResult[]): Promise<RagRetrievalResult[]> {
+    if (results.length === 0) return [];
+    return await this.getDb().insert(ragRetrievalResults).values(results).returning();
+  }
+
+  async getRetrievalResultsByTrace(traceId: string): Promise<RagRetrievalResult[]> {
+    return await this.getDb()
+      .select()
+      .from(ragRetrievalResults)
+      .where(eq(ragRetrievalResults.traceId, traceId))
+      .orderBy(ragRetrievalResults.rank);
+  }
+
+  async getRetrievalResultsByChunk(chunkId: string, limit = 20): Promise<RagRetrievalResult[]> {
+    return await this.getDb()
+      .select()
+      .from(ragRetrievalResults)
+      .where(eq(ragRetrievalResults.chunkId, chunkId))
+      .orderBy(desc(ragRetrievalResults.retrievedAt))
+      .limit(limit);
+  }
+
+  async upsertRagMetrics(metrics: InsertRagMetricsHourly): Promise<RagMetricsHourly> {
+    const [result] = await this.getDb()
+      .insert(ragMetricsHourly)
+      .values(metrics)
+      .onConflictDoUpdate({
+        target: ragMetricsHourly.hourStart,
+        set: metrics,
+      })
+      .returning();
+    return result;
+  }
+
+  async getRagMetrics(from: Date, to: Date): Promise<RagMetricsHourly[]> {
+    return await this.getDb()
+      .select()
+      .from(ragMetricsHourly)
+      .where(
+        and(
+          sql`${ragMetricsHourly.hourStart} >= ${from}`,
+          sql`${ragMetricsHourly.hourStart} <= ${to}`
+        )
+      )
+      .orderBy(ragMetricsHourly.hourStart);
+  }
+
+  async deleteOldRagTraces(olderThan: Date): Promise<number> {
+    const result = await this.getDb()
+      .delete(ragTraces)
+      .where(sql`${ragTraces.createdAt} <= ${olderThan}`);
+    return result.rowCount || 0;
   }
 }
 

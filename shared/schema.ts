@@ -2490,3 +2490,230 @@ export const insertCallTurnSchema = createInsertSchema(callTurns).omit({
 });
 export type InsertCallTurn = z.infer<typeof insertCallTurnSchema>;
 export type CallTurn = typeof callTurns.$inferSelect;
+
+// =============================================================================
+// RAG TRACEABILITY SYSTEM
+// =============================================================================
+/**
+ * RAG_TRACES TABLE
+ * ----------------
+ * Comprehensive tracing for RAG pipeline operations (ingestion and queries).
+ * Enables debugging, performance analysis, and audit trails.
+ */
+export const ragTraces = pgTable("rag_traces", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  
+  // Trace identification
+  traceId: varchar("trace_id", { length: 255 }).notNull(),
+  traceType: varchar("trace_type", { length: 50 }).notNull(), // 'ingestion' | 'query'
+  
+  // Timing
+  timestamp: timestamp("timestamp").notNull().defaultNow(),
+  durationMs: integer("duration_ms"),
+  
+  // Stage
+  stage: varchar("stage", { length: 50 }).notNull(),
+  
+  // Content references
+  documentId: varchar("document_id", { length: 255 }),
+  chunkIds: text("chunk_ids").array(),
+  messageId: varchar("message_id", { length: 255 }),
+  chatId: varchar("chat_id", { length: 255 }),
+  userId: varchar("user_id", { length: 255 }),
+  
+  // Query details
+  queryText: text("query_text"),
+  queryLength: integer("query_length"),
+  
+  // Ingestion details
+  filename: varchar("filename", { length: 500 }),
+  contentType: varchar("content_type", { length: 100 }),
+  contentLength: integer("content_length"),
+  
+  // Chunking details
+  chunksCreated: integer("chunks_created"),
+  chunksFiltered: integer("chunks_filtered"),
+  chunkingStrategy: varchar("chunking_strategy", { length: 50 }),
+  
+  // Embedding details
+  embeddingModel: varchar("embedding_model", { length: 100 }),
+  embeddingDimensions: integer("embedding_dimensions"),
+  
+  // Search/retrieval details
+  searchResults: integer("search_results"),
+  threshold: varchar("threshold", { length: 20 }), // Store as string to avoid float precision issues
+  topK: integer("top_k"),
+  scores: text("scores").array(), // Store as string array
+  
+  // Context injection
+  tokensUsed: integer("tokens_used"),
+  sourcesCount: integer("sources_count"),
+  contextLength: integer("context_length"),
+  
+  // Error tracking
+  errorMessage: text("error_message"),
+  errorStage: varchar("error_stage", { length: 50 }),
+  
+  // Metadata
+  metadata: jsonb("metadata"),
+  
+  // Timestamps
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (table) => [
+  index("idx_rag_traces_trace_id").on(table.traceId),
+  index("idx_rag_traces_timestamp").on(table.timestamp),
+  index("idx_rag_traces_type_stage").on(table.traceType, table.stage),
+]);
+
+export const insertRagTraceSchema = createInsertSchema(ragTraces).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertRagTrace = z.infer<typeof insertRagTraceSchema>;
+export type RagTrace = typeof ragTraces.$inferSelect;
+
+/**
+ * RAG_CHUNK_LINEAGE TABLE
+ * -----------------------
+ * Track chunk lifecycle from creation to retrieval.
+ * Enables understanding of chunk usage and quality metrics.
+ */
+export const ragChunkLineage = pgTable("rag_chunk_lineage", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  
+  // Chunk identification
+  chunkId: varchar("chunk_id", { length: 255 }).notNull().unique(),
+  documentId: varchar("document_id", { length: 255 }).notNull(),
+  
+  // Source tracking
+  sourceType: varchar("source_type", { length: 100 }).notNull(),
+  sourceId: varchar("source_id", { length: 255 }).notNull(),
+  filename: varchar("filename", { length: 500 }),
+  
+  // Ingestion metadata
+  ingestedAt: timestamp("ingested_at").notNull().defaultNow(),
+  ingestionTraceId: varchar("ingestion_trace_id", { length: 255 }),
+  
+  // Chunk details
+  contentPreview: text("content_preview"),
+  contentLength: integer("content_length"),
+  chunkIndex: integer("chunk_index"),
+  
+  // Vector metadata
+  embeddingModel: varchar("embedding_model", { length: 100 }),
+  vectorStore: varchar("vector_store", { length: 100 }),
+  
+  // Usage tracking
+  retrievalCount: integer("retrieval_count").default(0),
+  lastRetrievedAt: timestamp("last_retrieved_at"),
+  avgSimilarityScore: varchar("avg_similarity_score", { length: 20 }),
+  
+  // Quality metrics
+  importanceScore: varchar("importance_score", { length: 20 }),
+  isVerified: boolean("is_verified").default(false),
+  
+  // Metadata
+  tags: text("tags").array(),
+  metadata: jsonb("metadata"),
+  
+  // Timestamps
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+}, (table) => [
+  index("idx_chunk_lineage_document").on(table.documentId),
+  index("idx_chunk_lineage_source").on(table.sourceType, table.sourceId),
+]);
+
+export const insertRagChunkLineageSchema = createInsertSchema(ragChunkLineage).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export type InsertRagChunkLineage = z.infer<typeof insertRagChunkLineageSchema>;
+export type RagChunkLineage = typeof ragChunkLineage.$inferSelect;
+
+/**
+ * RAG_RETRIEVAL_RESULTS TABLE
+ * ---------------------------
+ * Detailed tracking of query results.
+ * Links queries to retrieved chunks with scores and feedback.
+ */
+export const ragRetrievalResults = pgTable("rag_retrieval_results", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  
+  // Query identification
+  traceId: varchar("trace_id", { length: 255 }).notNull(),
+  queryText: text("query_text").notNull(),
+  userId: varchar("user_id", { length: 255 }),
+  chatId: varchar("chat_id", { length: 255 }),
+  
+  // Result details
+  chunkId: varchar("chunk_id", { length: 255 }).notNull(),
+  similarityScore: varchar("similarity_score", { length: 20 }).notNull(),
+  rank: integer("rank").notNull(),
+  
+  // Context inclusion
+  includedInContext: boolean("included_in_context").default(false),
+  contextPosition: integer("context_position"),
+  
+  // Quality feedback
+  wasRelevant: boolean("was_relevant"),
+  feedbackSource: varchar("feedback_source", { length: 50 }),
+  
+  // Timestamps
+  retrievedAt: timestamp("retrieved_at").notNull().defaultNow(),
+}, (table) => [
+  index("idx_retrieval_trace").on(table.traceId),
+  index("idx_retrieval_chunk").on(table.chunkId),
+]);
+
+export const insertRagRetrievalResultSchema = createInsertSchema(ragRetrievalResults).omit({
+  id: true,
+  retrievedAt: true,
+});
+export type InsertRagRetrievalResult = z.infer<typeof insertRagRetrievalResultSchema>;
+export type RagRetrievalResult = typeof ragRetrievalResults.$inferSelect;
+
+/**
+ * RAG_METRICS_HOURLY TABLE
+ * ------------------------
+ * Pre-aggregated performance metrics for efficient analytics.
+ * Updated via scheduled job every hour.
+ */
+export const ragMetricsHourly = pgTable("rag_metrics_hourly", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  
+  // Time bucket
+  hourStart: timestamp("hour_start").notNull().unique(),
+  
+  // Ingestion metrics
+  documentsIngested: integer("documents_ingested").default(0),
+  chunksCreated: integer("chunks_created").default(0),
+  chunksFiltered: integer("chunks_filtered").default(0),
+  avgIngestionDurationMs: integer("avg_ingestion_duration_ms"),
+  
+  // Query metrics
+  queriesProcessed: integer("queries_processed").default(0),
+  avgQueryDurationMs: integer("avg_query_duration_ms"),
+  avgSearchResults: integer("avg_search_results"),
+  avgContextTokens: integer("avg_context_tokens"),
+  
+  // Quality metrics
+  avgSimilarityScore: varchar("avg_similarity_score", { length: 20 }),
+  emptyResultCount: integer("empty_result_count").default(0),
+  errorCount: integer("error_count").default(0),
+  
+  // Cost tracking
+  embeddingApiCalls: integer("embedding_api_calls").default(0),
+  vectorSearchOperations: integer("vector_search_operations").default(0),
+  
+  // Timestamps
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertRagMetricsHourlySchema = createInsertSchema(ragMetricsHourly).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertRagMetricsHourly = z.infer<typeof insertRagMetricsHourlySchema>;
+export type RagMetricsHourly = typeof ragMetricsHourly.$inferSelect;
