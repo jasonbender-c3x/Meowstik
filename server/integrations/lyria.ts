@@ -114,23 +114,28 @@ export async function generateMusic(params: MusicGenerationParams): Promise<Musi
     }
 
     console.log("[Lyria] Falling back to description mode");
-    const response = await client.models.generateContent({
-      model: "gemini-2.5-flash",
-      contents: [{
-        role: "user",
-        parts: [{
-          text: `You are a professional music producer. Create a detailed production plan for this music request:
-
-${musicPrompt}
-
-Provide:
+    
+    // FIX: Separate system instruction from user message
+    const systemInstruction = `You are a professional music producer. Create a detailed production plan for music requests. Provide:
 1. **Track Overview**: Overall mood, energy level, and genre classification
 2. **Instrumentation**: List all instruments and their roles
 3. **Structure**: Intro, verses, chorus, bridge, outro with timing
 4. **Chord Progression**: Key, scale, and main chord sequences
 5. **Production Notes**: Effects, mixing tips, and style references
 
-Format this as a professional music production brief.`
+Format this as a professional music production brief.`;
+    
+    const response = await client.models.generateContent({
+      model: "gemini-2.5-flash",
+      config: {
+        systemInstruction,
+      },
+      contents: [{
+        role: "user",
+        parts: [{
+          text: `Music request:
+
+${musicPrompt}`
         }]
       }]
     });

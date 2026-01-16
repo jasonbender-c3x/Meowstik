@@ -168,8 +168,20 @@ async function analyzeScreenshot(data: { screenshot: string; url: string; title:
   // Extract base64 data from data URL
   const base64Data = screenshot.replace(/^data:image\/\w+;base64,/, "");
 
+  // FIX: Separate system instruction from user message
+  const systemInstruction = `You are analyzing a screenshot of a web page. Identify:
+1. The type of page/website
+2. Main content and purpose
+3. Any notable UI elements or issues
+4. Suggestions if applicable
+
+Be concise but informative.`;
+
   const result = await genAI.models.generateContent({
     model: "gemini-2.0-flash-exp",
+    config: {
+      systemInstruction,
+    },
     contents: [
       {
         role: "user",
@@ -181,17 +193,10 @@ async function analyzeScreenshot(data: { screenshot: string; url: string; title:
             }
           },
           {
-            text: `You are analyzing a screenshot of a web page.
-URL: ${url}
+            text: `URL: ${url}
 Title: ${title}
 
-Please describe what you see on this page. Identify:
-1. The type of page/website
-2. Main content and purpose
-3. Any notable UI elements or issues
-4. Suggestions if applicable
-
-Be concise but informative.`
+Please describe what you see on this page.`
           }
         ]
       }
@@ -214,14 +219,26 @@ async function analyzeConsoleLogs(data: { logs: any[]; url: string }) {
   const errorLogs = logs.filter(l => l.type === "error" || l.type === "warn");
   const logSummary = logs.slice(-50).map(l => `[${l.type}] ${l.message}`).join("\n");
 
+  // FIX: Separate system instruction from user message
+  const systemInstruction = `Analyze browser console logs. For each analysis:
+1. Identify any critical errors
+2. Explain what the errors mean
+3. Suggest fixes if possible
+4. Note any patterns or recurring issues
+
+Be concise and actionable.`;
+
   const result = await genAI.models.generateContent({
     model: "gemini-2.0-flash-exp",
+    config: {
+      systemInstruction,
+    },
     contents: [
       {
         role: "user",
         parts: [
           {
-            text: `Analyze these browser console logs from ${url}:
+            text: `Console logs from ${url}:
 
 ${logSummary}
 
@@ -230,13 +247,7 @@ Summary:
 - Errors: ${errorLogs.filter(l => l.type === "error").length}
 - Warnings: ${errorLogs.filter(l => l.type === "warn").length}
 
-Please:
-1. Identify any critical errors
-2. Explain what the errors mean
-3. Suggest fixes if possible
-4. Note any patterns or recurring issues
-
-Be concise and actionable.`
+Please analyze these logs.`
           }
         ]
       }
@@ -261,14 +272,26 @@ async function analyzeNetworkRequests(data: { requests: any[]; url: string }) {
     `${r.method} ${r.url?.substring(0, 80)} - ${r.statusCode || r.error || "pending"}`
   ).join("\n");
 
+  // FIX: Separate system instruction from user message
+  const systemInstruction = `Analyze network requests for issues. For each analysis:
+1. Identify any failed or problematic requests
+2. Explain potential causes
+3. Suggest solutions
+4. Note any performance concerns
+
+Be concise and actionable.`;
+
   const result = await genAI.models.generateContent({
     model: "gemini-2.0-flash-exp",
+    config: {
+      systemInstruction,
+    },
     contents: [
       {
         role: "user",
         parts: [
           {
-            text: `Analyze these network requests from ${url}:
+            text: `Network requests from ${url}:
 
 ${summary}
 
@@ -276,13 +299,7 @@ Summary:
 - Total requests: ${requests.length}
 - Failed: ${failed.length}
 
-Please:
-1. Identify any failed or problematic requests
-2. Explain potential causes
-3. Suggest solutions
-4. Note any performance concerns
-
-Be concise and actionable.`
+Please analyze these requests.`
           }
         ]
       }
@@ -302,8 +319,20 @@ async function analyzePageContent(data: { content: any; url: string; title: stri
     ? content 
     : content?.text?.substring(0, 10000) || "No content";
 
+  // FIX: Separate system instruction from user message
+  const systemInstruction = `Analyze web page content. For each analysis:
+1. Summary of what this page is about
+2. Key information or data on the page
+3. Any notable elements (forms, links, etc.)
+4. Suggestions for actions the user might want to take
+
+Be concise but helpful.`;
+
   const result = await genAI.models.generateContent({
     model: "gemini-2.0-flash-exp",
+    config: {
+      systemInstruction,
+    },
     contents: [
       {
         role: "user",
@@ -315,15 +344,7 @@ URL: ${url}
 Title: ${title}
 
 Content:
-${pageText}
-
-Please provide:
-1. Summary of what this page is about
-2. Key information or data on the page
-3. Any notable elements (forms, links, etc.)
-4. Suggestions for actions I might want to take
-
-Be concise but helpful.`
+${pageText}`
           }
         ]
       }
@@ -339,23 +360,27 @@ Be concise but helpful.`
 async function analyzeSelection(data: { text: string; url: string }) {
   const { text, url } = data;
 
+  // FIX: Separate system instruction from user message
+  const systemInstruction = `Analyze selected text from web pages. For each analysis:
+1. Explain what this text means
+2. Provide relevant context or background
+3. Suggest related information or actions
+
+Be concise but informative.`;
+
   const result = await genAI.models.generateContent({
     model: "gemini-2.0-flash-exp",
+    config: {
+      systemInstruction,
+    },
     contents: [
       {
         role: "user",
         parts: [
           {
-            text: `Analyze this selected text from ${url}:
+            text: `Selected text from ${url}:
 
-"${text}"
-
-Please:
-1. Explain what this text means
-2. Provide relevant context or background
-3. Suggest related information or actions
-
-Be concise but informative.`
+"${text}"`
           }
         ]
       }
@@ -371,20 +396,24 @@ Be concise but informative.`
 async function explainText(data: { text: string; url: string }) {
   const { text, url } = data;
 
+  // FIX: Separate system instruction from user message
+  const systemInstruction = `Explain text in simple terms. Provide a clear, easy-to-understand explanation of concepts and terms.`;
+
   const result = await genAI.models.generateContent({
     model: "gemini-2.0-flash-exp",
+    config: {
+      systemInstruction,
+    },
     contents: [
       {
         role: "user",
         parts: [
           {
-            text: `Explain this in simple terms:
+            text: `Explain this:
 
 "${text}"
 
-Context: Found on ${url}
-
-Provide a clear, easy-to-understand explanation.`
+Context: Found on ${url}`
           }
         ]
       }
@@ -419,25 +448,29 @@ async function analyzeHAR(data: { har: any }) {
     `${e.method} ${e.url?.substring(0, 60)} - ${e.status} (${e.time}ms)`
   ).join("\n");
 
+  // FIX: Separate system instruction from user message
+  const systemInstruction = `Analyze HAR (HTTP Archive) data. For each analysis provide:
+1. Overall performance assessment
+2. Any slow or failed requests
+3. Optimization suggestions
+4. Notable patterns`;
+
   const result = await genAI.models.generateContent({
     model: "gemini-2.0-flash-exp",
+    config: {
+      systemInstruction,
+    },
     contents: [
       {
         role: "user",
         parts: [
           {
-            text: `Analyze this HAR (HTTP Archive) data:
+            text: `HAR data:
 
 Total requests: ${har.totalRequests}
 
 Requests:
-${summary}
-
-Please provide:
-1. Overall performance assessment
-2. Any slow or failed requests
-3. Optimization suggestions
-4. Notable patterns`
+${summary}`
           }
         ]
       }
@@ -457,8 +490,14 @@ async function answerDevToolsQuestion(data: { question: string; context: any }) 
     `${r.method} ${r.url?.substring(0, 50)} - ${r.status}`
   ).join("\n") || "No context";
 
+  // FIX: Separate system instruction from user message
+  const systemInstruction = `You are a developer tools assistant. Answer technical questions based on provided context. Be technical but clear.`;
+
   const result = await genAI.models.generateContent({
     model: "gemini-2.0-flash-exp",
+    config: {
+      systemInstruction,
+    },
     contents: [
       {
         role: "user",
@@ -467,9 +506,7 @@ async function answerDevToolsQuestion(data: { question: string; context: any }) 
             text: `Developer question: ${question}
 
 Context (recent network requests):
-${contextSummary}
-
-Please answer the question based on the context provided. Be technical but clear.`
+${contextSummary}`
           }
         ]
       }
