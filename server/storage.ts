@@ -43,7 +43,9 @@ import {
   InsertCall,
   InsertCallConversation,
   InsertUserBranding,
-  UserBranding
+  UserBranding,
+  InsertUserAgent,
+  UserAgent
 } from '@shared/schema';
 
 // ===========================================================================
@@ -258,5 +260,127 @@ export const storage = {
       createdAt: new Date(),
       updatedAt: new Date(),
     };
+  },
+
+  // ------------------------------------------------------------------------
+  // User Agents Operations (Multi-Agent Support)
+  // ------------------------------------------------------------------------
+
+  /**
+   * Get all agents for a user
+   * @param userId - The user ID
+   * @param activeOnly - Only return active agents
+   * @returns Array of user agents
+   */
+  getUserAgents: async (userId: string, activeOnly: boolean = true): Promise<UserAgent[]> => {
+    if (activeOnly) {
+      return db.query.userAgents.findMany({
+        where: (agents, { eq, and }) => and(
+          eq(agents.userId, userId),
+          eq(agents.isActive, true)
+        ),
+        orderBy: (agents, { desc }) => [desc(agents.isDefault), desc(agents.createdAt)],
+      });
+    }
+    return db.query.userAgents.findMany({
+      where: eq(schema.userAgents.userId, userId),
+      orderBy: (agents, { desc }) => [desc(agents.isDefault), desc(agents.createdAt)],
+    });
+  },
+
+  /**
+   * Get a specific agent by ID
+   * @param agentId - The agent ID
+   * @returns The agent or null
+   */
+  getUserAgent: async (agentId: string): Promise<UserAgent | null> => {
+    const result = await db.query.userAgents.findFirst({
+      where: eq(schema.userAgents.id, agentId),
+    });
+    return result || null;
+  },
+
+  /**
+   * Get the default agent for a user
+   * @param userId - The user ID
+   * @returns The default agent or null
+   */
+  getDefaultUserAgent: async (userId: string): Promise<UserAgent | null> => {
+    const result = await db.query.userAgents.findFirst({
+      where: (agents, { eq, and }) => and(
+        eq(agents.userId, userId),
+        eq(agents.isDefault, true),
+        eq(agents.isActive, true)
+      ),
+    });
+    return result || null;
+  },
+
+  /**
+   * Create a new agent
+   * @param agent - The agent data
+   * @returns The created agent
+   */
+  createUserAgent: async (agent: InsertUserAgent): Promise<UserAgent> => {
+    // If this is set as default, unset other defaults for this user
+    if (agent.isDefault) {
+      await db
+        .update(schema.userAgents)
+        .set({ isDefault: false })
+        .where(eq(schema.userAgents.userId, agent.userId));
+    }
+
+    const [created] = await db
+      .insert(schema.userAgents)
+      .values(agent)
+      .returning();
+    return created;
+  },
+
+  /**
+   * Update an agent
+   * @param agentId - The agent ID
+   * @param updates - The fields to update
+   * @returns The updated agent
+   */
+  updateUserAgent: async (agentId: string, updates: Partial<InsertUserAgent>): Promise<UserAgent | null> => {
+    // If setting as default, unset other defaults for this user
+    if (updates.isDefault) {
+      const agent = await storage.getUserAgent(agentId);
+      if (agent) {
+        await db
+          .update(schema.userAgents)
+          .set({ isDefault: false })
+          .where(eq(schema.userAgents.userId, agent.userId));
+      }
+    }
+
+    const [updated] = await db
+      .update(schema.userAgents)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(schema.userAgents.id, agentId))
+      .returning();
+    return updated || null;
+  },
+
+  /**
+   * Delete an agent
+   * @param agentId - The agent ID
+   * @returns True if deleted
+   */
+  deleteUserAgent: async (agentId: string): Promise<boolean> => {
+    const result = await db
+      .delete(schema.userAgents)
+      .where(eq(schema.userAgents.id, agentId));
+    return (result.rowCount ?? 0) > 0;
+  },
+
+  /**
+   * Set an agent as default for a user
+   * @param agentId - The agent ID
+   * @returns The updated agent
+   */
+  setDefaultUserAgent: async (agentId: string): Promise<UserAgent | null> => {
+    return storage.updateUserAgent(agentId, { isDefault: true });
   },
 };

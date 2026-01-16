@@ -32,6 +32,7 @@ import ragDebugRouter from "./rag-debug";
 import orchestratorRouter from "./orchestrator";
 import databaseAdminRouter from "./database-admin";
 import brandingRouter from "./branding";
+import userAgentsRouter from "./user-agents";
 import { errorHandler } from "./middleware";
 
 export function createApiRouter(): Router {
@@ -70,6 +71,7 @@ export function createApiRouter(): Router {
   router.use("/orchestrator", orchestratorRouter);
   router.use("/database", databaseAdminRouter);
   router.use("/branding", brandingRouter);
+  router.use("/user-agents", userAgentsRouter);
 
   router.use(errorHandler);
 
