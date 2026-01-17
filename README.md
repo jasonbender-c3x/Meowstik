@@ -138,7 +138,26 @@ Advanced web interaction capabilities for API integrations and automated data ex
 - **Advanced Automation**: POST and PUT data to perform actions on other platforms
 - **Webhook Integration**: Send notifications and trigger automated workflows
 
-### 8. Modern UI/UX
+### 8. Hardware & IoT Device Integration 🔧
+
+Comprehensive tools for interacting with hardware devices, microcontrollers, and IoT platforms.
+
+- **Arduino Integration**: Compile and upload code, read sensors, control actuators
+- **Android Device Control (ADB)**: Install apps, execute commands, capture screenshots
+- **Petoi Robot Control**: Control robotic pets with predefined skills and custom movements
+- **3D Printer Management**: Send G-code, monitor prints, control temperatures via OctoPrint
+- **Electronic Board Design (KiCad)**: Generate PCB designs, Gerber files, and BOM
+
+> 📖 **Full Guide**: See [docs/HARDWARE_IOT_GUIDE.md](docs/HARDWARE_IOT_GUIDE.md) for setup instructions and examples
+
+#### Supported Devices
+- Arduino boards (Uno, Mega, Nano, ESP32, ESP8266)
+- Android devices via USB debugging
+- Petoi robot pets (Bittle, Nybble)
+- 3D printers with OctoPrint
+- KiCad electronic design automation
+
+### 9. Modern UI/UX
 
 - **Google-esque Design**: Clean, airy aesthetic with lots of whitespace
 - **Responsive Layout**: Works on mobile, tablet, and desktop
