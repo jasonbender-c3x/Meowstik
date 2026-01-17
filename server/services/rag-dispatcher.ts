@@ -65,6 +65,11 @@ import * as github from "../integrations/github";
 import * as browserbase from "../integrations/browserbase";
 import * as twilio from "../integrations/twilio";
 import * as sshService from "./ssh-service";
+import * as arduino from "../integrations/arduino";
+import * as adb from "../integrations/adb";
+import * as petoi from "../integrations/petoi";
+import * as printer3d from "../integrations/printer3d";
+import * as kicad from "../integrations/kicad";
 import { ragService } from "./rag-service";
 import { chunkingService } from "./chunking-service";
 import { clientRouter } from "./client-router";
@@ -277,9 +282,42 @@ export class RAGDispatcher {
    * Base directory for file operations (sandboxed)
    */
   private readonly workspaceDir: string;
+  
+  /**
+   * Optional response object for SSE streaming
+   * Used to emit real-time tool call events to the client
+   */
+  private sseResponse?: any;
 
   constructor() {
     this.workspaceDir = process.cwd();
+  }
+  
+  /**
+   * Set the SSE response object for emitting real-time events
+   * @param res - Express response object
+   */
+  setSseResponse(res: any) {
+    this.sseResponse = res;
+  }
+  
+  /**
+   * Emit a tool call event via SSE
+   * @param event - Event data to send to client
+   */
+  private emitToolCallEvent(event: {
+    type: 'tool_call_start' | 'tool_call_success' | 'tool_call_failure';
+    toolCallId: string;
+    toolType: string;
+    data?: any;
+  }) {
+    if (this.sseResponse) {
+      try {
+        this.sseResponse.write(`data: ${JSON.stringify(event)}\n\n`);
+      } catch (error) {
+        console.error('[RAGDispatcher] Failed to emit SSE event:', error);
+      }
+    }
   }
 
   /**
@@ -356,11 +394,13 @@ export class RAGDispatcher {
   /**
    * Execute a single tool call (public for external use)
    */
-  async executeToolCall(toolCall: ToolCall, messageId: string): Promise<ToolExecutionResult> {
+  async executeToolCall(toolCall: ToolCall, messageId: string, chatId?: string): Promise<ToolExecutionResult> {
     const startTime = Date.now();
     let taskId: string | null = null;
+    let toolCallLogId: string | null = null;
 
     try {
+      // Create tool task (existing functionality)
       const task = await storage.createToolTask({
         messageId,
         taskType: toolCall.type,
@@ -368,6 +408,40 @@ export class RAGDispatcher {
         status: "running"
       });
       taskId = task.id;
+      
+      // Create tool call log for UI bubbles (if chatId provided)
+      if (chatId) {
+        try {
+          const toolCallLog = await storage.createToolCallLog({
+            chatId,
+            messageId,
+            toolCallId: toolCall.id,
+            toolType: toolCall.type,
+            status: "pending",
+            request: toolCall.parameters,
+          });
+          toolCallLogId = toolCallLog.id;
+          
+          // Emit SSE event for tool call start
+          this.emitToolCallEvent({
+            type: 'tool_call_start',
+            toolCallId: toolCall.id,
+            toolType: toolCall.type,
+            data: {
+              id: toolCallLogId,
+              request: toolCall.parameters,
+            },
+          });
+          
+          // Prune old logs asynchronously (don't wait for it)
+          storage.pruneOldToolCallLogs(chatId).catch(err => {
+            console.error('[RAGDispatcher] Failed to prune old tool call logs:', err);
+          });
+        } catch (logError) {
+          console.error('[RAGDispatcher] Failed to create tool call log:', logError);
+          // Continue execution even if logging fails
+        }
+      }
 
       let result: unknown;
 
@@ -730,6 +804,213 @@ export class RAGDispatcher {
         case "ssh_status":
           result = await this.executeSshStatus(toolCall);
           break;
+        
+        // Hardware & IoT Tools
+        case "arduino_list_boards":
+          result = await arduino.listBoards();
+          break;
+        case "arduino_compile":
+          result = await arduino.compileSketch(
+            toolCall.parameters.sketchPath,
+            toolCall.parameters.fqbn
+          );
+          break;
+        case "arduino_upload":
+          result = await arduino.uploadSketch(
+            toolCall.parameters.sketchPath,
+            toolCall.parameters.fqbn,
+            toolCall.parameters.port
+          );
+          break;
+        case "arduino_create_sketch":
+          result = await arduino.createSketch(
+            toolCall.parameters.name,
+            toolCall.parameters.code
+          );
+          break;
+        case "arduino_install_library":
+          result = await arduino.installLibrary(toolCall.parameters.libraryName);
+          break;
+        case "arduino_search_libraries":
+          result = await arduino.searchLibraries(toolCall.parameters.query);
+          break;
+        
+        case "adb_list_devices":
+          result = await adb.listDevices();
+          break;
+        case "adb_install_app":
+          result = await adb.installApp(
+            toolCall.parameters.apkPath,
+            toolCall.parameters.deviceSerial
+          );
+          break;
+        case "adb_uninstall_app":
+          result = await adb.uninstallApp(
+            toolCall.parameters.packageName,
+            toolCall.parameters.deviceSerial
+          );
+          break;
+        case "adb_shell":
+          result = await adb.executeShell(
+            toolCall.parameters.command,
+            toolCall.parameters.deviceSerial
+          );
+          break;
+        case "adb_screenshot":
+          result = await adb.captureScreenshot(
+            toolCall.parameters.outputPath,
+            toolCall.parameters.deviceSerial
+          );
+          break;
+        case "adb_device_info":
+          result = await adb.getDeviceInfo(toolCall.parameters.deviceSerial);
+          break;
+        case "adb_list_packages":
+          result = await adb.listPackages(toolCall.parameters.deviceSerial);
+          break;
+        case "adb_push_file":
+          result = await adb.pushFile(
+            toolCall.parameters.localPath,
+            toolCall.parameters.remotePath,
+            toolCall.parameters.deviceSerial
+          );
+          break;
+        case "adb_pull_file":
+          result = await adb.pullFile(
+            toolCall.parameters.remotePath,
+            toolCall.parameters.localPath,
+            toolCall.parameters.deviceSerial
+          );
+          break;
+        
+        case "petoi_find_ports":
+          result = await petoi.findPorts();
+          break;
+        case "petoi_execute_skill":
+          result = await petoi.executeSkill(
+            toolCall.parameters.port,
+            toolCall.parameters.skillName
+          );
+          break;
+        case "petoi_set_servo":
+          result = await petoi.setServoAngle(
+            toolCall.parameters.port,
+            toolCall.parameters.joint,
+            toolCall.parameters.angle
+          );
+          break;
+        case "petoi_send_command":
+          result = await petoi.sendCustomCommand(
+            toolCall.parameters.port,
+            toolCall.parameters.command
+          );
+          break;
+        case "petoi_list_skills":
+          result = { skills: petoi.getAvailableSkills() };
+          break;
+        
+        case "printer_send_gcode":
+          result = await printer3d.sendGCodeViaOctoPrint(
+            {
+              host: toolCall.parameters.host,
+              apiKey: toolCall.parameters.apiKey
+            },
+            toolCall.parameters.command
+          );
+          break;
+        case "printer_get_status":
+          result = await printer3d.getPrinterStatus({
+            host: toolCall.parameters.host,
+            apiKey: toolCall.parameters.apiKey
+          });
+          break;
+        case "printer_get_job":
+          result = await printer3d.getJobStatus({
+            host: toolCall.parameters.host,
+            apiKey: toolCall.parameters.apiKey
+          });
+          break;
+        case "printer_start_print":
+          result = await printer3d.startPrint({
+            host: toolCall.parameters.host,
+            apiKey: toolCall.parameters.apiKey
+          });
+          break;
+        case "printer_pause_print":
+          result = await printer3d.pausePrint({
+            host: toolCall.parameters.host,
+            apiKey: toolCall.parameters.apiKey
+          });
+          break;
+        case "printer_cancel_print":
+          result = await printer3d.cancelPrint({
+            host: toolCall.parameters.host,
+            apiKey: toolCall.parameters.apiKey
+          });
+          break;
+        case "printer_set_extruder_temp":
+          result = await printer3d.setExtruderTemp(
+            {
+              host: toolCall.parameters.host,
+              apiKey: toolCall.parameters.apiKey
+            },
+            toolCall.parameters.temperature,
+            toolCall.parameters.tool
+          );
+          break;
+        case "printer_set_bed_temp":
+          result = await printer3d.setBedTemp(
+            {
+              host: toolCall.parameters.host,
+              apiKey: toolCall.parameters.apiKey
+            },
+            toolCall.parameters.temperature
+          );
+          break;
+        case "printer_home_axes":
+          result = await printer3d.homeAxes(
+            {
+              host: toolCall.parameters.host,
+              apiKey: toolCall.parameters.apiKey
+            },
+            toolCall.parameters.axes
+          );
+          break;
+        
+        case "kicad_create_project":
+          result = await kicad.createProject(
+            toolCall.parameters.projectName,
+            toolCall.parameters.outputDir
+          );
+          break;
+        case "kicad_generate_gerber":
+          result = await kicad.generateGerber(
+            toolCall.parameters.pcbFilePath,
+            toolCall.parameters.outputDir
+          );
+          break;
+        case "kicad_generate_drill":
+          result = await kicad.generateDrill(
+            toolCall.parameters.pcbFilePath,
+            toolCall.parameters.outputDir
+          );
+          break;
+        case "kicad_export_pdf":
+          result = await kicad.exportPDF(
+            toolCall.parameters.pcbFilePath,
+            toolCall.parameters.outputPath
+          );
+          break;
+        case "kicad_generate_bom":
+          result = await kicad.generateBOM(
+            toolCall.parameters.schematicFilePath,
+            toolCall.parameters.outputPath
+          );
+          break;
+        case "kicad_validate_pcb":
+          result = await kicad.validatePCB(toolCall.parameters.pcbFilePath);
+          break;
+        
         default:
           result = { message: `Custom tool type: ${toolCall.type}` };
       }
@@ -737,6 +1018,32 @@ export class RAGDispatcher {
       // Update task status to completed
       if (taskId) {
         await storage.updateToolTaskStatus(taskId, "completed", result);
+      }
+      
+      // Update tool call log to success
+      if (toolCallLogId && chatId) {
+        try {
+          const duration = Date.now() - startTime;
+          await storage.updateToolCallLog(toolCall.id, {
+            status: "success",
+            response: result,
+            completedAt: new Date(),
+            duration,
+          });
+          
+          // Emit SSE event for tool call success
+          this.emitToolCallEvent({
+            type: 'tool_call_success',
+            toolCallId: toolCall.id,
+            toolType: toolCall.type,
+            data: {
+              id: toolCallLogId,
+              duration,
+            },
+          });
+        } catch (logError) {
+          console.error('[RAGDispatcher] Failed to update tool call log:', logError);
+        }
       }
 
       return {
@@ -750,6 +1057,33 @@ export class RAGDispatcher {
       // Update task status to failed
       if (taskId) {
         await storage.updateToolTaskStatus(taskId, "failed", undefined, error.message);
+      }
+      
+      // Update tool call log to failure
+      if (toolCallLogId && chatId) {
+        try {
+          const duration = Date.now() - startTime;
+          await storage.updateToolCallLog(toolCall.id, {
+            status: "failure",
+            errorMessage: error.message,
+            completedAt: new Date(),
+            duration,
+          });
+          
+          // Emit SSE event for tool call failure
+          this.emitToolCallEvent({
+            type: 'tool_call_failure',
+            toolCallId: toolCall.id,
+            toolType: toolCall.type,
+            data: {
+              id: toolCallLogId,
+              error: error.message,
+              duration,
+            },
+          });
+        } catch (logError) {
+          console.error('[RAGDispatcher] Failed to update tool call log:', logError);
+        }
       }
       
       return {

@@ -33,6 +33,7 @@ import orchestratorRouter from "./orchestrator";
 import databaseAdminRouter from "./database-admin";
 import brandingRouter from "./branding";
 import userAgentsRouter from "./user-agents";
+import hardwareRouter from "./hardware";
 import { errorHandler } from "./middleware";
 
 export function createApiRouter(): Router {
@@ -72,6 +73,7 @@ export function createApiRouter(): Router {
   router.use("/database", databaseAdminRouter);
   router.use("/branding", brandingRouter);
   router.use("/user-agents", userAgentsRouter);
+  router.use("/hardware", hardwareRouter);
 
   router.use(errorHandler);
 

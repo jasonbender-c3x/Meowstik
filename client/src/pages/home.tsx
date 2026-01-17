@@ -627,7 +627,7 @@ export default function Home() {
                 const speechData = data.speech as { 
                   utterance: string; 
                   locale?: string; 
-                  voiceId?: string;
+                  voice?: string;
                   style?: string;
                   audioGenerated?: boolean;
                   audioBase64?: string;
@@ -657,6 +657,7 @@ export default function Home() {
                   // Play generated audio if allowed by verbosity mode
                   console.log('[TTS] Speech data received:', { 
                     hasUtterance: !!speechData.utterance,
+                    voice: speechData.voice,
                     audioGenerated: speechData.audioGenerated,
                     hasAudioBase64: !!speechData.audioBase64,
                     mimeType: speechData.mimeType,

@@ -513,6 +513,59 @@ export type InsertToolTask = z.infer<typeof insertToolTaskSchema>;
 export type ToolTask = typeof toolTasks.$inferSelect;
 
 // =============================================================================
+// TOOL CALL LOGS SYSTEM - Real-time tool call tracking for UI bubbles
+// =============================================================================
+/**
+ * TOOL CALL LOGS TABLE
+ * --------------------
+ * Stores recent tool call executions for display as real-time bubbles in chat.
+ * Limited to 10 most recent tool calls per chat to prevent bloat.
+ * 
+ * Lifecycle:
+ * - Created when tool call starts (status: "pending")
+ * - Updated when tool completes (status: "success" or "failure")
+ * - Old entries automatically pruned when new ones are added (keep last 10 per chat)
+ */
+export const toolCallLogs = pgTable("tool_call_logs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  chatId: varchar("chat_id").references(() => chats.id, { onDelete: "cascade" }).notNull(),
+  messageId: varchar("message_id").references(() => messages.id, { onDelete: "cascade" }),
+  
+  // Tool identification
+  toolCallId: text("tool_call_id").notNull(), // Unique ID for this specific tool call
+  toolType: text("tool_type").notNull(), // Type of tool (e.g., "gmail_send", "drive_read")
+  
+  // State tracking
+  status: text("status").default("pending").notNull(), // "pending" | "success" | "failure"
+  
+  // Request/Response data
+  request: jsonb("request").notNull(), // Tool call parameters
+  response: jsonb("response"), // Tool execution result (set when completed)
+  errorMessage: text("error_message"), // Error details if failed
+  
+  // Timing
+  startedAt: timestamp("started_at").defaultNow().notNull(),
+  completedAt: timestamp("completed_at"),
+  duration: integer("duration"), // Duration in milliseconds
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_tool_call_logs_chat").on(table.chatId),
+  index("idx_tool_call_logs_message").on(table.messageId),
+  index("idx_tool_call_logs_status").on(table.status),
+]);
+
+export const insertToolCallLogSchema = createInsertSchema(toolCallLogs).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  completedAt: true,
+});
+export type InsertToolCallLog = z.infer<typeof insertToolCallLogSchema>;
+export type ToolCallLog = typeof toolCallLogs.$inferSelect;
+
+// =============================================================================
 // EXECUTION LOGS SYSTEM
 // =============================================================================
 /**
@@ -891,7 +944,7 @@ export const sayParamsSchema = z.object({
   utterance: z.string().min(1, "Utterance cannot be empty"),
   
   /** Voice to use for speech synthesis (default: "Kore") */
-  voiceId: z.enum(SayVoiceIds).optional().default("Kore"),
+  voice: z.enum(SayVoiceIds).optional().default("Kore"),
   
   /** Speaking style that affects emotional tone and delivery (default: "natural") */
   style: z.enum(SayStyles).optional().default("natural"),
@@ -2829,3 +2882,169 @@ export const insertRagMetricsHourlySchema = createInsertSchema(ragMetricsHourly)
 });
 export type InsertRagMetricsHourly = z.infer<typeof insertRagMetricsHourlySchema>;
 export type RagMetricsHourly = typeof ragMetricsHourly.$inferSelect;
+
+// =============================================================================
+// LLM INTERACTION CAPTURE TABLE
+// =============================================================================
+
+/**
+ * LLM_INTERACTIONS TABLE
+ * ----------------------
+ * Stores complete LLM input/output data for debugging and visualization.
+ * Captures all prompts, tool calls, results, and responses for analysis.
+ * 
+ * PURPOSE:
+ * - Debugging: Inspect what the LLM sees and generates
+ * - Visualization: Show agent thought process and tool usage
+ * - Analysis: Track patterns, errors, and performance
+ * - Audit: Historical record of all LLM interactions
+ * 
+ * DATA RETENTION:
+ * Consider implementing retention policies to manage database size:
+ * - Archive/delete interactions older than 30 days
+ * - Keep only error cases or flagged interactions long-term
+ * - Compress large payloads (systemPrompt, rawResponse) if needed
+ */
+export const llmInteractions = pgTable("llm_interactions", {
+  /**
+   * Primary key - Auto-generated UUID
+   */
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  
+  /**
+   * Reference to the chat this interaction belongs to
+   * Nullable because some LLM interactions may not be tied to a chat
+   */
+  chatId: varchar("chat_id").references(() => chats.id, { onDelete: "cascade" }),
+  
+  /**
+   * Reference to the specific message that triggered this interaction
+   * Links to the user message that initiated the LLM call
+   */
+  messageId: varchar("message_id").references(() => messages.id, { onDelete: "cascade" }),
+  
+  /**
+   * User ID - for data isolation and filtering
+   * NULL for guest users
+   */
+  userId: varchar("user_id").references(() => users.id, { onDelete: "cascade" }),
+  
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // INPUT DATA - What went into the LLM
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  
+  /**
+   * The complete system prompt/instruction sent to the LLM
+   * Includes core directives, personality, tools, and RAG context
+   */
+  systemPrompt: text("system_prompt"),
+  
+  /**
+   * The user's message/query
+   */
+  userMessage: text("user_message"),
+  
+  /**
+   * Conversation history sent as context
+   * Stored as JSONB for efficient querying and indexing
+   */
+  conversationHistory: jsonb("conversation_history").$type<Array<{ role: string; content: string }>>(),
+  
+  /**
+   * Attachments included with the message
+   * File metadata only (not full content to save space)
+   */
+  attachments: jsonb("attachments").$type<Array<{ type: string; filename?: string; mimeType?: string; size?: number }>>(),
+  
+  /**
+   * RAG context injected into the prompt
+   * Documents/chunks retrieved from vector store
+   */
+  ragContext: jsonb("rag_context").$type<Array<{ source: string; content: string; score?: number; metadata?: Record<string, unknown> }>>(),
+  
+  /**
+   * Files injected into the prompt
+   */
+  injectedFiles: jsonb("injected_files").$type<Array<{ filename: string; content: string; mimeType?: string }>>(),
+  
+  /**
+   * JSON data injected into the prompt
+   */
+  injectedJson: jsonb("injected_json").$type<Array<{ name: string; data: unknown }>>(),
+  
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // OUTPUT DATA - What the LLM generated
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  
+  /**
+   * Raw response from the LLM (includes function calls, thinking, etc.)
+   */
+  rawResponse: text("raw_response"),
+  
+  /**
+   * Clean content extracted from response (prose only, no tool JSON)
+   */
+  cleanContent: text("clean_content"),
+  
+  /**
+   * Parsed tool calls from the response
+   */
+  parsedToolCalls: jsonb("parsed_tool_calls").$type<unknown[]>(),
+  
+  /**
+   * Results from executing tool calls
+   */
+  toolResults: jsonb("tool_results").$type<Array<{ 
+    toolId: string; 
+    type: string; 
+    success: boolean; 
+    result?: unknown; 
+    error?: string 
+  }>>(),
+  
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // METADATA - Performance and model info
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  
+  /**
+   * Model used for this interaction (e.g., "gemini-2.0-flash", "gemini-2.5-pro")
+   */
+  model: varchar("model", { length: 100 }),
+  
+  /**
+   * Duration of the LLM call in milliseconds
+   */
+  durationMs: integer("duration_ms"),
+  
+  /**
+   * Token usage estimate or actual count
+   */
+  tokenEstimate: jsonb("token_estimate").$type<{
+    inputTokens: number;
+    outputTokens: number;
+  }>(),
+  
+  /**
+   * Error information if the interaction failed
+   */
+  error: text("error"),
+  
+  /**
+   * Status of the interaction
+   */
+  status: varchar("status", { length: 20 }).notNull().default("success"),
+  
+  /**
+   * Timestamp when this interaction occurred
+   */
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// Create insert schema for LLM interactions
+export const insertLlmInteractionSchema = createInsertSchema(llmInteractions).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertLlmInteraction = z.infer<typeof insertLlmInteractionSchema>;
+export type LlmInteraction = typeof llmInteractions.$inferSelect;
