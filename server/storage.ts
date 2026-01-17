@@ -384,107 +384,98 @@ export const storage = {
     return storage.updateUserAgent(agentId, { isDefault: true });
   },
 
-  // ═════════════════════════════════════════════════════════════════════════
-  // LLM INTERACTION CAPTURE METHODS
-  // ═════════════════════════════════════════════════════════════════════════
+  // ------------------------------------------------------------------------
+  // Tool Call Log Operations (Real-time UI Bubbles)
+  // ------------------------------------------------------------------------
 
   /**
-   * Save an LLM interaction to the database for debugging and analysis
-   * @param interaction - The LLM interaction data to store
-   * @returns The saved interaction with ID
+   * Creates a new tool call log entry (status: "pending")
+   * @param log - Tool call log data
+   * @returns The created tool call log
    */
-  saveLlmInteraction: async (interaction: schema.InsertLlmInteraction) => {
-    const [saved] = await db
-      .insert(schema.llmInteractions)
-      .values(interaction)
+  createToolCallLog: async (log: schema.InsertToolCallLog) => {
+    const [created] = await db
+      .insert(schema.toolCallLogs)
+      .values(log)
       .returning();
-    return saved;
+    return created;
   },
 
   /**
-   * Get recent LLM interactions
-   * @param limit - Maximum number of interactions to return (default: 50)
-   * @param userId - Optional filter by user ID
-   * @returns Array of LLM interactions, most recent first
+   * Updates an existing tool call log (e.g., mark as success/failure)
+   * @param toolCallId - The tool call ID
+   * @param updates - Fields to update
+   * @returns The updated tool call log
    */
-  getRecentLlmInteractions: async (limit = 50, userId?: string | null) => {
-    const conditions = [];
-    if (userId !== undefined) {
-      conditions.push(eq(schema.llmInteractions.userId, userId));
+  updateToolCallLog: async (
+    toolCallId: string,
+    updates: Partial<{
+      status: string;
+      response: any;
+      errorMessage: string;
+      completedAt: Date;
+      duration: number;
+    }>
+  ) => {
+    const [updated] = await db
+      .update(schema.toolCallLogs)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(schema.toolCallLogs.toolCallId, toolCallId))
+      .returning();
+    return updated;
+  },
+
+  /**
+   * Get recent tool call logs for a chat (last 10)
+   * @param chatId - The chat ID
+   * @returns Array of tool call logs ordered by creation time (newest first)
+   */
+  getRecentToolCallLogs: async (chatId: string) => {
+    return db.query.toolCallLogs.findMany({
+      where: eq(schema.toolCallLogs.chatId, chatId),
+      orderBy: (logs, { desc }) => [desc(logs.createdAt)],
+      limit: 10,
+    });
+  },
+
+  /**
+   * Get a single tool call log by ID
+   * @param id - The tool call log ID
+   * @returns The tool call log or undefined
+   */
+  getToolCallLogById: async (id: string) => {
+    return db.query.toolCallLogs.findFirst({
+      where: eq(schema.toolCallLogs.id, id),
+    });
+  },
+
+  /**
+   * Prune old tool call logs for a chat, keeping only the 10 most recent
+   * @param chatId - The chat ID
+   * @returns Number of deleted rows
+   */
+  pruneOldToolCallLogs: async (chatId: string): Promise<number> => {
+    // Get the 10 most recent IDs
+    const recentLogs = await db.query.toolCallLogs.findMany({
+      where: eq(schema.toolCallLogs.chatId, chatId),
+      orderBy: (logs, { desc }) => [desc(logs.createdAt)],
+      limit: 10,
+      columns: { id: true },
+    });
+
+    if (recentLogs.length === 0) {
+      return 0;
     }
 
-    let query = db
-      .select()
-      .from(schema.llmInteractions)
-      .orderBy(schema.llmInteractions.createdAt)
-      .limit(limit);
+    const recentIds = recentLogs.map((log) => log.id);
 
-    if (conditions.length > 0) {
-      query = query.where(conditions[0]) as any;
-    }
-
-    return await query;
-  },
-
-  /**
-   * Get LLM interactions for a specific chat
-   * @param chatId - The chat ID to filter by
-   * @param limit - Maximum number of interactions to return
-   * @returns Array of LLM interactions for the chat
-   */
-  getLlmInteractionsByChat: async (chatId: string, limit = 50) => {
-    return await db
-      .select()
-      .from(schema.llmInteractions)
-      .where(eq(schema.llmInteractions.chatId, chatId))
-      .orderBy(schema.llmInteractions.createdAt)
-      .limit(limit);
-  },
-
-  /**
-   * Get a single LLM interaction by ID
-   * @param id - The interaction ID
-   * @returns The interaction or null if not found
-   */
-  getLlmInteractionById: async (id: string) => {
-    const [interaction] = await db
-      .select()
-      .from(schema.llmInteractions)
-      .where(eq(schema.llmInteractions.id, id))
-      .limit(1);
-    return interaction || null;
-  },
-
-  /**
-   * Delete old LLM interactions (for cleanup/retention policies)
-   * @param olderThanDays - Delete interactions older than this many days
-   * @returns Number of interactions deleted
-   */
-  deleteOldLlmInteractions: async (olderThanDays: number) => {
-    const cutoffDate = new Date();
-    cutoffDate.setDate(cutoffDate.getDate() - olderThanDays);
-
+    // Delete all logs for this chat that are NOT in the recent 10
     const result = await db
-      .delete(schema.llmInteractions)
-      .where(sql`${schema.llmInteractions.createdAt} < ${cutoffDate}`);
-    
+      .delete(schema.toolCallLogs)
+      .where(
+        sql`${schema.toolCallLogs.chatId} = ${chatId} AND ${schema.toolCallLogs.id} NOT IN (${sql.raw(recentIds.map((id) => `'${id}'`).join(','))})`
+      );
+
     return result.rowCount ?? 0;
-  },
-
-  /**
-   * Get LLM interaction statistics
-   * @returns Statistics about stored interactions
-   */
-  getLlmInteractionStats: async () => {
-    const result = await db
-      .select({
-        totalCount: sql<number>`count(*)::int`,
-        successCount: sql<number>`count(*) filter (where ${schema.llmInteractions.status} = 'success')::int`,
-        errorCount: sql<number>`count(*) filter (where ${schema.llmInteractions.status} = 'error')::int`,
-        avgDurationMs: sql<number>`avg(${schema.llmInteractions.durationMs})::int`,
-      })
-      .from(schema.llmInteractions);
-
-    return result[0];
   },
 };

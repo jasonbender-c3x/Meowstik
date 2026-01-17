@@ -513,6 +513,59 @@ export type InsertToolTask = z.infer<typeof insertToolTaskSchema>;
 export type ToolTask = typeof toolTasks.$inferSelect;
 
 // =============================================================================
+// TOOL CALL LOGS SYSTEM - Real-time tool call tracking for UI bubbles
+// =============================================================================
+/**
+ * TOOL CALL LOGS TABLE
+ * --------------------
+ * Stores recent tool call executions for display as real-time bubbles in chat.
+ * Limited to 10 most recent tool calls per chat to prevent bloat.
+ * 
+ * Lifecycle:
+ * - Created when tool call starts (status: "pending")
+ * - Updated when tool completes (status: "success" or "failure")
+ * - Old entries automatically pruned when new ones are added (keep last 10 per chat)
+ */
+export const toolCallLogs = pgTable("tool_call_logs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  chatId: varchar("chat_id").references(() => chats.id, { onDelete: "cascade" }).notNull(),
+  messageId: varchar("message_id").references(() => messages.id, { onDelete: "cascade" }),
+  
+  // Tool identification
+  toolCallId: text("tool_call_id").notNull(), // Unique ID for this specific tool call
+  toolType: text("tool_type").notNull(), // Type of tool (e.g., "gmail_send", "drive_read")
+  
+  // State tracking
+  status: text("status").default("pending").notNull(), // "pending" | "success" | "failure"
+  
+  // Request/Response data
+  request: jsonb("request").notNull(), // Tool call parameters
+  response: jsonb("response"), // Tool execution result (set when completed)
+  errorMessage: text("error_message"), // Error details if failed
+  
+  // Timing
+  startedAt: timestamp("started_at").defaultNow().notNull(),
+  completedAt: timestamp("completed_at"),
+  duration: integer("duration"), // Duration in milliseconds
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_tool_call_logs_chat").on(table.chatId),
+  index("idx_tool_call_logs_message").on(table.messageId),
+  index("idx_tool_call_logs_status").on(table.status),
+]);
+
+export const insertToolCallLogSchema = createInsertSchema(toolCallLogs).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  completedAt: true,
+});
+export type InsertToolCallLog = z.infer<typeof insertToolCallLogSchema>;
+export type ToolCallLog = typeof toolCallLogs.$inferSelect;
+
+// =============================================================================
 // EXECUTION LOGS SYSTEM
 // =============================================================================
 /**
