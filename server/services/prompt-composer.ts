@@ -41,6 +41,7 @@ import { DEFAULT_AGENT_NAME, DEFAULT_DISPLAY_NAME } from "@shared/schema";
 import { ragService } from "./rag-service";
 import { retrievalOrchestrator } from "./retrieval-orchestrator";
 import { tavilySearch } from "../integrations/tavily";
+import { formatEnvironmentMetadata } from "../utils/environment-metadata";
 import * as fs from "fs";
 import * as path from "path";
 
@@ -283,6 +284,7 @@ These steps are mandatory before sending your response via send_chat.
 
     const components: string[] = [
       `# Agent Identity\nYou are ${displayName}, referred to as ${agentName}.\n`,
+      formatEnvironmentMetadata(), // Add environment metadata
       brandedCoreDirectives,
       brandedPersonality,
       this.tools,

@@ -1,34 +1,32 @@
 /**
- * VerbositySlider - Controls voice output level
+ * VerbositySlider - Controls voice output level and chat verbosity
  * 
- * 6 Modes:
- * - Mute: Silent (no audio)
- * - Low: Low verbosity content, only "say" tool output
- * - Normal: Normal verbosity content, only "say" tool output (default)
- * - High: All chat content (except code blocks) spoken via "say" tool
- * - Demo HD: Premium expressive HD voice model
- * - Podcast: Dual-voice discussion style with barge-in
+ * 4 Modes (aligned for both text and speech):
+ * - Mute: Silent (alerts only)
+ * - Low: Concise text & speech
+ * - Normal: Verbose text & speech (default)
+ * - Experimental: Dual-voice discussion mode
  */
 
 import { useTTS, type VerbosityMode } from "@/contexts/tts-context";
-import { VolumeX, Volume1, Volume2, Sparkles, Radio } from "lucide-react";
+import { VolumeX, Volume1, Volume2, Radio } from "lucide-react";
 import { motion } from "framer-motion";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 const modes: { id: VerbosityMode; icon: React.ReactNode; label: string; description: string }[] = [
-  { id: "mute", icon: <VolumeX className="h-4 w-4" />, label: "Mute", description: "No speech output" },
-  { id: "low", icon: <Volume1 className="h-4 w-4" />, label: "Low", description: "Low verbosity, say tool only" },
-  { id: "normal", icon: <Volume2 className="h-4 w-4" />, label: "Normal", description: "Normal verbosity, say tool only" },
-  { id: "high", icon: <Volume2 className="h-4 w-4" />, label: "High", description: "All content spoken aloud" },
-  { id: "demo-hd", icon: <Sparkles className="h-4 w-4" />, label: "Demo HD", description: "Premium expressive voice" },
-  { id: "podcast", icon: <Radio className="h-4 w-4" />, label: "Podcast", description: "Dual-voice discussion style" },
+  { id: "mute", icon: <VolumeX className="h-4 w-4" />, label: "Mute", description: "Silent (alerts only)" },
+  { id: "low", icon: <Volume1 className="h-4 w-4" />, label: "Low", description: "Concise text & speech" },
+  { id: "normal", icon: <Volume2 className="h-4 w-4" />, label: "Normal", description: "Verbose text & speech" },
+  { id: "experimental", icon: <Radio className="h-4 w-4" />, label: "Experimental", description: "Dual-voice discussion mode" },
 ];
+
+const DEFAULT_MODE: VerbosityMode = "normal";
 
 export function VerbositySlider() {
   const { verbosityMode, setVerbosityMode } = useTTS();
   
   const currentIndex = modes.findIndex(m => m.id === verbosityMode);
-  const currentMode = modes[currentIndex] || modes[2]; // Default to "normal"
+  const currentMode = modes[currentIndex] !== undefined ? modes[currentIndex] : modes.find(m => m.id === DEFAULT_MODE)!;
 
   return (
     <TooltipProvider>
@@ -73,7 +71,7 @@ export function VerbositySlider() {
 
 export function VerbosityIndicator() {
   const { verbosityMode } = useTTS();
-  const mode = modes.find(m => m.id === verbosityMode) || modes[2];
+  const mode = modes.find(m => m.id === verbosityMode) || modes.find(m => m.id === DEFAULT_MODE)!;
   
   return (
     <TooltipProvider>

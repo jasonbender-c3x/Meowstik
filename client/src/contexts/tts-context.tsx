@@ -13,14 +13,12 @@ import { createContext, useContext, useState, useEffect, useCallback, useRef, Re
 
 /**
  * Verbosity Modes:
- * - mute: Silent - no speech output at all
- * - low: Low verbosity content, only "say" tool output spoken
- * - normal: Normal verbosity content (default), only "say" tool output spoken
- * - high: All chat content (except code blocks) passed through "say" tool for speech
- * - demo-hd: Premium expressive HD voice model for all speech
- * - podcast: Dual-voice discussion style with barge-in capability
+ * - mute: Silent - no speech or chat output except critical alerts
+ * - low: Concise responses - both text and speech kept brief, only essential information
+ * - normal: Verbose responses - comprehensive text and speech, detailed explanations (default)
+ * - experimental: Dual-voice discussion - model generates two-voice dialogue until user interrupts
  */
-export type VerbosityMode = "mute" | "low" | "normal" | "high" | "demo-hd" | "podcast";
+export type VerbosityMode = "mute" | "low" | "normal" | "experimental";
 
 interface TTSContextValue {
   verbosityMode: VerbosityMode;
@@ -53,12 +51,14 @@ export function TTSProvider({ children }: { children: ReactNode }) {
       // Map old values to new ones for backwards compatibility
       if (saved === "quiet") return "low";
       if (saved === "verbose") return "normal";
-      if (saved === "experimental") return "podcast";
-      if (saved && ["mute", "low", "normal", "high", "demo-hd", "podcast"].includes(saved)) {
+      if (saved === "high") return "normal";
+      if (saved === "demo-hd") return "normal";
+      if (saved === "podcast") return "experimental";
+      if (saved && ["mute", "low", "normal", "experimental"].includes(saved)) {
         return saved as VerbosityMode;
       }
     }
-    return "normal"; // Default: normal verbosity, only say tool spoken
+    return "normal"; // Default: verbose text and speech
   });
   
   const [isMuted, setIsMutedState] = useState(() => {
@@ -225,9 +225,9 @@ export function TTSProvider({ children }: { children: ReactNode }) {
   }, [isMuted, verbosityMode]);
 
   // Helper: Should browser TTS speak the chat response?
-  // Only in high, demo-hd, and podcast modes
+  // In normal and experimental modes, all content is spoken
   const shouldPlayBrowserTTS = useCallback(() => {
-    return !isMuted && (verbosityMode === "high" || verbosityMode === "demo-hd" || verbosityMode === "podcast");
+    return !isMuted && (verbosityMode === "normal" || verbosityMode === "experimental");
   }, [isMuted, verbosityMode]);
 
   const setIsMuted = useCallback((muted: boolean) => {
