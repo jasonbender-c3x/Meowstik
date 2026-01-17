@@ -301,6 +301,17 @@ app.use((req, res, next) => {
   });
 
   /**
+   * INITIALIZE SCHEDULER CALLBACK PROCESSOR
+   * ----------------------------------------
+   * Register the job processor for handling scheduled LLM callbacks.
+   * This allows the LLM to schedule itself to "wake up" at a later time.
+   */
+  const { initializeSchedulerCallbackProcessor } = await import("./services/scheduler-callback-processor");
+  initializeSchedulerCallbackProcessor().catch((error) => {
+    console.error('Failed to initialize scheduler callback processor:', error instanceof Error ? error.message : error);
+  });
+
+  /**
    * GLOBAL ERROR HANDLER
    * --------------------
    * Catches any unhandled errors from route handlers and middleware.

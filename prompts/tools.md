@@ -93,6 +93,64 @@ Examples:
 
 ---
 
+## Scheduler (LLM Callbacks)
+
+The scheduler allows you to schedule yourself to "wake up" at a later time with a specific prompt. This is useful for long-running tasks where you need to check status later and implement retry logic.
+
+### Use Cases
+- **Long-running tasks**: Check task status after it has had time to complete
+- **Retry logic**: Implement conditional retry with backoff
+- **Delayed workflows**: Schedule follow-up actions for later
+- **Status monitoring**: Periodically check on external processes
+
+### Tools
+
+| Tool | Parameters | Description |
+|------|------------|-------------|
+| `scheduler_create_callback` | `prompt`, `triggerInSeconds?`, `triggerAt?`, `metadata?` | Schedule a delayed callback with custom prompt |
+| `scheduler_cancel_callback` | `callbackId` | Cancel a scheduled callback |
+| `scheduler_get_status` | `callbackId` | Check status of a scheduled callback |
+
+### Example: Long-Running Task with Retry
+
+```json
+{
+  "type": "scheduler_create_callback",
+  "id": "s1",
+  "parameters": {
+    "prompt": "Check if codebase analysis task 'abc123' has completed. If yes: summarize results and present to user. If no: check retry count in metadata. If retries < 3: increment retry count and schedule another callback in 5 minutes. If retries >= 3: report timeout error to user.",
+    "triggerInSeconds": 300,
+    "metadata": {
+      "taskType": "codebase_analysis",
+      "taskId": "abc123",
+      "retryCount": 0
+    }
+  }
+}
+```
+
+### Workflow Pattern
+
+1. **Start long-running task**: Initiate an operation that takes time
+2. **Schedule callback**: Use `scheduler_create_callback` with conditional logic
+3. **Respond to user**: Tell them you'll check back later
+4. **Callback executes**: Your prompt runs when scheduled
+5. **Check status**: Your prompt includes logic to check task completion
+6. **Handle outcomes**:
+   - Success: Continue with next step
+   - Still running: Schedule another callback (with retry limit)
+   - Failed: Report error to user
+
+### Important Notes
+
+- **Craft detailed prompts**: Include all conditional logic in the prompt itself
+- **Track retries**: Use metadata to count retry attempts
+- **Set reasonable delays**: Consider typical completion times
+- **Handle edge cases**: Plan for success, still-running, and failure scenarios
+- **Non-terminating**: This tool does NOT end your turn - call `end_turn` when done
+
+---
+
 ## Terminal & Web
 
 | Tool | Parameters |
