@@ -944,7 +944,7 @@ export const sayParamsSchema = z.object({
   utterance: z.string().min(1, "Utterance cannot be empty"),
   
   /** Voice to use for speech synthesis (default: "Kore") */
-  voiceId: z.enum(SayVoiceIds).optional().default("Kore"),
+  voice: z.enum(SayVoiceIds).optional().default("Kore"),
   
   /** Speaking style that affects emotional tone and delivery (default: "natural") */
   style: z.enum(SayStyles).optional().default("natural"),

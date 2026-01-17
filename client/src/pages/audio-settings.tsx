@@ -58,7 +58,7 @@ export default function AudioSettings() {
       return;
     }
     // Note: To support specific voice selection for testing, 
-    // we would need to update the speak() context method to accept a voiceId.
+    // we would need to update the speak() context method to accept a voice parameter.
     // For now, this uses the default browser TTS.
     speak(testText);
   };
