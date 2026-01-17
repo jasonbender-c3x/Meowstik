@@ -935,17 +935,19 @@ The user has PODCAST mode enabled - dual-voice discussion style.
                 mimeType?: string; 
                 duration?: number;
                 utterance?: string;
+                voice?: string;
                 success?: boolean;
               };
               // Check if the say tool itself reported success
               if (sayResult?.success === false) {
                 console.log(`[Routes][SAY] Tool execution failed internally:`, sayResult);
               } else if (sayResult?.audioBase64) {
-                console.log(`[Routes][SAY] ✓ Sending speech event, audio length: ${sayResult.audioBase64.length}`);
+                console.log(`[Routes][SAY] ✓ Sending speech event with voice: ${sayResult.voice}, audio length: ${sayResult.audioBase64.length}`);
                 res.write(
                   `data: ${JSON.stringify({
                     speech: {
                       utterance: sayResult.utterance || "",
+                      voice: sayResult.voice,
                       audioGenerated: true,
                       audioBase64: sayResult.audioBase64,
                       mimeType: sayResult.mimeType || "audio/mpeg",
