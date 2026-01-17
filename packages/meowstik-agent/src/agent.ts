@@ -45,7 +45,7 @@ export class DesktopAgent {
       wsUrl = `${this.config.serverUrl}/ws/desktop/agent?token=${this.config.token}`;
     } else {
       // Tokenless localhost connection (development)
-      wsUrl = `${this.config.serverUrl}/ws/desktop/agent/`;
+      wsUrl = `${this.config.serverUrl}/ws/desktop/agent`;
     }
     
     console.log(`Connecting to ${wsUrl.replace(/token=[^&]+/, 'token=***')}...`);

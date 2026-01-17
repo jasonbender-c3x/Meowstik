@@ -22,8 +22,15 @@ program
     // Support both --server and --relay flags
     const serverUrl = options.relay || options.server || process.env.MEOWSTIK_SERVER_URL || "ws://localhost:5000";
     
-    // Check if connecting to localhost
-    const isLocalhost = serverUrl.includes("localhost") || serverUrl.includes("127.0.0.1");
+    // Check if connecting to localhost (parse URL properly)
+    let isLocalhost = false;
+    try {
+      const url = new URL(serverUrl.startsWith('ws://') || serverUrl.startsWith('wss://') ? serverUrl : `ws://${serverUrl}`);
+      isLocalhost = url.hostname === "localhost" || url.hostname === "127.0.0.1" || url.hostname === "::1";
+    } catch (e) {
+      // If URL parsing fails, fall back to string check as safety
+      isLocalhost = serverUrl.includes("localhost") || serverUrl.includes("127.0.0.1");
+    }
     
     // Token is required for non-localhost connections
     if (!options.token && !isLocalhost) {
@@ -35,7 +42,7 @@ program
     console.log("🐱 Meowstik Desktop Agent");
     console.log("=========================");
     console.log(`Server: ${serverUrl}`);
-    console.log(`Token: ${options.token ? "***" + options.token.slice(-4) : "localhost (tokenless)"}`);
+    console.log(`Token: ${options.token ? "***" : "localhost (tokenless)"}`);
     console.log(`FPS: ${options.fps}`);
     console.log(`Quality: ${options.quality}%`);
     console.log(`Audio: ${options.audio ? "enabled" : "disabled"}`);

@@ -125,19 +125,38 @@
   <script>
     // Get current page info
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-      const tab = tabs[0];
+      if (chrome.runtime.lastError) {
+        console.error('Error querying tabs:', chrome.runtime.lastError.message);
+        return;
+      }
+      
+      const tab = tabs && tabs[0];
       if (tab) {
         document.getElementById('page-title').textContent = tab.title || 'Unknown';
         document.getElementById('page-url').textContent = tab.url || 'Unknown';
+      } else {
+        document.getElementById('page-title').textContent = 'No active tab';
+        document.getElementById('page-url').textContent = 'N/A';
       }
     });
 
     // Handle button clicks
     document.getElementById('analyze-page').addEventListener('click', () => {
       chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-        const tab = tabs[0];
+        if (chrome.runtime.lastError) {
+          console.error('Error:', chrome.runtime.lastError.message);
+          alert('Failed to access tab');
+          return;
+        }
+        
+        const tab = tabs && tabs[0];
         if (tab && tab.id) {
           chrome.tabs.sendMessage(tab.id, { type: 'EXTRACT_CONTENT' }, (response) => {
+            if (chrome.runtime.lastError) {
+              console.error('Content script error:', chrome.runtime.lastError.message);
+              alert('Failed to extract content. Make sure the page is fully loaded.');
+              return;
+            }
             console.log('Page content extracted:', response);
             alert('Page analyzed! Check console for details.');
           });
@@ -147,14 +166,29 @@
 
     document.getElementById('extract-text').addEventListener('click', () => {
       chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-        const tab = tabs[0];
+        if (chrome.runtime.lastError) {
+          console.error('Error:', chrome.runtime.lastError.message);
+          alert('Failed to access tab');
+          return;
+        }
+        
+        const tab = tabs && tabs[0];
         if (tab && tab.id) {
           chrome.scripting.executeScript({
             target: { tabId: tab.id },
             func: () => document.body.innerText
           }, (results) => {
-            console.log('Extracted text:', results[0]?.result);
-            alert('Text extracted! Check console for details.');
+            if (chrome.runtime.lastError) {
+              console.error('Script error:', chrome.runtime.lastError.message);
+              alert('Failed to extract text. Check permissions.');
+              return;
+            }
+            if (results && results[0]) {
+              console.log('Extracted text:', results[0].result);
+              alert('Text extracted! Check console for details.');
+            } else {
+              alert('No text could be extracted.');
+            }
           });
         }
       });
@@ -162,8 +196,12 @@
 
     document.getElementById('capture-screenshot').addEventListener('click', () => {
       chrome.tabs.captureVisibleTab(null, { format: 'png' }, (dataUrl) => {
+        if (chrome.runtime.lastError) {
+          console.error('Screenshot error:', chrome.runtime.lastError.message);
+          alert('Failed to capture screenshot. Check permissions.');
+          return;
+        }
         console.log('Screenshot captured');
-        // Could send to server here
         alert('Screenshot captured!');
       });
     });
