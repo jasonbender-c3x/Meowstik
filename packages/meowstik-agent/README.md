@@ -79,7 +79,8 @@ xcode-select --install
 
 **Linux:**
 ```bash
-sudo apt-get install libxtst-dev libpng++-dev
+# For Debian/Ubuntu-based systems
+sudo apt-get install -y build-essential libxtst-dev libpng-dev
 ```
 
 ## Security

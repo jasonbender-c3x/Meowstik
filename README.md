@@ -153,6 +153,17 @@ Advanced web interaction capabilities for API integrations and automated data ex
 - PostgreSQL database (automatically configured via `DATABASE_URL`)
 - Google Gemini API key (set as `GEMINI_API_KEY` environment variable)
 
+#### Building meowstik-agent Package
+
+The `packages/meowstik-agent` package uses `robotjs` for input injection, which requires native compilation. On Debian/Ubuntu-based systems, install these dependencies before running `npm install`:
+
+```bash
+# For Debian/Ubuntu-based systems
+sudo apt-get install -y build-essential libxtst-dev libpng-dev
+```
+
+For other platforms, see [`packages/meowstik-agent/README.md`](packages/meowstik-agent/README.md#installing-robotjs-dependencies).
+
 ### Installation
 
 ```bash

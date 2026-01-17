@@ -74,7 +74,8 @@ xcode-select --install
 ### Linux (Debian/Ubuntu)
 
 ```bash
-sudo apt-get install libxtst-dev libpng++-dev build-essential
+# For Debian/Ubuntu-based systems
+sudo apt-get install -y build-essential libxtst-dev libpng-dev
 ```
 
 ### Linux (Fedora/RHEL)
