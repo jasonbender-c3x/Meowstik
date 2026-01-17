@@ -111,8 +111,11 @@ High-quality voice capabilities powered by Google Cloud Text-to-Speech API and W
 - **Text-to-Speech**: Neural voice synthesis with 8 high-quality voices (1M chars/month free)
 - **Voice Input Toggle**: One-click activation of voice mode
 - **Multiple Voices**: Choose from Kore, Puck, Charon, Fenrir, Aoede, Leda, Orus, and Zephyr
+- **Verbosity Control**: 4 modes (Mute, Low, Normal, Experimental) that align both text and speech output
 
 > 📖 **Setup Guide**: See [docs/VOICE_SYNTHESIS_SETUP.md](docs/VOICE_SYNTHESIS_SETUP.md) for detailed configuration instructions
+> 
+> 📖 **Verbosity Modes**: See [docs/VERBOSITY_MODES.md](docs/VERBOSITY_MODES.md) for comprehensive guide on text/speech alignment
 > 
 > ⚠️ **Troubleshooting**: If you get "Insufficient Permission" errors, see [docs/TTS_IAM_PERMISSION_FIX.md](docs/TTS_IAM_PERMISSION_FIX.md) for IAM setup instructions
 
@@ -135,7 +138,26 @@ Advanced web interaction capabilities for API integrations and automated data ex
 - **Advanced Automation**: POST and PUT data to perform actions on other platforms
 - **Webhook Integration**: Send notifications and trigger automated workflows
 
-### 8. Modern UI/UX
+### 8. Hardware & IoT Device Integration 🔧
+
+Comprehensive tools for interacting with hardware devices, microcontrollers, and IoT platforms.
+
+- **Arduino Integration**: Compile and upload code, read sensors, control actuators
+- **Android Device Control (ADB)**: Install apps, execute commands, capture screenshots
+- **Petoi Robot Control**: Control robotic pets with predefined skills and custom movements
+- **3D Printer Management**: Send G-code, monitor prints, control temperatures via OctoPrint
+- **Electronic Board Design (KiCad)**: Generate PCB designs, Gerber files, and BOM
+
+> 📖 **Full Guide**: See [docs/HARDWARE_IOT_GUIDE.md](docs/HARDWARE_IOT_GUIDE.md) for setup instructions and examples
+
+#### Supported Devices
+- Arduino boards (Uno, Mega, Nano, ESP32, ESP8266)
+- Android devices via USB debugging
+- Petoi robot pets (Bittle, Nybble)
+- 3D printers with OctoPrint
+- KiCad electronic design automation
+
+### 9. Modern UI/UX
 
 - **Google-esque Design**: Clean, airy aesthetic with lots of whitespace
 - **Responsive Layout**: Works on mobile, tablet, and desktop
@@ -152,6 +174,17 @@ Advanced web interaction capabilities for API integrations and automated data ex
 - Node.js 20+ (automatically provided by Replit)
 - PostgreSQL database (automatically configured via `DATABASE_URL`)
 - Google Gemini API key (set as `GEMINI_API_KEY` environment variable)
+
+#### Building meowstik-agent Package
+
+The `packages/meowstik-agent` package uses `robotjs` for input injection, which requires native compilation. On Debian/Ubuntu-based systems, install these dependencies before running `npm install`:
+
+```bash
+# For Debian/Ubuntu-based systems
+sudo apt-get install -y build-essential libxtst-dev libpng-dev
+```
+
+For other platforms, see [`packages/meowstik-agent/README.md`](packages/meowstik-agent/README.md#installing-robotjs-dependencies).
 
 ### Installation
 

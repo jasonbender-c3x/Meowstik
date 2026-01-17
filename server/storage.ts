@@ -34,7 +34,7 @@
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
 import * as schema from '@shared/schema';
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import {
   InsertChat,
   InsertMessage,
@@ -382,5 +382,100 @@ export const storage = {
    */
   setDefaultUserAgent: async (agentId: string): Promise<UserAgent | null> => {
     return storage.updateUserAgent(agentId, { isDefault: true });
+  },
+
+  // ------------------------------------------------------------------------
+  // Tool Call Log Operations (Real-time UI Bubbles)
+  // ------------------------------------------------------------------------
+
+  /**
+   * Creates a new tool call log entry (status: "pending")
+   * @param log - Tool call log data
+   * @returns The created tool call log
+   */
+  createToolCallLog: async (log: schema.InsertToolCallLog) => {
+    const [created] = await db
+      .insert(schema.toolCallLogs)
+      .values(log)
+      .returning();
+    return created;
+  },
+
+  /**
+   * Updates an existing tool call log (e.g., mark as success/failure)
+   * @param toolCallId - The tool call ID
+   * @param updates - Fields to update
+   * @returns The updated tool call log
+   */
+  updateToolCallLog: async (
+    toolCallId: string,
+    updates: Partial<{
+      status: string;
+      response: any;
+      errorMessage: string;
+      completedAt: Date;
+      duration: number;
+    }>
+  ) => {
+    const [updated] = await db
+      .update(schema.toolCallLogs)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(schema.toolCallLogs.toolCallId, toolCallId))
+      .returning();
+    return updated;
+  },
+
+  /**
+   * Get recent tool call logs for a chat (last 10)
+   * @param chatId - The chat ID
+   * @returns Array of tool call logs ordered by creation time (newest first)
+   */
+  getRecentToolCallLogs: async (chatId: string) => {
+    return db.query.toolCallLogs.findMany({
+      where: eq(schema.toolCallLogs.chatId, chatId),
+      orderBy: (logs, { desc }) => [desc(logs.createdAt)],
+      limit: 10,
+    });
+  },
+
+  /**
+   * Get a single tool call log by ID
+   * @param id - The tool call log ID
+   * @returns The tool call log or undefined
+   */
+  getToolCallLogById: async (id: string) => {
+    return db.query.toolCallLogs.findFirst({
+      where: eq(schema.toolCallLogs.id, id),
+    });
+  },
+
+  /**
+   * Prune old tool call logs for a chat, keeping only the 10 most recent
+   * @param chatId - The chat ID
+   * @returns Number of deleted rows
+   */
+  pruneOldToolCallLogs: async (chatId: string): Promise<number> => {
+    // Get the 10 most recent IDs
+    const recentLogs = await db.query.toolCallLogs.findMany({
+      where: eq(schema.toolCallLogs.chatId, chatId),
+      orderBy: (logs, { desc }) => [desc(logs.createdAt)],
+      limit: 10,
+      columns: { id: true },
+    });
+
+    if (recentLogs.length === 0) {
+      return 0;
+    }
+
+    const recentIds = recentLogs.map((log) => log.id);
+
+    // Delete all logs for this chat that are NOT in the recent 10
+    const result = await db
+      .delete(schema.toolCallLogs)
+      .where(
+        sql`${schema.toolCallLogs.chatId} = ${chatId} AND ${schema.toolCallLogs.id} NOT IN (${sql.raw(recentIds.map((id) => `'${id}'`).join(','))})`
+      );
+
+    return result.rowCount ?? 0;
   },
 };

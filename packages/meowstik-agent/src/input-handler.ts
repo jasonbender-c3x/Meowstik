@@ -20,6 +20,7 @@ export class InputHandler {
 
   private async loadRobotModule(): Promise<void> {
     try {
+      // @ts-ignore - robotjs is optional and may not be installed
       this.robot = await import("robotjs");
     } catch (error) {
       console.warn("robotjs not available - input injection disabled");

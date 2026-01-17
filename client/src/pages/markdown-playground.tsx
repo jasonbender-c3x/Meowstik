@@ -17,7 +17,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Play, RotateCcw } from "lucide-react";
+import { Play, RotateCcw, ArrowLeft, FileText } from "lucide-react";
+import { Link } from "wouter";
 
 // ============================================================================
 // SAMPLE CONTENT
@@ -205,14 +206,24 @@ export default function MarkdownPlayground() {
   return (
     <div className="min-h-screen bg-background">
       <div className="container max-w-7xl mx-auto py-8 px-4">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-primary mb-2" data-testid="page-title">
-            Markdown Playground
-          </h1>
-          <p className="text-muted-foreground">
-            Explore and test enhanced markdown features with live preview
-          </p>
+        {/* Navigation Header */}
+        <div className="flex items-center gap-4 mb-8">
+          <Link href="/">
+            <Button variant="ghost" size="icon" data-testid="button-back-home">
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+          </Link>
+          <div className="flex items-center gap-3 flex-1">
+            <FileText className="h-8 w-8 text-primary" />
+            <div>
+              <h1 className="text-3xl font-display font-bold" data-testid="page-title">
+                Markdown Playground
+              </h1>
+              <p className="text-sm text-muted-foreground">
+                Explore and test enhanced markdown features with live preview
+              </p>
+            </div>
+          </div>
         </div>
 
         <Tabs defaultValue="playground" className="space-y-6">

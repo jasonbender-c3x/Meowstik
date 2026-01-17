@@ -380,6 +380,68 @@ export async function registerRoutes(
       res.status(500).json({ error: "Failed to update chat" });
     }
   });
+  
+  /**
+   * GET /api/chats/:id/tool-calls
+   * Get recent tool call logs for a chat (last 10).
+   *
+   * Returns tool call logs with their status and request/response data.
+   * Used to display real-time tool call bubbles in the chat UI.
+   *
+   * Path Parameters:
+   * - id: string (UUID) - The chat ID
+   *
+   * @route GET /api/chats/:id/tool-calls
+   * @param {string} id - Chat UUID
+   * @returns {ToolCallLog[]} 200 - Array of recent tool call logs
+   * @returns {Error} 500 - Server error
+   */
+  app.get("/api/chats/:id/tool-calls", async (req, res) => {
+    try {
+      const toolCalls = await storage.getRecentToolCallLogs(req.params.id);
+      res.json(toolCalls);
+    } catch (error) {
+      console.error(
+        `[GET /api/chats/${req.params.id}/tool-calls] Error fetching tool calls:`,
+        error,
+      );
+      res.status(500).json({ error: "Failed to fetch tool calls" });
+    }
+  });
+  
+  /**
+   * GET /api/tool-calls/:id
+   * Get a single tool call log by ID.
+   *
+   * Returns detailed tool call information including request/response data.
+   * Used for displaying tool call details in a modal.
+   *
+   * Path Parameters:
+   * - id: string (UUID) - The tool call log ID
+   *
+   * @route GET /api/tool-calls/:id
+   * @param {string} id - Tool call log UUID
+   * @returns {ToolCallLog} 200 - Tool call log details
+   * @returns {Error} 404 - Tool call not found
+   * @returns {Error} 500 - Server error
+   */
+  app.get("/api/tool-calls/:id", async (req, res) => {
+    try {
+      const toolCall = await storage.getToolCallLogById(req.params.id);
+      
+      if (!toolCall) {
+        return res.status(404).json({ error: "Tool call not found" });
+      }
+      
+      res.json(toolCall);
+    } catch (error) {
+      console.error(
+        `[GET /api/tool-calls/${req.params.id}] Error fetching tool call:`,
+        error,
+      );
+      res.status(500).json({ error: "Failed to fetch tool call" });
+    }
+  });
 
   /**
    * POST /api/chats/:id/messages
@@ -603,12 +665,18 @@ export async function registerRoutes(
       // - Tools from prompts/tools.md
       // - RAG context from relevant document chunks
       // - Contextual instructions based on attachments
-      // Get verbosity mode from client (mute, low, normal, high, demo-hd, podcast)
+      // Get verbosity mode from client (mute, low, normal, experimental)
       const verbosityMode = req.body.verbosityMode || "normal";
       const useVoice = verbosityMode !== "mute";
       
-      // Determine content verbosity level for prompt context (low = concise, normal = balanced)
-      const contentVerbosity = verbosityMode === "low" ? "low" : "normal";
+      // Determine content verbosity level for prompt context
+      const contentVerbosity = (() => {
+        switch (verbosityMode) {
+          case "mute": return "minimal";
+          case "low": return "low";
+          default: return "verbose"; // normal and experimental
+        }
+      })();
       
       const composedPrompt = await promptComposer.compose({
         textContent: req.body.content || "",
@@ -627,64 +695,65 @@ export async function registerRoutes(
         switch (verbosityMode) {
           case "low":
             voiceInstruction = `
-## VOICE MODE: LOW VERBOSITY
-The user has LOW verbosity mode enabled. Keep responses concise and focused.
-- Use the \`say\` tool for voice output when appropriate
-- Keep responses brief and to-the-point
-- Only speak explicit \`say\` tool calls - chat content is NOT read aloud
+## VERBOSITY MODE: LOW (Concise Text & Speech)
+The user has LOW verbosity mode enabled. Keep both text and speech responses concise.
+- Keep responses brief and focused - aim for 1-3 sentences maximum
+- Use the \`say\` tool to provide concise spoken summaries
+- Provide only essential information without elaboration
+- Example: User asks "What's the weather?" → Response: "It's 72°F and sunny in your area."
 `;
             break;
             
           case "normal":
             voiceInstruction = `
-## VOICE MODE: NORMAL VERBOSITY
-The user has NORMAL verbosity mode enabled (default).
-- Use the \`say\` tool for voice output when appropriate
-- Provide balanced, informative responses
-- Only speak explicit \`say\` tool calls - chat content is NOT read aloud
+## VERBOSITY MODE: NORMAL (Verbose Text & Speech)
+The user has NORMAL verbosity mode enabled. Provide comprehensive, detailed responses in both text and speech.
+- Use the \`say\` tool to speak your complete responses
+- All text sent via \`send_chat\` (except code blocks) should also be spoken
+- Provide thorough explanations with context and details
+- Example: {"toolCalls": [{"type": "say", "id": "s1", "parameters": {"utterance": "Let me provide a comprehensive answer..."}}, {"type": "send_chat", "id": "c1", "parameters": {"content": "Let me provide a comprehensive answer..."}}]}
 `;
             break;
             
-          case "high":
+          case "experimental":
             voiceInstruction = `
-## VOICE MODE: HIGH VERBOSITY
-The user has HIGH verbosity mode enabled. All chat content (except code blocks) will be spoken aloud.
-- Use the \`say\` tool to speak your responses
-- All text sent via \`send_chat\` (except code blocks) will be passed through the \`say\` tool
-- Provide comprehensive, detailed responses
-- Example: {"toolCalls": [{"type": "say", "id": "s1", "parameters": {"utterance": "Here's what I found..."}}, {"type": "send_chat", "id": "c1", "parameters": {"content": "Here's what I found..."}}]}
-`;
-            break;
-            
-          case "demo-hd":
-            voiceInstruction = `
-## VOICE MODE: DEMO HD-EXPRESSIVE
-The user has DEMO HD-EXPRESSIVE mode enabled - premium, expressive voice synthesis.
-- Use the \`say\` tool with expressive, engaging delivery
-- All content will be spoken with high-quality, expressive voice
-- Craft responses that sound natural and engaging when spoken
-- Vary tone and pacing for emphasis and clarity
-`;
-            break;
-            
-          case "podcast":
-            voiceInstruction = `
-## VOICE MODE: PODCAST
-The user has PODCAST mode enabled - dual-voice discussion style.
-- Respond in a conversational, discussion-style format
-- Structure responses as if explaining to a co-host or listener
-- Use natural speech patterns and transitions
-- Support seamless interruptions (barge-in capability active)
+## VERBOSITY MODE: EXPERIMENTAL (Dual-Voice Discussion)
+The user has EXPERIMENTAL mode enabled - generate a two-voice discussion format.
+- Structure your response as a dialogue between two AI personas discussing the topic
+- Use the \`say\` tool to present this discussion format
+- Continue the discussion until the user interrupts (barge-in)
+- Make the conversation natural, with back-and-forth exchanges
+- Example format:
+  Persona A: "That's an interesting question about..."
+  Persona B: "I agree, and I'd add that..."
+  Persona A: "Exactly! And another key point is..."
 `;
             break;
         }
         
         finalSystemPrompt = voiceInstruction + "\n\n" + finalSystemPrompt;
+      } else {
+        // Mute mode - minimal output, alerts only
+        const muteInstruction = `
+## VERBOSITY MODE: MUTE (Alerts Only)
+The user has MUTE mode enabled. Minimize all output.
+- Only respond to critical alerts or explicit user queries
+- Keep responses to absolute minimum (1 sentence or less)
+- No voice output whatsoever
+- Skip conversational niceties and get straight to the essential information
+`;
+        finalSystemPrompt = muteInstruction + "\n\n" + finalSystemPrompt;
       }
       
       // Add content verbosity instruction
       if (contentVerbosity === "low") {
-        const verbosityNote = "\n\n**Content Verbosity: LOW** - Keep all responses concise and focused.\n";
+        const verbosityNote = "\n\n**Content Verbosity: LOW** - Keep all responses concise and focused. Maximum 1-3 sentences.\n";
+        finalSystemPrompt = finalSystemPrompt + verbosityNote;
+      } else if (contentVerbosity === "minimal") {
+        const verbosityNote = "\n\n**Content Verbosity: MINIMAL** - Only respond to critical alerts or explicit queries. Maximum 1 sentence.\n";
+        finalSystemPrompt = finalSystemPrompt + verbosityNote;
+      } else if (contentVerbosity === "verbose") {
+        const verbosityNote = "\n\n**Content Verbosity: VERBOSE** - Provide comprehensive, detailed explanations with context and examples.\n";
         finalSystemPrompt = finalSystemPrompt + verbosityNote;
       }
       
@@ -877,18 +946,23 @@ The user has PODCAST mode enabled - dual-voice discussion style.
       let shouldEndTurn = false;
       let agenticHistory = [...history, { role: "user", parts: userParts }];
       
+      // Set SSE response for real-time tool call events
+      ragDispatcher.setSseResponse(res);
+      
       // Helper function to execute tools and return results
       const executeToolsAndGetResults = async (
         toolCalls: ToolCall[],
         messageId: string
-      ): Promise<{ results: typeof toolResults; shouldEndTurn: boolean }> => {
+      ): Promise<{ results: typeof toolResults; shouldEndTurn: boolean; sendChatContent: string }> => {
         const results: typeof toolResults = [];
         let endTurn = false;
+        let sendChatContent = ""; // Accumulate send_chat content for storage
         
         for (const toolCall of toolCalls) {
           console.log(`[Routes] Executing tool call: ${toolCall.type} (${toolCall.id})`);
           try {
-            const toolResult = await ragDispatcher.executeToolCall(toolCall, messageId);
+            // Pass chatId for tool call logging
+            const toolResult = await ragDispatcher.executeToolCall(toolCall, messageId, currentChatId);
             results.push({
               toolId: toolResult.toolId,
               type: toolResult.type,
@@ -910,12 +984,14 @@ The user has PODCAST mode enabled - dual-voice discussion style.
               })}\n\n`,
             );
             
-            // Check for send_chat - stream content to client but does NOT terminate loop
+            // Check for send_chat - stream content to client AND accumulate for storage
             if (toolCall.type === "send_chat" && toolResult.success) {
               const sendChatResult = toolResult.result as { content?: string };
               if (sendChatResult?.content) {
                 // Stream the send_chat content to the client
                 res.write(`data: ${JSON.stringify({ text: sendChatResult.content })}\n\n`);
+                // CRITICAL FIX: Accumulate send_chat content so it's saved to database
+                sendChatContent += sendChatResult.content;
               }
             }
             
@@ -935,17 +1011,19 @@ The user has PODCAST mode enabled - dual-voice discussion style.
                 mimeType?: string; 
                 duration?: number;
                 utterance?: string;
+                voice?: string;
                 success?: boolean;
               };
               // Check if the say tool itself reported success
               if (sayResult?.success === false) {
                 console.log(`[Routes][SAY] Tool execution failed internally:`, sayResult);
               } else if (sayResult?.audioBase64) {
-                console.log(`[Routes][SAY] ✓ Sending speech event, audio length: ${sayResult.audioBase64.length}`);
+                console.log(`[Routes][SAY] ✓ Sending speech event with voice: ${sayResult.voice}, audio length: ${sayResult.audioBase64.length}`);
                 res.write(
                   `data: ${JSON.stringify({
                     speech: {
                       utterance: sayResult.utterance || "",
+                      voice: sayResult.voice,
                       audioGenerated: true,
                       audioBase64: sayResult.audioBase64,
                       mimeType: sayResult.mimeType || "audio/mpeg",
@@ -997,7 +1075,7 @@ The user has PODCAST mode enabled - dual-voice discussion style.
           }
         }
         
-        return { results, shouldEndTurn: endTurn };
+        return { results, shouldEndTurn: endTurn, sendChatContent };
       };
       
       // Execute initial tool calls if we parsed any
@@ -1020,6 +1098,10 @@ The user has PODCAST mode enabled - dual-voice discussion style.
         toolResults.push(...execResult.results);
         totalToolsExecuted += limitedToolCalls.length;
         shouldEndTurn = execResult.shouldEndTurn;
+        // CRITICAL FIX: Add send_chat content to storage so it persists
+        if (execResult.sendChatContent) {
+          cleanContentForStorage += execResult.sendChatContent;
+        }
         
         // Add model response with function calls to agentic history
         // Use proper function call format for multi-turn context
@@ -1142,6 +1224,10 @@ The user has PODCAST mode enabled - dual-voice discussion style.
             toolResults.push(...loopExecResult.results);
             totalToolsExecuted += limitedLoopToolCalls.length;
             shouldEndTurn = loopExecResult.shouldEndTurn;
+            // CRITICAL FIX: Add send_chat content to storage so it persists
+            if (loopExecResult.sendChatContent) {
+              cleanContentForStorage += loopExecResult.sendChatContent;
+            }
             
             // Update history for next iteration - use proper function call format
             agenticHistory.push({
@@ -1226,9 +1312,10 @@ The user has PODCAST mode enabled - dual-voice discussion style.
       // Log to LLM debug buffer for debugging
       try {
         const { llmDebugBuffer } = await import("./services/llm-debug-buffer");
-        llmDebugBuffer.add({
+        await llmDebugBuffer.add({
           chatId: req.params.id,
           messageId: savedMessage.id,
+          userId: userId, // Add userId for data isolation
           systemPrompt: modifiedPrompt.systemPrompt,
           userMessage: composedPrompt.userMessage,
           conversationHistory: chatMessages.map((m) => ({
@@ -1479,6 +1566,95 @@ The user has PODCAST mode enabled - dual-voice discussion style.
     } catch (error) {
       console.error("Error clearing LLM debug data:", error);
       res.status(500).json({ error: "Failed to clear LLM debug data" });
+    }
+  });
+
+  // ═════════════════════════════════════════════════════════════════════════
+  // LLM INTERACTION PERSISTENCE ENDPOINTS
+  // Query persistent LLM interaction data from database
+  // ═════════════════════════════════════════════════════════════════════════
+
+  /**
+   * GET /api/debug/llm/persistent
+   * Get persistent LLM interactions from database (paginated)
+   */
+  app.get("/api/debug/llm/persistent", async (req, res) => {
+    try {
+      const limit = parseInt(req.query.limit as string) || 50;
+      const userId = req.query.userId as string | undefined;
+      
+      const interactions = await storage.getRecentLlmInteractions(
+        limit,
+        userId === 'null' ? null : userId
+      );
+      res.json(interactions);
+    } catch (error) {
+      console.error("Error fetching persistent LLM interactions:", error);
+      res.status(500).json({ error: "Failed to fetch persistent LLM interactions" });
+    }
+  });
+
+  /**
+   * GET /api/debug/llm/persistent/:id
+   * Get a single persistent LLM interaction by ID
+   */
+  app.get("/api/debug/llm/persistent/:id", async (req, res) => {
+    try {
+      const interaction = await storage.getLlmInteractionById(req.params.id);
+      if (!interaction) {
+        return res.status(404).json({ error: "Interaction not found" });
+      }
+      res.json(interaction);
+    } catch (error) {
+      console.error("Error fetching persistent LLM interaction:", error);
+      res.status(500).json({ error: "Failed to fetch persistent LLM interaction" });
+    }
+  });
+
+  /**
+   * GET /api/debug/llm/persistent/chat/:chatId
+   * Get all LLM interactions for a specific chat
+   */
+  app.get("/api/debug/llm/persistent/chat/:chatId", async (req, res) => {
+    try {
+      const limit = parseInt(req.query.limit as string) || 50;
+      const interactions = await storage.getLlmInteractionsByChat(
+        req.params.chatId,
+        limit
+      );
+      res.json(interactions);
+    } catch (error) {
+      console.error("Error fetching chat LLM interactions:", error);
+      res.status(500).json({ error: "Failed to fetch chat LLM interactions" });
+    }
+  });
+
+  /**
+   * GET /api/debug/llm/stats
+   * Get statistics about LLM interactions
+   */
+  app.get("/api/debug/llm/stats", async (_req, res) => {
+    try {
+      const stats = await storage.getLlmInteractionStats();
+      res.json(stats);
+    } catch (error) {
+      console.error("Error fetching LLM interaction stats:", error);
+      res.status(500).json({ error: "Failed to fetch LLM interaction statistics" });
+    }
+  });
+
+  /**
+   * DELETE /api/debug/llm/persistent/cleanup
+   * Clean up old LLM interactions (retention policy)
+   */
+  app.delete("/api/debug/llm/persistent/cleanup", async (req, res) => {
+    try {
+      const olderThanDays = parseInt(req.query.days as string) || 30;
+      const deletedCount = await storage.deleteOldLlmInteractions(olderThanDays);
+      res.json({ success: true, deletedCount });
+    } catch (error) {
+      console.error("Error cleaning up old LLM interactions:", error);
+      res.status(500).json({ error: "Failed to clean up old LLM interactions" });
     }
   });
 
