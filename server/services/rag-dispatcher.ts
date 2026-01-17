@@ -277,9 +277,42 @@ export class RAGDispatcher {
    * Base directory for file operations (sandboxed)
    */
   private readonly workspaceDir: string;
+  
+  /**
+   * Optional response object for SSE streaming
+   * Used to emit real-time tool call events to the client
+   */
+  private sseResponse?: any;
 
   constructor() {
     this.workspaceDir = process.cwd();
+  }
+  
+  /**
+   * Set the SSE response object for emitting real-time events
+   * @param res - Express response object
+   */
+  setSseResponse(res: any) {
+    this.sseResponse = res;
+  }
+  
+  /**
+   * Emit a tool call event via SSE
+   * @param event - Event data to send to client
+   */
+  private emitToolCallEvent(event: {
+    type: 'tool_call_start' | 'tool_call_success' | 'tool_call_failure';
+    toolCallId: string;
+    toolType: string;
+    data?: any;
+  }) {
+    if (this.sseResponse) {
+      try {
+        this.sseResponse.write(`data: ${JSON.stringify(event)}\n\n`);
+      } catch (error) {
+        console.error('[RAGDispatcher] Failed to emit SSE event:', error);
+      }
+    }
   }
 
   /**
@@ -356,11 +389,13 @@ export class RAGDispatcher {
   /**
    * Execute a single tool call (public for external use)
    */
-  async executeToolCall(toolCall: ToolCall, messageId: string): Promise<ToolExecutionResult> {
+  async executeToolCall(toolCall: ToolCall, messageId: string, chatId?: string): Promise<ToolExecutionResult> {
     const startTime = Date.now();
     let taskId: string | null = null;
+    let toolCallLogId: string | null = null;
 
     try {
+      // Create tool task (existing functionality)
       const task = await storage.createToolTask({
         messageId,
         taskType: toolCall.type,
@@ -368,6 +403,40 @@ export class RAGDispatcher {
         status: "running"
       });
       taskId = task.id;
+      
+      // Create tool call log for UI bubbles (if chatId provided)
+      if (chatId) {
+        try {
+          const toolCallLog = await storage.createToolCallLog({
+            chatId,
+            messageId,
+            toolCallId: toolCall.id,
+            toolType: toolCall.type,
+            status: "pending",
+            request: toolCall.parameters,
+          });
+          toolCallLogId = toolCallLog.id;
+          
+          // Emit SSE event for tool call start
+          this.emitToolCallEvent({
+            type: 'tool_call_start',
+            toolCallId: toolCall.id,
+            toolType: toolCall.type,
+            data: {
+              id: toolCallLogId,
+              request: toolCall.parameters,
+            },
+          });
+          
+          // Prune old logs asynchronously (don't wait for it)
+          storage.pruneOldToolCallLogs(chatId).catch(err => {
+            console.error('[RAGDispatcher] Failed to prune old tool call logs:', err);
+          });
+        } catch (logError) {
+          console.error('[RAGDispatcher] Failed to create tool call log:', logError);
+          // Continue execution even if logging fails
+        }
+      }
 
       let result: unknown;
 
@@ -738,6 +807,32 @@ export class RAGDispatcher {
       if (taskId) {
         await storage.updateToolTaskStatus(taskId, "completed", result);
       }
+      
+      // Update tool call log to success
+      if (toolCallLogId && chatId) {
+        try {
+          const duration = Date.now() - startTime;
+          await storage.updateToolCallLog(toolCall.id, {
+            status: "success",
+            response: result,
+            completedAt: new Date(),
+            duration,
+          });
+          
+          // Emit SSE event for tool call success
+          this.emitToolCallEvent({
+            type: 'tool_call_success',
+            toolCallId: toolCall.id,
+            toolType: toolCall.type,
+            data: {
+              id: toolCallLogId,
+              duration,
+            },
+          });
+        } catch (logError) {
+          console.error('[RAGDispatcher] Failed to update tool call log:', logError);
+        }
+      }
 
       return {
         toolId: toolCall.id,
@@ -750,6 +845,33 @@ export class RAGDispatcher {
       // Update task status to failed
       if (taskId) {
         await storage.updateToolTaskStatus(taskId, "failed", undefined, error.message);
+      }
+      
+      // Update tool call log to failure
+      if (toolCallLogId && chatId) {
+        try {
+          const duration = Date.now() - startTime;
+          await storage.updateToolCallLog(toolCall.id, {
+            status: "failure",
+            errorMessage: error.message,
+            completedAt: new Date(),
+            duration,
+          });
+          
+          // Emit SSE event for tool call failure
+          this.emitToolCallEvent({
+            type: 'tool_call_failure',
+            toolCallId: toolCall.id,
+            toolType: toolCall.type,
+            data: {
+              id: toolCallLogId,
+              error: error.message,
+              duration,
+            },
+          });
+        } catch (logError) {
+          console.error('[RAGDispatcher] Failed to update tool call log:', logError);
+        }
       }
       
       return {

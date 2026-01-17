@@ -380,6 +380,68 @@ export async function registerRoutes(
       res.status(500).json({ error: "Failed to update chat" });
     }
   });
+  
+  /**
+   * GET /api/chats/:id/tool-calls
+   * Get recent tool call logs for a chat (last 10).
+   *
+   * Returns tool call logs with their status and request/response data.
+   * Used to display real-time tool call bubbles in the chat UI.
+   *
+   * Path Parameters:
+   * - id: string (UUID) - The chat ID
+   *
+   * @route GET /api/chats/:id/tool-calls
+   * @param {string} id - Chat UUID
+   * @returns {ToolCallLog[]} 200 - Array of recent tool call logs
+   * @returns {Error} 500 - Server error
+   */
+  app.get("/api/chats/:id/tool-calls", async (req, res) => {
+    try {
+      const toolCalls = await storage.getRecentToolCallLogs(req.params.id);
+      res.json(toolCalls);
+    } catch (error) {
+      console.error(
+        `[GET /api/chats/${req.params.id}/tool-calls] Error fetching tool calls:`,
+        error,
+      );
+      res.status(500).json({ error: "Failed to fetch tool calls" });
+    }
+  });
+  
+  /**
+   * GET /api/tool-calls/:id
+   * Get a single tool call log by ID.
+   *
+   * Returns detailed tool call information including request/response data.
+   * Used for displaying tool call details in a modal.
+   *
+   * Path Parameters:
+   * - id: string (UUID) - The tool call log ID
+   *
+   * @route GET /api/tool-calls/:id
+   * @param {string} id - Tool call log UUID
+   * @returns {ToolCallLog} 200 - Tool call log details
+   * @returns {Error} 404 - Tool call not found
+   * @returns {Error} 500 - Server error
+   */
+  app.get("/api/tool-calls/:id", async (req, res) => {
+    try {
+      const toolCall = await storage.getToolCallLogById(req.params.id);
+      
+      if (!toolCall) {
+        return res.status(404).json({ error: "Tool call not found" });
+      }
+      
+      res.json(toolCall);
+    } catch (error) {
+      console.error(
+        `[GET /api/tool-calls/${req.params.id}] Error fetching tool call:`,
+        error,
+      );
+      res.status(500).json({ error: "Failed to fetch tool call" });
+    }
+  });
 
   /**
    * POST /api/chats/:id/messages
@@ -877,6 +939,9 @@ The user has PODCAST mode enabled - dual-voice discussion style.
       let shouldEndTurn = false;
       let agenticHistory = [...history, { role: "user", parts: userParts }];
       
+      // Set SSE response for real-time tool call events
+      ragDispatcher.setSseResponse(res);
+      
       // Helper function to execute tools and return results
       const executeToolsAndGetResults = async (
         toolCalls: ToolCall[],
@@ -888,7 +953,8 @@ The user has PODCAST mode enabled - dual-voice discussion style.
         for (const toolCall of toolCalls) {
           console.log(`[Routes] Executing tool call: ${toolCall.type} (${toolCall.id})`);
           try {
-            const toolResult = await ragDispatcher.executeToolCall(toolCall, messageId);
+            // Pass chatId for tool call logging
+            const toolResult = await ragDispatcher.executeToolCall(toolCall, messageId, currentChatId);
             results.push({
               toolId: toolResult.toolId,
               type: toolResult.type,
