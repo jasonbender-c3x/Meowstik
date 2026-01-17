@@ -106,6 +106,8 @@ npm install robotjs
 
 **Linux:**
 ```bash
+# For Debian/Ubuntu-based systems
+sudo apt-get install -y build-essential libxtst-dev libpng-dev
 sudo apt-get install libxtst-dev libpng++-dev
 cd packages/meowstik-agent
 npm install robotjs
