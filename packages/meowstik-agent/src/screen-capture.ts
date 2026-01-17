@@ -15,6 +15,7 @@ export class ScreenCapture {
   private async loadScreenshotModule(): Promise<void> {
     if (!this.screenshotDesktop) {
       try {
+        // @ts-ignore - screenshot-desktop may not have types
         this.screenshotDesktop = await import("screenshot-desktop");
       } catch (error) {
         console.warn("screenshot-desktop not available, using fallback");
