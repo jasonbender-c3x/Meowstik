@@ -174,15 +174,16 @@ class AgentWorkerService {
       return { output: null, error: "No prompt provided" };
     }
 
-    const contents = [];
+    // FIX: Use systemInstruction parameter instead of embedding system prompt in message history
+    const config: any = {};
     if (payload.systemPrompt) {
-      contents.push({ role: "user", parts: [{ text: `System: ${payload.systemPrompt}` }] });
+      config.systemInstruction = payload.systemPrompt;
     }
-    contents.push({ role: "user", parts: [{ text: payload.prompt }] });
 
     const response = await this.ai!.models.generateContent({
       model: this.config.model,
-      contents,
+      contents: [{ role: "user", parts: [{ text: payload.prompt }] }],
+      config,
     });
 
     return {
