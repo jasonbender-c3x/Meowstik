@@ -1,5 +1,8 @@
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { Button } from "@/components/ui/button";
+import { ArrowLeft, Sparkles } from "lucide-react";
+import { Link } from "wouter";
 
 const visionContent = `# Meowstik: Building the Natural Language Computer
 
@@ -146,7 +149,19 @@ We're building the future of AI. If you're passionate about creating technology 
 export default function VisionPage() {
   return (
     <div className="min-h-screen bg-background" data-testid="vision-page">
-      <div className="max-w-4xl mx-auto px-4 py-12">
+      <div className="max-w-4xl mx-auto px-4 py-8">
+        {/* Navigation Header */}
+        <div className="flex items-center gap-4 mb-8">
+          <Link href="/">
+            <Button variant="ghost" size="icon" data-testid="button-back-home">
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+          </Link>
+          <div className="flex items-center gap-3 flex-1">
+            <Sparkles className="h-8 w-8 text-primary" />
+            <h1 className="text-3xl font-display font-bold">Vision</h1>
+          </div>
+        </div>
         <article className="prose prose-lg dark:prose-invert max-w-none">
           <ReactMarkdown remarkPlugins={[remarkGfm]}>
             {visionContent}

@@ -16,18 +16,23 @@ npx meowstik-agent --token YOUR_SESSION_TOKEN --server wss://your-app.replit.app
 
 ## Usage
 
-### Local Development (Tokenless Mode)
+### Local Development (Tokenless Mode) ⭐ NEW
 
 When connecting to `localhost` in development, no token is required:
 
 ```bash
 # Connect to local server without token
-meowstik-agent --relay ws://localhost:5000/ws/desktop/agent/
+npm run dev -- --relay ws://localhost:5000
+
+# Or using the built package
+meowstik-agent --relay ws://localhost:5000
 ```
 
 **Requirements for tokenless mode:**
-- Relay URL must contain `localhost` or `127.0.0.1`
+- Server URL must contain `localhost` or `127.0.0.1`
 - Server must be running in development mode (`NODE_ENV !== "production"`)
+
+**Note:** The `--relay` flag is an alias for `--server`. Both work identically.
 
 See [Localhost Development Mode](../../docs/desktop-agent-localhost-dev.md) for details.
 
@@ -38,19 +43,35 @@ See [Localhost Development Mode](../../docs/desktop-agent-localhost-dev.md) for 
 3. Run the agent:
 
 ```bash
-meowstik-agent --token YOUR_TOKEN --relay wss://your-app.replit.app/ws/desktop
+meowstik-agent --token YOUR_TOKEN --relay wss://your-app.replit.app
 ```
 
 ## Options
 
-| Option | Description | Default |
-|--------|-------------|---------|
-| `-t, --token` | Session token (optional for localhost) | - |
-| `-r, --relay` | Server WebSocket URL | - |
-| `-f, --fps` | Screen capture frames per second | 2 |
-| `-q, --quality` | JPEG quality (1-100) | 60 |
-| `--no-audio` | Disable audio capture | enabled |
-| `--no-input` | Disable input injection | enabled |
+| Option | Aliases | Description | Default |
+|--------|---------|-------------|---------|
+| `-t, --token` | - | Session token (optional for localhost) | - |
+| `-s, --server` | `-r, --relay` | Server WebSocket URL | `ws://localhost:5000` |
+| `-f, --fps` | - | Screen capture frames per second | 2 |
+| `-q, --quality` | - | JPEG quality (1-100) | 60 |
+| `--no-audio` | - | Disable audio capture | enabled |
+| `--no-input` | - | Disable input injection | enabled |
+
+**Examples:**
+
+```bash
+# Local development (no token needed)
+meowstik-agent --server ws://localhost:5000
+
+# Production with token
+meowstik-agent --token abc123 --relay wss://myapp.com
+
+# Custom FPS and quality
+meowstik-agent --relay ws://localhost:5000 --fps 5 --quality 80
+
+# View-only mode (no input injection)
+meowstik-agent --token abc123 --server wss://myapp.com --no-input
+```
 
 ## Features
 
@@ -63,24 +84,36 @@ meowstik-agent --token YOUR_TOKEN --relay wss://your-app.replit.app/ws/desktop
 ## Requirements
 
 - Node.js 18+
-- For input injection: Native build tools for robotjs
+- **Optional:** Native build tools for robotjs (input injection)
 
-### Installing robotjs dependencies
+### Installing robotjs (Optional)
+
+The agent works without `robotjs`, but input injection will be disabled. To enable input control:
 
 **Windows:**
 ```bash
 npm install --global windows-build-tools
+cd packages/meowstik-agent
+npm install robotjs
 ```
 
 **macOS:**
 ```bash
 xcode-select --install
+cd packages/meowstik-agent
+npm install robotjs
 ```
 
 **Linux:**
 ```bash
+# For Debian/Ubuntu-based systems
+sudo apt-get install -y build-essential libxtst-dev libpng-dev
 sudo apt-get install libxtst-dev libpng++-dev
+cd packages/meowstik-agent
+npm install robotjs
 ```
+
+**Note:** If `robotjs` fails to install, the agent will still work but input injection features will be unavailable.
 
 ## Security
 
