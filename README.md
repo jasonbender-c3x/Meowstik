@@ -111,8 +111,11 @@ High-quality voice capabilities powered by Google Cloud Text-to-Speech API and W
 - **Text-to-Speech**: Neural voice synthesis with 8 high-quality voices (1M chars/month free)
 - **Voice Input Toggle**: One-click activation of voice mode
 - **Multiple Voices**: Choose from Kore, Puck, Charon, Fenrir, Aoede, Leda, Orus, and Zephyr
+- **Verbosity Control**: 4 modes (Mute, Low, Normal, Experimental) that align both text and speech output
 
 > 📖 **Setup Guide**: See [docs/VOICE_SYNTHESIS_SETUP.md](docs/VOICE_SYNTHESIS_SETUP.md) for detailed configuration instructions
+> 
+> 📖 **Verbosity Modes**: See [docs/VERBOSITY_MODES.md](docs/VERBOSITY_MODES.md) for comprehensive guide on text/speech alignment
 > 
 > ⚠️ **Troubleshooting**: If you get "Insufficient Permission" errors, see [docs/TTS_IAM_PERMISSION_FIX.md](docs/TTS_IAM_PERMISSION_FIX.md) for IAM setup instructions
 

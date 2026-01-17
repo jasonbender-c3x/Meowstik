@@ -34,7 +34,7 @@
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
 import * as schema from '@shared/schema';
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import {
   InsertChat,
   InsertMessage,
@@ -382,5 +382,109 @@ export const storage = {
    */
   setDefaultUserAgent: async (agentId: string): Promise<UserAgent | null> => {
     return storage.updateUserAgent(agentId, { isDefault: true });
+  },
+
+  // ═════════════════════════════════════════════════════════════════════════
+  // LLM INTERACTION CAPTURE METHODS
+  // ═════════════════════════════════════════════════════════════════════════
+
+  /**
+   * Save an LLM interaction to the database for debugging and analysis
+   * @param interaction - The LLM interaction data to store
+   * @returns The saved interaction with ID
+   */
+  saveLlmInteraction: async (interaction: schema.InsertLlmInteraction) => {
+    const [saved] = await db
+      .insert(schema.llmInteractions)
+      .values(interaction)
+      .returning();
+    return saved;
+  },
+
+  /**
+   * Get recent LLM interactions
+   * @param limit - Maximum number of interactions to return (default: 50)
+   * @param userId - Optional filter by user ID
+   * @returns Array of LLM interactions, most recent first
+   */
+  getRecentLlmInteractions: async (limit = 50, userId?: string | null) => {
+    const conditions = [];
+    if (userId !== undefined) {
+      conditions.push(eq(schema.llmInteractions.userId, userId));
+    }
+
+    let query = db
+      .select()
+      .from(schema.llmInteractions)
+      .orderBy(schema.llmInteractions.createdAt)
+      .limit(limit);
+
+    if (conditions.length > 0) {
+      query = query.where(conditions[0]) as any;
+    }
+
+    return await query;
+  },
+
+  /**
+   * Get LLM interactions for a specific chat
+   * @param chatId - The chat ID to filter by
+   * @param limit - Maximum number of interactions to return
+   * @returns Array of LLM interactions for the chat
+   */
+  getLlmInteractionsByChat: async (chatId: string, limit = 50) => {
+    return await db
+      .select()
+      .from(schema.llmInteractions)
+      .where(eq(schema.llmInteractions.chatId, chatId))
+      .orderBy(schema.llmInteractions.createdAt)
+      .limit(limit);
+  },
+
+  /**
+   * Get a single LLM interaction by ID
+   * @param id - The interaction ID
+   * @returns The interaction or null if not found
+   */
+  getLlmInteractionById: async (id: string) => {
+    const [interaction] = await db
+      .select()
+      .from(schema.llmInteractions)
+      .where(eq(schema.llmInteractions.id, id))
+      .limit(1);
+    return interaction || null;
+  },
+
+  /**
+   * Delete old LLM interactions (for cleanup/retention policies)
+   * @param olderThanDays - Delete interactions older than this many days
+   * @returns Number of interactions deleted
+   */
+  deleteOldLlmInteractions: async (olderThanDays: number) => {
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - olderThanDays);
+
+    const result = await db
+      .delete(schema.llmInteractions)
+      .where(sql`${schema.llmInteractions.createdAt} < ${cutoffDate}`);
+    
+    return result.rowCount ?? 0;
+  },
+
+  /**
+   * Get LLM interaction statistics
+   * @returns Statistics about stored interactions
+   */
+  getLlmInteractionStats: async () => {
+    const result = await db
+      .select({
+        totalCount: sql<number>`count(*)::int`,
+        successCount: sql<number>`count(*) filter (where ${schema.llmInteractions.status} = 'success')::int`,
+        errorCount: sql<number>`count(*) filter (where ${schema.llmInteractions.status} = 'error')::int`,
+        avgDurationMs: sql<number>`avg(${schema.llmInteractions.durationMs})::int`,
+      })
+      .from(schema.llmInteractions);
+
+    return result[0];
   },
 };

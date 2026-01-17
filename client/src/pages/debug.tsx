@@ -74,6 +74,7 @@ export default function DebugPage() {
     timing: false
   });
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [dataSource, setDataSource] = useState<"memory" | "persistent">("memory");
 
   const toggleSection = (section: string) => {
     setExpandedSections(prev => ({ ...prev, [section]: !prev[section] }));
@@ -88,7 +89,10 @@ export default function DebugPage() {
   const loadInteractions = useCallback(async () => {
     setIsLoading(true);
     try {
-      const response = await fetch('/api/debug/llm');
+      const endpoint = dataSource === "persistent" 
+        ? '/api/debug/llm/persistent' 
+        : '/api/debug/llm';
+      const response = await fetch(endpoint);
       if (response.ok) {
         const data = await response.json();
         setInteractions(data);
@@ -98,7 +102,7 @@ export default function DebugPage() {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [dataSource]);
 
   const clearInteractions = async () => {
     try {
@@ -159,7 +163,7 @@ export default function DebugPage() {
               LLM Debug Console
             </h1>
             <p className="text-sm text-muted-foreground">
-              View detailed LLM interaction traces • Last 10 cycles
+              View detailed LLM interaction traces • {dataSource === "memory" ? "Last 10 cycles (Memory)" : "Historical data (Database)"}
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -203,6 +207,30 @@ export default function DebugPage() {
                 data-testid="input-search"
               />
             </div>
+            
+            {/* Data Source Toggle */}
+            <div className="mt-3 flex items-center gap-2">
+              <span className="text-xs text-muted-foreground">Source:</span>
+              <div className="flex gap-1">
+                <Button
+                  variant={dataSource === "memory" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setDataSource("memory")}
+                  className="h-7 text-xs"
+                >
+                  Memory (Recent)
+                </Button>
+                <Button
+                  variant={dataSource === "persistent" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setDataSource("persistent")}
+                  className="h-7 text-xs"
+                >
+                  Database (All)
+                </Button>
+              </div>
+            </div>
+            
             <p className="text-xs text-muted-foreground mt-2">
               {filteredInteractions.length} of {interactions.length} interactions
             </p>
