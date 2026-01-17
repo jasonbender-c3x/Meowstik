@@ -282,6 +282,7 @@ export function ChatInputArea({ onSend, isLoading, promptHistory = [], onStop }:
     isSupported: isVoiceSupported, 
     startListening, 
     stopListening,
+    resetTranscript,
     error: voiceError 
   } = useVoice({ continuous: true, interimResults: true });
 
@@ -770,6 +771,9 @@ export function ChatInputArea({ onSend, isLoading, promptHistory = [], onStop }:
       // Reset transcript tracker for next session
       lastTranscriptLengthRef.current = 0;
     } else {
+      // Clear any stale transcript from previous session
+      resetTranscript();
+      
       // Save cursor position before starting
       const cursorPos = textareaRef.current?.selectionStart ?? input.length;
       cursorPositionRef.current = cursorPos;
@@ -777,9 +781,8 @@ export function ChatInputArea({ onSend, isLoading, promptHistory = [], onStop }:
       // Reset transcript tracker for fresh session
       lastTranscriptLengthRef.current = 0;
       
-      // Use append mode to preserve existing transcript in hook
-      const hasExistingText = input.trim().length > 0;
-      startListening(hasExistingText);
+      // Always start fresh (don't use append mode to avoid stale data)
+      startListening(false);
     }
   };
 

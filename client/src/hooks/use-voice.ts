@@ -72,6 +72,9 @@ interface UseVoiceReturn {
   /** Stop speech recognition */
   stopListening: () => void;
   
+  /** Reset transcript state (clears all accumulated text) */
+  resetTranscript: () => void;
+  
   /** Speak text aloud */
   speak: (text: string, options?: SpeakOptions) => void;
   
@@ -316,6 +319,17 @@ export function useVoice(options: VoiceOptions = {}): UseVoiceReturn {
     recognitionRef.current.stop();
   }, []);
 
+  /**
+   * Reset transcript state
+   * Clears accumulated transcript and interim transcript
+   * Use this before starting a new voice session to prevent stale text
+   */
+  const resetTranscript = useCallback(() => {
+    setTranscript('');
+    setInterimTranscript('');
+    setError(null);
+  }, []);
+
   // ===========================================================================
   // SPEECH SYNTHESIS CONTROLS
   // ===========================================================================
@@ -384,6 +398,7 @@ export function useVoice(options: VoiceOptions = {}): UseVoiceReturn {
     isSupported,
     startListening,
     stopListening,
+    resetTranscript,
     speak,
     stopSpeaking,
     isSpeaking,
