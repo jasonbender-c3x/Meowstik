@@ -161,18 +161,42 @@ export async function uploadGCode(
     const fileContent = await fs.readFile(filePath);
     const fileName = path.basename(filePath);
     
-    const formData = new FormData();
-    formData.append("file", new Blob([fileContent]), fileName);
-    if (select) formData.append("select", "true");
-    if (print) formData.append("print", "true");
+    // Note: This is a simplified implementation
+    // For production, use a proper multipart/form-data library like 'form-data'
+    // or ensure Node.js version 18+ which has native FormData support
+    
+    // Basic implementation without Blob (for Node.js compatibility)
+    const boundary = '----WebKitFormBoundary' + Math.random().toString(36);
+    let body = '';
+    
+    body += `--${boundary}\r\n`;
+    body += `Content-Disposition: form-data; name="file"; filename="${fileName}"\r\n`;
+    body += `Content-Type: application/octet-stream\r\n\r\n`;
+    body += fileContent.toString('binary');
+    body += `\r\n`;
+    
+    if (select) {
+      body += `--${boundary}\r\n`;
+      body += `Content-Disposition: form-data; name="select"\r\n\r\n`;
+      body += 'true\r\n';
+    }
+    
+    if (print) {
+      body += `--${boundary}\r\n`;
+      body += `Content-Disposition: form-data; name="print"\r\n\r\n`;
+      body += 'true\r\n';
+    }
+    
+    body += `--${boundary}--\r\n`;
 
     const url = `${config.host}/api/files/local`;
     const response = await fetch(url, {
       method: "POST",
       headers: {
         "X-Api-Key": config.apiKey,
+        "Content-Type": `multipart/form-data; boundary=${boundary}`,
       },
-      body: formData,
+      body: body,
     });
 
     const data = await response.text();

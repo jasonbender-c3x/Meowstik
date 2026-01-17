@@ -35,11 +35,13 @@ const execPromise = promisify(exec);
  */
 export async function isKiCadInstalled(): Promise<boolean> {
   try {
-    // Try multiple possible KiCad CLI names
+    // Try multiple possible KiCad CLI names and paths
     const commands = [
       "kicad-cli --version",
       "kicad --version",
       "/Applications/KiCad/KiCad.app/Contents/MacOS/kicad-cli --version",
+      "/usr/local/bin/kicad-cli --version",
+      "/opt/kicad/bin/kicad-cli --version",
     ];
     
     for (const cmd of commands) {

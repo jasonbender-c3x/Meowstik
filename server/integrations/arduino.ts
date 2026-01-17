@@ -276,11 +276,11 @@ export async function readSerial(
 
   try {
     // Use timeout to limit monitoring duration
-    const timeoutCmd = process.platform === 'win32' ? 'timeout' : 'timeout';
+    const timeoutCmd = process.platform === 'win32' ? `timeout /t ${Math.ceil(duration / 1000)}` : `timeout ${Math.ceil(duration / 1000)}s`;
     const durationSec = Math.ceil(duration / 1000);
     
     const { stdout, stderr } = await execPromise(
-      `timeout ${durationSec}s arduino-cli monitor -p ${port} || true`,
+      `${timeoutCmd} arduino-cli monitor -p ${port} || true`,
       { timeout: duration + 1000 }
     );
     

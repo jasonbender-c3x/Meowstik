@@ -91,8 +91,12 @@ export async function findPorts(): Promise<{
     
     if (process.platform === "linux" || process.platform === "darwin") {
       // Unix-like systems
-      const result = await execPromise("ls /dev/tty* 2>/dev/null | grep -E 'ttyUSB|ttyACM|cu.usb' || echo ''");
-      stdout = result.stdout;
+      try {
+        const result = await execPromise("ls /dev/tty* 2>/dev/null | grep -E 'ttyUSB|ttyACM|cu.usb' || echo ''");
+        stdout = result.stdout;
+      } catch {
+        stdout = "No serial ports detected. Ensure device is connected and drivers are installed.";
+      }
     } else if (process.platform === "win32") {
       // Windows
       try {
@@ -144,7 +148,7 @@ export async function sendCommand(
     } else {
       return {
         success: false,
-        output: "Direct serial port writing not supported on Windows. Please use a serial communication library.",
+        output: "Serial port communication via echo is not supported on Windows. Please install and use a serial communication library like 'serialport' for Windows support.",
       };
     }
   } catch (error: any) {
