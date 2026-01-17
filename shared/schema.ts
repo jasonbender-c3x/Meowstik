@@ -738,6 +738,11 @@ export const ToolTypes = {
   CONTACTS_CREATE: "contacts_create",
   CONTACTS_UPDATE: "contacts_update",
   CONTACTS_DELETE: "contacts_delete",
+  
+  // Scheduler operations (LLM callback scheduling)
+  SCHEDULER_CREATE_CALLBACK: "scheduler_create_callback",
+  SCHEDULER_CANCEL_CALLBACK: "scheduler_cancel_callback",
+  SCHEDULER_GET_STATUS: "scheduler_get_status",
 } as const;
 
 export type ToolType = typeof ToolTypes[keyof typeof ToolTypes];
@@ -796,6 +801,8 @@ export const toolCallSchema = z.object({
     "contacts_list", "contacts_search", "contacts_get", "contacts_create", "contacts_update", "contacts_delete",
     // Twilio SMS/Voice
     "sms_send", "sms_list", "call_make", "call_list",
+    // Scheduler (LLM callbacks)
+    "scheduler_create_callback", "scheduler_cancel_callback", "scheduler_get_status",
   ]),
   operation: z.string(),
   parameters: z.record(z.unknown()),
@@ -1006,6 +1013,41 @@ export const tasksParamsSchema = z.object({
   due: z.string().optional(), // ISO date
 });
 export type TasksParams = z.infer<typeof tasksParamsSchema>;
+
+// =============================================================================
+// SCHEDULER PARAMETER SCHEMAS (LLM Callbacks)
+// =============================================================================
+
+/** 
+ * Scheduler Create Callback Parameters
+ * Allows LLM to schedule a delayed callback with a custom prompt
+ */
+export const schedulerCreateCallbackParamsSchema = z.object({
+  prompt: z.string().min(1, "Prompt is required"),
+  triggerInSeconds: z.number().positive().optional(),
+  triggerAt: z.string().optional(), // ISO 8601 datetime
+  metadata: z.object({
+    taskType: z.string().optional(),
+    taskId: z.string().optional(),
+    retryCount: z.number().optional(),
+  }).passthrough().optional(),
+}).refine(
+  (data) => !!data.triggerInSeconds !== !!data.triggerAt,
+  "Exactly one of triggerInSeconds or triggerAt must be provided"
+);
+export type SchedulerCreateCallbackParams = z.infer<typeof schedulerCreateCallbackParamsSchema>;
+
+/** Scheduler Cancel Callback Parameters */
+export const schedulerCancelCallbackParamsSchema = z.object({
+  callbackId: z.string().min(1, "Callback ID is required"),
+});
+export type SchedulerCancelCallbackParams = z.infer<typeof schedulerCancelCallbackParamsSchema>;
+
+/** Scheduler Get Status Parameters */
+export const schedulerGetStatusParamsSchema = z.object({
+  callbackId: z.string().min(1, "Callback ID is required"),
+});
+export type SchedulerGetStatusParams = z.infer<typeof schedulerGetStatusParamsSchema>;
 
 // =============================================================================
 // WEB SEARCH PARAMETER SCHEMA

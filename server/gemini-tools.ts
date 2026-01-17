@@ -65,6 +65,37 @@ export const geminiFunctionDeclarations: FunctionDeclaration[] = [
       required: ["url"]
     }
   },
+  {
+    name: "scheduler_create_callback",
+    description: "Schedule the LLM to wake itself up at a later time with a specific prompt. Use this for long-running tasks where you need to check status later, implement retry logic, or create delayed workflows. The prompt you provide should include conditional logic to check task status and handle different scenarios (success, still running, failure, retries). NON-TERMINATING - does not end your turn.",
+    parametersJsonSchema: {
+      type: "object",
+      properties: {
+        prompt: {
+          type: "string",
+          description: "The exact prompt to send when the callback triggers. Include logic like: 'Check if task XXXX completed. If yes, proceed with next step. If no and retries < 3, schedule another callback in 5 minutes. Otherwise, report failure to user.'"
+        },
+        triggerInSeconds: {
+          type: "number",
+          description: "Delay in seconds before the callback triggers (e.g., 300 for 5 minutes). Either this or triggerAt must be provided, but not both."
+        },
+        triggerAt: {
+          type: "string",
+          description: "Specific datetime to trigger the callback (ISO 8601 format, e.g., '2024-03-15T14:30:00Z'). Either this or triggerInSeconds must be provided, but not both."
+        },
+        metadata: {
+          type: "object",
+          description: "Optional metadata for tracking (taskType, taskId, retryCount, etc.)",
+          properties: {
+            taskType: { type: "string" },
+            taskId: { type: "string" },
+            retryCount: { type: "number" }
+          }
+        }
+      },
+      required: ["prompt"]
+    }
+  },
 
   // ═══════════════════════════════════════════════════════════════════════════
   // FILE OPERATIONS

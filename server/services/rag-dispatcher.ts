@@ -46,7 +46,10 @@ import {
   browserScrapeParamsSchema,
   httpGetParamsSchema,
   httpPostParamsSchema,
-  httpPutParamsSchema
+  httpPutParamsSchema,
+  schedulerCreateCallbackParamsSchema,
+  schedulerCancelCallbackParamsSchema,
+  schedulerGetStatusParamsSchema
 } from "@shared/schema";
 import { webSearch, formatSearchResult } from "../integrations/web-search";
 import { searchWeb } from "../integrations/web-scraper";
@@ -65,6 +68,7 @@ import * as github from "../integrations/github";
 import * as browserbase from "../integrations/browserbase";
 import * as twilio from "../integrations/twilio";
 import * as sshService from "./ssh-service";
+import { llmScheduler } from "./llm-scheduler";
 import { ragService } from "./rag-service";
 import { chunkingService } from "./chunking-service";
 import { clientRouter } from "./client-router";
@@ -673,6 +677,44 @@ export class RAGDispatcher {
             throw new Error("Invalid URL format");
           }
           result = { url: openUrlParams.url, success: true };
+          break;
+        case "scheduler_create_callback":
+          // Schedule LLM callback for long-running tasks
+          const createCallbackParams = schedulerCreateCallbackParamsSchema.parse(toolCall.parameters);
+          const callback = await llmScheduler.scheduleCallback({
+            ...createCallbackParams,
+            chatId: this.chatId,
+            userId: this.userId,
+          });
+          result = { 
+            success: true,
+            callbackId: callback.id,
+            scheduledFor: callback.scheduledFor.toISOString(),
+            message: `Callback scheduled for ${callback.scheduledFor.toISOString()}`
+          };
+          break;
+        case "scheduler_cancel_callback":
+          // Cancel a scheduled callback
+          const cancelParams = schedulerCancelCallbackParamsSchema.parse(toolCall.parameters);
+          const cancelled = await llmScheduler.cancelCallback(cancelParams.callbackId);
+          result = { 
+            success: cancelled,
+            message: cancelled ? "Callback cancelled" : "Callback not found or already executed"
+          };
+          break;
+        case "scheduler_get_status":
+          // Get status of a scheduled callback
+          const statusParams = schedulerGetStatusParamsSchema.parse(toolCall.parameters);
+          const status = await llmScheduler.getCallbackStatus(statusParams.callbackId);
+          result = status ? {
+            success: true,
+            status: status.status,
+            scheduledFor: status.scheduledFor.toISOString(),
+            prompt: status.prompt
+          } : {
+            success: false,
+            message: "Callback not found"
+          };
           break;
         case "send_chat":
           // send_chat now only sends content to chat, does NOT terminate the loop
