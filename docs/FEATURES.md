@@ -29,6 +29,7 @@ A next-generation AI chat interface with integrated Google Workspace services, c
 | **Persistent History** | All conversations are saved to a PostgreSQL database and accessible across sessions |
 | **Markdown Rendering** | Full markdown support including headings, lists, code blocks, tables, and formatting |
 | **Quick-Start Prompts** | Suggested conversation starters help new users get started quickly |
+| **Environment Awareness** | AI is aware of its execution environment (production/local) and hostname for context-aware decisions |
 
 ### Chat Management
 
@@ -396,6 +397,7 @@ Execute commands directly from the chat interface.
 | **Server-Sent Events** | Real-time streaming |
 | **JSON Parser** | Tool call extraction |
 | **RAG Pipeline** | Document retrieval and context |
+| **Environment Metadata** | Runtime environment awareness (production/local, hostname) |
 
 ### Security
 

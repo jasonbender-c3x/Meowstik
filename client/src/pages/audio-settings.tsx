@@ -7,8 +7,9 @@ import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Play, Square, Volume2, Mic } from "lucide-react";
+import { Play, Square, Volume2, Mic, ArrowLeft } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { Link } from "wouter";
 
 // Hardcoded list of Google Neural2 voices (matching server/integrations/expressive-tts.ts)
 const VOICES = [
@@ -64,9 +65,20 @@ export default function AudioSettings() {
 
   return (
     <div className="container mx-auto py-8 max-w-4xl space-y-8">
-      <div className="flex flex-col space-y-2">
-        <h1 className="text-3xl font-bold tracking-tight">Audio & Voice</h1>
-        <p className="text-muted-foreground">Configure synthesis, expressiveness, and speech behavior.</p>
+      {/* Navigation Header */}
+      <div className="flex items-center gap-4 mb-8">
+        <Link href="/">
+          <Button variant="ghost" size="icon" data-testid="button-back-home">
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+        </Link>
+        <div className="flex items-center gap-3 flex-1">
+          <Volume2 className="h-8 w-8 text-primary" />
+          <div className="flex flex-col">
+            <h1 className="text-3xl font-display font-bold">Audio & Voice</h1>
+            <p className="text-sm text-muted-foreground">Configure synthesis, expressiveness, and speech behavior.</p>
+          </div>
+        </div>
       </div>
 
       {/* Global Controls */}
@@ -89,26 +101,36 @@ export default function AudioSettings() {
               <Label>Verbosity Level: <span className="font-bold uppercase text-primary">{verbosityMode}</span></Label>
             </div>
             <div className="pt-2 px-2">
-              <Slider 
-                value={[
-                  verbosityMode === "mute" ? 0 : 
-                  verbosityMode === "quiet" ? 33 : 
-                  verbosityMode === "verbose" ? 66 : 100
-                ]}
-                max={100} 
-                step={33}
-                onValueChange={(vals) => {
-                  const v = vals[0];
-                  if (v < 15) setVerbosityMode("mute");
-                  else if (v < 50) setVerbosityMode("quiet");
-                  else if (v < 85) setVerbosityMode("verbose");
-                  else setVerbosityMode("experimental");
-                }}
-              />
+              {(() => {
+                // Calculate slider value based on mode
+                // Modes are evenly distributed: 0, 33, 66, 100
+                const SLIDER_MAX = 100;
+                const NUM_MODES = 4;
+                const STEP = SLIDER_MAX / (NUM_MODES - 1); // 33.33
+                
+                const modeIndex = ["mute", "low", "normal", "experimental"].indexOf(verbosityMode);
+                const sliderValue = modeIndex >= 0 ? modeIndex * STEP : 2 * STEP; // Default to "normal"
+                
+                return (
+                  <Slider 
+                    value={[sliderValue]}
+                    max={SLIDER_MAX} 
+                    step={STEP}
+                    onValueChange={(vals) => {
+                      const v = vals[0];
+                      const threshold = STEP / 2; // Midpoint between positions
+                      if (v < threshold) setVerbosityMode("mute");
+                      else if (v < STEP + threshold) setVerbosityMode("low");
+                      else if (v < 2 * STEP + threshold) setVerbosityMode("normal");
+                      else setVerbosityMode("experimental");
+                    }}
+                  />
+                );
+              })()}
               <div className="flex justify-between text-xs text-muted-foreground mt-2">
                 <span>Mute</span>
-                <span>Quiet (Tools Only)</span>
-                <span>Verbose (Full)</span>
+                <span>Low (Concise)</span>
+                <span>Normal (Verbose)</span>
                 <span>Experimental</span>
               </div>
             </div>
