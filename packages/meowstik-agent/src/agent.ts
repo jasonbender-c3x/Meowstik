@@ -48,7 +48,22 @@ export class DesktopAgent {
       wsUrl = `${this.config.serverUrl}/ws/desktop/agent`;
     }
     
-    console.log(`Connecting to ${wsUrl.replace(/token=[^&]+/, 'token=***')}...`);
+    // Safely redact token from logs
+    let logUrl = wsUrl;
+    if (this.config.token) {
+      try {
+        const url = new URL(wsUrl);
+        if (url.searchParams.has('token')) {
+          url.searchParams.set('token', '***');
+          logUrl = url.toString();
+        }
+      } catch (e) {
+        // Fallback to simple string replacement if URL parsing fails
+        logUrl = wsUrl.replace(/token=[^&]+/, 'token=***');
+      }
+    }
+    
+    console.log(`Connecting to ${logUrl}...`);
     
     return new Promise((resolve, reject) => {
       this.ws = new WebSocket(wsUrl);

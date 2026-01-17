@@ -22,14 +22,16 @@ program
     // Support both --server and --relay flags
     const serverUrl = options.relay || options.server || process.env.MEOWSTIK_SERVER_URL || "ws://localhost:5000";
     
-    // Check if connecting to localhost (parse URL properly)
+    // Check if connecting to localhost (parse URL properly for security)
     let isLocalhost = false;
     try {
       const url = new URL(serverUrl.startsWith('ws://') || serverUrl.startsWith('wss://') ? serverUrl : `ws://${serverUrl}`);
-      isLocalhost = url.hostname === "localhost" || url.hostname === "127.0.0.1" || url.hostname === "::1";
+      // Only allow exact localhost addresses - no subdomains or variations
+      const localhostAddresses = ['localhost', '127.0.0.1', '::1', '[::1]'];
+      isLocalhost = localhostAddresses.includes(url.hostname.toLowerCase());
     } catch (e) {
-      // If URL parsing fails, fall back to string check as safety
-      isLocalhost = serverUrl.includes("localhost") || serverUrl.includes("127.0.0.1");
+      // Invalid URL - not localhost
+      isLocalhost = false;
     }
     
     // Token is required for non-localhost connections
