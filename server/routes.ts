@@ -1233,9 +1233,10 @@ The user has MUTE mode enabled. Minimize all output.
       // Log to LLM debug buffer for debugging
       try {
         const { llmDebugBuffer } = await import("./services/llm-debug-buffer");
-        llmDebugBuffer.add({
+        await llmDebugBuffer.add({
           chatId: req.params.id,
           messageId: savedMessage.id,
+          userId: userId, // Add userId for data isolation
           systemPrompt: modifiedPrompt.systemPrompt,
           userMessage: composedPrompt.userMessage,
           conversationHistory: chatMessages.map((m) => ({
@@ -1486,6 +1487,95 @@ The user has MUTE mode enabled. Minimize all output.
     } catch (error) {
       console.error("Error clearing LLM debug data:", error);
       res.status(500).json({ error: "Failed to clear LLM debug data" });
+    }
+  });
+
+  // ═════════════════════════════════════════════════════════════════════════
+  // LLM INTERACTION PERSISTENCE ENDPOINTS
+  // Query persistent LLM interaction data from database
+  // ═════════════════════════════════════════════════════════════════════════
+
+  /**
+   * GET /api/debug/llm/persistent
+   * Get persistent LLM interactions from database (paginated)
+   */
+  app.get("/api/debug/llm/persistent", async (req, res) => {
+    try {
+      const limit = parseInt(req.query.limit as string) || 50;
+      const userId = req.query.userId as string | undefined;
+      
+      const interactions = await storage.getRecentLlmInteractions(
+        limit,
+        userId === 'null' ? null : userId
+      );
+      res.json(interactions);
+    } catch (error) {
+      console.error("Error fetching persistent LLM interactions:", error);
+      res.status(500).json({ error: "Failed to fetch persistent LLM interactions" });
+    }
+  });
+
+  /**
+   * GET /api/debug/llm/persistent/:id
+   * Get a single persistent LLM interaction by ID
+   */
+  app.get("/api/debug/llm/persistent/:id", async (req, res) => {
+    try {
+      const interaction = await storage.getLlmInteractionById(req.params.id);
+      if (!interaction) {
+        return res.status(404).json({ error: "Interaction not found" });
+      }
+      res.json(interaction);
+    } catch (error) {
+      console.error("Error fetching persistent LLM interaction:", error);
+      res.status(500).json({ error: "Failed to fetch persistent LLM interaction" });
+    }
+  });
+
+  /**
+   * GET /api/debug/llm/persistent/chat/:chatId
+   * Get all LLM interactions for a specific chat
+   */
+  app.get("/api/debug/llm/persistent/chat/:chatId", async (req, res) => {
+    try {
+      const limit = parseInt(req.query.limit as string) || 50;
+      const interactions = await storage.getLlmInteractionsByChat(
+        req.params.chatId,
+        limit
+      );
+      res.json(interactions);
+    } catch (error) {
+      console.error("Error fetching chat LLM interactions:", error);
+      res.status(500).json({ error: "Failed to fetch chat LLM interactions" });
+    }
+  });
+
+  /**
+   * GET /api/debug/llm/stats
+   * Get statistics about LLM interactions
+   */
+  app.get("/api/debug/llm/stats", async (_req, res) => {
+    try {
+      const stats = await storage.getLlmInteractionStats();
+      res.json(stats);
+    } catch (error) {
+      console.error("Error fetching LLM interaction stats:", error);
+      res.status(500).json({ error: "Failed to fetch LLM interaction statistics" });
+    }
+  });
+
+  /**
+   * DELETE /api/debug/llm/persistent/cleanup
+   * Clean up old LLM interactions (retention policy)
+   */
+  app.delete("/api/debug/llm/persistent/cleanup", async (req, res) => {
+    try {
+      const olderThanDays = parseInt(req.query.days as string) || 30;
+      const deletedCount = await storage.deleteOldLlmInteractions(olderThanDays);
+      res.json({ success: true, deletedCount });
+    } catch (error) {
+      console.error("Error cleaning up old LLM interactions:", error);
+      res.status(500).json({ error: "Failed to clean up old LLM interactions" });
     }
   });
 
