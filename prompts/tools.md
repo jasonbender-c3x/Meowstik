@@ -326,6 +326,77 @@ Use these tools for direct HTTP requests to APIs, webhooks, and web services. Th
 
 ---
 
+## Hardware & IoT Devices
+
+### Arduino
+| Tool | Parameters | Description |
+|------|------------|-------------|
+| `arduino_list_boards` | none | List all connected Arduino boards with port info |
+| `arduino_compile` | `sketchPath`, `fqbn` | Compile Arduino sketch (.ino file) |
+| `arduino_upload` | `sketchPath`, `fqbn`, `port` | Upload compiled sketch to board |
+| `arduino_create_sketch` | `name`, `code?` | Create new Arduino sketch with optional custom code |
+| `arduino_install_library` | `libraryName` | Install Arduino library (e.g., "Servo", "DHT") |
+| `arduino_search_libraries` | `query` | Search for Arduino libraries |
+
+**FQBN Examples:**
+- Arduino Uno: `arduino:avr:uno`
+- Arduino Mega: `arduino:avr:mega`
+- Arduino Nano: `arduino:avr:nano`
+- ESP32: `esp32:esp32:esp32`
+
+### Android Debug Bridge (ADB)
+| Tool | Parameters | Description |
+|------|------------|-------------|
+| `adb_list_devices` | none | List all connected Android devices |
+| `adb_install_app` | `apkPath`, `deviceSerial?` | Install APK on device |
+| `adb_uninstall_app` | `packageName`, `deviceSerial?` | Uninstall app by package name |
+| `adb_shell` | `command`, `deviceSerial?` | Execute shell command on device |
+| `adb_screenshot` | `outputPath`, `deviceSerial?` | Capture device screenshot |
+| `adb_device_info` | `deviceSerial?` | Get device model, Android version, etc. |
+| `adb_list_packages` | `deviceSerial?` | List all installed packages on device |
+| `adb_push_file` | `localPath`, `remotePath`, `deviceSerial?` | Transfer file to device |
+| `adb_pull_file` | `remotePath`, `localPath`, `deviceSerial?` | Download file from device |
+
+### Petoi Robot Control
+| Tool | Parameters | Description |
+|------|------------|-------------|
+| `petoi_find_ports` | none | Find available serial ports for Petoi robots |
+| `petoi_execute_skill` | `port`, `skillName` | Execute predefined skill (sit, walk, etc.) |
+| `petoi_set_servo` | `port`, `joint`, `angle` | Control individual servo (joint 0-15, angle -125 to 125) |
+| `petoi_send_command` | `port`, `command` | Send custom command string |
+| `petoi_list_skills` | none | Get all available skills with descriptions |
+
+**Available Skills:** sit, stand, rest, walk, walkBackward, trot, turnLeft, turnRight, pushUp, stretch, check, sniff, scratch, calibrate, reset
+
+### 3D Printer (OctoPrint)
+| Tool | Parameters | Description |
+|------|------------|-------------|
+| `printer_send_gcode` | `host`, `apiKey`, `command` | Send G-code command to printer |
+| `printer_get_status` | `host`, `apiKey` | Get printer status and temperatures |
+| `printer_get_job` | `host`, `apiKey` | Get current print job status and progress |
+| `printer_start_print` | `host`, `apiKey` | Start the current print job |
+| `printer_pause_print` | `host`, `apiKey` | Pause the current print job |
+| `printer_cancel_print` | `host`, `apiKey` | Cancel the current print job |
+| `printer_set_extruder_temp` | `host`, `apiKey`, `temperature`, `tool?` | Set extruder temperature |
+| `printer_set_bed_temp` | `host`, `apiKey`, `temperature` | Set bed temperature |
+| `printer_home_axes` | `host`, `apiKey`, `axes?` | Home printer axes (default: "XYZ") |
+
+**Common G-codes:** G28 (home), G1 (move), M104 (set extruder temp), M140 (set bed temp), M106 (fan on), M107 (fan off)
+
+### KiCad (PCB Design)
+| Tool | Parameters | Description |
+|------|------------|-------------|
+| `kicad_create_project` | `projectName`, `outputDir?` | Create new KiCad project with schematic and PCB files |
+| `kicad_generate_gerber` | `pcbFilePath`, `outputDir?` | Generate Gerber files for PCB manufacturing |
+| `kicad_generate_drill` | `pcbFilePath`, `outputDir?` | Generate drill/hole files |
+| `kicad_export_pdf` | `pcbFilePath`, `outputPath?` | Export PCB as PDF documentation |
+| `kicad_generate_bom` | `schematicFilePath`, `outputPath?` | Generate Bill of Materials (BOM) CSV |
+| `kicad_validate_pcb` | `pcbFilePath` | Run Design Rule Check (DRC) validation |
+
+**Output Formats:** Gerber (.gbr), Drill (.drl), PDF, SVG, BOM (.csv), Netlist (.net)
+
+---
+
 ## Interactive Loop Behavior
 
 **See Core Directives for complete loop architecture and rules.**
