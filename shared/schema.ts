@@ -1032,7 +1032,7 @@ export const schedulerCreateCallbackParamsSchema = z.object({
     retryCount: z.number().optional(),
   }).passthrough().optional(),
 }).refine(
-  (data) => !!data.triggerInSeconds !== !!data.triggerAt,
+  (data) => (data.triggerInSeconds != null) !== (data.triggerAt != null),
   "Exactly one of triggerInSeconds or triggerAt must be provided"
 );
 export type SchedulerCreateCallbackParams = z.infer<typeof schedulerCreateCallbackParamsSchema>;

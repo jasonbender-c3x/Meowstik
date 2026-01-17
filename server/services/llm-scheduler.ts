@@ -70,6 +70,19 @@ export interface ScheduledCallback {
   createdAt: Date;
 }
 
+/**
+ * Interface for scheduled callback job payload
+ */
+interface ScheduledCallbackPayload {
+  prompt: string;
+  systemPrompt?: string;
+  context: {
+    isScheduledCallback: boolean;
+    originalMetadata?: Record<string, unknown>;
+    chatId: string;
+  };
+}
+
 class LlmSchedulerService {
   /**
    * Schedule an LLM callback to execute at a future time
@@ -86,20 +99,22 @@ class LlmSchedulerService {
       throw new Error("Only one of triggerInSeconds or triggerAt can be provided");
     }
     
-    // Calculate the scheduled time
+    // Calculate the scheduled time using a consistent reference time
+    const now = new Date();
     let scheduledFor: Date;
+    
     if (triggerInSeconds) {
-      scheduledFor = new Date(Date.now() + triggerInSeconds * 1000);
+      scheduledFor = new Date(now.getTime() + triggerInSeconds * 1000);
     } else if (triggerAt) {
       scheduledFor = new Date(triggerAt);
       if (isNaN(scheduledFor.getTime())) {
         throw new Error("Invalid triggerAt datetime format. Use ISO 8601 format.");
       }
-      if (scheduledFor <= new Date()) {
+      if (scheduledFor <= now) {
         throw new Error("triggerAt must be in the future");
       }
     } else {
-      throw new Error("Unreachable: validation should have caught this");
+      throw new Error("Either triggerInSeconds or triggerAt must be provided");
     }
     
     // Ensure we have a chat context
@@ -108,17 +123,19 @@ class LlmSchedulerService {
     }
     
     // Create a job in the queue system with the scheduled time
+    const payload: ScheduledCallbackPayload = {
+      prompt,
+      context: {
+        isScheduledCallback: true,
+        originalMetadata: metadata,
+        chatId,
+      },
+    };
+    
     const job = await jobQueue.submitJob({
       name: `LLM Callback: ${metadata?.taskType || 'Scheduled Check'}`,
       type: "prompt",
-      payload: {
-        prompt,
-        context: {
-          isScheduledCallback: true,
-          originalMetadata: metadata,
-          chatId,
-        },
-      },
+      payload: payload as any, // Cast needed for JobPayload compatibility
       scheduledFor,
       userId,
       priority: 5, // Normal priority
@@ -154,6 +171,8 @@ class LlmSchedulerService {
     }
     
     // Create a message with role "user" containing the scheduled prompt
+    // Note: The prompt originates from the LLM itself (via scheduler_create_callback tool),
+    // not from untrusted user input, so no additional sanitization is needed.
     const messageData: InsertMessage = {
       chatId,
       role: "user",
@@ -187,8 +206,8 @@ class LlmSchedulerService {
     const job = await jobQueue.getJob(callbackId);
     if (!job) return null;
     
-    const payload = job.payload as any;
-    const context = payload?.context || {};
+    const payload = job.payload as unknown as ScheduledCallbackPayload;
+    const context = payload?.context || { chatId: "", isScheduledCallback: false, originalMetadata: {} };
     
     return {
       id: job.id,

@@ -13,16 +13,29 @@ import { type AgentJob } from "@shared/schema";
 import { llmScheduler } from "./llm-scheduler";
 
 /**
+ * Interface for scheduled callback job payload
+ */
+interface ScheduledCallbackPayload {
+  prompt: string;
+  systemPrompt?: string;
+  context: {
+    isScheduledCallback: boolean;
+    originalMetadata?: Record<string, unknown>;
+    chatId: string;
+  };
+}
+
+/**
  * Process a scheduled callback job
  * This function is called by the job queue when a scheduled time arrives
  */
 export async function processScheduledCallback(job: AgentJob): Promise<{ output: unknown; error?: string }> {
   try {
-    const payload = job.payload as any;
-    const context = payload?.context || {};
+    const payload = job.payload as unknown as ScheduledCallbackPayload;
+    const context = payload?.context;
     
     // Check if this is a scheduled callback job
-    if (!context.isScheduledCallback) {
+    if (!context?.isScheduledCallback) {
       return {
         error: "Job is not a scheduled callback",
       };
@@ -67,11 +80,11 @@ export async function initializeSchedulerCallbackProcessor(): Promise<void> {
   // Register the processor for prompt-type jobs
   // The scheduler creates jobs with type "prompt" and marks them with isScheduledCallback
   await jobQueue.registerProcessor("prompt", async (job: AgentJob) => {
-    const payload = job.payload as any;
-    const context = payload?.context || {};
+    const payload = job.payload as unknown as ScheduledCallbackPayload;
+    const context = payload?.context;
     
     // Only process scheduled callbacks with this processor
-    if (context.isScheduledCallback) {
+    if (context?.isScheduledCallback) {
       return await processScheduledCallback(job);
     }
     
