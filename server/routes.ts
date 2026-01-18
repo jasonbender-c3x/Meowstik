@@ -291,9 +291,14 @@ export async function registerRoutes(
         before 
       });
       
+      console.log(`[GET /api/chats/${req.params.id}] Fetched ${messages.length} messages, limit: ${limit}, before: ${before}`);
+      console.log(`[GET /api/chats/${req.params.id}] Message IDs:`, messages.map(m => ({ id: m.id, role: m.role, createdAt: m.createdAt })));
+      
       // Check if there are more messages to load
       const hasMore = messages.length > limit;
       const returnMessages = hasMore ? messages.slice(1) : messages; // Remove oldest if over limit
+      
+      console.log(`[GET /api/chats/${req.params.id}] Returning ${returnMessages.length} messages, hasMore: ${hasMore}`);
 
       // Return chat metadata, paginated messages, and hasMore flag
       res.json({ chat, messages: returnMessages, hasMore });
@@ -824,6 +829,43 @@ The user has MUTE mode enabled. Minimize all output.
         `Tools Available: ${toolDeclarations.length}`
       );
 
+      // ═══════════════════════════════════════════════════════════════════════
+      // LOG INPUT: Capture everything sent TO the LLM
+      // ═══════════════════════════════════════════════════════════════════════
+      const { ioLogger } = await import("./services/io-logger");
+      const inputLogTimestamp = new Date().toISOString();
+      
+      // Calculate token estimates
+      const systemPromptTokens = Math.ceil(modifiedPrompt.systemPrompt.length / 4);
+      const userMessageTokens = Math.ceil(userMsgText.length / 4);
+      const historyTokens = Math.ceil(
+        chatMessages.reduce((sum, m) => sum + m.content.length, 0) / 4
+      );
+      const totalInputTokensEstimate = systemPromptTokens + userMessageTokens + historyTokens;
+
+      const inputLogFilename = ioLogger.logInput({
+        timestamp: inputLogTimestamp,
+        messageId: savedMessage.id,
+        chatId: req.params.id,
+        systemPrompt: modifiedPrompt.systemPrompt,
+        userMessage: userMsgText,
+        conversationHistory: chatMessages.map(m => ({
+          role: m.role,
+          content: m.content,
+        })),
+        attachments: reqAttachments.map(a => ({
+          type: a.type || 'file',
+          filename: a.filename || 'unknown',
+          size: a.size || 0,
+          mimeType: a.mimeType,
+        })),
+        ragContext: modifiedPrompt.ragContext,
+        model: modelMode,
+        totalInputTokensEstimate,
+      });
+
+      console.log(`[IOLogger] Input logged to: ${inputLogFilename}`);
+
       const result = await genAI.models.generateContentStream({
         model: modelMode,
         config: {
@@ -1312,11 +1354,53 @@ The user has MUTE mode enabled. Minimize all output.
       // Log to LLM debug buffer for debugging
       try {
         const { llmDebugBuffer } = await import("./services/llm-debug-buffer");
+        const { promptComposer } = await import("./services/prompt-composer");
+        const { ioLogger } = await import("./services/io-logger");
+        
+        // Get system prompt breakdown for detailed token analysis
+        const breakdown = promptComposer.getSystemPromptBreakdown();
+        
+        // Log output to file
+        const outputLogFilename = ioLogger.logOutput({
+          timestamp: new Date().toISOString(),
+          messageId: savedMessage.id,
+          chatId: req.params.id,
+          rawResponse: fullResponse,
+          cleanContent: finalContent,
+          toolCalls: (parsedResponse?.toolCalls || []).map(tc => ({
+            type: tc.type,
+            parameters: tc.parameters,
+          })),
+          toolResults: toolResults.map(tr => ({
+            type: tr.type,
+            success: tr.success,
+            result: tr.result,
+            error: tr.error,
+          })),
+          model: modelMode,
+          durationMs: endTime - (startTime || endTime),
+          totalOutputTokensEstimate: Math.ceil(fullResponse.length / 4),
+        });
+        
+        console.log(`[IOLogger] Output logged to: ${outputLogFilename}`);
+        
+        // Add to debug buffer with enhanced data
         await llmDebugBuffer.add({
           chatId: req.params.id,
           messageId: savedMessage.id,
-          userId: userId, // Add userId for data isolation
+          userId: userId,
           systemPrompt: modifiedPrompt.systemPrompt,
+          systemPromptBreakdown: {
+            components: breakdown.components.map(c => ({
+              name: c.name,
+              charCount: c.charCount,
+              lineCount: c.lineCount,
+              tokenEstimate: Math.ceil(c.charCount / 4),
+            })),
+            totalChars: breakdown.totalChars,
+            totalLines: breakdown.totalLines,
+            estimatedTokens: breakdown.estimatedTokens,
+          },
           userMessage: composedPrompt.userMessage,
           conversationHistory: chatMessages.map((m) => ({
             role: m.role,
@@ -1333,7 +1417,18 @@ The user has MUTE mode enabled. Minimize all output.
           toolResults,
           model: modelMode,
           durationMs: endTime - (startTime || endTime),
+          tokenEstimate: {
+            inputTokens: totalInputTokensEstimate,
+            outputTokens: Math.ceil(fullResponse.length / 4),
+          },
+          ioLogFiles: {
+            inputLog: inputLogFilename,
+            outputLog: outputLogFilename,
+          },
         });
+        
+        // Cleanup old IO logs (keep last 50)
+        ioLogger.cleanup(50);
       } catch (logError) {
         console.error("Failed to log LLM interaction:", logError);
       }
@@ -1401,6 +1496,13 @@ The user has MUTE mode enabled. Minimize all output.
         `data: ${JSON.stringify({
           done: true,
           toolResults: toolResults.length > 0 ? toolResults : undefined,
+          savedMessage: {
+            id: savedAiMessage.id,
+            role: savedAiMessage.role,
+            content: savedAiMessage.content,
+            createdAt: savedAiMessage.createdAt,
+            metadata: savedAiMessage.metadata,
+          },
         })}\n\n`,
       );
       res.end();
@@ -1640,6 +1742,99 @@ The user has MUTE mode enabled. Minimize all output.
     } catch (error) {
       console.error("Error fetching LLM interaction stats:", error);
       res.status(500).json({ error: "Failed to fetch LLM interaction statistics" });
+    }
+  });
+
+  /**
+   * DELETE /api/debug/llm/persistent/cleanup
+   * Clean up old LLM interactions (retention policy)
+   */
+  app.delete("/api/debug/llm/persistent/cleanup", async (req, res) => {
+    try {
+      const daysOld = parseInt(req.query.daysOld as string) || 30;
+      const deletedCount = await storage.deleteOldLlmInteractions(daysOld);
+      res.json({ success: true, deletedCount });
+    } catch (error) {
+      console.error("Error cleaning up old LLM interactions:", error);
+      res.status(500).json({ error: "Failed to cleanup old LLM interactions" });
+    }
+  });
+
+  // ═════════════════════════════════════════════════════════════════════════
+  // IO LOG FILE ENDPOINTS - Direct access to input/output logs
+  // ═════════════════════════════════════════════════════════════════════════
+
+  /**
+   * GET /api/debug/io-logs
+   * List all IO log files (inputs and outputs)
+   */
+  app.get("/api/debug/io-logs", async (_req, res) => {
+    try {
+      const { ioLogger } = await import("./services/io-logger");
+      const logs = ioLogger.listLogs();
+      res.json(logs);
+    } catch (error) {
+      console.error("Error listing IO logs:", error);
+      res.status(500).json({ error: "Failed to list IO logs" });
+    }
+  });
+
+  /**
+   * GET /api/debug/io-logs/:filename
+   * Get the content of a specific IO log file
+   */
+  app.get("/api/debug/io-logs/:filename", async (req, res) => {
+    try {
+      const { ioLogger } = await import("./services/io-logger");
+      const { filename } = req.params;
+      
+      // Security: Only allow files that start with 'input-' or 'output-'
+      if (!filename.startsWith('input-') && !filename.startsWith('output-')) {
+        return res.status(400).json({ error: "Invalid log file name" });
+      }
+      
+      const content = ioLogger.getLog(filename);
+      if (!content) {
+        return res.status(404).json({ error: "Log file not found" });
+      }
+      
+      // Return as markdown
+      res.setHeader('Content-Type', 'text/markdown');
+      res.send(content);
+    } catch (error) {
+      console.error("Error fetching IO log:", error);
+      res.status(500).json({ error: "Failed to fetch IO log" });
+    }
+  });
+
+  /**
+   * DELETE /api/debug/io-logs/cleanup
+   * Clean up old IO log files (keep last N)
+   */
+  app.delete("/api/debug/io-logs/cleanup", async (req, res) => {
+    try {
+      const { ioLogger } = await import("./services/io-logger");
+      const keepLast = parseInt(req.query.keepLast as string) || 50;
+      ioLogger.cleanup(keepLast);
+      res.json({ success: true, message: `Cleaned up old logs, kept last ${keepLast}` });
+    } catch (error) {
+      console.error("Error cleaning up IO logs:", error);
+      res.status(500).json({ error: "Failed to cleanup IO logs" });
+    }
+  });
+
+  /**
+   * GET /api/debug/system-prompt-breakdown
+   * Get detailed breakdown of system prompt components
+   */
+  app.get("/api/debug/system-prompt-breakdown", async (_req, res) => {
+    try {
+      const { promptComposer } = await import("./services/prompt-composer");
+      const breakdown = promptComposer.getSystemPromptBreakdown();
+      res.json(breakdown);
+    } catch (error) {
+      console.error("Error getting system prompt breakdown:", error);
+      res.status(500).json({ error: "Failed to get system prompt breakdown" });
     }
   });
 

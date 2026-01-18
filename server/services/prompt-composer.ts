@@ -272,11 +272,34 @@ These steps are mandatory before sending your response via send_chat.
    * Generate system prompt with custom branding
    * @param agentName - Custom agent name (defaults to "Meowstik")
    * @param displayName - Custom display name (defaults to "Meowstik AI")
+   * @param options - Optional configuration for memory inclusion
+   * @param options.includeMemory - Include Short_Term_Memory.md (default: true)
+   * @param options.includeCache - Include cache.md from last turn (default: true)
+   * @param options.memoryMaxLines - Maximum lines from memory to include (default: 100)
+   * @param options.forceReload - Force reload of memory files from disk (default: false)
    */
-  public getSystemPrompt(agentName: string = DEFAULT_AGENT_NAME, displayName: string = DEFAULT_DISPLAY_NAME): string {
-    // Reload prompts every time to catch dynamic changes to memory files
-    this.promptsLoaded = false;
-    this.loadPrompts();
+  public getSystemPrompt(
+    agentName: string = DEFAULT_AGENT_NAME, 
+    displayName: string = DEFAULT_DISPLAY_NAME,
+    options?: {
+      includeMemory?: boolean;
+      includeCache?: boolean;
+      memoryMaxLines?: number;
+      forceReload?: boolean;
+    }
+  ): string {
+    // Default options
+    const includeMemory = options?.includeMemory !== false; // Default true
+    const includeCache = options?.includeCache !== false; // Default true
+    const memoryMaxLines = options?.memoryMaxLines || 100; // Default 100 lines
+    const forceReload = options?.forceReload || false;
+
+    // Only reload prompts if forced or not loaded yet
+    // This prevents disk I/O on every request
+    if (forceReload || !this.promptsLoaded) {
+      this.promptsLoaded = false;
+      this.loadPrompts();
+    }
 
     // Inject branding into core directives and personality
     const brandedCoreDirectives = this.applyBrandingToText(this.coreDirectives, agentName);
@@ -288,11 +311,26 @@ These steps are mandatory before sending your response via send_chat.
       brandedCoreDirectives,
       brandedPersonality,
       this.tools,
-      this.shortTermMemory, // Persistent user-defined memory
     ];
 
-    // Include cache from last turn if available
-    if (this.cache.trim()) {
+    // Conditionally include Short_Term_Memory with truncation
+    if (includeMemory && this.shortTermMemory.trim()) {
+      const memoryLines = this.shortTermMemory.split('\n');
+      let truncatedMemory = this.shortTermMemory;
+      
+      if (memoryLines.length > memoryMaxLines) {
+        // Keep header and last N lines
+        const header = memoryLines.slice(0, 2).join('\n'); // Keep "# Short-Term Memory" header
+        const recentLines = memoryLines.slice(-memoryMaxLines).join('\n');
+        truncatedMemory = `${header}\n\n[... truncated ${memoryLines.length - memoryMaxLines} older lines ...]\n\n${recentLines}`;
+        console.log(`[PromptComposer] Truncated Short_Term_Memory from ${memoryLines.length} to ${memoryMaxLines} lines`);
+      }
+      
+      components.push(truncatedMemory);
+    }
+
+    // Conditionally include cache from last turn
+    if (includeCache && this.cache.trim()) {
       components.push(`# Thoughts Forward (from last turn)\n\n${this.cache}`);
     }
 
@@ -300,6 +338,65 @@ These steps are mandatory before sending your response via send_chat.
     components.push(this.getFinalInstructions());
 
     return components.join("\n\n---\n\n");
+  }
+
+  /**
+   * Get breakdown of system prompt components with sizes
+   * Useful for debugging and token analysis
+   * @param agentName - Custom agent name
+   * @param displayName - Custom display name
+   * @returns Object with each component and its size
+   */
+  public getSystemPromptBreakdown(
+    agentName: string = DEFAULT_AGENT_NAME,
+    displayName: string = DEFAULT_DISPLAY_NAME
+  ): {
+    components: Array<{ name: string; content: string; charCount: number; lineCount: number }>;
+    totalChars: number;
+    totalLines: number;
+    estimatedTokens: number;
+  } {
+    // Force reload to get latest state
+    this.promptsLoaded = false;
+    this.loadPrompts();
+
+    const brandedCoreDirectives = this.applyBrandingToText(this.coreDirectives, agentName);
+    const brandedPersonality = this.applyBrandingToText(this.personality, agentName);
+    
+    const identity = `# Agent Identity\nYou are ${displayName}, referred to as ${agentName}.\n`;
+    const envMetadata = formatEnvironmentMetadata();
+    const finalInstructions = this.getFinalInstructions();
+
+    const components = [
+      { name: "Agent Identity", content: identity },
+      { name: "Environment Metadata", content: envMetadata },
+      { name: "Core Directives", content: brandedCoreDirectives },
+      { name: "Personality", content: brandedPersonality },
+      { name: "Tools", content: this.tools },
+      { name: "Short-Term Memory", content: this.shortTermMemory || "(empty)" },
+      { name: "Cache (Last Turn)", content: this.cache || "(empty)" },
+      { name: "Final Instructions", content: finalInstructions },
+    ];
+
+    const breakdown = components.map(comp => ({
+      name: comp.name,
+      content: comp.content,
+      charCount: comp.content.length,
+      lineCount: comp.content.split('\n').length,
+    }));
+
+    const totalChars = breakdown.reduce((sum, c) => sum + c.charCount, 0);
+    const totalLines = breakdown.reduce((sum, c) => sum + c.lineCount, 0);
+    
+    // Rough token estimation: ~4 characters per token for English text
+    const estimatedTokens = Math.ceil(totalChars / 4);
+
+    return {
+      components: breakdown,
+      totalChars,
+      totalLines,
+      estimatedTokens,
+    };
   }
 
 
