@@ -43,6 +43,7 @@ Consolidated roadmap from 245 extracted ideas, grouped by theme and priority.
 |---|------|----------|--------|
 | **4** | **Kernel + Personality + Tools** | kernel_compiler_model, installable_personality, version_control, dual_output, JIT_tool_instructions | Planned |
 | **5** | **Cognitive Cascade + Orchestration** | cognitive_cascade, tool_preprocessor, prompt_construction, multi_instance_architecture, non_blocking_processes, task_separation | 🔥 MAJOR |
+| **5b** | **Specialized Search Agent** | advanced_web_research, methodology_learning, cost_optimization, semantic_caching | 📋 PROPOSED |
 
 ### TIER 3: UX Improvements
 
@@ -223,6 +224,56 @@ User Input
 Response
 ```
 
+### 5b. Specialized Search Agent
+
+**Combines:**
+- **Advanced Web Research** - Deep research with noise filtering
+- **Methodology Learning** - Learn from "how-to" books and guides
+- **Cost Optimization** - Use Flash 2.0 for 80-90% cost reduction
+- **Semantic Caching** - Cache research results for similar queries
+
+**Architecture:**
+```
+User Query
+    ↓
+[Primary LLM] - Detect research intent
+    ↓
+[Orchestrator] - Route to Search Agent
+    ↓
+[Search Agent - Gemini Flash 2.0]
+    ├─ Query Analyzer
+    ├─ Strategy Selector (loads learned methodologies)
+    ├─ Multi-Source Searcher (Tavily, Perplexity, Web Scraper)
+    ├─ Result Filter & Ranker
+    └─ Information Synthesizer
+    ↓
+Structured Findings (JSON)
+    ↓
+[Primary LLM] - Present to user
+```
+
+**Key Features:**
+1. **Specialized System Prompt**: Contains research methodologies, filtering strategies, synthesis techniques
+2. **Methodology Learning**: Ingest "how-to" books on research techniques
+3. **Multi-Source Search**: Query Tavily, Perplexity, web scrapers in parallel
+4. **Intelligent Caching**: Semantic cache with freshness-aware expiration
+5. **Cost Tracking**: Monitor per-query costs and optimize model selection
+
+**Cost Benefits:**
+- Current: $0.30-$0.50 per research query (Gemini Pro)
+- Proposed: $0.03-$0.08 per query (Gemini Flash)
+- With 35% cache hit rate: ~$0.02 per query
+- **Annual savings**: $300-$540 for 1,200 queries
+
+**Implementation Phases:**
+1. **Phase 1** (Week 1): Core agent infrastructure, orchestrator integration
+2. **Phase 2** (Week 2): Advanced search strategies, multi-source search
+3. **Phase 3** (Week 3): Methodology learning system with RAG
+4. **Phase 4** (Week 4): Cost optimization, semantic caching
+5. **Phase 5** (Week 5): UI for research control and methodology management
+
+**See**: [PROPOSAL-003: Specialized Search Agent](/home/runner/work/Meowstik/Meowstik/docs/proposals/PROPOSAL-003-specialized-search-agent.md)
+
 ---
 
 ## Implementation Order
@@ -232,6 +283,7 @@ Response
 3. **Collaborative Editing** - Core differentiator
 4. **Kernel + Personality** - Foundation for modularity
 5. **Orchestration** - Performance & reliability at scale
+6. **Specialized Search Agent** - Cost-effective research enhancement
 
 ---
 
@@ -258,5 +310,6 @@ Response
 - **Completed:** 17
 - **In Progress:** 10
 - **Pending:** 204
+- **Proposed:** 1 (Specialized Search Agent)
 - **Needs Alternative:** 13
 - **Deferred:** 1 (Knowledge Buckets)
