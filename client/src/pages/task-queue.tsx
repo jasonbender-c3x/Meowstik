@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -322,426 +321,424 @@ export default function TaskQueuePage() {
   };
 
   return (
-    <div className="min-h-screen bg-background" data-testid="task-queue-page">
-      <header className="sticky top-0 z-10 bg-background/80 backdrop-blur-sm border-b border-border/50">
-        <div className="max-w-6xl mx-auto px-4 py-4">
-          <div className="flex items-center gap-4">
-            <Link href="/">
-              <Button variant="ghost" size="icon" data-testid="button-back">
-                <ArrowLeft className="w-5 h-5" />
-              </Button>
-            </Link>
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-primary/10">
-                <ListTodo className="w-6 h-6 text-primary" />
-              </div>
-              <div>
-                <h1 className="text-xl font-semibold">Task Queue</h1>
-                <p className="text-sm text-muted-foreground">AI batch processing queue</p>
-              </div>
-            </div>
-            <div className="ml-auto flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => { loadTasks(); loadStats(); loadExecutorStatus(); loadWaitingTasks(); }}
-                disabled={isLoading}
-                data-testid="button-refresh"
-              >
-                <RefreshCw className={`w-4 h-4 mr-2 ${isLoading ? "animate-spin" : ""}`} />
-                Refresh
-              </Button>
-              <Button
-                size="sm"
-                onClick={() => setIsCreateOpen(true)}
-                data-testid="button-create-task"
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                New Task
-              </Button>
-            </div>
+    <div className="min-h-screen bg-background flex flex-col" data-testid="task-queue-page">
+      {/* Header */}
+      <header className="border-b bg-card px-4 py-3 flex-shrink-0">
+        <div className="flex items-center gap-4">
+          <Link href="/">
+            <Button variant="ghost" size="icon" data-testid="button-back">
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
+          </Link>
+          <div className="flex-1">
+            <h1 className="text-xl font-semibold flex items-center gap-2">
+              <ListTodo className="h-5 w-5 text-primary" />
+              Task Queue
+            </h1>
+            <p className="text-sm text-muted-foreground">
+              AI batch processing queue
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => { loadTasks(); loadStats(); loadExecutorStatus(); loadWaitingTasks(); }}
+              disabled={isLoading}
+              data-testid="button-refresh"
+            >
+              {isLoading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <RefreshCw className="h-4 w-4" />
+              )}
+            </Button>
+            <Button
+              size="sm"
+              onClick={() => setIsCreateOpen(true)}
+              data-testid="button-create-task"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              New Task
+            </Button>
           </div>
         </div>
       </header>
 
-      <main className="max-w-6xl mx-auto px-4 py-6 space-y-6">
-        <Card>
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle className="flex items-center gap-2">
-                  <Power className="w-5 h-5" />
-                  Executor Control
-                </CardTitle>
-                <CardDescription>Manage the workflow execution engine</CardDescription>
-              </div>
-              <div className="flex items-center gap-3">
-                {executorStatus && (
-                  <>
-                    <div className="flex items-center gap-2">
-                      <div className={`w-3 h-3 rounded-full ${executorStatus.isRunning ? (executorStatus.isPaused ? "bg-yellow-500" : "bg-green-500 animate-pulse") : "bg-gray-400"}`} />
-                      <span className="text-sm font-medium">
-                        {executorStatus.isRunning ? (executorStatus.isPaused ? "Paused" : "Running") : "Stopped"}
-                      </span>
-                    </div>
-                    <Button
-                      variant={executorStatus.isPaused ? "default" : "outline"}
-                      size="sm"
-                      onClick={toggleExecutorPause}
-                      disabled={!executorStatus.isRunning}
-                      data-testid="button-pause-resume"
-                    >
-                      {executorStatus.isPaused ? (
-                        <>
-                          <Play className="w-4 h-4 mr-1" />
-                          Resume
-                        </>
-                      ) : (
-                        <>
-                          <Pause className="w-4 h-4 mr-1" />
-                          Pause
-                        </>
-                      )}
-                    </Button>
-                    <Button
-                      variant={executorStatus.isRunning ? "destructive" : "default"}
-                      size="sm"
-                      onClick={toggleExecutor}
-                      data-testid="button-start-stop"
-                    >
-                      {executorStatus.isRunning ? (
-                        <>
-                          <PowerOff className="w-4 h-4 mr-1" />
-                          Stop
-                        </>
-                      ) : (
-                        <>
-                          <Power className="w-4 h-4 mr-1" />
-                          Start
-                        </>
-                      )}
-                    </Button>
-                  </>
-                )}
-              </div>
-            </div>
-          </CardHeader>
-        </Card>
-
-        {waitingTasks.length > 0 && (
-          <Card className="border-purple-500/30">
-            <CardHeader className="pb-3">
-              <CardTitle className="flex items-center gap-2 text-purple-600">
-                <Hand className="w-5 h-5" />
-                Tasks Waiting for Input ({waitingTasks.length})
-              </CardTitle>
-              <CardDescription>These tasks are paused and waiting for your input to continue</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                {waitingTasks.map(task => (
-                  <div key={task.id} className="flex items-center justify-between p-3 border rounded-lg bg-purple-500/5">
-                    <div>
-                      <p className="font-medium">{task.title}</p>
-                      {task.inputPrompt && (
-                        <p className="text-sm text-muted-foreground">{task.inputPrompt}</p>
-                      )}
-                    </div>
-                    <Button
-                      size="sm"
-                      onClick={() => openInputDialog(task)}
-                      data-testid={`button-provide-input-${task.id}`}
-                    >
-                      <Send className="w-4 h-4 mr-2" />
-                      Provide Input
-                    </Button>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        <div className="grid grid-cols-4 gap-4">
-          <Card className="border-yellow-500/20" data-testid="stat-pending">
-            <CardContent className="pt-4">
-              <div className="flex items-center justify-between">
+      <main className="flex-1 overflow-hidden flex flex-col">
+        <ScrollArea className="flex-1">
+          <div className="px-4 py-6 space-y-6 max-w-6xl mx-auto w-full">
+            {/* Executor Control Section */}
+            <div className="border border-border rounded-lg bg-muted/20 p-6">
+              <div className="flex items-center justify-between mb-4">
                 <div>
-                  <p className="text-sm text-muted-foreground">Pending</p>
-                  <p className="text-2xl font-bold text-yellow-600">{stats.pending}</p>
+                  <h2 className="text-lg font-semibold flex items-center gap-2">
+                    <Power className="h-5 w-5 text-primary" />
+                    Executor Control
+                  </h2>
+                  <p className="text-sm text-muted-foreground">
+                    Manage the workflow execution engine
+                  </p>
                 </div>
-                <Clock className="w-8 h-8 text-yellow-500/50" />
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="border-blue-500/20" data-testid="stat-running">
-            <CardContent className="pt-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">Running</p>
-                  <p className="text-2xl font-bold text-blue-600">{stats.running}</p>
-                </div>
-                <Loader2 className="w-8 h-8 text-blue-500/50" />
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="border-green-500/20" data-testid="stat-completed">
-            <CardContent className="pt-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">Completed</p>
-                  <p className="text-2xl font-bold text-green-600">{stats.completed}</p>
-                </div>
-                <CheckCircle className="w-8 h-8 text-green-500/50" />
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="border-red-500/20" data-testid="stat-failed">
-            <CardContent className="pt-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">Failed</p>
-                  <p className="text-2xl font-bold text-red-600">{stats.failed}</p>
-                </div>
-                <XCircle className="w-8 h-8 text-red-500/50" />
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle>Tasks</CardTitle>
-                <CardDescription>Queued tasks for AI processing</CardDescription>
-              </div>
-              <Select value={filterStatus} onValueChange={setFilterStatus}>
-                <SelectTrigger className="w-40" data-testid="select-filter-status">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Status</SelectItem>
-                  <SelectItem value="pending">Pending</SelectItem>
-                  <SelectItem value="running">Running</SelectItem>
-                  <SelectItem value="completed">Completed</SelectItem>
-                  <SelectItem value="failed">Failed</SelectItem>
-                  <SelectItem value="cancelled">Cancelled</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <ScrollArea className="h-[500px]">
-              {tasks.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
-                  <ListTodo className="w-12 h-12 mb-4 opacity-50" />
-                  <p>No tasks in queue</p>
-                  <p className="text-sm">Create a task or ask the AI to generate one</p>
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  {tasks.map(task => {
-                    const effectiveStatus = task.waitingForInput ? "waiting_input" : task.status;
-                    const statusInfo = statusConfig[effectiveStatus] || statusConfig.pending;
-                    const typeInfo = taskTypeConfig[task.taskType] || { color: "bg-gray-500/10 text-gray-600", label: task.taskType };
-                    const isExpanded = expandedTasks.has(task.id);
-
-                    return (
-                      <div
-                        key={task.id}
-                        className="border rounded-lg p-3 hover:bg-muted/50 transition-colors"
-                        data-testid={`task-item-${task.id}`}
+                <div className="flex items-center gap-3">
+                  {executorStatus && (
+                    <>
+                      <div className="flex items-center gap-2">
+                        <div className={`w-3 h-3 rounded-full ${executorStatus.isRunning ? (executorStatus.isPaused ? "bg-yellow-500" : "bg-green-500 animate-pulse") : "bg-gray-400"}`} />
+                        <span className="text-sm font-medium">
+                          {executorStatus.isRunning ? (executorStatus.isPaused ? "Paused" : "Running") : "Stopped"}
+                        </span>
+                      </div>
+                      <Button
+                        variant={executorStatus.isPaused ? "default" : "outline"}
+                        size="sm"
+                        onClick={toggleExecutorPause}
+                        disabled={!executorStatus.isRunning}
+                        data-testid="button-pause-resume"
                       >
-                        <div className="flex items-start gap-3">
-                          <button
-                            onClick={() => toggleExpand(task.id)}
-                            className="mt-1 p-0.5 hover:bg-muted rounded"
-                            data-testid={`button-expand-${task.id}`}
+                        {executorStatus.isPaused ? (
+                          <>
+                            <Play className="h-4 w-4 mr-1" />
+                            Resume
+                          </>
+                        ) : (
+                          <>
+                            <Pause className="h-4 w-4 mr-1" />
+                            Pause
+                          </>
+                        )}
+                      </Button>
+                      <Button
+                        variant={executorStatus.isRunning ? "destructive" : "default"}
+                        size="sm"
+                        onClick={toggleExecutor}
+                        data-testid="button-start-stop"
+                      >
+                        {executorStatus.isRunning ? (
+                          <>
+                            <PowerOff className="h-4 w-4 mr-1" />
+                            Stop
+                          </>
+                        ) : (
+                          <>
+                            <Power className="h-4 w-4 mr-1" />
+                            Start
+                          </>
+                        )}
+                      </Button>
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Waiting Tasks Section */}
+            {waitingTasks.length > 0 && (
+              <div className="border border-border rounded-lg bg-muted/20 p-6 border-purple-500/30">
+                <h2 className="text-lg font-semibold flex items-center gap-2 mb-4 text-purple-600">
+                  <Hand className="h-5 w-5" />
+                  Tasks Waiting for Input ({waitingTasks.length})
+                </h2>
+                <p className="text-sm text-muted-foreground mb-4">
+                  These tasks are paused and waiting for your input to continue
+                </p>
+                <div className="space-y-2">
+                  {waitingTasks.map(task => (
+                    <div key={task.id} className="flex items-center justify-between p-3 border rounded-lg bg-purple-500/5">
+                      <div>
+                        <p className="font-medium">{task.title}</p>
+                        {task.inputPrompt && (
+                          <p className="text-sm text-muted-foreground">{task.inputPrompt}</p>
+                        )}
+                      </div>
+                      <Button
+                        size="sm"
+                        onClick={() => openInputDialog(task)}
+                        data-testid={`button-provide-input-${task.id}`}
+                      >
+                        <Send className="h-4 w-4 mr-2" />
+                        Provide Input
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Stats Grid */}
+            <div className="grid grid-cols-4 gap-4">
+              <div className="border border-border rounded-lg bg-muted/20 p-6 border-yellow-500/20" data-testid="stat-pending">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Pending</p>
+                    <p className="text-2xl font-bold text-yellow-600">{stats.pending}</p>
+                  </div>
+                  <Clock className="h-8 w-8 text-yellow-500/50" />
+                </div>
+              </div>
+              <div className="border border-border rounded-lg bg-muted/20 p-6 border-blue-500/20" data-testid="stat-running">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Running</p>
+                    <p className="text-2xl font-bold text-blue-600">{stats.running}</p>
+                  </div>
+                  <Loader2 className="h-8 w-8 text-blue-500/50" />
+                </div>
+              </div>
+              <div className="border border-border rounded-lg bg-muted/20 p-6 border-green-500/20" data-testid="stat-completed">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Completed</p>
+                    <p className="text-2xl font-bold text-green-600">{stats.completed}</p>
+                  </div>
+                  <CheckCircle className="h-8 w-8 text-green-500/50" />
+                </div>
+              </div>
+              <div className="border border-border rounded-lg bg-muted/20 p-6 border-red-500/20" data-testid="stat-failed">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Failed</p>
+                    <p className="text-2xl font-bold text-red-600">{stats.failed}</p>
+                  </div>
+                  <XCircle className="h-8 w-8 text-red-500/50" />
+                </div>
+              </div>
+            </div>
+
+            {/* Tasks Section */}
+            <div className="border border-border rounded-lg bg-muted/20 p-6">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h2 className="text-lg font-semibold">Tasks</h2>
+                  <p className="text-sm text-muted-foreground">Queued tasks for AI processing</p>
+                </div>
+                <Select value={filterStatus} onValueChange={setFilterStatus}>
+                  <SelectTrigger className="w-40" data-testid="select-filter-status">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Status</SelectItem>
+                    <SelectItem value="pending">Pending</SelectItem>
+                    <SelectItem value="running">Running</SelectItem>
+                    <SelectItem value="completed">Completed</SelectItem>
+                    <SelectItem value="failed">Failed</SelectItem>
+                    <SelectItem value="cancelled">Cancelled</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="h-[500px] border border-border rounded-lg">
+                {tasks.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-12 text-muted-foreground h-full">
+                    <ListTodo className="h-12 w-12 mb-4 opacity-50" />
+                    <p>No tasks in queue</p>
+                    <p className="text-sm">Create a task or ask the AI to generate one</p>
+                  </div>
+                ) : (
+                  <ScrollArea className="h-full">
+                    <div className="space-y-2 p-4">
+                      {tasks.map(task => {
+                        const effectiveStatus = task.waitingForInput ? "waiting_input" : task.status;
+                        const statusInfo = statusConfig[effectiveStatus] || statusConfig.pending;
+                        const typeInfo = taskTypeConfig[task.taskType] || { color: "bg-gray-500/10 text-gray-600", label: task.taskType };
+                        const isExpanded = expandedTasks.has(task.id);
+
+                        return (
+                          <div
+                            key={task.id}
+                            className="border rounded-lg p-3 hover:bg-muted/50 transition-colors"
+                            data-testid={`task-item-${task.id}`}
                           >
-                            {isExpanded ? (
-                              <ChevronDown className="w-4 h-4" />
-                            ) : (
-                              <ChevronRight className="w-4 h-4" />
-                            )}
-                          </button>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 mb-1 flex-wrap">
-                              <span className="font-medium truncate">{task.title}</span>
-                              <Badge variant="outline" className={statusInfo.color}>
-                                {statusInfo.icon}
-                                <span className="ml-1">{statusInfo.label}</span>
-                              </Badge>
-                              <Badge variant="secondary" className={typeInfo.color}>
-                                {typeInfo.label}
-                              </Badge>
-                              {task.priority > 0 && (
-                                <Badge variant="outline">Priority: {task.priority}</Badge>
-                              )}
-                              {task.executionMode && task.executionMode !== "sequential" && (
-                                <Badge variant="outline" className="bg-cyan-500/10 text-cyan-600">
-                                  {task.executionMode}
-                                </Badge>
-                              )}
-                              {task.parentId && (
-                                <Badge variant="outline" className="bg-indigo-500/10 text-indigo-600">
-                                  <GitBranch className="w-3 h-3 mr-1" />
-                                  Subtask
-                                </Badge>
-                              )}
-                              {task.workflowId && (
-                                <Badge variant="outline" className="bg-orange-500/10 text-orange-600">
-                                  Workflow
-                                </Badge>
-                              )}
-                            </div>
-                            {task.description && (
-                              <p className="text-sm text-muted-foreground truncate">
-                                {task.description}
-                              </p>
-                            )}
-                            {task.condition && (
-                              <p className="text-xs text-purple-600 mt-1">
-                                Condition: {task.condition}
-                              </p>
-                            )}
-                            {isExpanded && (
-                              <div className="mt-3 space-y-2 text-sm">
-                                <div className="grid grid-cols-2 gap-4">
-                                  <div>
-                                    <span className="text-muted-foreground">Created:</span>{" "}
-                                    {formatDate(task.createdAt)}
-                                  </div>
-                                  {task.startedAt && (
-                                    <div>
-                                      <span className="text-muted-foreground">Started:</span>{" "}
-                                      {formatDate(task.startedAt)}
-                                    </div>
+                            <div className="flex items-start gap-3">
+                              <button
+                                onClick={() => toggleExpand(task.id)}
+                                className="mt-1 p-0.5 hover:bg-muted rounded"
+                                data-testid={`button-expand-${task.id}`}
+                              >
+                                {isExpanded ? (
+                                  <ChevronDown className="h-4 w-4" />
+                                ) : (
+                                  <ChevronRight className="h-4 w-4" />
+                                )}
+                              </button>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 mb-1 flex-wrap">
+                                  <span className="font-medium truncate">{task.title}</span>
+                                  <Badge variant="outline" className={statusInfo.color}>
+                                    {statusInfo.icon}
+                                    <span className="ml-1">{statusInfo.label}</span>
+                                  </Badge>
+                                  <Badge variant="secondary" className={typeInfo.color}>
+                                    {typeInfo.label}
+                                  </Badge>
+                                  {task.priority > 0 && (
+                                    <Badge variant="outline">Priority: {task.priority}</Badge>
                                   )}
-                                  {task.completedAt && (
-                                    <div>
-                                      <span className="text-muted-foreground">Completed:</span>{" "}
-                                      {formatDate(task.completedAt)}
-                                    </div>
+                                  {task.executionMode && task.executionMode !== "sequential" && (
+                                    <Badge variant="outline" className="bg-cyan-500/10 text-cyan-600">
+                                      {task.executionMode}
+                                    </Badge>
                                   )}
-                                  {task.actualDuration && (
-                                    <div>
-                                      <span className="text-muted-foreground">Duration:</span>{" "}
-                                      {formatDuration(task.actualDuration)}
-                                    </div>
+                                  {task.parentId && (
+                                    <Badge variant="outline" className="bg-indigo-500/10 text-indigo-600">
+                                      <GitBranch className="h-3 w-3 mr-1" />
+                                      Subtask
+                                    </Badge>
+                                  )}
+                                  {task.workflowId && (
+                                    <Badge variant="outline" className="bg-orange-500/10 text-orange-600">
+                                      Workflow
+                                    </Badge>
                                   )}
                                 </div>
-                                {task.dependencies && task.dependencies.length > 0 && (
-                                  <div className="flex items-center gap-2">
-                                    <span className="text-muted-foreground">Dependencies:</span>
-                                    {task.dependencies.map((dep, idx) => (
-                                      <Badge key={idx} variant="outline" className="text-xs">
-                                        {dep.slice(0, 8)}...
-                                      </Badge>
-                                    ))}
-                                  </div>
+                                {task.description && (
+                                  <p className="text-sm text-muted-foreground truncate">
+                                    {task.description}
+                                  </p>
                                 )}
-                                {task.error && (
-                                  <div className="p-2 bg-red-500/10 rounded text-red-600 flex items-start gap-2">
-                                    <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
-                                    <span>{task.error}</span>
-                                  </div>
+                                {task.condition && (
+                                  <p className="text-xs text-purple-600 mt-1">
+                                    Condition: {task.condition}
+                                  </p>
                                 )}
-                                {task.input && (
-                                  <div>
-                                    <span className="text-muted-foreground">Input:</span>
-                                    <pre className="mt-1 p-2 bg-muted rounded text-xs overflow-x-auto">
-                                      {JSON.stringify(task.input, null, 2)}
-                                    </pre>
-                                  </div>
-                                )}
-                                {task.output && (
-                                  <div>
-                                    <span className="text-muted-foreground">Output:</span>
-                                    <pre className="mt-1 p-2 bg-muted rounded text-xs overflow-x-auto">
-                                      {JSON.stringify(task.output, null, 2)}
-                                    </pre>
+                                {isExpanded && (
+                                  <div className="mt-3 space-y-2 text-sm">
+                                    <div className="grid grid-cols-2 gap-4">
+                                      <div>
+                                        <span className="text-muted-foreground">Created:</span>{" "}
+                                        {formatDate(task.createdAt)}
+                                      </div>
+                                      {task.startedAt && (
+                                        <div>
+                                          <span className="text-muted-foreground">Started:</span>{" "}
+                                          {formatDate(task.startedAt)}
+                                        </div>
+                                      )}
+                                      {task.completedAt && (
+                                        <div>
+                                          <span className="text-muted-foreground">Completed:</span>{" "}
+                                          {formatDate(task.completedAt)}
+                                        </div>
+                                      )}
+                                      {task.actualDuration && (
+                                        <div>
+                                          <span className="text-muted-foreground">Duration:</span>{" "}
+                                          {formatDuration(task.actualDuration)}
+                                        </div>
+                                      )}
+                                    </div>
+                                    {task.dependencies && task.dependencies.length > 0 && (
+                                      <div className="flex items-center gap-2">
+                                        <span className="text-muted-foreground">Dependencies:</span>
+                                        {task.dependencies.map((dep, idx) => (
+                                          <Badge key={idx} variant="outline" className="text-xs">
+                                            {dep.slice(0, 8)}...
+                                          </Badge>
+                                        ))}
+                                      </div>
+                                    )}
+                                    {task.error && (
+                                      <div className="p-2 bg-red-500/10 rounded text-red-600 flex items-start gap-2">
+                                        <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                                        <span>{task.error}</span>
+                                      </div>
+                                    )}
+                                    {task.input && (
+                                      <div>
+                                        <span className="text-muted-foreground">Input:</span>
+                                        <pre className="mt-1 p-2 bg-muted rounded text-xs overflow-x-auto">
+                                          {JSON.stringify(task.input, null, 2)}
+                                        </pre>
+                                      </div>
+                                    )}
+                                    {task.output && (
+                                      <div>
+                                        <span className="text-muted-foreground">Output:</span>
+                                        <pre className="mt-1 p-2 bg-muted rounded text-xs overflow-x-auto">
+                                          {JSON.stringify(task.output, null, 2)}
+                                        </pre>
+                                      </div>
+                                    )}
                                   </div>
                                 )}
                               </div>
-                            )}
-                          </div>
-                          <div className="flex items-center gap-1">
-                            {task.waitingForInput && (
-                              <Button
-                                size="icon"
-                                variant="ghost"
-                                onClick={() => openInputDialog(task)}
-                                title="Provide input"
-                                className="text-purple-600"
-                                data-testid={`button-input-${task.id}`}
-                              >
-                                <Send className="w-4 h-4" />
-                              </Button>
-                            )}
-                            {task.status === "pending" && (
-                              <>
+                              <div className="flex items-center gap-1">
+                                {task.waitingForInput && (
+                                  <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    onClick={() => openInputDialog(task)}
+                                    title="Provide input"
+                                    className="text-purple-600"
+                                    data-testid={`button-input-${task.id}`}
+                                  >
+                                    <Send className="h-4 w-4" />
+                                  </Button>
+                                )}
+                                {task.status === "pending" && (
+                                  <>
+                                    <Button
+                                      size="icon"
+                                      variant="ghost"
+                                      onClick={() => startTask(task.id)}
+                                      title="Start task"
+                                      data-testid={`button-start-${task.id}`}
+                                    >
+                                      <Play className="h-4 w-4 text-green-600" />
+                                    </Button>
+                                    <Button
+                                      size="icon"
+                                      variant="ghost"
+                                      onClick={() => prioritizeTask(task.id)}
+                                      title="Prioritize (run next)"
+                                      data-testid={`button-prioritize-${task.id}`}
+                                    >
+                                      <Zap className="h-4 w-4 text-yellow-600" />
+                                    </Button>
+                                  </>
+                                )}
+                                {task.status === "running" && (
+                                  <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    onClick={() => interruptTask(task.id)}
+                                    title="Interrupt task"
+                                    data-testid={`button-interrupt-${task.id}`}
+                                  >
+                                    <XCircle className="h-4 w-4 text-red-600" />
+                                  </Button>
+                                )}
+                                {(task.status === "pending" || task.status === "running") && (
+                                  <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    onClick={() => cancelTask(task.id)}
+                                    title="Cancel task"
+                                    data-testid={`button-cancel-${task.id}`}
+                                  >
+                                    <Pause className="h-4 w-4 text-yellow-600" />
+                                  </Button>
+                                )}
                                 <Button
                                   size="icon"
                                   variant="ghost"
-                                  onClick={() => startTask(task.id)}
-                                  title="Start task"
-                                  data-testid={`button-start-${task.id}`}
+                                  onClick={() => deleteTask(task.id)}
+                                  title="Delete task"
+                                  data-testid={`button-delete-${task.id}`}
                                 >
-                                  <Play className="w-4 h-4 text-green-600" />
+                                  <Trash2 className="h-4 w-4 text-red-600" />
                                 </Button>
-                                <Button
-                                  size="icon"
-                                  variant="ghost"
-                                  onClick={() => prioritizeTask(task.id)}
-                                  title="Prioritize (run next)"
-                                  data-testid={`button-prioritize-${task.id}`}
-                                >
-                                  <Zap className="w-4 h-4 text-yellow-600" />
-                                </Button>
-                              </>
-                            )}
-                            {task.status === "running" && (
-                              <Button
-                                size="icon"
-                                variant="ghost"
-                                onClick={() => interruptTask(task.id)}
-                                title="Interrupt task"
-                                data-testid={`button-interrupt-${task.id}`}
-                              >
-                                <XCircle className="w-4 h-4 text-red-600" />
-                              </Button>
-                            )}
-                            {(task.status === "pending" || task.status === "running") && (
-                              <Button
-                                size="icon"
-                                variant="ghost"
-                                onClick={() => cancelTask(task.id)}
-                                title="Cancel task"
-                                data-testid={`button-cancel-${task.id}`}
-                              >
-                                <Pause className="w-4 h-4 text-yellow-600" />
-                              </Button>
-                            )}
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              onClick={() => deleteTask(task.id)}
-                              title="Delete task"
-                              data-testid={`button-delete-${task.id}`}
-                            >
-                              <Trash2 className="w-4 h-4 text-red-600" />
-                            </Button>
+                              </div>
+                            </div>
                           </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </ScrollArea>
-          </CardContent>
-        </Card>
+                        );
+                      })}
+                    </div>
+                  </ScrollArea>
+                )}
+              </div>
+            </div>
+          </div>
+        </ScrollArea>
       </main>
 
       <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>

@@ -36,7 +36,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Link, useLocation } from "wouter";
-import { Play, Eye, Save, Menu, FileCode, Moon, Sun, X, Plus, Send, XCircle, SaveAll } from "lucide-react";
+import { Play, Eye, Save, Menu, FileCode, Moon, Sun, X, Plus, Send, XCircle, SaveAll, ArrowLeft } from "lucide-react";
 
 // ============================================================================
 // TYPES
@@ -492,127 +492,129 @@ export default function EditorPage() {
   // ===========================================================================
 
   return (
-    <div className="flex flex-col h-screen bg-background">
-      {/* Header Bar - Compact version for maximum editor space */}
-      <header className="flex items-center justify-between px-3 py-2 border-b bg-card/50 backdrop-blur-md">
-        
-        {/* Left Section: Navigation + Branding */}
-        <div className="flex items-center gap-3">
+    <div className="min-h-screen bg-background flex flex-col" data-testid="editor-page">
+      {/* Header */}
+      <header className="border-b bg-card px-4 py-3 flex-shrink-0">
+        <div className="flex items-center gap-4">
           <Link href="/">
-            <Button variant="ghost" size="icon" data-testid="button-home">
-              <Menu className="h-5 w-5" />
+            <Button variant="ghost" size="icon" data-testid="button-back-home">
+              <ArrowLeft className="h-4 w-4" />
             </Button>
           </Link>
-          
-          <div className="flex items-center gap-2">
-            <FileCode className="h-4 w-4 text-primary" />
-            <span className="font-display font-semibold text-sm hidden sm:inline">Meowstik Editor</span>
+          <div className="flex-1">
+            <h1 className="text-xl font-semibold flex items-center gap-2">
+              <FileCode className="h-5 w-5 text-primary" />
+              Code Editor
+            </h1>
+            <p className="text-sm text-muted-foreground">
+              Edit code with syntax highlighting • Multiple file tabs • Live preview
+            </p>
           </div>
-        </div>
+          <div className="flex items-center gap-2">
+            {/* Language Selector */}
+            <Select value={activeFile?.language || 'html'} onValueChange={handleLanguageChange}>
+              <SelectTrigger className="w-32 h-9 text-sm" data-testid="select-language">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="html">HTML</SelectItem>
+                <SelectItem value="css">CSS</SelectItem>
+                <SelectItem value="javascript">JavaScript</SelectItem>
+                <SelectItem value="typescript">TypeScript</SelectItem>
+                <SelectItem value="json">JSON</SelectItem>
+                <SelectItem value="markdown">Markdown</SelectItem>
+                <SelectItem value="python">Python</SelectItem>
+                <SelectItem value="shell">Shell</SelectItem>
+              </SelectContent>
+            </Select>
 
-        {/* Right Section: Tools and Actions */}
-        <div className="flex items-center gap-2">
-          
-          {/* Language Selector */}
-          <Select value={activeFile?.language || 'html'} onValueChange={handleLanguageChange}>
-            <SelectTrigger className="w-28 h-8 text-xs" data-testid="select-language">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="html">HTML</SelectItem>
-              <SelectItem value="css">CSS</SelectItem>
-              <SelectItem value="javascript">JavaScript</SelectItem>
-              <SelectItem value="typescript">TypeScript</SelectItem>
-              <SelectItem value="json">JSON</SelectItem>
-              <SelectItem value="markdown">Markdown</SelectItem>
-              <SelectItem value="python">Python</SelectItem>
-              <SelectItem value="shell">Shell</SelectItem>
-            </SelectContent>
-          </Select>
-
-          {/* Theme Toggle Button */}
-          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={toggleTheme} data-testid="button-theme">
-            {theme === "vs-dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-          </Button>
-
-          {/* Preview Button */}
-          <Link href="/preview">
-            <Button variant="ghost" size="sm" className="h-8" data-testid="button-preview">
-              <Eye className="h-3 w-3 mr-1" />
-              Preview
+            {/* Theme Toggle Button */}
+            <Button variant="outline" size="icon" onClick={toggleTheme} data-testid="button-theme">
+              {theme === "vs-dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
             </Button>
-          </Link>
+
+            {/* Preview Button */}
+            <Link href="/preview">
+              <Button variant="outline" size="sm" data-testid="button-preview">
+                <Eye className="h-4 w-4 mr-2" />
+                Preview
+              </Button>
+            </Link>
+          </div>
         </div>
       </header>
 
-      {/* Tab Bar */}
-      <div className="flex items-center border-b bg-muted/30 overflow-x-auto">
-        <div className="flex items-center min-w-0">
-          {files.map(file => (
-            <button
-              key={file.id}
-              onClick={() => setActiveFileId(file.id)}
-              className={`
-                group flex items-center gap-2 px-3 py-1.5 text-sm border-r border-border
-                transition-colors min-w-0 max-w-[180px]
-                ${file.id === activeFileId 
-                  ? 'bg-background text-foreground' 
-                  : 'bg-muted/50 text-muted-foreground hover:bg-muted'
-                }
-              `}
-              data-testid={`tab-${file.filename}`}
-            >
-              <span className="truncate flex items-center gap-1">
-                {!file.isSaved && <span className="text-primary">●</span>}
-                {file.filename}
-              </span>
+      {/* Tab Bar and Editor Container */}
+      <div className="flex-1 overflow-hidden flex flex-col">
+        {/* Tab Bar */}
+        <div className="flex items-center border-b bg-muted/30 overflow-x-auto flex-shrink-0">
+          <div className="flex items-center min-w-0">
+            {files.map(file => (
               <button
-                onClick={(e) => handleCloseFile(file.id, e)}
-                className="opacity-0 group-hover:opacity-100 hover:bg-muted-foreground/20 rounded p-0.5 transition-opacity"
-                data-testid={`close-${file.filename}`}
+                key={file.id}
+                onClick={() => setActiveFileId(file.id)}
+                className={`
+                  group flex items-center gap-2 px-3 py-1.5 text-sm border-r border-border
+                  transition-colors min-w-0 max-w-[180px]
+                  ${file.id === activeFileId 
+                    ? 'bg-background text-foreground' 
+                    : 'bg-muted/50 text-muted-foreground hover:bg-muted'
+                  }
+                `}
+                data-testid={`tab-${file.filename}`}
               >
-                <X className="h-3 w-3" />
+                <span className="truncate flex items-center gap-1">
+                  {!file.isSaved && <span className="text-primary">●</span>}
+                  {file.filename}
+                </span>
+                <button
+                  onClick={(e) => handleCloseFile(file.id, e)}
+                  className="opacity-0 group-hover:opacity-100 hover:bg-muted-foreground/20 rounded p-0.5 transition-opacity"
+                  data-testid={`close-${file.filename}`}
+                >
+                  <X className="h-3 w-3" />
+                </button>
               </button>
-            </button>
-          ))}
+            ))}
+          </div>
+          
+          {/* New Tab Button */}
+          <button
+            onClick={handleNewFile}
+            className="flex items-center justify-center px-2 py-1.5 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+            data-testid="button-new-tab"
+          >
+            <Plus className="h-4 w-4" />
+          </button>
         </div>
-        
-        {/* New Tab Button */}
-        <button
-          onClick={handleNewFile}
-          className="flex items-center justify-center px-2 py-1.5 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-          data-testid="button-new-tab"
-        >
-          <Plus className="h-4 w-4" />
-        </button>
-      </div>
 
-      {/* Monaco Editor Container */}
-      <div className="flex-1 overflow-hidden">
-        <Editor
-          height="100%"
-          language={activeFile?.language || 'html'}
-          value={activeFile?.code || ''}
-          theme={theme}
-          onChange={handleEditorChange}
-          options={{
-            fontSize: 14,
-            fontFamily: "'JetBrains Mono', 'Fira Code', monospace",
-            minimap: { enabled: true },
-            padding: { top: 16 },
-            scrollBeyondLastLine: false,
-            wordWrap: "on",
-            automaticLayout: true,
-            lineNumbers: "on",
-            renderWhitespace: "selection",
-            bracketPairColorization: { enabled: true },
-          }}
-        />
+        {/* Monaco Editor Container */}
+        <div className="flex-1 overflow-hidden">
+          <Editor
+            height="100%"
+            language={activeFile?.language || 'html'}
+            value={activeFile?.code || ''}
+            theme={theme}
+            onChange={handleEditorChange}
+            options={{
+              fontSize: 14,
+              fontFamily: "'JetBrains Mono', 'Fira Code', monospace",
+              minimap: { enabled: true },
+              padding: { top: 16 },
+              scrollBeyondLastLine: false,
+              wordWrap: "on",
+              automaticLayout: true,
+              lineNumbers: "on",
+              renderWhitespace: "selection",
+              bracketPairColorization: { enabled: true },
+            }}
+          />
+        </div>
       </div>
 
       {/* Bottom Action Bar */}
-      <div className="border-t bg-card/50 backdrop-blur-md px-3 py-2">
-        <div className="flex items-center gap-2">
+      <div className="border-t bg-card/50 backdrop-blur-md px-4 py-3 flex-shrink-0">
+        <div className="flex items-center gap-3">
           {/* Prompt Input */}
           <Input
             value={prompt}
@@ -629,51 +631,48 @@ export default function EditorPage() {
           />
           
           {/* Action Buttons */}
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-2">
             {/* Cancel Button */}
             <Button 
-              variant="ghost" 
-              size="sm" 
-              className="h-9"
+              variant="outline" 
+              size="sm"
               onClick={handleCancel}
               data-testid="button-cancel"
             >
-              <XCircle className="h-4 w-4 mr-1" />
+              <XCircle className="h-4 w-4 mr-2" />
               Cancel
             </Button>
 
             {/* Save As Button */}
             <Button 
-              variant="ghost" 
-              size="sm" 
-              className="h-9"
+              variant="outline" 
+              size="sm"
               onClick={handleSaveAs}
               data-testid="button-save-as"
             >
-              <SaveAll className="h-4 w-4 mr-1" />
+              <SaveAll className="h-4 w-4 mr-2" />
               Save As
             </Button>
 
             {/* Save Button */}
             <Button 
               variant="outline" 
-              size="sm" 
-              className="h-9"
+              size="sm"
               onClick={handleSave}
               data-testid="button-save"
             >
-              <Save className="h-4 w-4 mr-1" />
+              <Save className="h-4 w-4 mr-2" />
               {files.every(f => f.isSaved) ? "Saved" : "Save"}
             </Button>
 
             {/* Send Button */}
             <Button 
-              size="sm" 
-              className="h-9 bg-primary hover:bg-primary/90"
+              size="sm"
+              className="bg-primary hover:bg-primary/90"
               onClick={handleSend}
               data-testid="button-send"
             >
-              <Send className="h-4 w-4 mr-1" />
+              <Send className="h-4 w-4 mr-2" />
               Send
             </Button>
           </div>

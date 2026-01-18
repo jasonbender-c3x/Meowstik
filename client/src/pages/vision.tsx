@@ -1,6 +1,7 @@
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Button } from "@/components/ui/button";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { ArrowLeft, Sparkles } from "lucide-react";
 import { Link } from "wouter";
 
@@ -148,57 +149,70 @@ We're building the future of AI. If you're passionate about creating technology 
 
 export default function VisionPage() {
   return (
-    <div className="min-h-screen bg-background" data-testid="vision-page">
-      <div className="max-w-4xl mx-auto px-4 py-8">
-        {/* Navigation Header */}
-        <div className="flex items-center gap-4 mb-8">
+    <div className="min-h-screen bg-background flex flex-col" data-testid="vision-page">
+      {/* Header */}
+      <header className="border-b bg-card px-4 py-3 flex-shrink-0">
+        <div className="flex items-center gap-4">
           <Link href="/">
             <Button variant="ghost" size="icon" data-testid="button-back-home">
-              <ArrowLeft className="h-5 w-5" />
+              <ArrowLeft className="h-4 w-4" />
             </Button>
           </Link>
-          <div className="flex items-center gap-3 flex-1">
-            <Sparkles className="h-8 w-8 text-primary" />
-            <h1 className="text-3xl font-display font-bold">Vision</h1>
+          <div className="flex-1">
+            <h1 className="text-xl font-semibold flex items-center gap-2">
+              <Sparkles className="h-5 w-5 text-primary" />
+              Vision
+            </h1>
+            <p className="text-sm text-muted-foreground">
+              Meowstik's long-term vision and roadmap
+            </p>
           </div>
         </div>
-        <article className="prose prose-lg dark:prose-invert max-w-none">
-          <ReactMarkdown remarkPlugins={[remarkGfm]}>
-            {visionContent}
-          </ReactMarkdown>
-        </article>
-        
-        <div className="mt-12 pt-8 border-t border-border" data-testid="vision-stats">
-          <h3 className="text-lg font-semibold mb-4">Project Statistics</h3>
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-            <div className="bg-card rounded-lg p-4 text-center" data-testid="stat-total">
-              <div className="text-3xl font-bold text-primary">245</div>
-              <div className="text-sm text-muted-foreground">Total Ideas</div>
+      </header>
+
+      {/* Main content */}
+      <main className="flex-1 overflow-hidden flex flex-col">
+        <ScrollArea className="flex-1">
+          <div className="max-w-4xl mx-auto px-4 py-8 pb-12">
+            <article className="prose prose-lg dark:prose-invert max-w-none mb-12">
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                {visionContent}
+              </ReactMarkdown>
+            </article>
+            
+            <div className="border border-border rounded-lg bg-muted/20 p-6">
+              <h3 className="text-lg font-semibold mb-6">Project Statistics</h3>
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                <div className="border border-border rounded-lg bg-card p-4 text-center" data-testid="stat-total">
+                  <div className="text-3xl font-bold text-primary">245</div>
+                  <div className="text-sm text-muted-foreground">Total Ideas</div>
+                </div>
+                <div className="border border-border rounded-lg bg-card p-4 text-center" data-testid="stat-completed">
+                  <div className="text-3xl font-bold text-green-500">17</div>
+                  <div className="text-sm text-muted-foreground">Completed</div>
+                </div>
+                <div className="border border-border rounded-lg bg-card p-4 text-center" data-testid="stat-in-progress">
+                  <div className="text-3xl font-bold text-blue-500">10</div>
+                  <div className="text-sm text-muted-foreground">In Progress</div>
+                </div>
+                <div className="border border-border rounded-lg bg-card p-4 text-center" data-testid="stat-pending">
+                  <div className="text-3xl font-bold text-amber-500">204</div>
+                  <div className="text-sm text-muted-foreground">Pending</div>
+                </div>
+                <div className="border border-border rounded-lg bg-card p-4 text-center" data-testid="stat-alternatives">
+                  <div className="text-3xl font-bold text-purple-500">13</div>
+                  <div className="text-sm text-muted-foreground">Needs Alternative</div>
+                </div>
+              </div>
             </div>
-            <div className="bg-card rounded-lg p-4 text-center" data-testid="stat-completed">
-              <div className="text-3xl font-bold text-green-500">17</div>
-              <div className="text-sm text-muted-foreground">Completed</div>
-            </div>
-            <div className="bg-card rounded-lg p-4 text-center" data-testid="stat-in-progress">
-              <div className="text-3xl font-bold text-blue-500">10</div>
-              <div className="text-sm text-muted-foreground">In Progress</div>
-            </div>
-            <div className="bg-card rounded-lg p-4 text-center" data-testid="stat-pending">
-              <div className="text-3xl font-bold text-amber-500">204</div>
-              <div className="text-sm text-muted-foreground">Pending</div>
-            </div>
-            <div className="bg-card rounded-lg p-4 text-center" data-testid="stat-alternatives">
-              <div className="text-3xl font-bold text-purple-500">13</div>
-              <div className="text-sm text-muted-foreground">Needs Alternative</div>
+            
+            <div className="mt-8 text-center text-sm text-muted-foreground">
+              <p>Last Updated: December 2025</p>
+              <p>Ideas extracted from conversation history and vision documents</p>
             </div>
           </div>
-        </div>
-        
-        <div className="mt-8 text-center text-sm text-muted-foreground">
-          <p>Last Updated: December 2025</p>
-          <p>Ideas extracted from conversation history and vision documents</p>
-        </div>
-      </div>
+        </ScrollArea>
+      </main>
     </div>
   );
 }

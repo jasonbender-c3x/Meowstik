@@ -167,28 +167,38 @@ export default function SettingsPage() {
 
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="max-w-3xl mx-auto px-4 py-8">
-        <div className="flex items-center gap-4 mb-8">
+    <div className="min-h-screen bg-background flex flex-col" data-testid="settings-page">
+      {/* Header */}
+      <header className="border-b bg-card px-4 py-3 flex-shrink-0">
+        <div className="flex items-center gap-4">
           <Link href="/">
             <Button variant="ghost" size="icon" data-testid="button-back-home">
-              <ArrowLeft className="h-5 w-5" />
+              <ArrowLeft className="h-4 w-4" />
             </Button>
           </Link>
-          <div className="flex items-center gap-3 flex-1">
-            <Settings className="h-8 w-8 text-primary" />
-            <h1 className="text-3xl font-display font-bold">Settings</h1>
+          <div className="flex-1">
+            <h1 className="text-xl font-semibold flex items-center gap-2">
+              <Settings className="h-5 w-5 text-primary" />
+              Settings
+            </h1>
+            <p className="text-sm text-muted-foreground">
+              Customize your Meowstik experience
+            </p>
           </div>
           {saved && (
-            <span className="text-sm text-green-500 animate-in fade-in">
-              Settings saved
-            </span>
+            <Badge variant="default" className="bg-green-500 animate-in fade-in">
+              <Check className="h-3 w-3 mr-1" />
+              Saved
+            </Badge>
           )}
         </div>
+      </header>
 
-        <ScrollArea className="h-[calc(100vh-200px)]">
-          <div className="space-y-8">
-            <section className="p-6 rounded-xl border border-border bg-secondary/20">
+      {/* Main Content */}
+      <main className="flex-1 overflow-hidden">
+        <ScrollArea className="h-full">
+          <div className="max-w-4xl mx-auto px-4 py-6 space-y-6">
+            <section className="border border-border rounded-lg bg-muted/20 p-6">
               <div className="flex items-center gap-3 mb-6">
                 <Brain className="h-5 w-5 text-primary" />
                 <h2 className="text-xl font-semibold">AI Model</h2>
@@ -217,7 +227,7 @@ export default function SettingsPage() {
               </div>
             </section>
 
-            <section className="p-6 rounded-xl border border-border bg-secondary/20">
+            <section className="border border-border rounded-lg bg-muted/20 p-6">
               <div className="flex items-center gap-3 mb-6">
                 <Palette className="h-5 w-5 text-primary" />
                 <h2 className="text-xl font-semibold">Appearance</h2>
@@ -241,7 +251,7 @@ export default function SettingsPage() {
               </div>
             </section>
 
-            <section className="p-6 rounded-xl border border-border bg-secondary/20">
+            <section className="border border-border rounded-lg bg-muted/20 p-6">
               <div className="flex items-center gap-3 mb-6">
                 <Sparkles className="h-5 w-5 text-primary" />
                 <h2 className="text-xl font-semibold">Custom Branding</h2>
@@ -412,7 +422,7 @@ export default function SettingsPage() {
               )}
             </section>
 
-            <section className="p-6 rounded-xl border border-border bg-secondary/20">
+            <section className="border border-border rounded-lg bg-muted/20 p-6">
               <div className="flex items-center gap-3 mb-6">
                 <Mic className="h-5 w-5 text-primary" />
                 <h2 className="text-xl font-semibold">Voice & Audio</h2>
@@ -520,7 +530,7 @@ export default function SettingsPage() {
               </div>
             </section>
 
-            <section className="p-6 rounded-xl border border-border bg-secondary/20">
+            <section className="border border-border rounded-lg bg-muted/20 p-6">
               <div className="flex items-center gap-3 mb-6">
                 <Bell className="h-5 w-5 text-primary" />
                 <h2 className="text-xl font-semibold">Notifications</h2>
@@ -540,7 +550,7 @@ export default function SettingsPage() {
               </div>
             </section>
 
-            <section className="p-6 rounded-xl border border-border bg-secondary/20">
+            <section className="border border-border rounded-lg bg-muted/20 p-6">
               <div className="flex items-center gap-3 mb-6">
                 <Shield className="h-5 w-5 text-primary" />
                 <h2 className="text-xl font-semibold">Privacy & Data</h2>
@@ -575,7 +585,7 @@ export default function SettingsPage() {
               </div>
             </section>
 
-            <section className="p-6 rounded-xl border border-border bg-secondary/20">
+            <section className="border border-border rounded-lg bg-muted/20 p-6">
               <div className="flex items-center gap-3 mb-6">
                 <Link2 className="h-5 w-5 text-primary" />
                 <h2 className="text-xl font-semibold">Connected Accounts</h2>
@@ -635,7 +645,7 @@ export default function SettingsPage() {
               </div>
             </section>
 
-            <section className="p-6 rounded-xl border border-border bg-secondary/20">
+            <section className="border border-border rounded-lg bg-muted/20 p-6">
               <div className="flex items-center gap-3 mb-6">
                 <Database className="h-5 w-5 text-primary" />
                 <h2 className="text-xl font-semibold">Knowledge Ingestion</h2>
@@ -687,7 +697,7 @@ export default function SettingsPage() {
               </div>
             </section>
 
-            <div className="p-6 rounded-xl border border-border bg-gradient-to-br from-primary/5 to-primary/10">
+            <div className="border border-border rounded-lg bg-gradient-to-br from-primary/10 to-primary/5 p-6">
               <h2 className="text-lg font-semibold mb-2">About Meowstik</h2>
               <p className="text-muted-foreground text-sm mb-3">
                 Meowstik is a purrfect AI assistant powered by Google's Gemini models, with integrated Google Workspace services. Always curious, always helpful!
@@ -696,7 +706,7 @@ export default function SettingsPage() {
             </div>
           </div>
         </ScrollArea>
-      </div>
+      </main>
     </div>
   );
 }

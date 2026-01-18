@@ -9,7 +9,6 @@
 
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -170,62 +169,62 @@ export default function EvolutionPage() {
   const stats = statsData?.stats;
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="p-6">
-        <div className="max-w-4xl mx-auto space-y-6">
-          {/* Header */}
-          <div className="flex items-center gap-4">
-            <Link href="/">
-              <Button variant="ghost" size="icon" data-testid="button-back">
-                <ArrowLeft className="h-5 w-5" />
-              </Button>
-            </Link>
-            <div>
-              <h1 className="text-3xl font-bold flex items-center gap-3" data-testid="text-page-title">
-                <MessageSquare className="h-8 w-8 text-purple-500" />
-                Feedback
-              </h1>
-              <p className="text-muted-foreground mt-1">
-                Share your thoughts and help improve Meowstik
-              </p>
+    <div className="min-h-screen bg-background flex flex-col" data-testid="feedback-page">
+      {/* Header */}
+      <header className="border-b bg-card px-4 py-3 flex-shrink-0">
+        <div className="flex items-center gap-4">
+          <Link href="/">
+            <Button variant="ghost" size="icon" data-testid="button-back">
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
+          </Link>
+          <div className="flex-1">
+            <h1 className="text-xl font-semibold flex items-center gap-2" data-testid="text-page-title">
+              <MessageSquare className="h-5 w-5 text-primary" />
+              Feedback
+            </h1>
+            <p className="text-sm text-muted-foreground">
+              Share your thoughts and help improve Meowstik
+            </p>
+          </div>
+        </div>
+      </header>
+
+      {/* Main Content */}
+      <main className="flex-1 overflow-hidden flex flex-col">
+        <ScrollArea className="flex-1">
+          <div className="p-6 space-y-6">
+            {/* Stats Summary */}
+            <div className="grid grid-cols-3 gap-4">
+              <div className="border border-border rounded-lg bg-muted/20 p-6">
+                <div className="text-center">
+                  <p className="text-3xl font-bold" data-testid="text-total">{stats?.total || 0}</p>
+                  <p className="text-sm text-muted-foreground mt-2">Total Feedback</p>
+                </div>
+              </div>
+              <div className="border border-border rounded-lg bg-muted/20 p-6">
+                <div className="text-center">
+                  <p className="text-3xl font-bold text-green-600" data-testid="text-positive">{stats?.positive || 0}</p>
+                  <p className="text-sm text-muted-foreground mt-2">Positive</p>
+                </div>
+              </div>
+              <div className="border border-border rounded-lg bg-muted/20 p-6">
+                <div className="text-center">
+                  <p className="text-3xl font-bold text-red-600" data-testid="text-negative">{stats?.negative || 0}</p>
+                  <p className="text-sm text-muted-foreground mt-2">Negative</p>
+                </div>
+              </div>
             </div>
-          </div>
 
-          {/* Stats Summary */}
-          <div className="grid grid-cols-3 gap-4">
-            <Card>
-              <CardContent className="pt-4 pb-4">
-                <div className="text-center">
-                  <p className="text-2xl font-bold" data-testid="text-total">{stats?.total || 0}</p>
-                  <p className="text-sm text-muted-foreground">Total</p>
-                </div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="pt-4 pb-4">
-                <div className="text-center">
-                  <p className="text-2xl font-bold text-green-600" data-testid="text-positive">{stats?.positive || 0}</p>
-                  <p className="text-sm text-muted-foreground">Positive</p>
-                </div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="pt-4 pb-4">
-                <div className="text-center">
-                  <p className="text-2xl font-bold text-red-600" data-testid="text-negative">{stats?.negative || 0}</p>
-                  <p className="text-sm text-muted-foreground">Negative</p>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Submit Feedback Card */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Submit Feedback</CardTitle>
-              <CardDescription>Share what's working or what could be better</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
+            {/* Submit Feedback Section */}
+            <div className="border border-border rounded-lg bg-muted/20 p-6 space-y-4">
+              <div className="flex items-center gap-2">
+                <MessageSquare className="h-5 w-5 text-primary" />
+                <h2 className="text-lg font-semibold">Submit Feedback</h2>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Share what's working or what could be better
+              </p>
               <div className="flex gap-4 justify-center">
                 <Button
                   variant={rating === "positive" ? "default" : "outline"}
@@ -268,21 +267,18 @@ export default function EvolutionPage() {
                 )}
                 Submit Feedback
               </Button>
-            </CardContent>
-          </Card>
+            </div>
 
-          {/* Feedback List + PR Creation */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <GitPullRequest className="h-5 w-5 text-blue-500" />
-                Create GitHub PR
-              </CardTitle>
-              <CardDescription>
+            {/* Create GitHub PR Section */}
+            <div className="border border-border rounded-lg bg-muted/20 p-6 space-y-4">
+              <div className="flex items-center gap-2">
+                <GitPullRequest className="h-5 w-5 text-primary" />
+                <h2 className="text-lg font-semibold">Create GitHub PR</h2>
+              </div>
+              <p className="text-sm text-muted-foreground">
                 Select feedback items to bundle into a pull request for review
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
+              </p>
+
               {/* Repo Selection */}
               <div className="flex items-end gap-4">
                 <div className="flex-1 space-y-2">
@@ -320,58 +316,60 @@ export default function EvolutionPage() {
               </div>
 
               {/* Feedback List */}
-              <ScrollArea className="h-64 rounded-md border">
+              <div className="border border-border rounded-lg bg-background">
                 {feedbackLoading ? (
-                  <div className="flex items-center justify-center h-full">
+                  <div className="flex items-center justify-center h-64">
                     <Loader2 className="h-6 w-6 animate-spin" />
                   </div>
                 ) : !feedback?.length ? (
-                  <div className="flex items-center justify-center h-full text-muted-foreground">
+                  <div className="flex items-center justify-center h-64 text-muted-foreground">
                     No feedback yet
                   </div>
                 ) : (
-                  <div className="p-3 space-y-2">
-                    {feedback.map((item) => (
-                      <div
-                        key={item.id}
-                        className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
-                          selectedFeedback.has(item.id) ? "bg-primary/10 border-primary" : "hover:bg-muted/50"
-                        }`}
-                        onClick={() => toggleFeedbackSelection(item.id)}
-                        data-testid={`feedback-item-${item.id}`}
-                      >
-                        <Checkbox
-                          checked={selectedFeedback.has(item.id)}
-                          onCheckedChange={() => toggleFeedbackSelection(item.id)}
-                          data-testid={`checkbox-feedback-${item.id}`}
-                        />
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-1">
-                            <Badge variant={item.rating === "positive" ? "default" : "destructive"}>
-                              {item.rating === "positive" ? (
-                                <ThumbsUp className="h-3 w-3 mr-1" />
-                              ) : (
-                                <ThumbsDown className="h-3 w-3 mr-1" />
-                              )}
-                              {item.rating}
-                            </Badge>
-                            <span className="text-xs text-muted-foreground">
-                              {new Date(item.createdAt).toLocaleDateString()}
-                            </span>
+                  <ScrollArea className="h-64">
+                    <div className="p-3 space-y-2">
+                      {feedback.map((item) => (
+                        <div
+                          key={item.id}
+                          className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
+                            selectedFeedback.has(item.id) ? "bg-primary/10 border-primary" : "hover:bg-muted/50"
+                          }`}
+                          onClick={() => toggleFeedbackSelection(item.id)}
+                          data-testid={`feedback-item-${item.id}`}
+                        >
+                          <Checkbox
+                            checked={selectedFeedback.has(item.id)}
+                            onCheckedChange={() => toggleFeedbackSelection(item.id)}
+                            data-testid={`checkbox-feedback-${item.id}`}
+                          />
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-1">
+                              <Badge variant={item.rating === "positive" ? "default" : "destructive"}>
+                                {item.rating === "positive" ? (
+                                  <ThumbsUp className="h-3 w-3 mr-1" />
+                                ) : (
+                                  <ThumbsDown className="h-3 w-3 mr-1" />
+                                )}
+                                {item.rating}
+                              </Badge>
+                              <span className="text-xs text-muted-foreground">
+                                {new Date(item.createdAt).toLocaleDateString()}
+                              </span>
+                            </div>
+                            {item.freeformText && (
+                              <p className="text-sm line-clamp-2">{item.freeformText}</p>
+                            )}
                           </div>
-                          {item.freeformText && (
-                            <p className="text-sm line-clamp-2">{item.freeformText}</p>
-                          )}
                         </div>
-                      </div>
-                    ))}
-                  </div>
+                      ))}
+                    </div>
+                  </ScrollArea>
                 )}
-              </ScrollArea>
+              </div>
 
               {/* PR Success */}
               {createPRMutation.data?.prUrl && (
-                <div className="p-3 bg-green-50 dark:bg-green-950 rounded-lg flex items-center gap-2">
+                <div className="p-4 bg-green-500/10 dark:bg-green-950 border border-green-500/30 rounded-lg flex items-center gap-2">
                   <CheckCircle className="h-5 w-5 text-green-600" />
                   <span className="text-green-700 dark:text-green-300">PR created successfully!</span>
                   <a
@@ -385,10 +383,10 @@ export default function EvolutionPage() {
                   </a>
                 </div>
               )}
-            </CardContent>
-          </Card>
-        </div>
-      </div>
+            </div>
+          </div>
+        </ScrollArea>
+      </main>
     </div>
   );
 }

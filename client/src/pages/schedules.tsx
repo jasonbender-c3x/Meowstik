@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -26,12 +25,10 @@ import {
   Search,
   Settings2,
   AlertCircle,
-  CheckCircle,
   Power,
   PowerOff,
   Timer,
   Loader2,
-  Edit2,
   MoreVertical
 } from "lucide-react";
 import { Link } from "wouter";
@@ -378,154 +375,162 @@ export default function SchedulesPage() {
   };
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
-      <header className="sticky top-0 z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b">
-        <div className="flex items-center justify-between h-14 px-4">
-          <div className="flex items-center gap-3">
-            <Link href="/">
-              <Button variant="ghost" size="icon" data-testid="button-back">
-                <ArrowLeft className="w-5 h-5" />
-              </Button>
-            </Link>
-            <div className="flex items-center gap-2">
-              <Calendar className="w-5 h-5 text-primary" />
-              <h1 className="text-lg font-semibold">Schedules & Triggers</h1>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={loadAll}
-              disabled={isLoading}
-              data-testid="button-refresh"
-            >
-              <RefreshCw className={`w-4 h-4 mr-2 ${isLoading ? "animate-spin" : ""}`} />
-              Refresh
+    <div className="min-h-screen bg-background flex flex-col" data-testid="schedules-page">
+      {/* Header */}
+      <header className="border-b bg-card px-4 py-3 flex-shrink-0">
+        <div className="flex items-center gap-4">
+          <Link href="/">
+            <Button variant="ghost" size="icon" data-testid="button-back">
+              <ArrowLeft className="h-4 w-4" />
             </Button>
+          </Link>
+          <div className="flex-1">
+            <h1 className="text-xl font-semibold flex items-center gap-2">
+              <Calendar className="h-5 w-5 text-primary" />
+              Schedules & Triggers
+            </h1>
+            <p className="text-sm text-muted-foreground">
+              Manage scheduled tasks and event-driven triggers
+            </p>
           </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={loadAll}
+            disabled={isLoading}
+            data-testid="button-refresh"
+          >
+            {isLoading ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <RefreshCw className="h-4 w-4" />
+            )}
+            <span className="ml-2">Refresh</span>
+          </Button>
         </div>
       </header>
 
-      <main className="flex-1 p-4 space-y-4">
-        <Card>
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle className="flex items-center gap-2">
-                  <Settings2 className="w-5 h-5" />
-                  Executor Control
-                </CardTitle>
-                <CardDescription>Manage the workflow execution engine</CardDescription>
-              </div>
-              <div className="flex items-center gap-3">
-                {executorStatus && (
-                  <>
-                    <div className="text-sm text-muted-foreground">
-                      <span className="font-medium">{executorStatus.stats?.pending ?? 0}</span> pending
-                      <span className="mx-2">|</span>
-                      <span className="font-medium">{executorStatus.stats?.running ?? 0}</span> running
-                    </div>
-                    <Button
-                      variant={executorStatus.isPaused ? "default" : "outline"}
-                      size="sm"
-                      onClick={toggleExecutorPause}
-                      disabled={!executorStatus.isRunning}
-                      data-testid="button-pause-resume"
-                    >
-                      {executorStatus.isPaused ? (
-                        <>
-                          <Play className="w-4 h-4 mr-1" />
-                          Resume
-                        </>
-                      ) : (
-                        <>
-                          <Pause className="w-4 h-4 mr-1" />
-                          Pause
-                        </>
-                      )}
-                    </Button>
-                    <Button
-                      variant={executorStatus.isRunning ? "destructive" : "default"}
-                      size="sm"
-                      onClick={toggleExecutor}
-                      data-testid="button-start-stop"
-                    >
-                      {executorStatus.isRunning ? (
-                        <>
-                          <PowerOff className="w-4 h-4 mr-1" />
-                          Stop
-                        </>
-                      ) : (
-                        <>
-                          <Power className="w-4 h-4 mr-1" />
-                          Start
-                        </>
-                      )}
-                    </Button>
-                  </>
-                )}
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent>
-            {executorStatus && (
-              <div className="flex items-center gap-6">
-                <div className="flex items-center gap-2">
-                  <div className={`w-3 h-3 rounded-full ${executorStatus.isRunning ? (executorStatus.isPaused ? "bg-yellow-500" : "bg-green-500") : "bg-gray-400"}`} />
-                  <span className="text-sm font-medium">
-                    {executorStatus.isRunning ? (executorStatus.isPaused ? "Paused" : "Running") : "Stopped"}
-                  </span>
-                </div>
-                <div className="text-sm text-muted-foreground">
-                  <span className="font-medium text-green-600">{executorStatus.stats?.completed ?? 0}</span> completed
-                  <span className="mx-2">|</span>
-                  <span className="font-medium text-red-600">{executorStatus.stats?.failed ?? 0}</span> failed
-                </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="schedules" data-testid="tab-schedules">
-              <Clock className="w-4 h-4 mr-2" />
-              Schedules ({schedules.length})
-            </TabsTrigger>
-            <TabsTrigger value="triggers" data-testid="tab-triggers">
-              <Zap className="w-4 h-4 mr-2" />
-              Triggers ({triggers.length})
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="schedules" className="mt-4">
-            <div className="flex justify-between items-center mb-4">
+      <main className="flex-1 overflow-hidden flex flex-col">
+        <div className="border border-border rounded-lg bg-muted/20 p-6 m-4">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h2 className="font-semibold flex items-center gap-2">
+                <Settings2 className="h-5 w-5 text-primary" />
+                Executor Control
+              </h2>
               <p className="text-sm text-muted-foreground">
-                Recurring jobs that run on a schedule
+                Manage the workflow execution engine
               </p>
-              <Button onClick={() => setIsCreateScheduleOpen(true)} data-testid="button-create-schedule">
-                <Plus className="w-4 h-4 mr-2" />
-                New Schedule
-              </Button>
+            </div>
+            <div className="flex items-center gap-3">
+              {executorStatus && (
+                <>
+                  <div className="text-sm text-muted-foreground">
+                    <span className="font-medium">{executorStatus.stats?.pending ?? 0}</span> pending
+                    <span className="mx-2">|</span>
+                    <span className="font-medium">{executorStatus.stats?.running ?? 0}</span> running
+                  </div>
+                  <Button
+                    variant={executorStatus.isPaused ? "default" : "outline"}
+                    size="sm"
+                    onClick={toggleExecutorPause}
+                    disabled={!executorStatus.isRunning}
+                    data-testid="button-pause-resume"
+                  >
+                    {executorStatus.isPaused ? (
+                      <>
+                        <Play className="w-4 h-4 mr-1" />
+                        Resume
+                      </>
+                    ) : (
+                      <>
+                        <Pause className="w-4 h-4 mr-1" />
+                        Pause
+                      </>
+                    )}
+                  </Button>
+                  <Button
+                    variant={executorStatus.isRunning ? "destructive" : "default"}
+                    size="sm"
+                    onClick={toggleExecutor}
+                    data-testid="button-start-stop"
+                  >
+                    {executorStatus.isRunning ? (
+                      <>
+                        <PowerOff className="w-4 h-4 mr-1" />
+                        Stop
+                      </>
+                    ) : (
+                      <>
+                        <Power className="w-4 h-4 mr-1" />
+                        Start
+                      </>
+                    )}
+                  </Button>
+                </>
+              )}
+            </div>
+          </div>
+          {executorStatus && (
+            <div className="flex items-center gap-6">
+              <div className="flex items-center gap-2">
+                <div className={`w-3 h-3 rounded-full ${executorStatus.isRunning ? (executorStatus.isPaused ? "bg-yellow-500" : "bg-green-500") : "bg-gray-400"}`} />
+                <span className="text-sm font-medium">
+                  {executorStatus.isRunning ? (executorStatus.isPaused ? "Paused" : "Running") : "Stopped"}
+                </span>
+              </div>
+              <div className="text-sm text-muted-foreground">
+                <span className="font-medium text-green-600">{executorStatus.stats?.completed ?? 0}</span> completed
+                <span className="mx-2">|</span>
+                <span className="font-medium text-red-600">{executorStatus.stats?.failed ?? 0}</span> failed
+              </div>
+            </div>
+          )}
+        </div>
+
+        <ScrollArea className="flex-1">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="h-full">
+            <div className="px-4 border-b">
+              <TabsList className="h-12">
+                <TabsTrigger value="schedules" className="flex items-center gap-2" data-testid="tab-schedules">
+                  <Clock className="h-4 w-4" />
+                  Schedules ({schedules.length})
+                </TabsTrigger>
+                <TabsTrigger value="triggers" className="flex items-center gap-2" data-testid="tab-triggers">
+                  <Zap className="h-4 w-4" />
+                  Triggers ({triggers.length})
+                </TabsTrigger>
+              </TabsList>
             </div>
 
-            <ScrollArea className="h-[calc(100vh-380px)]">
-              <div className="space-y-3">
-                {schedules.length === 0 ? (
-                  <Card>
-                    <CardContent className="flex flex-col items-center justify-center py-12 text-center">
-                      <Timer className="w-12 h-12 text-muted-foreground/50 mb-4" />
+            <div className="p-4">
+              <TabsContent value="schedules" className="mt-0 space-y-4">
+                <div className="flex justify-between items-center mb-4">
+                  <p className="text-sm text-muted-foreground">
+                    Recurring jobs that run on a schedule
+                  </p>
+                  <Button onClick={() => setIsCreateScheduleOpen(true)} size="sm" data-testid="button-create-schedule">
+                    <Plus className="w-4 h-4 mr-2" />
+                    New Schedule
+                  </Button>
+                </div>
+
+                <div className="space-y-3">
+                  {schedules.length === 0 ? (
+                    <div className="border border-border rounded-lg bg-muted/20 p-12 text-center">
+                      <Timer className="h-12 w-12 text-muted-foreground/50 mx-auto mb-4" />
                       <p className="text-muted-foreground">No schedules configured</p>
                       <p className="text-sm text-muted-foreground/70 mt-1">
                         Create a schedule to run tasks automatically
                       </p>
-                    </CardContent>
-                  </Card>
-                ) : (
-                  schedules.map((schedule) => (
-                    <Card key={schedule.id} className={!schedule.enabled ? "opacity-60" : ""} data-testid={`card-schedule-${schedule.id}`}>
-                      <CardContent className="p-4">
+                    </div>
+                  ) : (
+                    schedules.map((schedule) => (
+                      <div 
+                        key={schedule.id}
+                        className={`border border-border rounded-lg bg-muted/20 p-4 ${!schedule.enabled ? "opacity-60" : ""}`} 
+                        data-testid={`card-schedule-${schedule.id}`}
+                      >
                         <div className="flex items-start justify-between">
                           <div className="flex-1">
                             <div className="flex items-center gap-2 mb-1">
@@ -584,43 +589,41 @@ export default function SchedulesPage() {
                             </DropdownMenu>
                           </div>
                         </div>
-                      </CardContent>
-                    </Card>
-                  ))
-                )}
-              </div>
-            </ScrollArea>
-          </TabsContent>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </TabsContent>
 
-          <TabsContent value="triggers" className="mt-4">
-            <div className="flex justify-between items-center mb-4">
-              <p className="text-sm text-muted-foreground">
-                Event-driven automation based on conditions
-              </p>
-              <Button onClick={() => setIsCreateTriggerOpen(true)} data-testid="button-create-trigger">
-                <Plus className="w-4 h-4 mr-2" />
-                New Trigger
-              </Button>
-            </div>
+              <TabsContent value="triggers" className="mt-0 space-y-4">
+                <div className="flex justify-between items-center mb-4">
+                  <p className="text-sm text-muted-foreground">
+                    Event-driven automation based on conditions
+                  </p>
+                  <Button onClick={() => setIsCreateTriggerOpen(true)} size="sm" data-testid="button-create-trigger">
+                    <Plus className="w-4 h-4 mr-2" />
+                    New Trigger
+                  </Button>
+                </div>
 
-            <ScrollArea className="h-[calc(100vh-380px)]">
-              <div className="space-y-3">
-                {triggers.length === 0 ? (
-                  <Card>
-                    <CardContent className="flex flex-col items-center justify-center py-12 text-center">
-                      <Zap className="w-12 h-12 text-muted-foreground/50 mb-4" />
+                <div className="space-y-3">
+                  {triggers.length === 0 ? (
+                    <div className="border border-border rounded-lg bg-muted/20 p-12 text-center">
+                      <Zap className="h-12 w-12 text-muted-foreground/50 mx-auto mb-4" />
                       <p className="text-muted-foreground">No triggers configured</p>
                       <p className="text-sm text-muted-foreground/70 mt-1">
                         Create a trigger to respond to events automatically
                       </p>
-                    </CardContent>
-                  </Card>
-                ) : (
-                  triggers.map((trigger) => {
-                    const typeConfig = triggerTypeConfig[trigger.triggerType] || triggerTypeConfig.keyword;
-                    return (
-                      <Card key={trigger.id} className={!trigger.enabled ? "opacity-60" : ""} data-testid={`card-trigger-${trigger.id}`}>
-                        <CardContent className="p-4">
+                    </div>
+                  ) : (
+                    triggers.map((trigger) => {
+                      const typeConfig = triggerTypeConfig[trigger.triggerType] || triggerTypeConfig.keyword;
+                      return (
+                        <div 
+                          key={trigger.id}
+                          className={`border border-border rounded-lg bg-muted/20 p-4 ${!trigger.enabled ? "opacity-60" : ""}`}
+                          data-testid={`card-trigger-${trigger.id}`}
+                        >
                           <div className="flex items-start justify-between">
                             <div className="flex-1">
                               <div className="flex items-center gap-2 mb-1">
@@ -671,15 +674,15 @@ export default function SchedulesPage() {
                               </DropdownMenu>
                             </div>
                           </div>
-                        </CardContent>
-                      </Card>
-                    );
-                  })
-                )}
-              </div>
-            </ScrollArea>
-          </TabsContent>
-        </Tabs>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </TabsContent>
+            </div>
+          </Tabs>
+        </ScrollArea>
       </main>
 
       <Dialog open={isCreateScheduleOpen} onOpenChange={setIsCreateScheduleOpen}>

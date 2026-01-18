@@ -11,19 +11,15 @@
  * ║    5. Google Sheets - View and create spreadsheets                           ║
  * ║    6. Google Tasks - Manage task lists and tasks                             ║
  * ║                                                                               ║
- * ║  Layout Structure:                                                            ║
+ * ║  Layout Structure (matching design.tsx and database-explorer.tsx):            ║
  * ║  ┌────────────────────────────────────────────────────────────────────────┐  ║
- * ║  │ Header: [← Back to Chat] Google Workspace                              │  ║
+ * ║  │ Header: border-b bg-card px-4 py-3                                     │  ║
+ * ║  │ [← Back] Icon Title • Subtitle                                          │  ║
  * ║  ├────────────────────────────────────────────────────────────────────────┤  ║
  * ║  │ Tabs: [Drive] [Gmail] [Calendar] [Docs] [Sheets] [Tasks]               │  ║
  * ║  ├────────────────────────────────────────────────────────────────────────┤  ║
- * ║  │                                                                        │  ║
- * ║  │  ┌──────────────────────────────────────────────────────────────────┐  │  ║
- * ║  │  │ Panel Content (varies by selected tab)                           │  │  ║
- * ║  │  │ - Search/filter                                                  │  │  ║
- * ║  │  │ - Action buttons (Create, Refresh)                               │  │  ║
- * ║  │  │ - Scrollable list of items                                       │  │  ║
- * ║  │  └──────────────────────────────────────────────────────────────────┘  │  ║
+ * ║  │ ScrollArea: min-h-screen bg-background flex flex-col                   │  ║
+ * ║  │  Content sections: border border-border rounded-lg bg-muted/20 p-6     │  ║
  * ║  │                                                                        │  ║
  * ║  └────────────────────────────────────────────────────────────────────────┘  ║
  * ╚══════════════════════════════════════════════════════════════════════════════╝
@@ -37,7 +33,7 @@
  * React Hooks
  * - useState: Manage component state for forms and UI
  */
-import { useState } from 'react';
+import { useState } from "react";
 
 /**
  * TanStack Query (React Query)
@@ -45,11 +41,10 @@ import { useState } from 'react';
  * - useMutation: Handle data mutations (POST, PUT, DELETE)
  * - useQueryClient: Access query cache for invalidation
  */
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 /**
  * shadcn/ui Components
- * - Card: Container components for content
  * - Button: Consistent styled buttons
  * - Input: Text input fields
  * - Textarea: Multi-line text input
@@ -57,18 +52,17 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
  * - ScrollArea: Scrollable container with custom scrollbar
  * - Badge: Status/label badges
  */
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Badge } from '@/components/ui/badge';
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Badge } from "@/components/ui/badge";
 
 /**
  * Custom Toast Hook for notifications
  */
-import { useToast } from '@/hooks/use-toast';
+import { useToast } from "@/hooks/use-toast";
 
 /**
  * Lucide Icons
@@ -86,13 +80,19 @@ import {
   Plus,            // Create/add icon
   ExternalLink,    // Open in new tab icon
   Send,            // Send email icon
-  ArrowLeft        // Back navigation icon
-} from 'lucide-react';
+  ArrowLeft,       // Back navigation icon
+  Loader2          // Loading spinner icon
+} from "lucide-react";
 
 /**
  * Wouter Link for navigation
  */
-import { Link } from 'wouter';
+import { Link } from "wouter";
+
+/**
+ * Utility function for conditional class names
+ */
+import { cn } from "@/lib/utils";
 
 // ============================================================================
 // GOOGLE DRIVE PANEL COMPONENT
@@ -158,41 +158,70 @@ function DrivePanel() {
           onChange={(e) => setSearchQuery(e.target.value)}
           className="flex-1"
         />
-        <Button data-testid="button-drive-refresh" variant="outline" onClick={() => refetch()}>
-          <RefreshCw className="h-4 w-4" />
+        <Button 
+          data-testid="button-drive-refresh" 
+          variant="outline" 
+          size="icon"
+          onClick={() => refetch()}
+          disabled={isLoading}
+        >
+          {isLoading ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <RefreshCw className="h-4 w-4" />
+          )}
         </Button>
       </div>
       
-      {/* Scrollable File List */}
-      <ScrollArea className="h-[400px]">
-        <div className="space-y-2">
-          {isLoading ? (
-            <p className="text-muted-foreground">Loading files...</p>
-          ) : displayFiles.length === 0 ? (
-            <p className="text-muted-foreground">No files found</p>
-          ) : (
-            displayFiles.map((file: any) => (
-              <Card key={file.id} data-testid={`card-drive-file-${file.id}`}>
-                <CardContent className="p-3 flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    {/* File type icon from Google */}
-                    <img src={file.iconLink} alt="" className="w-5 h-5" />
-                    <span className="font-medium truncate max-w-[200px]">{file.name}</span>
-                  </div>
-                  {/* Open in Drive button */}
-                  {file.webViewLink && (
-                    <a href={file.webViewLink} target="_blank" rel="noopener noreferrer">
-                      <Button data-testid={`button-open-drive-${file.id}`} variant="ghost" size="sm">
-                        <ExternalLink className="h-4 w-4" />
-                      </Button>
-                    </a>
-                  )}
-                </CardContent>
-              </Card>
-            ))
-          )}
+      {/* File Count Badge */}
+      {displayFiles.length > 0 && (
+        <div className="flex items-center gap-2">
+          <Badge variant="outline">{displayFiles.length} files</Badge>
         </div>
-      </ScrollArea>
+      )}
+      
+      {/* Scrollable File List */}
+      <div className="space-y-2">
+        {isLoading ? (
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          </div>
+        ) : displayFiles.length === 0 ? (
+          <div className="text-center py-8">
+            <FolderOpen className="h-12 w-12 mx-auto mb-2 opacity-50 text-muted-foreground" />
+            <p className="text-muted-foreground">No files found</p>
+          </div>
+        ) : (
+          displayFiles.map((file: any) => (
+            <div 
+              key={file.id} 
+              data-testid={`card-drive-file-${file.id}`}
+              className="p-3 rounded-lg border border-border bg-card hover:bg-muted/50 transition-colors flex items-center justify-between"
+            >
+              <div className="flex items-center gap-3 flex-1 min-w-0">
+                {/* File type icon from Google */}
+                {file.iconLink && (
+                  <img src={file.iconLink} alt="File type icon" className="w-5 h-5 flex-shrink-0" />
+                )}
+                <span className="font-medium truncate max-w-[300px]">{file.name}</span>
+              </div>
+              {/* Open in Drive button */}
+              {file.webViewLink && (
+                <a href={file.webViewLink} target="_blank" rel="noopener noreferrer" className="flex-shrink-0">
+                  <Button 
+                    data-testid={`button-open-drive-${file.id}`} 
+                    variant="ghost" 
+                    size="icon"
+                    className="h-8 w-8"
+                  >
+                    <ExternalLink className="h-4 w-4" />
+                  </Button>
+                </a>
+              )}
+            </div>
+          ))
+        )}
+      </div>
     </div>
   );
 }
@@ -271,7 +300,7 @@ function GmailPanel() {
   if (composing) {
     return (
       <div className="space-y-4">
-        <Button data-testid="button-gmail-back" variant="ghost" onClick={() => setComposing(false)}>
+        <Button data-testid="button-gmail-back" variant="outline" onClick={() => setComposing(false)}>
           <ArrowLeft className="h-4 w-4 mr-2" /> Back
         </Button>
         <Input
@@ -298,7 +327,12 @@ function GmailPanel() {
           onClick={() => sendMutation.mutate({ to, subject, body })}
           disabled={!to || !subject || !body || sendMutation.isPending}
         >
-          <Send className="h-4 w-4 mr-2" /> Send
+          {sendMutation.isPending ? (
+            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+          ) : (
+            <Send className="h-4 w-4 mr-2" />
+          )}
+          Send
         </Button>
       </div>
     );
@@ -312,31 +346,53 @@ function GmailPanel() {
         <Button data-testid="button-gmail-compose" onClick={() => setComposing(true)}>
           <Plus className="h-4 w-4 mr-2" /> Compose
         </Button>
-        <Button data-testid="button-gmail-refresh" variant="outline" onClick={() => refetch()}>
-          <RefreshCw className="h-4 w-4" />
+        <Button 
+          data-testid="button-gmail-refresh" 
+          variant="outline" 
+          size="icon"
+          onClick={() => refetch()}
+          disabled={isLoading}
+        >
+          {isLoading ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <RefreshCw className="h-4 w-4" />
+          )}
         </Button>
       </div>
       
-      {/* Email List */}
-      <ScrollArea className="h-[400px]">
-        <div className="space-y-2">
-          {isLoading ? (
-            <p className="text-muted-foreground">Loading emails...</p>
-          ) : emails.length === 0 ? (
-            <p className="text-muted-foreground">No emails found</p>
-          ) : (
-            emails.map((email: any) => (
-              <Card key={email.id} data-testid={`card-gmail-email-${email.id}`}>
-                <CardContent className="p-3">
-                  <div className="font-medium truncate">{email.subject || '(no subject)'}</div>
-                  <div className="text-sm text-muted-foreground truncate">{email.from}</div>
-                  <div className="text-xs text-muted-foreground mt-1 truncate">{email.snippet}</div>
-                </CardContent>
-              </Card>
-            ))
-          )}
+      {/* Email Count Badge */}
+      {emails.length > 0 && (
+        <div className="flex items-center gap-2">
+          <Badge variant="outline">{emails.length} emails</Badge>
         </div>
-      </ScrollArea>
+      )}
+      
+      {/* Email List */}
+      <div className="space-y-2">
+        {isLoading ? (
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          </div>
+        ) : emails.length === 0 ? (
+          <div className="text-center py-8">
+            <Mail className="h-12 w-12 mx-auto mb-2 opacity-50 text-muted-foreground" />
+            <p className="text-muted-foreground">No emails found</p>
+          </div>
+        ) : (
+          emails.map((email: any) => (
+            <div 
+              key={email.id} 
+              data-testid={`card-gmail-email-${email.id}`}
+              className="p-3 rounded-lg border border-border bg-card hover:bg-muted/50 transition-colors"
+            >
+              <div className="font-medium truncate">{email.subject || '(no subject)'}</div>
+              <div className="text-sm text-muted-foreground truncate">{email.from}</div>
+              <div className="text-xs text-muted-foreground mt-1 truncate">{email.snippet}</div>
+            </div>
+          ))
+        )}
+      </div>
     </div>
   );
 }
@@ -411,7 +467,7 @@ function CalendarPanel() {
   if (creating) {
     return (
       <div className="space-y-4">
-        <Button data-testid="button-calendar-back" variant="ghost" onClick={() => setCreating(false)}>
+        <Button data-testid="button-calendar-back" variant="outline" onClick={() => setCreating(false)}>
           <ArrowLeft className="h-4 w-4 mr-2" /> Back
         </Button>
         <Input
@@ -439,8 +495,13 @@ function CalendarPanel() {
             start: { dateTime: new Date(startDate).toISOString() },
             end: { dateTime: new Date(endDate).toISOString() },
           })}
-          disabled={!summary || !startDate || !endDate}
+          disabled={!summary || !startDate || !endDate || createMutation.isPending}
         >
+          {createMutation.isPending ? (
+            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+          ) : (
+            <Plus className="h-4 w-4 mr-2" />
+          )}
           Create Event
         </Button>
       </div>
@@ -455,32 +516,54 @@ function CalendarPanel() {
         <Button data-testid="button-calendar-new" onClick={() => setCreating(true)}>
           <Plus className="h-4 w-4 mr-2" /> New Event
         </Button>
-        <Button data-testid="button-calendar-refresh" variant="outline" onClick={() => refetch()}>
-          <RefreshCw className="h-4 w-4" />
+        <Button 
+          data-testid="button-calendar-refresh" 
+          variant="outline" 
+          size="icon"
+          onClick={() => refetch()}
+          disabled={isLoading}
+        >
+          {isLoading ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <RefreshCw className="h-4 w-4" />
+          )}
         </Button>
       </div>
       
-      {/* Event List */}
-      <ScrollArea className="h-[400px]">
-        <div className="space-y-2">
-          {isLoading ? (
-            <p className="text-muted-foreground">Loading events...</p>
-          ) : events.length === 0 ? (
-            <p className="text-muted-foreground">No upcoming events</p>
-          ) : (
-            events.map((event: any) => (
-              <Card key={event.id} data-testid={`card-calendar-event-${event.id}`}>
-                <CardContent className="p-3">
-                  <div className="font-medium">{event.summary}</div>
-                  <div className="text-sm text-muted-foreground">
-                    {new Date(event.start?.dateTime || event.start?.date).toLocaleString()}
-                  </div>
-                </CardContent>
-              </Card>
-            ))
-          )}
+      {/* Event Count Badge */}
+      {events.length > 0 && (
+        <div className="flex items-center gap-2">
+          <Badge variant="outline">{events.length} events</Badge>
         </div>
-      </ScrollArea>
+      )}
+      
+      {/* Event List */}
+      <div className="space-y-2">
+        {isLoading ? (
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          </div>
+        ) : events.length === 0 ? (
+          <div className="text-center py-8">
+            <Calendar className="h-12 w-12 mx-auto mb-2 opacity-50 text-muted-foreground" />
+            <p className="text-muted-foreground">No upcoming events</p>
+          </div>
+        ) : (
+          events.map((event: any) => (
+            <div 
+              key={event.id} 
+              data-testid={`card-calendar-event-${event.id}`}
+              className="p-3 rounded-lg border border-border bg-card hover:bg-muted/50 transition-colors"
+            >
+              <div className="font-medium">{event.summary}</div>
+              <div className="text-sm text-muted-foreground">
+                {new Date(event.start?.dateTime || event.start?.date).toLocaleString()}
+              </div>
+            </div>
+          ))
+        )}
+      </div>
     </div>
   );
 }
@@ -545,7 +628,7 @@ function DocsPanel() {
   if (creating) {
     return (
       <div className="space-y-4">
-        <Button data-testid="button-docs-back" variant="ghost" onClick={() => setCreating(false)}>
+        <Button data-testid="button-docs-back" variant="outline" onClick={() => setCreating(false)}>
           <ArrowLeft className="h-4 w-4 mr-2" /> Back
         </Button>
         <Input
@@ -557,8 +640,13 @@ function DocsPanel() {
         <Button
           data-testid="button-docs-create"
           onClick={() => createMutation.mutate(title)}
-          disabled={!title}
+          disabled={!title || createMutation.isPending}
         >
+          {createMutation.isPending ? (
+            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+          ) : (
+            <Plus className="h-4 w-4 mr-2" />
+          )}
           Create Document
         </Button>
       </div>
@@ -573,42 +661,69 @@ function DocsPanel() {
         <Button data-testid="button-docs-new" onClick={() => setCreating(true)}>
           <Plus className="h-4 w-4 mr-2" /> New Document
         </Button>
-        <Button data-testid="button-docs-refresh" variant="outline" onClick={() => refetch()}>
-          <RefreshCw className="h-4 w-4" />
+        <Button 
+          data-testid="button-docs-refresh" 
+          variant="outline" 
+          size="icon"
+          onClick={() => refetch()}
+          disabled={isLoading}
+        >
+          {isLoading ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <RefreshCw className="h-4 w-4" />
+          )}
         </Button>
       </div>
       
-      {/* Document List */}
-      <ScrollArea className="h-[400px]">
-        <div className="space-y-2">
-          {isLoading ? (
-            <p className="text-muted-foreground">Loading documents...</p>
-          ) : docs.length === 0 ? (
-            <p className="text-muted-foreground">No documents found</p>
-          ) : (
-            docs.map((doc: any) => (
-              <Card key={doc.id} data-testid={`card-docs-doc-${doc.id}`}>
-                <CardContent className="p-3 flex items-center justify-between">
-                  <div>
-                    <div className="font-medium">{doc.name}</div>
-                    <div className="text-xs text-muted-foreground">
-                      {new Date(doc.modifiedTime).toLocaleDateString()}
-                    </div>
-                  </div>
-                  {/* Open in Docs button */}
-                  {doc.webViewLink && (
-                    <a href={doc.webViewLink} target="_blank" rel="noopener noreferrer">
-                      <Button data-testid={`button-open-doc-${doc.id}`} variant="ghost" size="sm">
-                        <ExternalLink className="h-4 w-4" />
-                      </Button>
-                    </a>
-                  )}
-                </CardContent>
-              </Card>
-            ))
-          )}
+      {/* Document Count Badge */}
+      {docs.length > 0 && (
+        <div className="flex items-center gap-2">
+          <Badge variant="outline">{docs.length} documents</Badge>
         </div>
-      </ScrollArea>
+      )}
+      
+      {/* Document List */}
+      <div className="space-y-2">
+        {isLoading ? (
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          </div>
+        ) : docs.length === 0 ? (
+          <div className="text-center py-8">
+            <FileText className="h-12 w-12 mx-auto mb-2 opacity-50 text-muted-foreground" />
+            <p className="text-muted-foreground">No documents found</p>
+          </div>
+        ) : (
+          docs.map((doc: any) => (
+            <div 
+              key={doc.id} 
+              data-testid={`card-docs-doc-${doc.id}`}
+              className="p-3 rounded-lg border border-border bg-card hover:bg-muted/50 transition-colors flex items-center justify-between"
+            >
+              <div className="flex-1 min-w-0">
+                <div className="font-medium truncate">{doc.name}</div>
+                <div className="text-xs text-muted-foreground">
+                  {new Date(doc.modifiedTime).toLocaleDateString()}
+                </div>
+              </div>
+              {/* Open in Docs button */}
+              {doc.webViewLink && (
+                <a href={doc.webViewLink} target="_blank" rel="noopener noreferrer" className="flex-shrink-0">
+                  <Button 
+                    data-testid={`button-open-doc-${doc.id}`} 
+                    variant="ghost" 
+                    size="icon"
+                    className="h-8 w-8"
+                  >
+                    <ExternalLink className="h-4 w-4" />
+                  </Button>
+                </a>
+              )}
+            </div>
+          ))
+        )}
+      </div>
     </div>
   );
 }
@@ -673,7 +788,7 @@ function SheetsPanel() {
   if (creating) {
     return (
       <div className="space-y-4">
-        <Button data-testid="button-sheets-back" variant="ghost" onClick={() => setCreating(false)}>
+        <Button data-testid="button-sheets-back" variant="outline" onClick={() => setCreating(false)}>
           <ArrowLeft className="h-4 w-4 mr-2" /> Back
         </Button>
         <Input
@@ -685,8 +800,13 @@ function SheetsPanel() {
         <Button
           data-testid="button-sheets-create"
           onClick={() => createMutation.mutate(title)}
-          disabled={!title}
+          disabled={!title || createMutation.isPending}
         >
+          {createMutation.isPending ? (
+            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+          ) : (
+            <Plus className="h-4 w-4 mr-2" />
+          )}
           Create Spreadsheet
         </Button>
       </div>
@@ -701,42 +821,69 @@ function SheetsPanel() {
         <Button data-testid="button-sheets-new" onClick={() => setCreating(true)}>
           <Plus className="h-4 w-4 mr-2" /> New Spreadsheet
         </Button>
-        <Button data-testid="button-sheets-refresh" variant="outline" onClick={() => refetch()}>
-          <RefreshCw className="h-4 w-4" />
+        <Button 
+          data-testid="button-sheets-refresh" 
+          variant="outline" 
+          size="icon"
+          onClick={() => refetch()}
+          disabled={isLoading}
+        >
+          {isLoading ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <RefreshCw className="h-4 w-4" />
+          )}
         </Button>
       </div>
       
-      {/* Spreadsheet List */}
-      <ScrollArea className="h-[400px]">
-        <div className="space-y-2">
-          {isLoading ? (
-            <p className="text-muted-foreground">Loading spreadsheets...</p>
-          ) : sheets.length === 0 ? (
-            <p className="text-muted-foreground">No spreadsheets found</p>
-          ) : (
-            sheets.map((sheet: any) => (
-              <Card key={sheet.id} data-testid={`card-sheets-sheet-${sheet.id}`}>
-                <CardContent className="p-3 flex items-center justify-between">
-                  <div>
-                    <div className="font-medium">{sheet.name}</div>
-                    <div className="text-xs text-muted-foreground">
-                      {new Date(sheet.modifiedTime).toLocaleDateString()}
-                    </div>
-                  </div>
-                  {/* Open in Sheets button */}
-                  {sheet.webViewLink && (
-                    <a href={sheet.webViewLink} target="_blank" rel="noopener noreferrer">
-                      <Button data-testid={`button-open-sheet-${sheet.id}`} variant="ghost" size="sm">
-                        <ExternalLink className="h-4 w-4" />
-                      </Button>
-                    </a>
-                  )}
-                </CardContent>
-              </Card>
-            ))
-          )}
+      {/* Spreadsheet Count Badge */}
+      {sheets.length > 0 && (
+        <div className="flex items-center gap-2">
+          <Badge variant="outline">{sheets.length} spreadsheets</Badge>
         </div>
-      </ScrollArea>
+      )}
+      
+      {/* Spreadsheet List */}
+      <div className="space-y-2">
+        {isLoading ? (
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          </div>
+        ) : sheets.length === 0 ? (
+          <div className="text-center py-8">
+            <Table2 className="h-12 w-12 mx-auto mb-2 opacity-50 text-muted-foreground" />
+            <p className="text-muted-foreground">No spreadsheets found</p>
+          </div>
+        ) : (
+          sheets.map((sheet: any) => (
+            <div 
+              key={sheet.id} 
+              data-testid={`card-sheets-sheet-${sheet.id}`}
+              className="p-3 rounded-lg border border-border bg-card hover:bg-muted/50 transition-colors flex items-center justify-between"
+            >
+              <div className="flex-1 min-w-0">
+                <div className="font-medium truncate">{sheet.name}</div>
+                <div className="text-xs text-muted-foreground">
+                  {new Date(sheet.modifiedTime).toLocaleDateString()}
+                </div>
+              </div>
+              {/* Open in Sheets button */}
+              {sheet.webViewLink && (
+                <a href={sheet.webViewLink} target="_blank" rel="noopener noreferrer" className="flex-shrink-0">
+                  <Button 
+                    data-testid={`button-open-sheet-${sheet.id}`} 
+                    variant="ghost" 
+                    size="icon"
+                    className="h-8 w-8"
+                  >
+                    <ExternalLink className="h-4 w-4" />
+                  </Button>
+                </a>
+              )}
+            </div>
+          ))
+        )}
+      </div>
     </div>
   );
 }
@@ -829,7 +976,7 @@ function TasksPanel() {
   if (creating) {
     return (
       <div className="space-y-4">
-        <Button data-testid="button-tasks-back" variant="ghost" onClick={() => setCreating(false)}>
+        <Button data-testid="button-tasks-back" variant="outline" onClick={() => setCreating(false)}>
           <ArrowLeft className="h-4 w-4 mr-2" /> Back
         </Button>
         <Input
@@ -841,8 +988,13 @@ function TasksPanel() {
         <Button
           data-testid="button-tasks-create"
           onClick={() => createMutation.mutate(title)}
-          disabled={!title}
+          disabled={!title || createMutation.isPending}
         >
+          {createMutation.isPending ? (
+            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+          ) : (
+            <Plus className="h-4 w-4 mr-2" />
+          )}
           Create Task
         </Button>
       </div>
@@ -857,42 +1009,75 @@ function TasksPanel() {
         <Button data-testid="button-tasks-new" onClick={() => setCreating(true)}>
           <Plus className="h-4 w-4 mr-2" /> New Task
         </Button>
-        <Button data-testid="button-tasks-refresh" variant="outline" onClick={() => refetch()}>
-          <RefreshCw className="h-4 w-4" />
+        <Button 
+          data-testid="button-tasks-refresh" 
+          variant="outline" 
+          size="icon"
+          onClick={() => refetch()}
+          disabled={tasksLoading}
+        >
+          {tasksLoading ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <RefreshCw className="h-4 w-4" />
+          )}
         </Button>
       </div>
       
-      {/* Task List */}
-      <ScrollArea className="h-[400px]">
-        <div className="space-y-2">
-          {tasksLoading ? (
-            <p className="text-muted-foreground">Loading tasks...</p>
-          ) : tasks.length === 0 ? (
-            <p className="text-muted-foreground">No tasks found</p>
-          ) : (
-            tasks.map((task: any) => (
-              <Card key={task.id} data-testid={`card-tasks-task-${task.id}`}>
-                <CardContent className="p-3 flex items-center gap-3">
-                  {/* Complete Task Button */}
-                  <Button
-                    data-testid={`button-complete-task-${task.id}`}
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => completeMutation.mutate(task.id)}
-                    disabled={task.status === 'completed'}
-                  >
-                    <CheckSquare className={`h-4 w-4 ${task.status === 'completed' ? 'text-green-500' : ''}`} />
-                  </Button>
-                  {/* Task Title (strikethrough if completed) */}
-                  <div className={task.status === 'completed' ? 'line-through text-muted-foreground' : ''}>
-                    {task.title}
-                  </div>
-                </CardContent>
-              </Card>
-            ))
-          )}
+      {/* Task Count Badge */}
+      {tasks.length > 0 && (
+        <div className="flex items-center gap-2">
+          <Badge variant="outline">{tasks.length} tasks</Badge>
         </div>
-      </ScrollArea>
+      )}
+      
+      {/* Task List */}
+      <div className="space-y-2">
+        {tasksLoading ? (
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          </div>
+        ) : tasks.length === 0 ? (
+          <div className="text-center py-8">
+            <CheckSquare className="h-12 w-12 mx-auto mb-2 opacity-50 text-muted-foreground" />
+            <p className="text-muted-foreground">No tasks found</p>
+          </div>
+        ) : (
+          tasks.map((task: any) => (
+            <div 
+              key={task.id} 
+              data-testid={`card-tasks-task-${task.id}`}
+              className="p-3 rounded-lg border border-border bg-card hover:bg-muted/50 transition-colors flex items-center gap-3"
+            >
+              {/* Complete Task Button */}
+              <Button
+                data-testid={`button-complete-task-${task.id}`}
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 flex-shrink-0"
+                onClick={() => completeMutation.mutate(task.id)}
+                disabled={task.status === 'completed'}
+              >
+                <CheckSquare 
+                  className={cn(
+                    "h-4 w-4",
+                    task.status === 'completed' ? 'text-green-500' : ''
+                  )} 
+                />
+              </Button>
+              {/* Task Title (strikethrough if completed) */}
+              <span 
+                className={cn(
+                  "flex-1",
+                  task.status === 'completed' ? 'line-through text-muted-foreground' : ''
+                )}
+              >
+                {task.title}
+              </span>
+            </div>
+          ))
+        )}
+      </div>
     </div>
   );
 }
@@ -901,139 +1086,156 @@ function TasksPanel() {
 // MAIN PAGE COMPONENT
 // ============================================================================
 
-/**
- * GoogleServicesPage - Google Workspace Dashboard
- * 
- * The main page component that provides a tabbed interface for accessing
- * all Google Workspace services. Each tab loads a specific service panel.
- * 
- * Tab Structure:
- * - Drive: File browser and search
- * - Gmail: Email client
- * - Calendar: Event manager
- * - Docs: Document manager
- * - Sheets: Spreadsheet manager
- * - Tasks: Task manager
- * 
- * @returns {JSX.Element} Google Services dashboard page
- */
 export default function GoogleServicesPage() {
   return (
-    <div className="min-h-screen bg-background">
-      {/* 
-       * Page Header
-       * Back navigation and page title
-       */}
-      <header className="border-b p-4">
-        <div className="container mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            {/* Back to Chat button */}
-            <Link href="/">
-              <Button data-testid="button-back-home" variant="ghost">
-                <ArrowLeft className="h-4 w-4 mr-2" /> Back to Chat
-              </Button>
-            </Link>
-            <h1 className="text-2xl font-bold">Google Workspace</h1>
+    <div className="min-h-screen bg-background flex flex-col" data-testid="google-services-page">
+      {/* Header */}
+      <header className="border-b bg-card px-4 py-3 flex-shrink-0">
+        <div className="flex items-center gap-4">
+          <Link href="/">
+            <Button variant="ghost" size="icon" data-testid="button-back-home">
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
+          </Link>
+          <div className="flex-1">
+            <h1 className="text-xl font-semibold flex items-center gap-2">
+              <FolderOpen className="h-5 w-5 text-primary" />
+              Google Workspace
+            </h1>
+            <p className="text-sm text-muted-foreground">
+              Access your Google Workspace services • Drive, Gmail, Calendar, Docs, Sheets, Tasks
+            </p>
           </div>
         </div>
       </header>
-      
-      {/* 
-       * Main Content Area
-       * Contains tabbed interface for all services
-       */}
-      <main className="container mx-auto p-4">
-        <Tabs defaultValue="drive" className="w-full">
-          {/* 
-           * Tab Navigation
-           * 6-column grid with icon + label for each service
-           */}
-          <TabsList className="grid w-full grid-cols-6 mb-4">
-            <TabsTrigger data-testid="tab-drive" value="drive" className="flex items-center gap-2">
-              <FolderOpen className="h-4 w-4" /> Drive
-            </TabsTrigger>
-            <TabsTrigger data-testid="tab-gmail" value="gmail" className="flex items-center gap-2">
-              <Mail className="h-4 w-4" /> Gmail
-            </TabsTrigger>
-            <TabsTrigger data-testid="tab-calendar" value="calendar" className="flex items-center gap-2">
-              <Calendar className="h-4 w-4" /> Calendar
-            </TabsTrigger>
-            <TabsTrigger data-testid="tab-docs" value="docs" className="flex items-center gap-2">
-              <FileText className="h-4 w-4" /> Docs
-            </TabsTrigger>
-            <TabsTrigger data-testid="tab-sheets" value="sheets" className="flex items-center gap-2">
-              <Table2 className="h-4 w-4" /> Sheets
-            </TabsTrigger>
-            <TabsTrigger data-testid="tab-tasks" value="tasks" className="flex items-center gap-2">
-              <CheckSquare className="h-4 w-4" /> Tasks
-            </TabsTrigger>
-          </TabsList>
 
-          {/* 
-           * Tab Content Panels
-           * Each panel is wrapped in a Card for consistent styling
-           */}
-          <Card>
-            <CardContent className="p-6">
-              
-              {/* Google Drive Tab */}
-              <TabsContent value="drive">
-                <CardHeader className="px-0 pt-0">
-                  <CardTitle>Google Drive</CardTitle>
-                  <CardDescription>Browse and manage your files</CardDescription>
-                </CardHeader>
-                <DrivePanel />
-              </TabsContent>
+      {/* Main Content */}
+      <div className="flex-1 overflow-hidden flex flex-col">
+        {/* Tabs Navigation */}
+        <Tabs defaultValue="drive" className="flex flex-col flex-1 min-h-0">
+          <div className="border-b px-4 bg-card">
+            <TabsList className="h-12">
+              <TabsTrigger value="drive" className="flex items-center gap-2" data-testid="tab-drive">
+                <FolderOpen className="h-4 w-4" />
+                Drive
+              </TabsTrigger>
+              <TabsTrigger value="gmail" className="flex items-center gap-2" data-testid="tab-gmail">
+                <Mail className="h-4 w-4" />
+                Gmail
+              </TabsTrigger>
+              <TabsTrigger value="calendar" className="flex items-center gap-2" data-testid="tab-calendar">
+                <Calendar className="h-4 w-4" />
+                Calendar
+              </TabsTrigger>
+              <TabsTrigger value="docs" className="flex items-center gap-2" data-testid="tab-docs">
+                <FileText className="h-4 w-4" />
+                Docs
+              </TabsTrigger>
+              <TabsTrigger value="sheets" className="flex items-center gap-2" data-testid="tab-sheets">
+                <Table2 className="h-4 w-4" />
+                Sheets
+              </TabsTrigger>
+              <TabsTrigger value="tasks" className="flex items-center gap-2" data-testid="tab-tasks">
+                <CheckSquare className="h-4 w-4" />
+                Tasks
+              </TabsTrigger>
+            </TabsList>
+          </div>
 
-              {/* Gmail Tab */}
-              <TabsContent value="gmail">
-                <CardHeader className="px-0 pt-0">
-                  <CardTitle>Gmail</CardTitle>
-                  <CardDescription>Read and send emails</CardDescription>
-                </CardHeader>
-                <GmailPanel />
-              </TabsContent>
+          {/* Tab Content */}
+          <div className="flex-1 overflow-hidden">
+            <TabsContent value="drive" className="h-full mt-0">
+              <ScrollArea className="h-full">
+                <div className="p-4">
+                  <div className="border border-border rounded-lg bg-muted/20 p-6">
+                    <h2 className="text-lg font-semibold flex items-center gap-2 mb-4">
+                      <FolderOpen className="h-5 w-5 text-primary" />
+                      Google Drive
+                    </h2>
+                    <p className="text-sm text-muted-foreground mb-4">Browse and manage your files</p>
+                    <DrivePanel />
+                  </div>
+                </div>
+              </ScrollArea>
+            </TabsContent>
 
-              {/* Google Calendar Tab */}
-              <TabsContent value="calendar">
-                <CardHeader className="px-0 pt-0">
-                  <CardTitle>Google Calendar</CardTitle>
-                  <CardDescription>View and manage events</CardDescription>
-                </CardHeader>
-                <CalendarPanel />
-              </TabsContent>
+            <TabsContent value="gmail" className="h-full mt-0">
+              <ScrollArea className="h-full">
+                <div className="p-4">
+                  <div className="border border-border rounded-lg bg-muted/20 p-6">
+                    <h2 className="text-lg font-semibold flex items-center gap-2 mb-4">
+                      <Mail className="h-5 w-5 text-primary" />
+                      Gmail
+                    </h2>
+                    <p className="text-sm text-muted-foreground mb-4">Read and send emails</p>
+                    <GmailPanel />
+                  </div>
+                </div>
+              </ScrollArea>
+            </TabsContent>
 
-              {/* Google Docs Tab */}
-              <TabsContent value="docs">
-                <CardHeader className="px-0 pt-0">
-                  <CardTitle>Google Docs</CardTitle>
-                  <CardDescription>Create and edit documents</CardDescription>
-                </CardHeader>
-                <DocsPanel />
-              </TabsContent>
+            <TabsContent value="calendar" className="h-full mt-0">
+              <ScrollArea className="h-full">
+                <div className="p-4">
+                  <div className="border border-border rounded-lg bg-muted/20 p-6">
+                    <h2 className="text-lg font-semibold flex items-center gap-2 mb-4">
+                      <Calendar className="h-5 w-5 text-primary" />
+                      Google Calendar
+                    </h2>
+                    <p className="text-sm text-muted-foreground mb-4">View and manage events</p>
+                    <CalendarPanel />
+                  </div>
+                </div>
+              </ScrollArea>
+            </TabsContent>
 
-              {/* Google Sheets Tab */}
-              <TabsContent value="sheets">
-                <CardHeader className="px-0 pt-0">
-                  <CardTitle>Google Sheets</CardTitle>
-                  <CardDescription>Create and edit spreadsheets</CardDescription>
-                </CardHeader>
-                <SheetsPanel />
-              </TabsContent>
+            <TabsContent value="docs" className="h-full mt-0">
+              <ScrollArea className="h-full">
+                <div className="p-4">
+                  <div className="border border-border rounded-lg bg-muted/20 p-6">
+                    <h2 className="text-lg font-semibold flex items-center gap-2 mb-4">
+                      <FileText className="h-5 w-5 text-primary" />
+                      Google Docs
+                    </h2>
+                    <p className="text-sm text-muted-foreground mb-4">Create and edit documents</p>
+                    <DocsPanel />
+                  </div>
+                </div>
+              </ScrollArea>
+            </TabsContent>
 
-              {/* Google Tasks Tab */}
-              <TabsContent value="tasks">
-                <CardHeader className="px-0 pt-0">
-                  <CardTitle>Google Tasks</CardTitle>
-                  <CardDescription>Manage your tasks and to-do lists</CardDescription>
-                </CardHeader>
-                <TasksPanel />
-              </TabsContent>
-              
-            </CardContent>
-          </Card>
+            <TabsContent value="sheets" className="h-full mt-0">
+              <ScrollArea className="h-full">
+                <div className="p-4">
+                  <div className="border border-border rounded-lg bg-muted/20 p-6">
+                    <h2 className="text-lg font-semibold flex items-center gap-2 mb-4">
+                      <Table2 className="h-5 w-5 text-primary" />
+                      Google Sheets
+                    </h2>
+                    <p className="text-sm text-muted-foreground mb-4">Create and edit spreadsheets</p>
+                    <SheetsPanel />
+                  </div>
+                </div>
+              </ScrollArea>
+            </TabsContent>
+
+            <TabsContent value="tasks" className="h-full mt-0">
+              <ScrollArea className="h-full">
+                <div className="p-4">
+                  <div className="border border-border rounded-lg bg-muted/20 p-6">
+                    <h2 className="text-lg font-semibold flex items-center gap-2 mb-4">
+                      <CheckSquare className="h-5 w-5 text-primary" />
+                      Google Tasks
+                    </h2>
+                    <p className="text-sm text-muted-foreground mb-4">Manage your tasks and to-do lists</p>
+                    <TasksPanel />
+                  </div>
+                </div>
+              </ScrollArea>
+            </TabsContent>
+          </div>
         </Tabs>
-      </main>
+      </div>
     </div>
   );
 }
