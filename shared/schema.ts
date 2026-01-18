@@ -3048,3 +3048,70 @@ export const insertLlmInteractionSchema = createInsertSchema(llmInteractions).om
 
 export type InsertLlmInteraction = z.infer<typeof insertLlmInteractionSchema>;
 export type LlmInteraction = typeof llmInteractions.$inferSelect;
+
+// =============================================================================
+// TO-DO LIST SYSTEM
+// =============================================================================
+
+/**
+ * TODO_ITEMS TABLE
+ * ----------------
+ * Stores persistent to-do list items for users.
+ * This master to-do list is included in every prompt to inform the AI's
+ * decision-making and help it prioritize tasks.
+ * 
+ * The to-do list is:
+ * - Stored in the database for persistence across resets
+ * - Cached to logs/todo.md for introspection
+ * - Included in every system prompt as a header message
+ * 
+ * PRIORITY SYSTEM:
+ * - Higher numbers = higher priority
+ * - Used for sorting and AI decision-making
+ * 
+ * STATUS VALUES:
+ * - "pending": Not started
+ * - "in_progress": Currently being worked on
+ * - "completed": Finished
+ * - "blocked": Waiting on something
+ * - "cancelled": No longer relevant
+ */
+export const todoItems = pgTable("todo_items", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  
+  // User association
+  userId: varchar("user_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
+  
+  // Content
+  title: text("title").notNull(),
+  description: text("description"),
+  
+  // Status tracking
+  status: text("status").default("pending").notNull(), // pending, in_progress, completed, blocked, cancelled
+  
+  // Priority (higher = more important)
+  priority: integer("priority").default(0).notNull(),
+  
+  // Context & metadata
+  category: text("category"), // e.g., "bug", "feature", "research", "maintenance"
+  tags: text("tags").array(), // Flexible categorization
+  relatedChatId: varchar("related_chat_id").references(() => chats.id, { onDelete: "set null" }),
+  
+  // Timestamps
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  completedAt: timestamp("completed_at"),
+}, (table) => [
+  index("idx_todo_items_user").on(table.userId),
+  index("idx_todo_items_status").on(table.status),
+  index("idx_todo_items_priority").on(table.priority),
+]);
+
+export const insertTodoItemSchema = createInsertSchema(todoItems).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  completedAt: true,
+});
+export type InsertTodoItem = z.infer<typeof insertTodoItemSchema>;
+export type TodoItem = typeof todoItems.$inferSelect;

@@ -65,6 +65,36 @@
 
 ---
 
+## Master To-Do List
+
+The Master To-Do List is your persistent task tracker. It's stored in the database and appears at the top of every prompt so you can prioritize your actions effectively.
+
+### To-Do Tools
+| Tool | Parameters | Description |
+|------|------------|-------------|
+| `todo_list` | none | Get all active to-do items |
+| `todo_add` | `title`, `description?`, `priority?`, `category?`, `tags?` | Add a new to-do item |
+| `todo_update` | `id`, `title?`, `description?`, `status?`, `priority?` | Update an existing to-do |
+| `todo_complete` | `id` | Mark a to-do as completed |
+| `todo_remove` | `id` | Delete a to-do item |
+| `todo_reorder` | `items: [{id, priority}]` | Reorder multiple to-dos by priority |
+
+### Status Values
+- `pending`: Not started
+- `in_progress`: Currently being worked on
+- `completed`: Finished
+- `blocked`: Waiting on something
+- `cancelled`: No longer relevant
+
+### Usage Guidelines
+- Check the Master To-Do List at the start of each session
+- Update it when you complete tasks or discover new ones
+- Use priorities (higher number = more important) to guide your work
+- The list persists across sessions and is backed by the database
+- A cached copy is available in `logs/todo.md` for introspection
+
+---
+
 ## File Operations
 
 | Tool | Parameters |
