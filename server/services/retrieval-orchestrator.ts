@@ -3,6 +3,9 @@ import { evidence, entities, entityMentions, knowledgeEmbeddings, crossReference
 import { eq, sql, ilike, desc, or, and, isNull } from 'drizzle-orm';
 import { ingestionPipeline, KnowledgeBucket } from './ingestion-pipeline';
 import { EmbeddingService } from './embedding-service';
+import { hybridSearchService } from './hybrid-search';
+import { rerankerService } from './reranker';
+import { ragService } from './rag-service';
 
 const embeddingService = new EmbeddingService();
 
@@ -17,6 +20,9 @@ export interface RetrievalContext {
   includeEntities?: boolean;
   includeCrossRefs?: boolean;
   userId?: string | null; // CRITICAL: Add userId for data isolation
+  useHybridSearch?: boolean; // Enable BM25 + semantic hybrid search
+  useReranking?: boolean; // Enable re-ranking for improved precision
+  topK?: number; // Number of results to return (default: 20)
 }
 
 export interface RetrievedItem {
@@ -44,16 +50,22 @@ export class RetrievalOrchestrator {
     const startTime = Date.now();
     const items: RetrievedItem[] = [];
     const maxTokens = context.maxTokens || this.MAX_CONTEXT_TOKENS;
+    const topK = context.topK || 20;
+    const useHybridSearch = context.useHybridSearch ?? true; // Enable by default
+    const useReranking = context.useReranking ?? true; // Enable by default
 
     const semanticStartTime = Date.now();
+    
+    // Step 1: Initial semantic search (vector similarity)
     const semanticResults = await ingestionPipeline.semanticSearch(context.query, {
-      limit: 50,        // Increased from 20 for better recall
-      threshold: 0.25,  // Lowered from 0.4 for better recall
+      limit: topK * 2,  // Get more candidates for hybrid search
+      threshold: 0.25,  // Lowered threshold for better recall
       bucket: context.buckets?.[0],
       userId: context.userId, // CRITICAL: Pass userId for data isolation
     });
     const semanticTime = Date.now() - semanticStartTime;
 
+    // Convert semantic results to items
     for (const result of semanticResults) {
       items.push({
         type: 'evidence',
@@ -63,34 +75,112 @@ export class RetrievalOrchestrator {
       });
     }
 
-    const keywordResults = await this.keywordSearch(context.query, 10, context.buckets, context.userId);
-    for (const result of keywordResults) {
-      if (!items.find(i => i.id === result.id)) {
-        items.push(result);
+    // Step 2: Apply hybrid search (BM25 + semantic fusion) if enabled
+    let finalItems = items;
+    if (useHybridSearch && items.length > 0) {
+      try {
+        // Try to use RAG service for hybrid search if document chunks are available
+        const ragResult = await ragService.retrieveAdvanced(
+          context.query,
+          context.userId,
+          {
+            topK,
+            useHybridSearch: true,
+            useReranking: false, // We'll apply re-ranking separately
+            useContextSynthesis: false,
+            maxTokens,
+          }
+        );
+
+        // Convert RAG chunks to RetrievedItems
+        finalItems = ragResult.chunks.map((chunk, i) => ({
+          type: 'evidence' as const,
+          id: chunk.id.toString(),
+          content: chunk.content,
+          score: ragResult.scores[i],
+        }));
+
+        console.log(`[RetrievalOrchestrator] Hybrid search: ${finalItems.length} results`);
+      } catch (error) {
+        console.warn('[RetrievalOrchestrator] Hybrid search failed, using semantic-only results:', error);
+        // Fallback to basic keyword merging
+        const keywordResults = await this.keywordSearch(context.query, 10, context.buckets, context.userId);
+        for (const result of keywordResults) {
+          if (!finalItems.find(i => i.id === result.id)) {
+            finalItems.push(result);
+          }
+        }
+      }
+    } else {
+      // Basic keyword search fallback if hybrid is disabled
+      const keywordResults = await this.keywordSearch(context.query, 10, context.buckets, context.userId);
+      for (const result of keywordResults) {
+        if (!finalItems.find(i => i.id === result.id)) {
+          finalItems.push(result);
+        }
       }
     }
 
+    // Step 3: Apply re-ranking if enabled
+    if (useReranking && finalItems.length > 1) {
+      try {
+        // Re-rank for improved precision
+        // Note: We can't directly use rerankerService because it works with DocumentChunks
+        // Instead, we use score-based sorting with diversity consideration
+        finalItems.sort((a, b) => b.score - a.score);
+        
+        // Apply simple diversity filtering (avoid very similar results)
+        const diverseItems: RetrievedItem[] = [];
+        for (const item of finalItems) {
+          const tooSimilar = diverseItems.some(existing => {
+            // Simple Jaccard similarity check
+            const words1 = new Set(item.content.toLowerCase().split(/\s+/));
+            const words2 = new Set(existing.content.toLowerCase().split(/\s+/));
+            const intersection = new Set([...words1].filter(x => words2.has(x)));
+            const union = new Set([...words1, ...words2]);
+            const similarity = intersection.size / union.size;
+            return similarity > 0.7; // 70% similarity threshold
+          });
+          
+          if (!tooSimilar) {
+            diverseItems.push(item);
+          }
+          
+          if (diverseItems.length >= topK) break;
+        }
+        
+        finalItems = diverseItems;
+        console.log(`[RetrievalOrchestrator] Re-ranking applied: ${finalItems.length} diverse results`);
+      } catch (error) {
+        console.warn('[RetrievalOrchestrator] Re-ranking failed, using unranked results:', error);
+      }
+    } else {
+      finalItems.sort((a, b) => b.score - a.score);
+    }
+
+    // Step 4: Add entities and cross-references if requested
     if (context.includeEntities !== false) {
       const entityResults = await this.findRelatedEntities(context.query, 5);
-      items.push(...entityResults);
+      finalItems.push(...entityResults);
     }
 
     if (context.includeCrossRefs) {
-      const crossRefResults = await this.findCrossReferences(items.map(i => i.id), 5);
-      items.push(...crossRefResults);
+      const crossRefResults = await this.findCrossReferences(finalItems.map(i => i.id), 5);
+      finalItems.push(...crossRefResults);
     }
 
-    items.sort((a, b) => b.score - a.score);
-
+    // Step 5: Token-aware filtering to fit within maxTokens
     let totalChars = 0;
     const maxChars = maxTokens * this.CHARS_PER_TOKEN;
     const filteredItems: RetrievedItem[] = [];
 
-    for (const item of items) {
+    for (const item of finalItems) {
       const itemChars = item.content.length;
       if (totalChars + itemChars <= maxChars) {
         filteredItems.push(item);
         totalChars += itemChars;
+      } else {
+        break; // Stop when we hit the token limit
       }
     }
 
@@ -242,6 +332,9 @@ export class RetrievalOrchestrator {
       maxTokens: 4000,
       includeEntities: true,
       userId, // CRITICAL: Pass userId for data isolation
+      useHybridSearch: true, // Enable hybrid search (BM25 + semantic)
+      useReranking: true, // Enable re-ranking for improved precision
+      topK: 20, // Retrieve top 20 results
     });
 
     const knowledgeContext = this.formatForPrompt(retrievalResult);

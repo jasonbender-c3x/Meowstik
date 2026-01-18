@@ -17,6 +17,7 @@
     "test:tts-auth": "node scripts/test-tts-auth.cjs",
     "test:home-dev": "tsx scripts/test-home-dev-mode.ts",
     "test:hardware": "node scripts/validate-hardware.cjs",
+    "test:hybrid-search": "tsx scripts/test-hybrid-search.ts",
     "diagnose:tts-iam": "node scripts/diagnose-tts-iam.cjs",
     "dev:ext": "vite -c vite.config.extension.ts --mode development",
     "build:ext": "vite build -c vite.config.extension.ts --mode production",
