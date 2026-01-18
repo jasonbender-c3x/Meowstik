@@ -45,7 +45,8 @@ import {
   InsertUserBranding,
   UserBranding,
   InsertUserAgent,
-  UserAgent
+  UserAgent,
+  InsertAttachment
 } from '@shared/schema';
 
 // ===========================================================================
@@ -86,6 +87,18 @@ export const storage = {
    * @returns The user object or undefined if not found.
    */
   getUserById: async (userId: string) => {
+    return db.query.users.findFirst({
+      where: eq(schema.users.id, userId),
+    });
+  },
+
+  /**
+   * Retrieves a user by their unique ID.
+   * This is an alias for getUserById with a shorter name.
+   * @param userId - The ID of the user to retrieve.
+   * @returns The user object or undefined if not found.
+   */
+  getUser: async (userId: string) => {
     return db.query.users.findFirst({
       where: eq(schema.users.id, userId),
     });
@@ -146,6 +159,139 @@ export const storage = {
    */
   insertMessage: async (message: InsertMessage) => {
     return db.insert(schema.messages).values(message).returning();
+  },
+
+  /**
+   * Retrieves a specific chat by ID.
+   * @param chatId - The ID of the chat to retrieve.
+   * @returns The chat object or undefined if not found.
+   */
+  getChatById: async (chatId: string) => {
+    return db.query.chats.findFirst({
+      where: eq(schema.chats.id, chatId),
+    });
+  },
+
+  /**
+   * Retrieves paginated messages for a specific chat session.
+   * Messages are ordered by creation time (newest first for limit queries).
+   * 
+   * @param chatId - The ID of the chat whose messages to retrieve.
+   * @param options - Pagination options
+   * @param options.limit - Maximum number of messages to return
+   * @param options.before - Message ID cursor for loading older messages
+   * @returns An array of message objects ordered chronologically (oldest first in result)
+   */
+  getMessagesByChatId: async (
+    chatId: string,
+    options?: { limit?: number; before?: string }
+  ) => {
+    const limit = options?.limit || 30;
+    const before = options?.before;
+
+    // Build query with ordering by createdAt DESC to get most recent first
+    let query = db
+      .select()
+      .from(schema.messages)
+      .where(eq(schema.messages.chatId, chatId))
+      .orderBy(sql`${schema.messages.createdAt} DESC`)
+      .limit(limit);
+
+    // If 'before' cursor provided, only get messages older than that message
+    if (before) {
+      const beforeMessage = await db.query.messages.findFirst({
+        where: eq(schema.messages.id, before),
+      });
+      
+      if (beforeMessage) {
+        query = db
+          .select()
+          .from(schema.messages)
+          .where(
+            sql`${schema.messages.chatId} = ${chatId} AND ${schema.messages.createdAt} < ${beforeMessage.createdAt}`
+          )
+          .orderBy(sql`${schema.messages.createdAt} DESC`)
+          .limit(limit);
+      }
+    }
+
+    const messages = await query;
+    
+    // Reverse to return in chronological order (oldest to newest)
+    return messages.reverse();
+  },
+
+  /**
+   * Retrieves a specific message by ID.
+   * @param messageId - The ID of the message to retrieve.
+   * @returns The message object or undefined if not found.
+   */
+  getMessageById: async (messageId: string) => {
+    return db.query.messages.findFirst({
+      where: eq(schema.messages.id, messageId),
+    });
+  },
+
+  /**
+   * Adds a new message to the database.
+   * This is an alias for insertMessage with a more intuitive name.
+   * @param message - The message data to insert.
+   * @returns The newly created message object (first element of array).
+   */
+  addMessage: async (message: InsertMessage) => {
+    const result = await db.insert(schema.messages).values(message).returning();
+    return result[0];
+  },
+
+  /**
+   * Updates a chat's title.
+   * @param chatId - The ID of the chat to update.
+   * @param title - The new title for the chat.
+   * @returns The updated chat object.
+   */
+  updateChatTitle: async (chatId: string, title: string) => {
+    const [updated] = await db
+      .update(schema.chats)
+      .set({ title, updatedAt: new Date() })
+      .where(eq(schema.chats.id, chatId))
+      .returning();
+    return updated;
+  },
+
+  /**
+   * Creates a new chat session.
+   * This is an alias for insertChat with a more intuitive name.
+   * @param chat - The chat data to insert.
+   * @returns The newly created chat object (first element of array).
+   */
+  createChat: async (chat: InsertChat) => {
+    const result = await db.insert(schema.chats).values(chat).returning();
+    return result[0];
+  },
+
+  // ------------------------------------------------------------------------
+  // Attachment Operations
+  // ------------------------------------------------------------------------
+
+  /**
+   * Retrieves all attachments for a specific message.
+   * @param messageId - The ID of the message whose attachments to retrieve.
+   * @returns An array of attachment objects.
+   */
+  getAttachmentsByMessageId: async (messageId: string) => {
+    return db.query.attachments.findMany({
+      where: eq(schema.attachments.messageId, messageId),
+    });
+  },
+
+  /**
+   * Creates a new attachment for a message.
+   * @param attachment - The attachment data to insert.
+   * @returns The newly created attachment object (first element of array).
+   */
+  createAttachment: async (attachment: InsertAttachment) => {
+    const result = await db.insert(schema.attachments).values(attachment).returning();
+    return result[0];
   },
 
   // ------------------------------------------------------------------------
