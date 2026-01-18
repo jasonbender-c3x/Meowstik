@@ -46,6 +46,25 @@ import * as fs from "fs";
 import * as path from "path";
 
 /**
+ * RAG context item retrieved from knowledge base
+ */
+export interface RagContextItem {
+  source: string;
+  content: string;
+  score?: number;
+  metadata?: Record<string, unknown>;
+}
+
+/**
+ * File injected into system prompt
+ */
+export interface InjectedFile {
+  filename: string;
+  content: string;
+  mimeType?: string;
+}
+
+/**
  * Composed prompt structure ready for LLM processing
  */
 export interface ComposedPrompt {
@@ -55,8 +74,8 @@ export interface ComposedPrompt {
   conversationHistory: ConversationTurn[];
   metadata: PromptMetadata;
   // Debug information - what was injected into the system prompt
-  ragContext?: Array<{ source: string; content: string; score?: number; metadata?: Record<string, unknown> }>;
-  injectedFiles?: Array<{ filename: string; content: string; mimeType?: string }>;
+  ragContext?: RagContextItem[];
+  injectedFiles?: InjectedFile[];
 }
 
 /**
@@ -401,7 +420,7 @@ You can analyze data, read and write files, search the web, and interact with Go
     let systemPrompt = this.getSystemPrompt(agentName, displayName);
 
     // Track RAG context for debug logging
-    let ragContext: Array<{ source: string; content: string; score?: number; metadata?: Record<string, unknown> }> = [];
+    let ragContext: RagContextItem[] = [];
 
     // Enrich system prompt with RAG context if user message exists
     if (options.textContent && options.textContent.trim()) {
@@ -427,7 +446,7 @@ You can analyze data, read and write files, search the web, and interact with Go
     }
 
     // Capture injected files for debug logging
-    const injectedFiles: Array<{ filename: string; content: string; mimeType?: string }> = [];
+    const injectedFiles: InjectedFile[] = [];
     
     // Add cache.md if it was loaded
     if (this.cache && this.cache.trim()) {
