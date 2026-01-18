@@ -61,7 +61,9 @@ import {
   InsertAgentActivityLog,
   InsertFeedback,
   InsertToolTask,
-  InsertExecutionLog
+  InsertExecutionLog,
+  InsertTodoItem,
+  TodoItem
 } from '@shared/schema';
 
 // ===========================================================================
@@ -1719,5 +1721,172 @@ export const storage = {
       .delete(table)
       .where(eq(table.id, id));
     return (result.rowCount ?? 0) > 0;
+  },
+
+  // ------------------------------------------------------------------------
+  // To-Do List Operations
+  // ------------------------------------------------------------------------
+
+  /**
+   * Get all to-do items for a user
+   * @param userId - The user ID
+   * @param includeCompleted - Include completed items (default: false)
+   * @returns Array of to-do items ordered by priority (highest first) then creation date
+   */
+  getTodoItems: async (userId: string, includeCompleted: boolean = false): Promise<TodoItem[]> => {
+    if (includeCompleted) {
+      return db.query.todoItems.findMany({
+        where: eq(schema.todoItems.userId, userId),
+        orderBy: (items, { desc }) => [desc(items.priority), desc(items.createdAt)],
+      });
+    }
+    
+    return db.query.todoItems.findMany({
+      where: (items, { eq, and, or }) => and(
+        eq(items.userId, userId),
+        or(
+          eq(items.status, 'pending'),
+          eq(items.status, 'in_progress'),
+          eq(items.status, 'blocked')
+        )
+      ),
+      orderBy: (items, { desc }) => [desc(items.priority), desc(items.createdAt)],
+    });
+  },
+
+  /**
+   * Get pending to-do items (not completed or cancelled)
+   * @param userId - The user ID
+   * @returns Array of active to-do items
+   */
+  getPendingTodoItems: async (userId: string): Promise<TodoItem[]> => {
+    return db.query.todoItems.findMany({
+      where: (items, { eq, and, or }) => and(
+        eq(items.userId, userId),
+        or(
+          eq(items.status, 'pending'),
+          eq(items.status, 'in_progress'),
+          eq(items.status, 'blocked')
+        )
+      ),
+      orderBy: (items, { desc }) => [desc(items.priority), desc(items.createdAt)],
+    });
+  },
+
+  /**
+   * Get a specific to-do item by ID
+   * @param todoId - The to-do item ID
+   * @returns The to-do item or null
+   */
+  getTodoItem: async (todoId: string): Promise<TodoItem | null> => {
+    const result = await db.query.todoItems.findFirst({
+      where: eq(schema.todoItems.id, todoId),
+    });
+    return result || null;
+  },
+
+  /**
+   * Create a new to-do item
+   * @param todoItem - The to-do item data
+   * @returns The created to-do item
+   */
+  createTodoItem: async (todoItem: InsertTodoItem): Promise<TodoItem> => {
+    const [created] = await db
+      .insert(schema.todoItems)
+      .values(todoItem)
+      .returning();
+    return created;
+  },
+
+  /**
+   * Update a to-do item
+   * @param todoId - The to-do item ID
+   * @param updates - Fields to update
+   * @returns The updated to-do item or null
+   */
+  updateTodoItem: async (todoId: string, updates: Partial<InsertTodoItem>): Promise<TodoItem | null> => {
+    // If marking as completed, set completedAt timestamp
+    if (updates.status === 'completed' && !updates.completedAt) {
+      updates.completedAt = new Date();
+    }
+    
+    const [updated] = await db
+      .update(schema.todoItems)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(schema.todoItems.id, todoId))
+      .returning();
+    return updated || null;
+  },
+
+  /**
+   * Mark a to-do item as completed
+   * @param todoId - The to-do item ID
+   * @returns The updated to-do item or null
+   */
+  completeTodoItem: async (todoId: string): Promise<TodoItem | null> => {
+    return storage.updateTodoItem(todoId, {
+      status: 'completed',
+      completedAt: new Date(),
+    });
+  },
+
+  /**
+   * Delete a to-do item
+   * @param todoId - The to-do item ID
+   * @returns True if deleted
+   */
+  deleteTodoItem: async (todoId: string): Promise<boolean> => {
+    const result = await db
+      .delete(schema.todoItems)
+      .where(eq(schema.todoItems.id, todoId));
+    return (result.rowCount ?? 0) > 0;
+  },
+
+  /**
+   * Reorder to-do items by updating their priorities
+   * @param updates - Array of {id, priority} objects
+   * @returns Array of updated to-do items
+   */
+  reorderTodoItems: async (updates: Array<{ id: string; priority: number }>): Promise<TodoItem[]> => {
+    const results: TodoItem[] = [];
+    
+    for (const update of updates) {
+      const [updated] = await db
+        .update(schema.todoItems)
+        .set({ priority: update.priority, updatedAt: new Date() })
+        .where(eq(schema.todoItems.id, update.id))
+        .returning();
+      if (updated) {
+        results.push(updated);
+      }
+    }
+    
+    return results;
+  },
+
+  /**
+   * Get to-do list statistics
+   * @param userId - The user ID
+   * @returns Statistics about the to-do list
+   */
+  getTodoStats: async (userId: string) => {
+    const result = await db
+      .select({
+        total: sql<number>`COUNT(*)`,
+        pending: sql<number>`COUNT(CASE WHEN ${schema.todoItems.status} = 'pending' THEN 1 END)`,
+        inProgress: sql<number>`COUNT(CASE WHEN ${schema.todoItems.status} = 'in_progress' THEN 1 END)`,
+        completed: sql<number>`COUNT(CASE WHEN ${schema.todoItems.status} = 'completed' THEN 1 END)`,
+        blocked: sql<number>`COUNT(CASE WHEN ${schema.todoItems.status} = 'blocked' THEN 1 END)`,
+      })
+      .from(schema.todoItems)
+      .where(eq(schema.todoItems.userId, userId));
+    
+    return result[0] || {
+      total: 0,
+      pending: 0,
+      inProgress: 0,
+      completed: 0,
+      blocked: 0,
+    };
   },
 };

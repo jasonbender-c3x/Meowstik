@@ -102,6 +102,7 @@ export class PromptComposer {
   private tools: string = "";
   private shortTermMemory: string = "";
   private cache: string = "";
+  private todoList: string = "";
   private promptsLoaded: boolean = false;
 
   constructor() {
@@ -173,7 +174,92 @@ export class PromptComposer {
       this.cache = "";
     }
 
+    // Load todo.md (to-do list)
+    try {
+      this.todoList = fs.readFileSync(
+        path.join(logsDir, "todo.md"),
+        "utf-8"
+      );
+    } catch (error) {
+      console.warn("Could not load logs/todo.md. This is expected if no to-dos exist yet.");
+      this.todoList = "";
+    }
+
     this.promptsLoaded = true;
+  }
+
+  /**
+   * Load to-do list from database for a specific user
+   * This is called dynamically when composing prompts
+   * @param userId - The user ID to load todos for
+   */
+  private async loadTodoList(userId: string): Promise<string> {
+    try {
+      const todos = await storage.getPendingTodoItems(userId);
+      
+      if (todos.length === 0) {
+        return "";
+      }
+
+      let content = "# 📋 Master To-Do List\n\n";
+      content += "*These are your active tasks. Consider them when planning your actions.*\n\n";
+      
+      // Group by status
+      const pending = todos.filter(t => t.status === 'pending');
+      const inProgress = todos.filter(t => t.status === 'in_progress');
+      const blocked = todos.filter(t => t.status === 'blocked');
+      
+      if (inProgress.length > 0) {
+        content += "## 🚧 In Progress\n\n";
+        for (const todo of inProgress) {
+          content += this.formatTodoItem(todo);
+        }
+        content += "\n";
+      }
+      
+      if (pending.length > 0) {
+        content += "## ⏳ Pending\n\n";
+        for (const todo of pending) {
+          content += this.formatTodoItem(todo);
+        }
+        content += "\n";
+      }
+      
+      if (blocked.length > 0) {
+        content += "## 🚫 Blocked\n\n";
+        for (const todo of blocked) {
+          content += this.formatTodoItem(todo);
+        }
+      }
+      
+      return content;
+    } catch (error) {
+      console.error("[PromptComposer] Error loading to-do list:", error);
+      return "";
+    }
+  }
+
+  /**
+   * Format a single to-do item for the prompt
+   */
+  private formatTodoItem(todo: any): string {
+    let line = `- **${todo.title}**`;
+    
+    if (todo.priority > 0) {
+      line += ` *(Priority: ${todo.priority})*`;
+    }
+    
+    if (todo.category) {
+      line += ` [${todo.category}]`;
+    }
+    
+    line += "\n";
+    
+    if (todo.description) {
+      line += `  > ${todo.description}\n`;
+    }
+    
+    return line + "\n";
   }
 
   /**
@@ -272,25 +358,31 @@ These steps are mandatory before sending your response via send_chat.
    * Generate system prompt with custom branding
    * @param agentName - Custom agent name (defaults to "Meowstik")
    * @param displayName - Custom display name (defaults to "Meowstik AI")
-   * @param options - Optional configuration for memory inclusion
+   * @param options - Optional configuration for memory and content inclusion
+   * @param options.userId - User ID to load to-do list for
    * @param options.includeMemory - Include Short_Term_Memory.md (default: true)
    * @param options.includeCache - Include cache.md from last turn (default: true)
+   * @param options.includeTodos - Include to-do list (default: true)
    * @param options.memoryMaxLines - Maximum lines from memory to include (default: 100)
    * @param options.forceReload - Force reload of memory files from disk (default: false)
    */
-  public getSystemPrompt(
+  public async getSystemPrompt(
     agentName: string = DEFAULT_AGENT_NAME, 
     displayName: string = DEFAULT_DISPLAY_NAME,
     options?: {
+      userId?: string;
       includeMemory?: boolean;
       includeCache?: boolean;
+      includeTodos?: boolean;
       memoryMaxLines?: number;
       forceReload?: boolean;
     }
-  ): string {
+  ): Promise<string> {
     // Default options
+    const userId = options?.userId;
     const includeMemory = options?.includeMemory !== false; // Default true
     const includeCache = options?.includeCache !== false; // Default true
+    const includeTodos = options?.includeTodos !== false; // Default true
     const memoryMaxLines = options?.memoryMaxLines || 100; // Default 100 lines
     const forceReload = options?.forceReload || false;
 
@@ -327,6 +419,14 @@ These steps are mandatory before sending your response via send_chat.
       }
       
       components.push(truncatedMemory);
+    }
+
+    // Conditionally include to-do list
+    if (includeTodos && userId) {
+      const todoContent = await this.loadTodoList(userId);
+      if (todoContent.trim()) {
+        components.push(todoContent);
+      }
     }
 
     // Conditionally include cache from last turn
@@ -492,7 +592,7 @@ You can analyze data, read and write files, search the web, and interact with Go
     }
 
     // Build base system prompt from modular files with custom branding
-    let systemPrompt = this.getSystemPrompt(agentName, displayName);
+    let systemPrompt = await this.getSystemPrompt(agentName, displayName, { userId: options.userId });
 
     // Enrich system prompt with RAG context if user message exists
     if (options.textContent && options.textContent.trim()) {
