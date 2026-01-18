@@ -232,43 +232,41 @@ export default function TerminalPage() {
   };
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
-      <div className="max-w-6xl mx-auto px-4 py-8 w-full flex-1 flex flex-col">
-        <div className="flex items-center gap-4 mb-6">
+    <div className="min-h-screen bg-background flex flex-col" data-testid="terminal-page">
+      {/* Header */}
+      <header className="border-b bg-card px-4 py-3 flex-shrink-0">
+        <div className="flex items-center gap-4">
           <Link href="/">
             <Button variant="ghost" size="icon" data-testid="button-back-home">
-              <ArrowLeft className="h-5 w-5" />
+              <ArrowLeft className="h-4 w-4" />
             </Button>
           </Link>
-          <div className="flex items-center gap-3">
-            <TerminalIcon className="h-8 w-8 text-primary" />
-            <h1 className="text-3xl font-display font-bold">Code Execution Terminal</h1>
-          </div>
-        </div>
-
-        <div className="flex justify-between items-center mb-4">
-          <div className="flex items-center gap-4">
-            <p className="text-muted-foreground text-sm">
-              Execute shell commands with real-time streaming.
+          <div className="flex-1">
+            <h1 className="text-xl font-semibold flex items-center gap-2">
+              <TerminalIcon className="h-5 w-5 text-primary" />
+              Terminal
+            </h1>
+            <p className="text-sm text-muted-foreground">
+              Execute shell commands with real-time streaming • WebSocket support
             </p>
+          </div>
+          <div className="flex items-center gap-2">
             <div className={cn(
-              "flex items-center gap-1.5 px-2 py-1 rounded text-xs",
+              "flex items-center gap-1.5 px-3 py-1.5 rounded text-sm",
               wsConnected ? "bg-green-500/10 text-green-500" : "bg-red-500/10 text-red-500"
             )}>
-              {wsConnected ? <Wifi className="h-3 w-3" /> : <WifiOff className="h-3 w-3" />}
+              {wsConnected ? <Wifi className="h-4 w-4" /> : <WifiOff className="h-4 w-4" />}
               {wsConnected ? "Connected" : "Disconnected"}
             </div>
             {activeHost && (
-              <div className="flex items-center gap-1.5 px-2 py-1 rounded text-xs bg-purple-500/10 text-purple-500">
-                <Server className="h-3 w-3" />
+              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded text-sm bg-purple-500/10 text-purple-500">
+                <Server className="h-4 w-4" />
                 SSH: {activeHost}
               </div>
             )}
-          </div>
-          <div className="flex gap-2">
             <Button 
               variant="outline" 
-              size="sm" 
+              size="sm"
               onClick={downloadOutput}
               data-testid="button-download-output"
             >
@@ -277,7 +275,7 @@ export default function TerminalPage() {
             </Button>
             <Button 
               variant="outline" 
-              size="sm" 
+              size="sm"
               onClick={clearTerminal}
               data-testid="button-clear-terminal"
             >
@@ -286,8 +284,11 @@ export default function TerminalPage() {
             </Button>
           </div>
         </div>
+      </header>
 
-        <div className="flex-1 rounded-lg border border-border bg-[#1e1e1e] overflow-hidden flex flex-col min-h-[500px]">
+      {/* Content Area */}
+      <div className="flex-1 overflow-hidden flex flex-col">
+        <div className="flex-1 rounded-lg border border-border bg-[#1e1e1e] overflow-hidden flex flex-col m-4">
           <div className="flex items-center gap-2 px-4 py-2 bg-[#2d2d2d] border-b border-[#3d3d3d]">
             <div className="flex gap-1.5">
               <div className="w-3 h-3 rounded-full bg-red-500" />
@@ -344,7 +345,7 @@ export default function TerminalPage() {
           </div>
         </div>
 
-        <div className="mt-4 text-xs text-muted-foreground">
+        <div className="px-4 pb-4 text-xs text-muted-foreground">
           <p>Tips: Arrow keys for history. Ctrl+C to cancel. SSH commands stream output in real-time via WebSocket.</p>
         </div>
       </div>

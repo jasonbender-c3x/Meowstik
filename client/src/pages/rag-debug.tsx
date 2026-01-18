@@ -8,8 +8,6 @@
  */
 
 import { useState, useEffect } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -308,171 +306,181 @@ export default function RagDebugPage() {
   }) || [];
 
   return (
-    <div className="container mx-auto p-6 max-w-6xl">
-      {/* Navigation Header */}
-      <div className="flex items-center gap-4 mb-6">
-        <Link href="/">
-          <Button variant="ghost" size="icon" data-testid="button-back-home">
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-        </Link>
-        <div className="flex items-center gap-3 flex-1">
-          <Database className="h-8 w-8 text-primary" />
-          <div>
-            <h1 className="text-2xl font-display font-bold" data-testid="page-title">RAG Debug Console</h1>
+    <div className="min-h-screen bg-background flex flex-col" data-testid="rag-debug-page">
+      {/* Header */}
+      <header className="border-b bg-card px-4 py-3 flex-shrink-0">
+        <div className="flex items-center gap-4">
+          <Link href="/">
+            <Button variant="ghost" size="icon" data-testid="button-back-home">
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
+          </Link>
+          <div className="flex-1">
+            <h1 className="text-xl font-semibold flex items-center gap-2">
+              <Database className="h-5 w-5 text-primary" />
+              RAG Debug Console
+            </h1>
             <p className="text-sm text-muted-foreground">
               Monitor ingestion and retrieval pipeline events
             </p>
           </div>
-        </div>
-        <div className="flex gap-2">
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={handleRefresh}
-            data-testid="button-refresh"
-          >
-            <RefreshCw className="h-4 w-4 mr-2" />
-            Refresh
-          </Button>
-          <Button 
-            variant="destructive" 
-            size="sm" 
-            onClick={() => clearMutation.mutate()}
-            disabled={clearMutation.isPending}
-            data-testid="button-clear"
-          >
-            <Trash2 className="h-4 w-4 mr-2" />
-            Clear
-          </Button>
-        </div>
-      </div>
-
-      {/* Stats Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-        <Card>
-          <CardContent className="pt-4">
-            <div className="text-2xl font-bold" data-testid="stat-total">{stats?.totalEvents || 0}</div>
-            <p className="text-xs text-muted-foreground">Total Events</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-4">
-            <div className="text-2xl font-bold text-blue-500" data-testid="stat-ingestion">{stats?.ingestionCount || 0}</div>
-            <p className="text-xs text-muted-foreground">Ingestions</p>
-            {stats?.avgIngestionDuration ? (
-              <p className="text-xs text-muted-foreground">Avg: {formatDuration(stats.avgIngestionDuration)}</p>
-            ) : null}
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-4">
-            <div className="text-2xl font-bold text-purple-500" data-testid="stat-query">{stats?.queryCount || 0}</div>
-            <p className="text-xs text-muted-foreground">Queries</p>
-            {stats?.avgQueryDuration ? (
-              <p className="text-xs text-muted-foreground">Avg: {formatDuration(stats.avgQueryDuration)}</p>
-            ) : null}
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-4">
-            <div className="text-2xl font-bold text-red-500" data-testid="stat-errors">{stats?.errorCount || 0}</div>
-            <p className="text-xs text-muted-foreground">Errors</p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Trace Groups */}
-      <Card>
-        <CardHeader className="pb-2">
-          <div className="flex items-center justify-between">
-            <Tabs value={activeTab} onValueChange={setActiveTab}>
-              <TabsList>
-                <TabsTrigger value="all" data-testid="tab-all">
-                  All ({traceGroups?.length || 0})
-                </TabsTrigger>
-                <TabsTrigger value="ingestion" data-testid="tab-ingestion">
-                  Ingestion ({traceGroups?.filter(g => g.type === "ingestion").length || 0})
-                </TabsTrigger>
-                <TabsTrigger value="query" data-testid="tab-query">
-                  Queries ({traceGroups?.filter(g => g.type === "query").length || 0})
-                </TabsTrigger>
-                <TabsTrigger value="errors" data-testid="tab-errors">
-                  Errors ({traceGroups?.filter(g => !g.success).length || 0})
-                </TabsTrigger>
-              </TabsList>
-            </Tabs>
-            
-            <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as "live" | "persistent")}>
-              <TabsList>
-                <TabsTrigger value="live">
-                  <Clock className="h-3 w-3 mr-1" />
-                  Live (Memory)
-                </TabsTrigger>
-                <TabsTrigger value="persistent">
-                  <Database className="h-3 w-3 mr-1" />
-                  Persistent (DB)
-                </TabsTrigger>
-              </TabsList>
-            </Tabs>
-          </div>
-        </CardHeader>
-        <CardContent>
-          {viewMode === "live" ? (
-            <ScrollArea className="h-[500px] pr-4">
-              {groupsLoading ? (
-                <div className="flex items-center justify-center h-32">
-                  <RefreshCw className="h-6 w-6 animate-spin text-muted-foreground" />
-                </div>
-              ) : filteredGroups.length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-32 text-muted-foreground">
-                  <Database className="h-8 w-8 mb-2" />
-                  <p>No trace events yet</p>
-                  <p className="text-xs">Send a message or upload a document to see traces</p>
-                </div>
+          <div className="flex gap-2">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={handleRefresh}
+              data-testid="button-refresh"
+            >
+              {!groupsLoading && !statsLoading ? (
+                <RefreshCw className="h-4 w-4 mr-2" />
               ) : (
-                filteredGroups.map((group) => (
-                  <TraceGroupCard key={group.traceId} group={group} />
-                ))
+                <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
               )}
-            </ScrollArea>
-          ) : (
-            <div className="space-y-4">
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Database className="h-4 w-4" />
-                <span>Viewing persistent traces from database</span>
-              </div>
+              Refresh
+            </Button>
+            <Button 
+              variant="destructive" 
+              size="sm" 
+              onClick={() => clearMutation.mutate()}
+              disabled={clearMutation.isPending}
+              data-testid="button-clear"
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              Clear
+            </Button>
+          </div>
+        </div>
+      </header>
+
+      <main className="flex-1 overflow-hidden flex flex-col">
+        <ScrollArea className="flex-1">
+          <div className="px-4 py-6 space-y-6 max-w-6xl mx-auto w-full">
+
+          {/* Stats Cards */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="border border-border rounded-lg bg-muted/20 p-6">
+              <div className="text-2xl font-bold" data-testid="stat-total">{stats?.totalEvents || 0}</div>
+              <p className="text-xs text-muted-foreground mt-2">Total Events</p>
+            </div>
+            <div className="border border-border rounded-lg bg-muted/20 p-6">
+              <div className="text-2xl font-bold text-blue-500" data-testid="stat-ingestion">{stats?.ingestionCount || 0}</div>
+              <p className="text-xs text-muted-foreground mt-2">Ingestions</p>
+              {stats?.avgIngestionDuration ? (
+                <p className="text-xs text-muted-foreground">Avg: {formatDuration(stats.avgIngestionDuration)}</p>
+              ) : null}
+            </div>
+            <div className="border border-border rounded-lg bg-muted/20 p-6">
+              <div className="text-2xl font-bold text-purple-500" data-testid="stat-query">{stats?.queryCount || 0}</div>
+              <p className="text-xs text-muted-foreground mt-2">Queries</p>
+              {stats?.avgQueryDuration ? (
+                <p className="text-xs text-muted-foreground">Avg: {formatDuration(stats.avgQueryDuration)}</p>
+              ) : null}
+            </div>
+            <div className="border border-border rounded-lg bg-muted/20 p-6">
+              <div className="text-2xl font-bold text-red-500" data-testid="stat-errors">{stats?.errorCount || 0}</div>
+              <p className="text-xs text-muted-foreground mt-2">Errors</p>
+            </div>
+          </div>
+
+          {/* Trace Groups Section */}
+          <div className="border border-border rounded-lg bg-muted/20 p-6">
+            <div className="flex items-center justify-between mb-4">
+              <Tabs value={activeTab} onValueChange={setActiveTab}>
+                <TabsList>
+                  <TabsTrigger value="all" data-testid="tab-all">
+                    All ({traceGroups?.length || 0})
+                  </TabsTrigger>
+                  <TabsTrigger value="ingestion" data-testid="tab-ingestion">
+                    Ingestion ({traceGroups?.filter(g => g.type === "ingestion").length || 0})
+                  </TabsTrigger>
+                  <TabsTrigger value="query" data-testid="tab-query">
+                    Queries ({traceGroups?.filter(g => g.type === "query").length || 0})
+                  </TabsTrigger>
+                  <TabsTrigger value="errors" data-testid="tab-errors">
+                    Errors ({traceGroups?.filter(g => !g.success).length || 0})
+                  </TabsTrigger>
+                </TabsList>
+              </Tabs>
               
-              <ScrollArea className="h-[500px] pr-4">
-                {persistentLoading ? (
-                  <div className="flex items-center justify-center h-32">
+              <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as "live" | "persistent")}>
+                <TabsList>
+                  <TabsTrigger value="live">
+                    <Clock className="h-3 w-3 mr-1" />
+                    Live (Memory)
+                  </TabsTrigger>
+                  <TabsTrigger value="persistent">
+                    <Database className="h-3 w-3 mr-1" />
+                    Persistent (DB)
+                  </TabsTrigger>
+                </TabsList>
+              </Tabs>
+            </div>
+
+            {viewMode === "live" ? (
+              <div className="h-[500px] border border-border rounded-lg">
+                {groupsLoading ? (
+                  <div className="flex items-center justify-center h-full">
                     <RefreshCw className="h-6 w-6 animate-spin text-muted-foreground" />
                   </div>
-                ) : persistentTraces?.traces?.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center h-32 text-muted-foreground">
+                ) : filteredGroups.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
                     <Database className="h-8 w-8 mb-2" />
-                    <p>No persistent traces found</p>
-                    <p className="text-xs">Traces are automatically saved to the database</p>
+                    <p>No trace events yet</p>
+                    <p className="text-xs">Send a message or upload a document to see traces</p>
                   </div>
                 ) : (
-                  <TraceList traces={persistentTraces?.traces || []} />
+                  <ScrollArea className="h-full">
+                    <div className="p-4 space-y-2">
+                      {filteredGroups.map((group) => (
+                        <TraceGroupCard key={group.traceId} group={group} />
+                      ))}
+                    </div>
+                  </ScrollArea>
                 )}
-              </ScrollArea>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Database className="h-4 w-4" />
+                  <span>Viewing persistent traces from database</span>
+                </div>
+                
+                <div className="h-[500px] border border-border rounded-lg">
+                  {persistentLoading ? (
+                    <div className="flex items-center justify-center h-full">
+                      <RefreshCw className="h-6 w-6 animate-spin text-muted-foreground" />
+                    </div>
+                  ) : persistentTraces?.traces?.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
+                      <Database className="h-8 w-8 mb-2" />
+                      <p>No persistent traces found</p>
+                      <p className="text-xs">Traces are automatically saved to the database</p>
+                    </div>
+                  ) : (
+                    <ScrollArea className="h-full">
+                      <div className="p-4">
+                        <TraceList traces={persistentTraces?.traces || []} />
+                      </div>
+                    </ScrollArea>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Metrics Dashboard - Only visible in persistent mode */}
+          {viewMode === "persistent" && metricsData?.metrics?.length > 0 && (
+            <div className="border border-border rounded-lg bg-muted/20 p-6">
+              <h2 className="text-lg font-semibold mb-4">Performance Metrics</h2>
+              <MetricsDashboard 
+                metrics={metricsData.metrics} 
+                period={metricsData.period || "hour"} 
+              />
             </div>
           )}
-        </CardContent>
-      </Card>
-
-      {/* Metrics Dashboard - Only visible in persistent mode */}
-      {viewMode === "persistent" && metricsData?.metrics?.length > 0 && (
-        <div className="mt-6">
-          <h2 className="text-xl font-bold mb-4">Performance Metrics</h2>
-          <MetricsDashboard 
-            metrics={metricsData.metrics} 
-            period={metricsData.period || "hour"} 
-          />
         </div>
-      )}
+      </ScrollArea>
+    </main>
     </div>
   );
 }

@@ -5,7 +5,6 @@
 import { useState, useEffect } from "react";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -174,24 +173,28 @@ export default function AgentSettingsPage() {
   const totalToolCount = Object.keys(toolSettings).length;
 
   return (
-    <div className="min-h-screen bg-background" data-testid="agent-settings-page">
+    <div className="min-h-screen bg-background flex flex-col" data-testid="agent-settings-page">
       {/* Header */}
-      <header className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container flex h-14 items-center gap-4">
+      <header className="border-b bg-card px-4 py-3 flex-shrink-0">
+        <div className="flex items-center gap-4">
           <Link href="/">
-            <Button variant="ghost" size="sm" className="gap-2" data-testid="link-back-home">
+            <Button variant="ghost" size="icon" data-testid="button-back-home">
               <ArrowLeft className="h-4 w-4" />
-              Back
             </Button>
           </Link>
-          <div className="flex items-center gap-2">
-            <Bot className="h-5 w-5 text-primary" />
-            <h1 className="text-lg font-semibold">Agent Settings</h1>
+          <div className="flex-1">
+            <h1 className="text-xl font-semibold flex items-center gap-2">
+              <Bot className="h-5 w-5 text-primary" />
+              Agent Settings
+            </h1>
+            <p className="text-sm text-muted-foreground">
+              Configure AI agent behavior, tools, and preferences
+            </p>
           </div>
-          <div className="ml-auto flex items-center gap-2">
+          <div className="flex items-center gap-2">
             <Link href="/docs/agent-configuration">
-              <Button variant="outline" size="sm" className="gap-2" data-testid="link-docs">
-                <BookOpen className="h-4 w-4" />
+              <Button variant="outline" size="sm" data-testid="link-docs">
+                <BookOpen className="h-4 w-4 mr-2" />
                 Documentation
               </Button>
             </Link>
@@ -199,284 +202,272 @@ export default function AgentSettingsPage() {
         </div>
       </header>
 
-      {/* Main Content */}
-      <main className="container py-6">
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-4 mb-6">
-            <TabsTrigger value="behavior" className="gap-2" data-testid="tab-behavior">
-              <Brain className="h-4 w-4" />
-              Behavior
-            </TabsTrigger>
-            <TabsTrigger value="tools" className="gap-2" data-testid="tab-tools">
-              <Wrench className="h-4 w-4" />
-              Tools
-            </TabsTrigger>
-            <TabsTrigger value="voice" className="gap-2" data-testid="tab-voice">
-              <Volume2 className="h-4 w-4" />
-              Voice
-            </TabsTrigger>
-            <TabsTrigger value="advanced" className="gap-2" data-testid="tab-advanced">
-              <Settings2 className="h-4 w-4" />
-              Advanced
-            </TabsTrigger>
-          </TabsList>
+      {/* Content Area */}
+      <div className="flex-1 overflow-hidden flex flex-col">
+        <ScrollArea className="flex-1">
+          <main className="px-4 py-6 max-w-6xl mx-auto w-full">
+            <Tabs value={activeTab} onValueChange={setActiveTab}>
+              <TabsList className="grid w-full grid-cols-4 mb-6">
+                <TabsTrigger value="behavior" className="gap-2" data-testid="tab-behavior">
+                  <Brain className="h-4 w-4" />
+                  Behavior
+                </TabsTrigger>
+                <TabsTrigger value="tools" className="gap-2" data-testid="tab-tools">
+                  <Wrench className="h-4 w-4" />
+                  Tools
+                </TabsTrigger>
+                <TabsTrigger value="voice" className="gap-2" data-testid="tab-voice">
+                  <Volume2 className="h-4 w-4" />
+                  Voice
+                </TabsTrigger>
+                <TabsTrigger value="advanced" className="gap-2" data-testid="tab-advanced">
+                  <Settings2 className="h-4 w-4" />
+                  Advanced
+                </TabsTrigger>
+              </TabsList>
 
-          {/* Behavior Tab */}
-          <TabsContent value="behavior">
-            <div className="grid gap-6 lg:grid-cols-2">
-              {/* Personality */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Personality</CardTitle>
-                  <CardDescription>Choose how the agent communicates</CardDescription>
-                </CardHeader>
-                <CardContent className="grid gap-4">
-                  {personalityPresets.map((preset) => (
-                    <div
-                      key={preset.id}
-                      className={`flex items-center justify-between p-4 rounded-lg border cursor-pointer transition-colors ${
-                        personality === preset.id
-                          ? "border-primary bg-primary/5"
-                          : "hover:bg-muted"
-                      }`}
-                      onClick={() => setPersonality(preset.id)}
-                      data-testid={`personality-${preset.id}`}
-                    >
-                      <div>
-                        <p className="font-medium">{preset.name}</p>
-                        <p className="text-sm text-muted-foreground">{preset.description}</p>
+              {/* Behavior Tab */}
+              <TabsContent value="behavior">
+                <div className="grid gap-6 lg:grid-cols-2">
+                  {/* Personality */}
+                  <div className="border border-border rounded-lg bg-muted/20 p-6">
+                    <h2 className="text-lg font-semibold mb-2">Personality</h2>
+                    <p className="text-sm text-muted-foreground mb-4">Choose how the agent communicates</p>
+                    <div className="grid gap-4">
+                      {personalityPresets.map((preset) => (
+                        <div
+                          key={preset.id}
+                          className={`flex items-center justify-between p-4 rounded-lg border cursor-pointer transition-colors ${
+                            personality === preset.id
+                              ? "border-primary bg-primary/5"
+                              : "hover:bg-muted"
+                          }`}
+                          onClick={() => setPersonality(preset.id)}
+                          data-testid={`personality-${preset.id}`}
+                        >
+                          <div>
+                            <p className="font-medium">{preset.name}</p>
+                            <p className="text-sm text-muted-foreground">{preset.description}</p>
+                          </div>
+                          {personality === preset.id && (
+                            <Badge variant="secondary">Active</Badge>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Response Settings */}
+                  <div className="border border-border rounded-lg bg-muted/20 p-6">
+                    <h2 className="text-lg font-semibold mb-2">Response Settings</h2>
+                    <p className="text-sm text-muted-foreground mb-6">Fine-tune response behavior</p>
+                    <div className="space-y-6">
+                      <div className="space-y-3">
+                        <div className="flex justify-between">
+                          <label className="text-sm font-medium">Response Length</label>
+                          <span className="text-sm text-muted-foreground">
+                            {responseLength[0] < 30 ? "Concise" : responseLength[0] < 70 ? "Balanced" : "Detailed"}
+                          </span>
+                        </div>
+                        <Slider
+                          value={responseLength}
+                          onValueChange={setResponseLength}
+                          max={100}
+                          step={1}
+                          data-testid="slider-response-length"
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          Controls how verbose responses should be
+                        </p>
                       </div>
-                      {personality === preset.id && (
-                        <Badge variant="secondary">Active</Badge>
-                      )}
+
+                      <Separator />
+
+                      <div className="space-y-3">
+                        <div className="flex justify-between">
+                          <label className="text-sm font-medium">Proactivity</label>
+                          <span className="text-sm text-muted-foreground">
+                            {proactivity[0] < 30 ? "Ask First" : proactivity[0] < 70 ? "Balanced" : "Take Action"}
+                          </span>
+                        </div>
+                        <Slider
+                          value={proactivity}
+                          onValueChange={setProactivity}
+                          max={100}
+                          step={1}
+                          data-testid="slider-proactivity"
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          How much the agent should act vs. ask for confirmation
+                        </p>
+                      </div>
                     </div>
-                  ))}
-                </CardContent>
-              </Card>
-
-              {/* Response Settings */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Response Settings</CardTitle>
-                  <CardDescription>Fine-tune response behavior</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                  <div className="space-y-3">
-                    <div className="flex justify-between">
-                      <label className="text-sm font-medium">Response Length</label>
-                      <span className="text-sm text-muted-foreground">
-                        {responseLength[0] < 30 ? "Concise" : responseLength[0] < 70 ? "Balanced" : "Detailed"}
-                      </span>
-                    </div>
-                    <Slider
-                      value={responseLength}
-                      onValueChange={setResponseLength}
-                      max={100}
-                      step={1}
-                      data-testid="slider-response-length"
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      Controls how verbose responses should be
-                    </p>
-                  </div>
-
-                  <Separator />
-
-                  <div className="space-y-3">
-                    <div className="flex justify-between">
-                      <label className="text-sm font-medium">Proactivity</label>
-                      <span className="text-sm text-muted-foreground">
-                        {proactivity[0] < 30 ? "Ask First" : proactivity[0] < 70 ? "Balanced" : "Take Action"}
-                      </span>
-                    </div>
-                    <Slider
-                      value={proactivity}
-                      onValueChange={setProactivity}
-                      max={100}
-                      step={1}
-                      data-testid="slider-proactivity"
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      How much the agent should act vs. ask for confirmation
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          </TabsContent>
-
-          {/* Tools Tab */}
-          <TabsContent value="tools">
-            <Card>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle>Available Tools</CardTitle>
-                    <CardDescription>
-                      Enable or disable agent capabilities ({enabledToolCount}/{totalToolCount} enabled)
-                    </CardDescription>
                   </div>
                 </div>
-              </CardHeader>
-              <CardContent>
-                <ScrollArea className="h-[600px] pr-4">
-                  <div className="space-y-6">
-                    {toolCategories.map((category) => {
-                      const Icon = category.icon;
-                      const enabledInCategory = category.tools.filter(t => toolSettings[t.id]).length;
-                      
-                      return (
-                        <div key={category.id} className="space-y-3">
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-3">
-                              <Icon className="h-5 w-5 text-muted-foreground" />
-                              <div>
-                                <h3 className="font-medium">{category.name}</h3>
-                                <p className="text-sm text-muted-foreground">{category.description}</p>
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-3">
-                              <span className="text-sm text-muted-foreground">
-                                {enabledInCategory}/{category.tools.length}
-                              </span>
-                              <Switch
-                                checked={categoryEnabled[category.id]}
-                                onCheckedChange={() => toggleCategory(category.id)}
-                                data-testid={`switch-category-${category.id}`}
-                              />
-                            </div>
-                          </div>
-                          
-                          <div className="grid gap-2 pl-8">
-                            {category.tools.map((tool) => (
-                              <div
-                                key={tool.id}
-                                className="flex items-center justify-between p-3 rounded-lg bg-muted/50"
-                              >
+              </TabsContent>
+
+              {/* Tools Tab */}
+              <TabsContent value="tools">
+                <div className="border border-border rounded-lg bg-muted/20 p-6">
+                  <div className="mb-6">
+                    <h2 className="text-lg font-semibold mb-2">Available Tools</h2>
+                    <p className="text-sm text-muted-foreground">
+                      Enable or disable agent capabilities ({enabledToolCount}/{totalToolCount} enabled)
+                    </p>
+                  </div>
+                  <ScrollArea className="h-[600px] pr-4">
+                    <div className="space-y-6">
+                      {toolCategories.map((category) => {
+                        const Icon = category.icon;
+                        const enabledInCategory = category.tools.filter(t => toolSettings[t.id]).length;
+                        
+                        return (
+                          <div key={category.id} className="space-y-3">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-3">
+                                <Icon className="h-5 w-5 text-muted-foreground" />
                                 <div>
-                                  <p className="text-sm font-medium">{tool.name}</p>
-                                  <p className="text-xs text-muted-foreground">{tool.description}</p>
+                                  <h3 className="font-medium">{category.name}</h3>
+                                  <p className="text-sm text-muted-foreground">{category.description}</p>
                                 </div>
+                              </div>
+                              <div className="flex items-center gap-3">
+                                <span className="text-sm text-muted-foreground">
+                                  {enabledInCategory}/{category.tools.length}
+                                </span>
                                 <Switch
-                                  checked={toolSettings[tool.id] ?? true}
-                                  onCheckedChange={() => toggleTool(tool.id)}
-                                  data-testid={`switch-tool-${tool.id}`}
+                                  checked={categoryEnabled[category.id]}
+                                  onCheckedChange={() => toggleCategory(category.id)}
+                                  data-testid={`switch-category-${category.id}`}
                                 />
                               </div>
-                            ))}
+                            </div>
+                            
+                            <div className="grid gap-2 pl-8">
+                              {category.tools.map((tool) => (
+                                <div
+                                  key={tool.id}
+                                  className="flex items-center justify-between p-3 rounded-lg bg-muted/50"
+                                >
+                                  <div>
+                                    <p className="text-sm font-medium">{tool.name}</p>
+                                    <p className="text-xs text-muted-foreground">{tool.description}</p>
+                                  </div>
+                                  <Switch
+                                    checked={toolSettings[tool.id] ?? true}
+                                    onCheckedChange={() => toggleTool(tool.id)}
+                                    data-testid={`switch-tool-${tool.id}`}
+                                  />
+                                </div>
+                              ))}
+                            </div>
+                            
+                            <Separator />
                           </div>
-                          
-                          <Separator />
-                        </div>
-                      );
-                    })}
-                  </div>
-                </ScrollArea>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* Voice Tab */}
-          <TabsContent value="voice">
-            <Card>
-              <CardHeader>
-                <CardTitle>Voice Settings</CardTitle>
-                <CardDescription>Configure text-to-speech and audio output</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="p-4 bg-muted rounded-lg">
-                  <p className="text-sm text-muted-foreground">
-                    Voice settings are managed through the Verbosity Slider in the chat header.
-                    <br /><br />
-                    <strong>Modes:</strong>
-                  </p>
-                  <ul className="list-disc list-inside text-sm text-muted-foreground mt-2 space-y-1">
-                    <li><strong>Mute:</strong> No audio output</li>
-                    <li><strong>Quiet:</strong> Only play HD audio from voice commands</li>
-                    <li><strong>Verbose:</strong> Speak all chat responses</li>
-                    <li><strong>Experimental:</strong> Multi-voice TTS (coming soon)</li>
-                  </ul>
+                        );
+                      })}
+                    </div>
+                  </ScrollArea>
                 </div>
-                
-                <Link href="/">
-                  <Button variant="outline" className="gap-2" data-testid="button-go-to-chat">
-                    <MessageSquare className="h-4 w-4" />
-                    Go to Chat to Adjust Voice
-                  </Button>
-                </Link>
-              </CardContent>
-            </Card>
-          </TabsContent>
+              </TabsContent>
 
-          {/* Advanced Tab */}
-          <TabsContent value="advanced">
-            <div className="grid gap-6 lg:grid-cols-2">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Context & Memory</CardTitle>
-                  <CardDescription>RAG and retrieval settings</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="font-medium">Conversation Memory</p>
-                      <p className="text-sm text-muted-foreground">Remember previous conversations</p>
+              {/* Voice Tab */}
+              <TabsContent value="voice">
+                <div className="border border-border rounded-lg bg-muted/20 p-6">
+                  <h2 className="text-lg font-semibold mb-2">Voice Settings</h2>
+                  <p className="text-sm text-muted-foreground mb-6">Configure text-to-speech and audio output</p>
+                  <div className="space-y-6">
+                    <div className="p-4 bg-muted rounded-lg">
+                      <p className="text-sm text-muted-foreground">
+                        Voice settings are managed through the Verbosity Slider in the chat header.
+                        <br /><br />
+                        <strong>Modes:</strong>
+                      </p>
+                      <ul className="list-disc list-inside text-sm text-muted-foreground mt-2 space-y-1">
+                        <li><strong>Mute:</strong> No audio output</li>
+                        <li><strong>Quiet:</strong> Only play HD audio from voice commands</li>
+                        <li><strong>Verbose:</strong> Speak all chat responses</li>
+                        <li><strong>Experimental:</strong> Multi-voice TTS (coming soon)</li>
+                      </ul>
                     </div>
-                    <Switch defaultChecked data-testid="switch-conversation-memory" />
+                    
+                    <Link href="/">
+                      <Button variant="outline" className="gap-2" data-testid="button-go-to-chat">
+                        <MessageSquare className="h-4 w-4" />
+                        Go to Chat to Adjust Voice
+                      </Button>
+                    </Link>
                   </div>
-                  <Separator />
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="font-medium">Domain Knowledge</p>
-                      <p className="text-sm text-muted-foreground">Use ingested documents for context</p>
-                    </div>
-                    <Switch defaultChecked data-testid="switch-domain-knowledge" />
-                  </div>
-                  <Separator />
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="font-medium">Code Context</p>
-                      <p className="text-sm text-muted-foreground">Include repository analysis</p>
-                    </div>
-                    <Switch defaultChecked data-testid="switch-code-context" />
-                  </div>
-                </CardContent>
-              </Card>
+                </div>
+              </TabsContent>
 
-              <Card>
-                <CardHeader>
-                  <CardTitle>Job Processing</CardTitle>
-                  <CardDescription>Workflow and orchestration settings</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="font-medium">Parallel Execution</p>
-                      <p className="text-sm text-muted-foreground">Run independent tasks simultaneously</p>
+              {/* Advanced Tab */}
+              <TabsContent value="advanced">
+                <div className="grid gap-6 lg:grid-cols-2">
+                  <div className="border border-border rounded-lg bg-muted/20 p-6">
+                    <h2 className="text-lg font-semibold mb-2">Context & Memory</h2>
+                    <p className="text-sm text-muted-foreground mb-4">RAG and retrieval settings</p>
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="font-medium">Conversation Memory</p>
+                          <p className="text-sm text-muted-foreground">Remember previous conversations</p>
+                        </div>
+                        <Switch defaultChecked data-testid="switch-conversation-memory" />
+                      </div>
+                      <Separator />
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="font-medium">Domain Knowledge</p>
+                          <p className="text-sm text-muted-foreground">Use ingested documents for context</p>
+                        </div>
+                        <Switch defaultChecked data-testid="switch-domain-knowledge" />
+                      </div>
+                      <Separator />
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="font-medium">Code Context</p>
+                          <p className="text-sm text-muted-foreground">Include repository analysis</p>
+                        </div>
+                        <Switch defaultChecked data-testid="switch-code-context" />
+                      </div>
                     </div>
-                    <Switch defaultChecked data-testid="switch-parallel-execution" />
                   </div>
-                  <Separator />
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="font-medium">Auto-Retry Failed Jobs</p>
-                      <p className="text-sm text-muted-foreground">Automatically retry on failure</p>
+
+                  <div className="border border-border rounded-lg bg-muted/20 p-6">
+                    <h2 className="text-lg font-semibold mb-2">Job Processing</h2>
+                    <p className="text-sm text-muted-foreground mb-4">Workflow and orchestration settings</p>
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="font-medium">Parallel Execution</p>
+                          <p className="text-sm text-muted-foreground">Run independent tasks simultaneously</p>
+                        </div>
+                        <Switch defaultChecked data-testid="switch-parallel-execution" />
+                      </div>
+                      <Separator />
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="font-medium">Auto-Retry Failed Jobs</p>
+                          <p className="text-sm text-muted-foreground">Automatically retry on failure</p>
+                        </div>
+                        <Switch defaultChecked data-testid="switch-auto-retry" />
+                      </div>
+                      <Separator />
+                      <Link href="/docs/job-orchestration">
+                        <Button variant="outline" className="w-full gap-2" data-testid="button-view-orchestration-docs">
+                          <Database className="h-4 w-4" />
+                          View Orchestration Documentation
+                        </Button>
+                      </Link>
                     </div>
-                    <Switch defaultChecked data-testid="switch-auto-retry" />
                   </div>
-                  <Separator />
-                  <Link href="/docs/job-orchestration">
-                    <Button variant="outline" className="w-full gap-2" data-testid="button-view-orchestration-docs">
-                      <Database className="h-4 w-4" />
-                      View Orchestration Documentation
-                    </Button>
-                  </Link>
-                </CardContent>
-              </Card>
-            </div>
-          </TabsContent>
-        </Tabs>
-      </main>
+                </div>
+              </TabsContent>
+            </Tabs>
+          </main>
+        </ScrollArea>
+      </div>
     </div>
   );
 }

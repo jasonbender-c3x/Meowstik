@@ -275,55 +275,67 @@ export default function WorkspacePage() {
   };
 
   return (
-    <div className={`h-screen flex flex-col ${isDark ? 'dark bg-zinc-950' : 'bg-white'}`}>
-      <div className="flex items-center justify-between px-4 py-2 border-b bg-card/50 backdrop-blur-md">
-        <div className="flex items-center gap-3">
-          <Link href="/">
-            <Button variant="ghost" size="icon" data-testid="button-back">
-              <ArrowLeft className="h-4 w-4" />
+    <div className="h-screen flex flex-col" data-testid="workspace-page">
+      {/* Header */}
+      <header className="border-b bg-card px-4 py-3 flex-shrink-0">
+        <div className="flex items-center gap-4 justify-between">
+          <div className="flex items-center gap-3">
+            <Link href="/">
+              <Button variant="ghost" size="icon" data-testid="button-back">
+                <ArrowLeft className="h-4 w-4" />
+              </Button>
+            </Link>
+            <div className="flex items-center gap-2">
+              <img src={logo} alt="Meowstik" className="h-5 w-5" />
+              <div>
+                <h1 className="text-lg font-semibold">Meowstik Workspace</h1>
+                <p className="text-xs text-muted-foreground">Chat • Code • Preview</p>
+              </div>
+            </div>
+          </div>
+          
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setChatExpanded(!chatExpanded)}
+              data-testid="button-toggle-chat"
+              title="Toggle chat panel"
+            >
+              <MessageSquare className={`h-4 w-4 ${chatExpanded ? 'text-primary' : ''}`} />
             </Button>
-          </Link>
-          <img src={logo} alt="Meowstik" className="h-6 w-6" />
-          <span className="font-semibold text-sm">Meowstik Workspace</span>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setPreviewExpanded(!previewExpanded)}
+              data-testid="button-toggle-preview"
+              title="Toggle preview panel"
+            >
+              <Eye className={`h-4 w-4 ${previewExpanded ? 'text-primary' : ''}`} />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setIsDark(!isDark)}
+              data-testid="button-theme"
+              title="Toggle theme"
+            >
+              {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={updatePreview}
+              data-testid="button-refresh-preview"
+              title="Refresh preview"
+            >
+              <RefreshCw className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
-        
-        <div className="flex items-center gap-2">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setChatExpanded(!chatExpanded)}
-            data-testid="button-toggle-chat"
-          >
-            <MessageSquare className={`h-4 w-4 ${chatExpanded ? 'text-primary' : ''}`} />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setPreviewExpanded(!previewExpanded)}
-            data-testid="button-toggle-preview"
-          >
-            <Eye className={`h-4 w-4 ${previewExpanded ? 'text-primary' : ''}`} />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setIsDark(!isDark)}
-            data-testid="button-theme"
-          >
-            {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={updatePreview}
-            data-testid="button-refresh-preview"
-          >
-            <RefreshCw className="h-4 w-4" />
-          </Button>
-        </div>
-      </div>
+      </header>
 
-      <ResizablePanelGroup direction="horizontal" className="flex-1">
+      <ResizablePanelGroup direction="horizontal" className="flex-1 bg-background">
         <AnimatePresence>
           {chatExpanded && (
             <>
@@ -333,10 +345,15 @@ export default function WorkspacePage() {
                 maxSize={50}
                 className="flex flex-col"
               >
-                <div className="flex-1 flex flex-col border-r">
-                  <div className="px-3 py-2 border-b bg-muted/30 flex items-center gap-2">
-                    <MessageSquare className="h-4 w-4" />
-                    <span className="text-sm font-medium">Chat</span>
+                <div className="flex-1 flex flex-col border-r bg-background">
+                  <div className="border-b px-4 py-3 flex-shrink-0 bg-card">
+                    <h2 className="text-sm font-semibold flex items-center gap-2">
+                      <MessageSquare className="h-4 w-4 text-primary" />
+                      Chat
+                    </h2>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Ask about your code
+                    </p>
                   </div>
                   
                   <ScrollArea className="flex-1 p-3">
@@ -436,8 +453,24 @@ export default function WorkspacePage() {
         </AnimatePresence>
 
         <ResizablePanel defaultSize={chatExpanded && previewExpanded ? 34 : chatExpanded || previewExpanded ? 50 : 100} minSize={30}>
-          <div className="h-full flex flex-col">
-            <div className="flex items-center gap-1 px-2 py-1 border-b bg-muted/30 overflow-x-auto">
+          <div className="h-full flex flex-col bg-background">
+            <div className="px-4 py-3 border-b bg-card flex-shrink-0 flex items-center justify-between">
+              <h2 className="text-sm font-semibold flex items-center gap-2">
+                <Code2 className="h-4 w-4 text-primary" />
+                Code Editor
+              </h2>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7"
+                onClick={addNewFile}
+                data-testid="button-add-file"
+                title="Add new file"
+              >
+                <Plus className="h-4 w-4" />
+              </Button>
+            </div>
+            <div className="flex items-center gap-1 px-2 py-1.5 border-b bg-muted/50 overflow-x-auto flex-shrink-0">
               {files.map((file) => (
                 <div
                   key={file.id}
@@ -468,15 +501,6 @@ export default function WorkspacePage() {
                   )}
                 </div>
               ))}
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-7 w-7"
-                onClick={addNewFile}
-                data-testid="button-add-file"
-              >
-                <Plus className="h-3.5 w-3.5" />
-              </Button>
             </div>
 
             <div className="flex-1 overflow-hidden">
@@ -513,10 +537,15 @@ export default function WorkspacePage() {
                 maxSize={50}
                 className="flex flex-col"
               >
-                <div className="h-full flex flex-col border-l">
-                  <div className="px-3 py-2 border-b bg-muted/30 flex items-center gap-2">
-                    <Eye className="h-4 w-4" />
-                    <span className="text-sm font-medium">Preview</span>
+                <div className="h-full flex flex-col border-l bg-background">
+                  <div className="border-b px-4 py-3 flex-shrink-0 bg-card">
+                    <h2 className="text-sm font-semibold flex items-center gap-2">
+                      <Eye className="h-4 w-4 text-primary" />
+                      Preview
+                    </h2>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Live HTML preview
+                    </p>
                   </div>
                   
                   <div className="flex-1 bg-white">
