@@ -291,9 +291,14 @@ export async function registerRoutes(
         before 
       });
       
+      console.log(`[GET /api/chats/${req.params.id}] Fetched ${messages.length} messages, limit: ${limit}, before: ${before}`);
+      console.log(`[GET /api/chats/${req.params.id}] Message IDs:`, messages.map(m => ({ id: m.id, role: m.role, createdAt: m.createdAt })));
+      
       // Check if there are more messages to load
       const hasMore = messages.length > limit;
       const returnMessages = hasMore ? messages.slice(1) : messages; // Remove oldest if over limit
+      
+      console.log(`[GET /api/chats/${req.params.id}] Returning ${returnMessages.length} messages, hasMore: ${hasMore}`);
 
       // Return chat metadata, paginated messages, and hasMore flag
       res.json({ chat, messages: returnMessages, hasMore });
@@ -1401,6 +1406,13 @@ The user has MUTE mode enabled. Minimize all output.
         `data: ${JSON.stringify({
           done: true,
           toolResults: toolResults.length > 0 ? toolResults : undefined,
+          savedMessage: {
+            id: savedAiMessage.id,
+            role: savedAiMessage.role,
+            content: savedAiMessage.content,
+            createdAt: savedAiMessage.createdAt,
+            metadata: savedAiMessage.metadata,
+          },
         })}\n\n`,
       );
       res.end();

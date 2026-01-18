@@ -822,9 +822,11 @@ export default function Home() {
                 });
               }
 
-              // Step 6: Stream complete - reload final messages and speak response
+              // Step 6: Stream complete - update temp message with real DB message
               if (data.done) {
+                console.log('[SSE] Done event received');
                 setIsLoading(false);
+                
                 // Only use browser TTS if HD audio wasn't already played and verbosity allows
                 // Use cleanContentForTTS (from send_chat) to avoid speaking raw JSON
                 const textToSpeak = cleanContentForTTS || aiMessageContent;
@@ -838,21 +840,51 @@ export default function Home() {
                   console.log('[TTS] Speaking via browser TTS:', textToSpeak.substring(0, 50) + '...');
                   speak(textToSpeak);
                 }
-                // Get actual stored messages with real IDs
-                const updatedMessages = await loadChatMessages(chatId);
-                // Update chat list (timestamps changed)
-                await loadChats();
                 
-                // Step 7: Handle async autoexec - poll for result and trigger follow-up
-                if (data.pendingAutoexec) {
-                  // Find the AI message with pending autoexec
-                  const aiMessage = updatedMessages?.find(
-                    (m: Message) => m.role === 'ai' && m.metadata
-                  );
-                  if (aiMessage) {
-                    pollForAutoexecResult(chatId, aiMessage.id);
+                // CRITICAL FIX: Replace temporary message with saved message from DB
+                // This avoids reloading ALL messages which could show stale data
+                if (data.savedMessage) {
+                  console.log('[SSE] Replacing temp message with saved message:', data.savedMessage.id);
+                  setMessages((prev) => {
+                    // Filter out all temporary AI messages
+                    const filtered = prev.filter(m => !m.id.startsWith('temp-ai-'));
+                    // Add the real saved message from the database
+                    return [
+                      ...filtered,
+                      {
+                        id: data.savedMessage.id,
+                        chatId: chatId,
+                        role: data.savedMessage.role,
+                        content: data.savedMessage.content,
+                        createdAt: new Date(data.savedMessage.createdAt),
+                        metadata: data.savedMessage.metadata,
+                      } as Message & { metadata?: any }
+                    ];
+                  });
+                  
+                  // Use the saved message for autoexec check
+                  if (data.pendingAutoexec) {
+                    pollForAutoexecResult(chatId, data.savedMessage.id);
+                  }
+                } else {
+                  // FALLBACK: If no savedMessage in response, reload all messages from DB
+                  // This is the OLD behavior that can cause the stale message bug
+                  console.warn('[SSE] No savedMessage in done event, falling back to full reload');
+                  const updatedMessages = await loadChatMessages(chatId);
+                  
+                  // Handle autoexec with updated messages
+                  if (data.pendingAutoexec && updatedMessages) {
+                    const aiMessage = updatedMessages.find(
+                      (m: Message) => m.role === 'ai' && m.metadata
+                    );
+                    if (aiMessage) {
+                      pollForAutoexecResult(chatId, aiMessage.id);
+                    }
                   }
                 }
+                
+                // Update chat list (timestamps changed)
+                await loadChats();
               }
             } catch (e) {
               console.error('Error parsing SSE data:', e);
