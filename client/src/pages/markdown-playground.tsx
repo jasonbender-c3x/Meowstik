@@ -16,7 +16,7 @@ import { FeedbackPanel } from "@/components/ui/feedback-panel";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { Play, RotateCcw, ArrowLeft, FileText } from "lucide-react";
 import { Link } from "wouter";
 
@@ -204,252 +204,242 @@ export default function MarkdownPlayground() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="container max-w-7xl mx-auto py-8 px-4">
-        {/* Navigation Header */}
-        <div className="flex items-center gap-4 mb-8">
+    <div className="min-h-screen bg-background flex flex-col" data-testid="markdown-playground-page">
+      {/* Header */}
+      <header className="border-b bg-card px-4 py-3 flex-shrink-0">
+        <div className="flex items-center gap-4">
           <Link href="/">
             <Button variant="ghost" size="icon" data-testid="button-back-home">
-              <ArrowLeft className="h-5 w-5" />
+              <ArrowLeft className="h-4 w-4" />
             </Button>
           </Link>
-          <div className="flex items-center gap-3 flex-1">
-            <FileText className="h-8 w-8 text-primary" />
-            <div>
-              <h1 className="text-3xl font-display font-bold" data-testid="page-title">
-                Markdown Playground
-              </h1>
-              <p className="text-sm text-muted-foreground">
-                Explore and test enhanced markdown features with live preview
-              </p>
-            </div>
+          <div className="flex-1">
+            <h1 className="text-xl font-semibold flex items-center gap-2">
+              <FileText className="h-5 w-5 text-primary" />
+              Markdown Playground
+            </h1>
+            <p className="text-sm text-muted-foreground">
+              Explore and test enhanced markdown features with live preview
+            </p>
           </div>
         </div>
+      </header>
 
-        <Tabs defaultValue="playground" className="space-y-6">
-          <TabsList>
-            <TabsTrigger value="playground" data-testid="tab-playground">Playground</TabsTrigger>
-            <TabsTrigger value="examples" data-testid="tab-examples">Quick Examples</TabsTrigger>
-            <TabsTrigger value="feedback" data-testid="tab-feedback">Feedback Demo</TabsTrigger>
-          </TabsList>
+      {/* Main Content */}
+      <main className="flex-1 overflow-hidden flex flex-col">
+        <ScrollArea className="flex-1">
+          <div className="p-6 max-w-7xl mx-auto">
+            <Tabs defaultValue="playground" className="space-y-6">
+              <TabsList>
+                <TabsTrigger value="playground" data-testid="tab-playground">Playground</TabsTrigger>
+                <TabsTrigger value="examples" data-testid="tab-examples">Quick Examples</TabsTrigger>
+                <TabsTrigger value="feedback" data-testid="tab-feedback">Feedback Demo</TabsTrigger>
+              </TabsList>
 
-          {/* Playground Tab */}
-          <TabsContent value="playground" className="space-y-6">
-            <div className="grid lg:grid-cols-2 gap-6">
-              {/* Editor */}
-              <Card>
-                <CardHeader className="pb-3">
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="text-lg">Editor</CardTitle>
-                    <div className="flex gap-2">
-                      <Button variant="outline" size="sm" onClick={handleReset} data-testid="btn-reset">
-                        <RotateCcw className="h-4 w-4 mr-1" />
-                        Reset
-                      </Button>
-                      <Button size="sm" onClick={handleRun} data-testid="btn-run">
-                        <Play className="h-4 w-4 mr-1" />
-                        Run
-                      </Button>
+              {/* Playground Tab */}
+              <TabsContent value="playground" className="space-y-6 mt-6">
+                <div className="grid lg:grid-cols-2 gap-6">
+                  {/* Editor */}
+                  <div className="border border-border rounded-lg bg-muted/20 p-6 flex flex-col">
+                    <div className="flex items-center justify-between mb-4">
+                      <h2 className="text-lg font-semibold">Editor</h2>
+                      <div className="flex gap-2">
+                        <Button variant="outline" size="sm" onClick={handleReset} data-testid="btn-reset">
+                          <RotateCcw className="h-4 w-4 mr-1" />
+                          Reset
+                        </Button>
+                        <Button size="sm" onClick={handleRun} data-testid="btn-run">
+                          <Play className="h-4 w-4 mr-1" />
+                          Run
+                        </Button>
+                      </div>
                     </div>
-                  </div>
-                  <CardDescription>Write enhanced markdown here</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <Textarea
-                    value={customMarkdown}
-                    onChange={(e) => setCustomMarkdown(e.target.value)}
-                    className="font-mono text-sm min-h-[600px] resize-none"
-                    placeholder="Write your markdown here..."
-                    data-testid="markdown-editor"
-                  />
-                </CardContent>
-              </Card>
-
-              {/* Preview */}
-              <Card>
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-lg">Preview</CardTitle>
-                  <CardDescription>Live rendered output</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div 
-                    className="prose prose-neutral dark:prose-invert max-w-none min-h-[600px] overflow-y-auto"
-                    data-testid="markdown-preview"
-                  >
-                    <EnhancedMarkdown content={livePreview} />
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          </TabsContent>
-
-          {/* Examples Tab */}
-          <TabsContent value="examples" className="space-y-6">
-            <div className="grid md:grid-cols-2 gap-6">
-              {basicExamples.map((example, index) => (
-                <Card key={index}>
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-lg">{example.title}</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="bg-muted rounded-lg p-4">
-                      <pre className="text-sm font-mono whitespace-pre-wrap">{example.code}</pre>
-                    </div>
-                    <div className="border-t pt-4">
-                      <EnhancedMarkdown content={example.code} />
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-
-            {/* Syntax Reference */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Syntax Reference</CardTitle>
-                <CardDescription>Quick reference for all enhanced markdown features</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b">
-                        <th className="text-left py-2 px-4 font-semibold">Feature</th>
-                        <th className="text-left py-2 px-4 font-semibold">Syntax</th>
-                        <th className="text-left py-2 px-4 font-semibold">Notes</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr className="border-b">
-                        <td className="py-2 px-4">Info Callout</td>
-                        <td className="py-2 px-4 font-mono text-xs">:::info Title\nContent\n:::</td>
-                        <td className="py-2 px-4 text-muted-foreground">Blue styling</td>
-                      </tr>
-                      <tr className="border-b">
-                        <td className="py-2 px-4">Warning Callout</td>
-                        <td className="py-2 px-4 font-mono text-xs">:::warning Title\nContent\n:::</td>
-                        <td className="py-2 px-4 text-muted-foreground">Amber styling</td>
-                      </tr>
-                      <tr className="border-b">
-                        <td className="py-2 px-4">Success Callout</td>
-                        <td className="py-2 px-4 font-mono text-xs">:::success Title\nContent\n:::</td>
-                        <td className="py-2 px-4 text-muted-foreground">Green styling</td>
-                      </tr>
-                      <tr className="border-b">
-                        <td className="py-2 px-4">Error Callout</td>
-                        <td className="py-2 px-4 font-mono text-xs">:::error Title\nContent\n:::</td>
-                        <td className="py-2 px-4 text-muted-foreground">Red styling</td>
-                      </tr>
-                      <tr className="border-b">
-                        <td className="py-2 px-4">Tip Callout</td>
-                        <td className="py-2 px-4 font-mono text-xs">:::tip Title\nContent\n:::</td>
-                        <td className="py-2 px-4 text-muted-foreground">Purple styling</td>
-                      </tr>
-                      <tr className="border-b">
-                        <td className="py-2 px-4">Collapsible</td>
-                        <td className="py-2 px-4 font-mono text-xs">:::collapsible Title\nContent\n:::</td>
-                        <td className="py-2 px-4 text-muted-foreground">Click to expand</td>
-                      </tr>
-                      <tr className="border-b">
-                        <td className="py-2 px-4">Confidence High</td>
-                        <td className="py-2 px-4 font-mono text-xs">[confidence:high]</td>
-                        <td className="py-2 px-4 text-muted-foreground">Green badge</td>
-                      </tr>
-                      <tr className="border-b">
-                        <td className="py-2 px-4">Confidence Medium</td>
-                        <td className="py-2 px-4 font-mono text-xs">[confidence:medium]</td>
-                        <td className="py-2 px-4 text-muted-foreground">Amber badge</td>
-                      </tr>
-                      <tr>
-                        <td className="py-2 px-4">Confidence Low</td>
-                        <td className="py-2 px-4 font-mono text-xs">[confidence:low]</td>
-                        <td className="py-2 px-4 text-muted-foreground">Red badge</td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* Feedback Demo Tab */}
-          <TabsContent value="feedback" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Feedback Component Demo</CardTitle>
-                <CardDescription>
-                  This feedback system is the backbone for AI evolution. User feedback is collected,
-                  analyzed, and used to generate improvement suggestions.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                {/* Sample AI Response */}
-                <div className="bg-muted/50 rounded-lg p-6">
-                  <div className="flex items-center gap-2 mb-3">
-                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-purple-400 flex items-center justify-center text-white">
-                      ✨
-                    </div>
-                    <span className="font-semibold">Nebula AI</span>
-                  </div>
-                  <div className="prose prose-neutral dark:prose-invert max-w-none mb-4">
-                    <p>
-                      Here's an example AI response that you can provide feedback on. 
-                      The feedback system allows you to:
-                    </p>
-                    <ul>
-                      <li>Give a quick thumbs up or thumbs down</li>
-                      <li>Expand to provide detailed feedback</li>
-                      <li>Rate specific aspects like accuracy and clarity</li>
-                      <li>Select what you liked or disliked</li>
-                      <li>Add freeform comments</li>
-                    </ul>
-                    <p>
-                      This feedback will be used to improve future responses through the evolution system.
-                    </p>
-                  </div>
-                  
-                  <div className="border-t pt-4">
-                    <FeedbackPanel 
-                      messageId="demo-message-1"
-                      onSubmit={(feedback) => {
-                        console.log("Demo feedback:", feedback);
-                        alert("Feedback submitted! Check console for details.");
-                      }}
+                    <p className="text-sm text-muted-foreground mb-4">Write enhanced markdown here</p>
+                    <Textarea
+                      value={customMarkdown}
+                      onChange={(e) => setCustomMarkdown(e.target.value)}
+                      className="font-mono text-sm min-h-[600px] resize-none"
+                      placeholder="Write your markdown here..."
+                      data-testid="markdown-editor"
                     />
                   </div>
-                </div>
 
-                {/* Flow Explanation */}
-                <div className="space-y-4">
-                  <h3 className="font-semibold text-lg">Evolution Flow</h3>
-                  <div className="grid md:grid-cols-4 gap-4">
-                    <div className="text-center p-4 bg-blue-500/10 rounded-lg border border-blue-500/20">
-                      <div className="text-2xl mb-2">👍👎</div>
-                      <div className="font-medium">User Feedback</div>
-                      <div className="text-xs text-muted-foreground mt-1">Collected on each response</div>
-                    </div>
-                    <div className="text-center p-4 bg-purple-500/10 rounded-lg border border-purple-500/20">
-                      <div className="text-2xl mb-2">🧠</div>
-                      <div className="font-medium">Analysis</div>
-                      <div className="text-xs text-muted-foreground mt-1">Patterns identified</div>
-                    </div>
-                    <div className="text-center p-4 bg-amber-500/10 rounded-lg border border-amber-500/20">
-                      <div className="text-2xl mb-2">📝</div>
-                      <div className="font-medium">PR Generated</div>
-                      <div className="text-xs text-muted-foreground mt-1">Improvements proposed</div>
-                    </div>
-                    <div className="text-center p-4 bg-green-500/10 rounded-lg border border-green-500/20">
-                      <div className="text-2xl mb-2">✅</div>
-                      <div className="font-medium">Human Review</div>
-                      <div className="text-xs text-muted-foreground mt-1">You approve changes</div>
+                  {/* Preview */}
+                  <div className="border border-border rounded-lg bg-muted/20 p-6 flex flex-col">
+                    <h2 className="text-lg font-semibold mb-4">Preview</h2>
+                    <p className="text-sm text-muted-foreground mb-4">Live rendered output</p>
+                    <div 
+                      className="prose prose-neutral dark:prose-invert max-w-none min-h-[600px] overflow-y-auto"
+                      data-testid="markdown-preview"
+                    >
+                      <EnhancedMarkdown content={livePreview} />
                     </div>
                   </div>
                 </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
-      </div>
+              </TabsContent>
+
+              {/* Examples Tab */}
+              <TabsContent value="examples" className="space-y-6 mt-6">
+                <div className="grid md:grid-cols-2 gap-6">
+                  {basicExamples.map((example, index) => (
+                    <div key={index} className="border border-border rounded-lg bg-muted/20 p-6">
+                      <h3 className="text-lg font-semibold mb-4">{example.title}</h3>
+                      <div className="space-y-4">
+                        <div className="bg-muted rounded-lg p-4">
+                          <pre className="text-sm font-mono whitespace-pre-wrap">{example.code}</pre>
+                        </div>
+                        <div className="border-t pt-4">
+                          <EnhancedMarkdown content={example.code} />
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Syntax Reference */}
+                <div className="border border-border rounded-lg bg-muted/20 p-6">
+                  <h3 className="text-lg font-semibold mb-2">Syntax Reference</h3>
+                  <p className="text-sm text-muted-foreground mb-4">Quick reference for all enhanced markdown features</p>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b">
+                          <th className="text-left py-2 px-4 font-semibold">Feature</th>
+                          <th className="text-left py-2 px-4 font-semibold">Syntax</th>
+                          <th className="text-left py-2 px-4 font-semibold">Notes</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr className="border-b">
+                          <td className="py-2 px-4">Info Callout</td>
+                          <td className="py-2 px-4 font-mono text-xs">:::info Title\nContent\n:::</td>
+                          <td className="py-2 px-4 text-muted-foreground">Blue styling</td>
+                        </tr>
+                        <tr className="border-b">
+                          <td className="py-2 px-4">Warning Callout</td>
+                          <td className="py-2 px-4 font-mono text-xs">:::warning Title\nContent\n:::</td>
+                          <td className="py-2 px-4 text-muted-foreground">Amber styling</td>
+                        </tr>
+                        <tr className="border-b">
+                          <td className="py-2 px-4">Success Callout</td>
+                          <td className="py-2 px-4 font-mono text-xs">:::success Title\nContent\n:::</td>
+                          <td className="py-2 px-4 text-muted-foreground">Green styling</td>
+                        </tr>
+                        <tr className="border-b">
+                          <td className="py-2 px-4">Error Callout</td>
+                          <td className="py-2 px-4 font-mono text-xs">:::error Title\nContent\n:::</td>
+                          <td className="py-2 px-4 text-muted-foreground">Red styling</td>
+                        </tr>
+                        <tr className="border-b">
+                          <td className="py-2 px-4">Tip Callout</td>
+                          <td className="py-2 px-4 font-mono text-xs">:::tip Title\nContent\n:::</td>
+                          <td className="py-2 px-4 text-muted-foreground">Purple styling</td>
+                        </tr>
+                        <tr className="border-b">
+                          <td className="py-2 px-4">Collapsible</td>
+                          <td className="py-2 px-4 font-mono text-xs">:::collapsible Title\nContent\n:::</td>
+                          <td className="py-2 px-4 text-muted-foreground">Click to expand</td>
+                        </tr>
+                        <tr className="border-b">
+                          <td className="py-2 px-4">Confidence High</td>
+                          <td className="py-2 px-4 font-mono text-xs">[confidence:high]</td>
+                          <td className="py-2 px-4 text-muted-foreground">Green badge</td>
+                        </tr>
+                        <tr className="border-b">
+                          <td className="py-2 px-4">Confidence Medium</td>
+                          <td className="py-2 px-4 font-mono text-xs">[confidence:medium]</td>
+                          <td className="py-2 px-4 text-muted-foreground">Amber badge</td>
+                        </tr>
+                        <tr>
+                          <td className="py-2 px-4">Confidence Low</td>
+                          <td className="py-2 px-4 font-mono text-xs">[confidence:low]</td>
+                          <td className="py-2 px-4 text-muted-foreground">Red badge</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </TabsContent>
+
+              {/* Feedback Demo Tab */}
+              <TabsContent value="feedback" className="space-y-6 mt-6">
+                <div className="border border-border rounded-lg bg-muted/20 p-6">
+                  <h3 className="text-lg font-semibold mb-2">Feedback Component Demo</h3>
+                  <p className="text-sm text-muted-foreground mb-6">
+                    This feedback system is the backbone for AI evolution. User feedback is collected,
+                    analyzed, and used to generate improvement suggestions.
+                  </p>
+                  
+                  <div className="space-y-6">
+                    {/* Sample AI Response */}
+                    <div className="bg-muted/50 rounded-lg p-6">
+                      <div className="flex items-center gap-2 mb-3">
+                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-purple-400 flex items-center justify-center text-white">
+                          ✨
+                        </div>
+                        <span className="font-semibold">Nebula AI</span>
+                      </div>
+                      <div className="prose prose-neutral dark:prose-invert max-w-none mb-4">
+                        <p>
+                          Here's an example AI response that you can provide feedback on. 
+                          The feedback system allows you to:
+                        </p>
+                        <ul>
+                          <li>Give a quick thumbs up or thumbs down</li>
+                          <li>Expand to provide detailed feedback</li>
+                          <li>Rate specific aspects like accuracy and clarity</li>
+                          <li>Select what you liked or disliked</li>
+                          <li>Add freeform comments</li>
+                        </ul>
+                        <p>
+                          This feedback will be used to improve future responses through the evolution system.
+                        </p>
+                      </div>
+                      
+                      <div className="border-t pt-4">
+                        <FeedbackPanel 
+                          messageId="demo-message-1"
+                          onSubmit={(feedback) => {
+                            console.log("Demo feedback:", feedback);
+                            alert("Feedback submitted! Check console for details.");
+                          }}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Flow Explanation */}
+                    <div className="space-y-4">
+                      <h3 className="font-semibold">Evolution Flow</h3>
+                      <div className="grid md:grid-cols-4 gap-4">
+                        <div className="text-center p-4 bg-blue-500/10 rounded-lg border border-blue-500/20">
+                          <div className="text-2xl mb-2">👍👎</div>
+                          <div className="font-medium text-sm">User Feedback</div>
+                          <div className="text-xs text-muted-foreground mt-1">Collected on each response</div>
+                        </div>
+                        <div className="text-center p-4 bg-purple-500/10 rounded-lg border border-purple-500/20">
+                          <div className="text-2xl mb-2">🧠</div>
+                          <div className="font-medium text-sm">Analysis</div>
+                          <div className="text-xs text-muted-foreground mt-1">Patterns identified</div>
+                        </div>
+                        <div className="text-center p-4 bg-amber-500/10 rounded-lg border border-amber-500/20">
+                          <div className="text-2xl mb-2">📝</div>
+                          <div className="font-medium text-sm">PR Generated</div>
+                          <div className="text-xs text-muted-foreground mt-1">Improvements proposed</div>
+                        </div>
+                        <div className="text-center p-4 bg-green-500/10 rounded-lg border border-green-500/20">
+                          <div className="text-2xl mb-2">✅</div>
+                          <div className="font-medium text-sm">Human Review</div>
+                          <div className="text-xs text-muted-foreground mt-1">You approve changes</div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </TabsContent>
+            </Tabs>
+          </div>
+        </ScrollArea>
+      </main>
     </div>
   );
 }

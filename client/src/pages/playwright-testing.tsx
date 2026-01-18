@@ -5,7 +5,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { ArrowLeft, Play, Trash2, Camera, MousePointer, Type, Eye, Code, Globe, X } from "lucide-react";
+import { ArrowLeft, Play, Trash2, Camera, MousePointer, Type, Eye, Code, Globe, X, Loader2 } from "lucide-react";
 import { Link } from "wouter";
 import { cn } from "@/lib/utils";
 
@@ -168,26 +168,26 @@ export default function PlaywrightTestingPage() {
   }, [results]);
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
-      <div className="max-w-7xl mx-auto px-4 py-8 w-full flex-1 flex flex-col">
-        <div className="flex items-center gap-4 mb-6">
+    <div className="min-h-screen bg-background flex flex-col" data-testid="playwright-testing-page">
+      {/* Header */}
+      <header className="border-b bg-card px-4 py-3 flex-shrink-0">
+        <div className="flex items-center gap-4">
           <Link href="/">
             <Button variant="ghost" size="icon" data-testid="button-back-home">
-              <ArrowLeft className="h-5 w-5" />
+              <ArrowLeft className="h-4 w-4" />
             </Button>
           </Link>
-          <div className="flex items-center gap-3">
-            <Play className="h-8 w-8 text-primary" />
-            <h1 className="text-3xl font-display font-bold">Playwright Testing</h1>
+          <div className="flex-1">
+            <h1 className="text-xl font-semibold flex items-center gap-2">
+              <Play className="h-5 w-5 text-primary" />
+              Playwright Testing
+            </h1>
+            <p className="text-sm text-muted-foreground">
+              Automated browser testing with Playwright • Session: <code className="bg-secondary px-2 py-0.5 rounded text-xs">{sessionId.slice(0, 20)}...</code>
+            </p>
           </div>
-        </div>
-
-        <div className="flex justify-between items-center mb-4">
-          <p className="text-muted-foreground text-sm">
-            Automated browser testing with Playwright. Session: <code className="bg-secondary px-2 py-0.5 rounded">{sessionId.slice(0, 20)}...</code>
-          </p>
-          <div className="flex gap-2 items-center">
-            <div className="flex items-center gap-2 mr-4">
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2">
               <Switch
                 id="headless"
                 checked={isHeadless}
@@ -203,7 +203,7 @@ export default function PlaywrightTestingPage() {
               data-testid="button-close-session"
             >
               <X className="h-4 w-4 mr-2" />
-              Close Session
+              Close
             </Button>
             <Button 
               variant="outline" 
@@ -216,11 +216,19 @@ export default function PlaywrightTestingPage() {
             </Button>
           </div>
         </div>
+      </header>
 
-        <div className="flex-1 grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className="space-y-4">
-            <div className="rounded-lg border border-border bg-card p-4">
-              <h3 className="font-semibold mb-4">Commands</h3>
+      {/* Main Content */}
+      <main className="flex-1 overflow-hidden flex flex-col">
+        <div className="flex-1 grid grid-cols-1 lg:grid-cols-2 gap-4 p-4 overflow-hidden">
+          {/* Left Panel - Commands */}
+          <div className="flex flex-col gap-4 overflow-hidden">
+            {/* Command Section */}
+            <div className="border border-border rounded-lg bg-muted/20 p-4 flex flex-col overflow-hidden">
+              <h3 className="font-semibold mb-4 flex items-center gap-2">
+                <Code className="h-4 w-4 text-primary" />
+                Commands
+              </h3>
               
               <Tabs value={selectedCommand.name} onValueChange={(v) => {
                 const cmd = COMMANDS.find(c => c.name === v);
@@ -228,36 +236,38 @@ export default function PlaywrightTestingPage() {
                   setSelectedCommand(cmd);
                   setFormData({});
                 }
-              }}>
+              }} className="flex flex-col flex-1 min-h-0">
                 <TabsList className="grid grid-cols-4 lg:grid-cols-7 w-full mb-4">
                   {COMMANDS.map(cmd => (
-                    <TabsTrigger key={cmd.name} value={cmd.name} className="text-xs">
+                    <TabsTrigger key={cmd.name} value={cmd.name} className="text-xs" title={cmd.name}>
                       {cmd.icon}
                     </TabsTrigger>
                   ))}
                 </TabsList>
 
-                {COMMANDS.map(cmd => (
-                  <TabsContent key={cmd.name} value={cmd.name} className="space-y-3">
-                    <h4 className="font-medium text-sm">{cmd.name}</h4>
-                    {cmd.fields.map(field => (
-                      <div key={field.name}>
-                        <Label htmlFor={field.name} className="text-xs">{field.label}</Label>
-                        <Input
-                          id={field.name}
-                          placeholder={field.placeholder}
-                          value={formData[field.name] || ""}
-                          onChange={(e) => setFormData(prev => ({ ...prev, [field.name]: e.target.value }))}
-                          className="mt-1"
-                          data-testid={`input-${field.name}`}
-                        />
-                      </div>
-                    ))}
-                    {cmd.fields.length === 0 && (
-                      <p className="text-sm text-muted-foreground">No additional parameters required.</p>
-                    )}
-                  </TabsContent>
-                ))}
+                <div className="flex-1 overflow-y-auto min-h-0">
+                  {COMMANDS.map(cmd => (
+                    <TabsContent key={cmd.name} value={cmd.name} className="space-y-3 mt-0">
+                      <h4 className="font-medium text-sm">{cmd.name}</h4>
+                      {cmd.fields.map(field => (
+                        <div key={field.name}>
+                          <Label htmlFor={field.name} className="text-xs">{field.label}</Label>
+                          <Input
+                            id={field.name}
+                            placeholder={field.placeholder}
+                            value={formData[field.name] || ""}
+                            onChange={(e) => setFormData(prev => ({ ...prev, [field.name]: e.target.value }))}
+                            className="mt-1 text-sm"
+                            data-testid={`input-${field.name}`}
+                          />
+                        </div>
+                      ))}
+                      {cmd.fields.length === 0 && (
+                        <p className="text-sm text-muted-foreground">No additional parameters required.</p>
+                      )}
+                    </TabsContent>
+                  ))}
+                </div>
               </Tabs>
 
               <Button
@@ -266,18 +276,31 @@ export default function PlaywrightTestingPage() {
                 className="w-full mt-4"
                 data-testid="button-execute-command"
               >
-                <Play className="h-4 w-4 mr-2" />
-                {isRunning ? "Running..." : `Execute ${selectedCommand.name}`}
+                {isRunning ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Running...
+                  </>
+                ) : (
+                  <>
+                    <Play className="h-4 w-4 mr-2" />
+                    Execute {selectedCommand.name}
+                  </>
+                )}
               </Button>
             </div>
 
-            <div className="rounded-lg border border-border bg-[#1e1e1e] overflow-hidden flex-1 min-h-[300px]">
-              <div className="flex items-center justify-between px-4 py-2 bg-[#2d2d2d] border-b border-[#3d3d3d]">
-                <span className="text-[#888] text-xs font-mono">Results</span>
-                <span className="text-[#888] text-xs">{results.length} commands</span>
+            {/* Results Section */}
+            <div className="border border-border rounded-lg bg-muted/20 p-4 flex flex-col overflow-hidden flex-1 min-h-0">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="font-semibold text-sm flex items-center gap-2">
+                  <Eye className="h-4 w-4 text-primary" />
+                  Results
+                </h3>
+                <span className="text-xs text-muted-foreground">{results.length} commands</span>
               </div>
-              <ScrollArea className="h-[300px]">
-                <div ref={resultsRef} className="p-4 font-mono text-sm space-y-2" data-testid="results-area">
+              <ScrollArea className="flex-1">
+                <div ref={resultsRef} className="p-3 font-mono text-xs space-y-2" data-testid="results-area">
                   {results.length === 0 ? (
                     <span className="text-muted-foreground">Execute a command to see results...</span>
                   ) : (
@@ -309,16 +332,18 @@ export default function PlaywrightTestingPage() {
             </div>
           </div>
 
-          <div className="rounded-lg border border-border bg-card overflow-hidden">
-            <div className="flex items-center px-4 py-2 bg-[#2d2d2d] border-b border-[#3d3d3d]">
-              <span className="text-[#888] text-xs font-mono">Screenshot Preview</span>
+          {/* Right Panel - Screenshot Preview */}
+          <div className="border border-border rounded-lg bg-muted/20 p-4 flex flex-col overflow-hidden">
+            <div className="flex items-center gap-2 mb-4">
+              <Camera className="h-4 w-4 text-primary" />
+              <h3 className="font-semibold text-sm">Screenshot Preview</h3>
             </div>
-            <div className="p-4 flex items-center justify-center min-h-[500px] bg-[#1a1a1a]">
+            <div className="flex-1 flex items-center justify-center min-h-[400px] bg-muted/20 rounded-lg overflow-hidden">
               {screenshot ? (
                 <img 
                   src={screenshot} 
                   alt="Browser screenshot" 
-                  className="max-w-full max-h-[500px] rounded border border-border shadow-lg"
+                  className="max-w-full max-h-full object-contain rounded"
                   data-testid="screenshot-preview"
                 />
               ) : (
@@ -332,10 +357,13 @@ export default function PlaywrightTestingPage() {
           </div>
         </div>
 
-        <div className="mt-4 text-xs text-muted-foreground">
-          <p>Tips: Start with Navigate to open a page. Use CSS selectors or data-testid attributes for interactions. Screenshots are captured in PNG format.</p>
+        {/* Footer Tips */}
+        <div className="border-t bg-card px-4 py-3 flex-shrink-0">
+          <p className="text-xs text-muted-foreground">
+            💡 Tips: Start with Navigate to open a page. Use CSS selectors or data-testid attributes for interactions. Screenshots are captured in PNG format.
+          </p>
         </div>
-      </div>
+      </main>
     </div>
   );
 }
