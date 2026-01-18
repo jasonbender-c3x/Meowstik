@@ -592,7 +592,7 @@ You can analyze data, read and write files, search the web, and interact with Go
     }
 
     // Build base system prompt from modular files with custom branding
-    let systemPrompt = this.getSystemPrompt(agentName, displayName);
+    let systemPrompt = await this.getSystemPrompt(agentName, displayName, { userId: options.userId });
 
     // Enrich system prompt with RAG context if user message exists
     if (options.textContent && options.textContent.trim()) {
