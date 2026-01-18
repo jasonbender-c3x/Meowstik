@@ -16,6 +16,17 @@ export interface LLMInteraction {
   
   // Input
   systemPrompt: string;
+  systemPromptBreakdown?: {
+    components: Array<{
+      name: string;
+      charCount: number;
+      lineCount: number;
+      tokenEstimate: number;
+    }>;
+    totalChars: number;
+    totalLines: number;
+    estimatedTokens: number;
+  };
   userMessage: string;
   conversationHistory: Array<{ role: string; content: string }>;
   attachments: Array<{ type: string; filename?: string; mimeType?: string; content?: string; size?: number }>;
@@ -40,6 +51,12 @@ export interface LLMInteraction {
   };
   error?: string;
   status?: string;
+  
+  // IO Log Files
+  ioLogFiles?: {
+    inputLog: string;   // Filename of input log
+    outputLog: string;  // Filename of output log
+  };
 }
 
 class LLMDebugBuffer {
