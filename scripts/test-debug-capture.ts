@@ -39,4 +39,7 @@ async function main() {
   console.log('To verify the complete flow, start the dev server and send a chat message.\n');
 }
 
-main();
+main().catch(error => {
+  console.error('Test failed with error:', error);
+  process.exit(1);
+});
