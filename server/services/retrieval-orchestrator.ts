@@ -237,6 +237,18 @@ export class RetrievalOrchestrator {
   }
 
   async enrichPrompt(userMessage: string, systemContext: string = '', userId?: string | null): Promise<string> {
+    const { enrichedPrompt } = await this.enrichPromptWithContext(userMessage, systemContext, userId);
+    return enrichedPrompt;
+  }
+
+  /**
+   * Enrich prompt and return both the enriched prompt and the retrieval result for debug logging
+   * This is the base implementation that enrichPrompt() calls
+   */
+  async enrichPromptWithContext(userMessage: string, systemContext: string = '', userId?: string | null): Promise<{
+    enrichedPrompt: string;
+    retrievalResult: RetrievalResult;
+  }> {
     const retrievalResult = await this.retrieve({
       query: userMessage,
       maxTokens: 4000,
@@ -246,11 +258,14 @@ export class RetrievalOrchestrator {
 
     const knowledgeContext = this.formatForPrompt(retrievalResult);
 
-    if (!knowledgeContext) {
-      return systemContext;
-    }
+    const enrichedPrompt = !knowledgeContext 
+      ? systemContext
+      : `${systemContext}\n\n<retrieved_knowledge>\n${knowledgeContext}\n</retrieved_knowledge>`;
 
-    return `${systemContext}\n\n<retrieved_knowledge>\n${knowledgeContext}\n</retrieved_knowledge>`;
+    return {
+      enrichedPrompt,
+      retrievalResult,
+    };
   }
 
   async getStats(): Promise<{

@@ -46,6 +46,25 @@ import * as fs from "fs";
 import * as path from "path";
 
 /**
+ * RAG context item retrieved from knowledge base
+ */
+export interface RagContextItem {
+  source: string;
+  content: string;
+  score?: number;
+  metadata?: Record<string, unknown>;
+}
+
+/**
+ * File injected into system prompt
+ */
+export interface InjectedFile {
+  filename: string;
+  content: string;
+  mimeType?: string;
+}
+
+/**
  * Composed prompt structure ready for LLM processing
  */
 export interface ComposedPrompt {
@@ -54,6 +73,9 @@ export interface ComposedPrompt {
   attachments: ComposedAttachment[];
   conversationHistory: ConversationTurn[];
   metadata: PromptMetadata;
+  // Debug information - what was injected into the system prompt
+  ragContext?: RagContextItem[];
+  injectedFiles?: InjectedFile[];
 }
 
 /**
@@ -494,18 +516,51 @@ You can analyze data, read and write files, search the web, and interact with Go
     // Build base system prompt from modular files with custom branding
     let systemPrompt = this.getSystemPrompt(agentName, displayName);
 
+    // Track RAG context for debug logging
+    let ragContext: RagContextItem[] = [];
+
     // Enrich system prompt with RAG context if user message exists
     if (options.textContent && options.textContent.trim()) {
       try {
         // Use retrieval orchestrator to get relevant knowledge and format it
-        const enrichedPrompt = await retrievalOrchestrator.enrichPrompt(
+        const { enrichedPrompt, retrievalResult } = await retrievalOrchestrator.enrichPromptWithContext(
           options.textContent,
-          systemPrompt
+          systemPrompt,
+          options.userId
         );
         systemPrompt = enrichedPrompt;
+        
+        // Capture RAG context for debug logging
+        ragContext = retrievalResult.items.map(item => ({
+          source: item.type,
+          content: item.content,
+          score: item.score,
+          metadata: item.metadata,
+        }));
       } catch (error) {
         console.warn(`[PromptComposer] RAG enrichment failed for query "${options.textContent.slice(0, 50)}...", continuing without enrichment:`, error);
       }
+    }
+
+    // Capture injected files for debug logging
+    const injectedFiles: InjectedFile[] = [];
+    
+    // Add cache.md if it was loaded
+    if (this.cache && this.cache.trim()) {
+      injectedFiles.push({
+        filename: 'cache.md',
+        content: this.cache,
+        mimeType: 'text/markdown',
+      });
+    }
+    
+    // Add Short_Term_Memory.md if it was loaded
+    if (this.shortTermMemory && this.shortTermMemory.trim()) {
+      injectedFiles.push({
+        filename: 'Short_Term_Memory.md',
+        content: this.shortTermMemory,
+        mimeType: 'text/markdown',
+      });
     }
 
     // Process attachments into composed format
@@ -559,6 +614,8 @@ You can analyze data, read and write files, search the web, and interact with Go
         hasScreenshots,
         composedAt: new Date(),
       },
+      ragContext: ragContext.length > 0 ? ragContext : undefined,
+      injectedFiles: injectedFiles.length > 0 ? injectedFiles : undefined,
     };
   }
 }
