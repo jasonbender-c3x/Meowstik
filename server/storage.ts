@@ -46,7 +46,22 @@ import {
   UserBranding,
   InsertUserAgent,
   UserAgent,
-  InsertAttachment
+  InsertAttachment,
+  InsertLlmUsage,
+  InsertLlmInteraction,
+  InsertGoogleOAuthTokens,
+  InsertDocumentChunk,
+  InsertRagTrace,
+  InsertQueuedTask,
+  InsertToolCallLog,
+  InsertWorkflow,
+  InsertTrigger,
+  InsertSchedule,
+  InsertAgentIdentity,
+  InsertAgentActivityLog,
+  InsertFeedback,
+  InsertToolTask,
+  InsertExecutionLog
 } from '@shared/schema';
 
 // ===========================================================================
@@ -623,5 +638,1086 @@ export const storage = {
       );
 
     return result.rowCount ?? 0;
+  },
+
+  // ------------------------------------------------------------------------
+  // LLM Usage Tracking Operations
+  // ------------------------------------------------------------------------
+
+  /**
+   * Log LLM token usage for analytics
+   * @param usage - Usage data including tokens and model info
+   * @returns The created usage log
+   */
+  logLlmUsage: async (usage: schema.InsertLlmUsage) => {
+    const [created] = await db
+      .insert(schema.llmUsage)
+      .values(usage)
+      .returning();
+    return created;
+  },
+
+  /**
+   * Get LLM usage for a specific chat
+   * @param chatId - The chat ID
+   * @returns Array of usage logs
+   */
+  getLlmUsageByChat: async (chatId: string) => {
+    return db.query.llmUsage.findMany({
+      where: eq(schema.llmUsage.chatId, chatId),
+      orderBy: (usage, { desc }) => [desc(usage.createdAt)],
+    });
+  },
+
+  /**
+   * Get recent LLM usage logs
+   * @param limit - Number of logs to return (default: 100)
+   * @returns Array of recent usage logs
+   */
+  getRecentLlmUsage: async (limit: number = 100) => {
+    return db.query.llmUsage.findMany({
+      orderBy: (usage, { desc }) => [desc(usage.createdAt)],
+      limit,
+    });
+  },
+
+  /**
+   * Get aggregated LLM usage statistics
+   * @returns Usage statistics
+   */
+  getLlmUsageStats: async () => {
+    const result = await db
+      .select({
+        totalPromptTokens: sql<number>`SUM(${schema.llmUsage.promptTokens})`,
+        totalCompletionTokens: sql<number>`SUM(${schema.llmUsage.completionTokens})`,
+        totalTokens: sql<number>`SUM(${schema.llmUsage.totalTokens})`,
+        totalCalls: sql<number>`COUNT(*)`,
+        avgDuration: sql<number>`AVG(${schema.llmUsage.durationMs})`,
+      })
+      .from(schema.llmUsage);
+    return result[0] || {
+      totalPromptTokens: 0,
+      totalCompletionTokens: 0,
+      totalTokens: 0,
+      totalCalls: 0,
+      avgDuration: 0,
+    };
+  },
+
+  // ------------------------------------------------------------------------
+  // LLM Debug Interactions Operations
+  // ------------------------------------------------------------------------
+
+  /**
+   * Save an LLM interaction for debugging
+   * @param interaction - Interaction data
+   * @returns The created interaction log
+   */
+  saveLlmInteraction: async (interaction: schema.InsertLlmInteraction) => {
+    const [created] = await db
+      .insert(schema.llmInteractions)
+      .values(interaction)
+      .returning();
+    return created;
+  },
+
+  /**
+   * Get LLM interactions for a chat
+   * @param chatId - The chat ID
+   * @param limit - Number of interactions to return
+   * @returns Array of interaction logs
+   */
+  getLlmInteractionsByChat: async (chatId: string, limit: number = 50) => {
+    return db.query.llmInteractions.findMany({
+      where: eq(schema.llmInteractions.chatId, chatId),
+      orderBy: (interactions, { desc }) => [desc(interactions.createdAt)],
+      limit,
+    });
+  },
+
+  /**
+   * Get a specific LLM interaction by ID
+   * @param id - The interaction ID
+   * @returns The interaction log or null
+   */
+  getLlmInteractionById: async (id: string) => {
+    const result = await db.query.llmInteractions.findFirst({
+      where: eq(schema.llmInteractions.id, id),
+    });
+    return result || null;
+  },
+
+  /**
+   * Get recent LLM interactions
+   * @param limit - Number of interactions to return (default: 100)
+   * @returns Array of recent interaction logs
+   */
+  getRecentLlmInteractions: async (limit: number = 100) => {
+    return db.query.llmInteractions.findMany({
+      orderBy: (interactions, { desc }) => [desc(interactions.createdAt)],
+      limit,
+    });
+  },
+
+  /**
+   * Get LLM interaction statistics
+   * @returns Interaction statistics
+   */
+  getLlmInteractionStats: async () => {
+    const result = await db
+      .select({
+        totalInteractions: sql<number>`COUNT(*)`,
+        avgDuration: sql<number>`AVG(${schema.llmInteractions.durationMs})`,
+        totalErrors: sql<number>`COUNT(CASE WHEN ${schema.llmInteractions.error} IS NOT NULL THEN 1 END)`,
+      })
+      .from(schema.llmInteractions);
+    return result[0] || {
+      totalInteractions: 0,
+      avgDuration: 0,
+      totalErrors: 0,
+    };
+  },
+
+  /**
+   * Delete old LLM interactions (for cleanup)
+   * @param daysOld - Delete interactions older than this many days
+   * @returns Number of deleted rows
+   */
+  deleteOldLlmInteractions: async (daysOld: number = 30) => {
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - daysOld);
+    
+    const result = await db
+      .delete(schema.llmInteractions)
+      .where(sql`${schema.llmInteractions.createdAt} < ${cutoffDate}`);
+    
+    return result.rowCount ?? 0;
+  },
+
+  // ------------------------------------------------------------------------
+  // Google OAuth Token Operations
+  // ------------------------------------------------------------------------
+
+  /**
+   * Save Google OAuth tokens for a user
+   * @param tokens - Token data
+   * @returns The created/updated token record
+   */
+  saveGoogleTokens: async (tokens: InsertGoogleOAuthTokens) => {
+    // Upsert: update if exists, insert if not
+    const existing = await db.query.googleOAuthTokens.findFirst({
+      where: eq(schema.googleOAuthTokens.userId, tokens.userId),
+    });
+
+    if (existing) {
+      const [updated] = await db
+        .update(schema.googleOAuthTokens)
+        .set({ ...tokens, updatedAt: new Date() })
+        .where(eq(schema.googleOAuthTokens.userId, tokens.userId))
+        .returning();
+      return updated;
+    } else {
+      const [created] = await db
+        .insert(schema.googleOAuthTokens)
+        .values(tokens)
+        .returning();
+      return created;
+    }
+  },
+
+  /**
+   * Get Google OAuth tokens for a user
+   * @param userId - The user ID
+   * @returns The token record or null
+   */
+  getGoogleTokens: async (userId: string) => {
+    const result = await db.query.googleOAuthTokens.findFirst({
+      where: eq(schema.googleOAuthTokens.userId, userId),
+    });
+    return result || null;
+  },
+
+  /**
+   * Delete Google OAuth tokens for a user
+   * @param userId - The user ID
+   * @returns True if deleted
+   */
+  deleteGoogleTokens: async (userId: string): Promise<boolean> => {
+    const result = await db
+      .delete(schema.googleOAuthTokens)
+      .where(eq(schema.googleOAuthTokens.userId, userId));
+    return (result.rowCount ?? 0) > 0;
+  },
+
+  // ------------------------------------------------------------------------
+  // User Operations (Additional)
+  // ------------------------------------------------------------------------
+
+  /**
+   * Upsert a user (create or update)
+   * @param user - User data
+   * @returns The created/updated user
+   */
+  upsertUser: async (user: InsertUser) => {
+    const existing = await db.query.users.findFirst({
+      where: eq(schema.users.id, user.id),
+    });
+
+    if (existing) {
+      const [updated] = await db
+        .update(schema.users)
+        .set({ ...user, updatedAt: new Date() })
+        .where(eq(schema.users.id, user.id))
+        .returning();
+      return updated[0];
+    } else {
+      const result = await db.insert(schema.users).values(user).returning();
+      return result[0];
+    }
+  },
+
+  /**
+   * Get recent user messages across all chats
+   * @param userId - The user ID
+   * @param limit - Number of messages to return
+   * @returns Array of recent user messages
+   */
+  getRecentUserMessages: async (userId: string, limit: number = 50) => {
+    return db
+      .select({
+        message: schema.messages,
+        chat: schema.chats,
+      })
+      .from(schema.messages)
+      .innerJoin(schema.chats, eq(schema.messages.chatId, schema.chats.id))
+      .where(
+        sql`${schema.chats.userId} = ${userId} AND ${schema.messages.role} = 'user'`
+      )
+      .orderBy(sql`${schema.messages.createdAt} DESC`)
+      .limit(limit);
+  },
+
+  // ------------------------------------------------------------------------
+  // RAG (Retrieval Augmented Generation) Operations
+  // ------------------------------------------------------------------------
+
+  /**
+   * Create a document chunk for RAG
+   * @param chunk - Chunk data
+   * @returns The created chunk
+   */
+  createDocumentChunk: async (chunk: schema.InsertDocumentChunk) => {
+    const [created] = await db
+      .insert(schema.documentChunks)
+      .values(chunk)
+      .returning();
+    return created;
+  },
+
+  /**
+   * Get all document chunks (with optional filters)
+   * @param filters - Optional filters
+   * @returns Array of chunks
+   */
+  getAllDocumentChunks: async (filters?: { chatId?: string; sourceType?: string; limit?: number }) => {
+    let query = db.query.documentChunks.findMany({
+      orderBy: (chunks, { desc }) => [desc(chunks.createdAt)],
+    });
+
+    if (filters?.limit) {
+      query = db.query.documentChunks.findMany({
+        orderBy: (chunks, { desc }) => [desc(chunks.createdAt)],
+        limit: filters.limit,
+      });
+    }
+
+    return query;
+  },
+
+  /**
+   * Create RAG trace logs
+   * @param traces - Array of trace data
+   * @returns The created traces
+   */
+  createRagTraces: async (traces: schema.InsertRagTrace[]) => {
+    return db.insert(schema.ragTraces).values(traces).returning();
+  },
+
+  /**
+   * Get RAG traces by trace ID
+   * @param traceId - The trace ID
+   * @returns Array of traces
+   */
+  getRagTracesByTraceId: async (traceId: string) => {
+    return db.query.ragTraces.findMany({
+      where: eq(schema.ragTraces.traceId, traceId),
+      orderBy: (traces, { desc }) => [desc(traces.timestamp)],
+    });
+  },
+
+  /**
+   * Get RAG traces (recent)
+   * @param limit - Number of traces to return
+   * @returns Array of traces
+   */
+  getRagTraces: async (limit: number = 100) => {
+    return db.query.ragTraces.findMany({
+      orderBy: (traces, { desc }) => [desc(traces.timestamp)],
+      limit,
+    });
+  },
+
+  /**
+   * Get RAG metrics
+   * @returns RAG performance metrics
+   */
+  getRagMetrics: async () => {
+    const result = await db
+      .select({
+        totalQueries: sql<number>`COUNT(DISTINCT ${schema.ragTraces.traceId})`,
+        avgLatency: sql<number>`AVG(${schema.ragTraces.latencyMs})`,
+        totalChunksRetrieved: sql<number>`COUNT(*)`,
+      })
+      .from(schema.ragTraces)
+      .where(eq(schema.ragTraces.operation, 'retrieve'));
+    
+    return result[0] || {
+      totalQueries: 0,
+      avgLatency: 0,
+      totalChunksRetrieved: 0,
+    };
+  },
+
+  /**
+   * Get chunk lineage for a chunk
+   * @param chunkId - The chunk ID
+   * @returns Lineage record or null
+   */
+  getChunkLineage: async (chunkId: string) => {
+    const result = await db.query.ragChunkLineage.findFirst({
+      where: eq(schema.ragChunkLineage.chunkId, chunkId),
+    });
+    return result || null;
+  },
+
+  /**
+   * Get retrieval results for a chunk
+   * @param chunkId - The chunk ID
+   * @returns Array of retrieval results
+   */
+  getRetrievalResultsByChunk: async (chunkId: string) => {
+    return db.query.ragRetrievalResults.findMany({
+      where: eq(schema.ragRetrievalResults.chunkId, chunkId),
+      orderBy: (results, { desc }) => [desc(results.retrievedAt)],
+    });
+  },
+
+  // ------------------------------------------------------------------------
+  // Task Queue Operations
+  // ------------------------------------------------------------------------
+
+  /**
+   * Create a queued task
+   * @param task - Task data
+   * @returns The created task
+   */
+  createQueuedTask: async (task: schema.InsertQueuedTask) => {
+    const [created] = await db
+      .insert(schema.queuedTasks)
+      .values(task)
+      .returning();
+    return created;
+  },
+
+  /**
+   * Create multiple queued tasks
+   * @param tasks - Array of task data
+   * @returns The created tasks
+   */
+  createQueuedTasks: async (tasks: schema.InsertQueuedTask[]) => {
+    return db.insert(schema.queuedTasks).values(tasks).returning();
+  },
+
+  /**
+   * Get a queued task by ID
+   * @param taskId - The task ID
+   * @returns The task or null
+   */
+  getQueuedTaskById: async (taskId: string) => {
+    const result = await db.query.queuedTasks.findFirst({
+      where: eq(schema.queuedTasks.id, taskId),
+    });
+    return result || null;
+  },
+
+  /**
+   * Get queued tasks (with optional filters)
+   * @param filters - Optional filters
+   * @returns Array of tasks
+   */
+  getQueuedTasks: async (filters?: { status?: string; limit?: number }) => {
+    if (filters?.status) {
+      return db.query.queuedTasks.findMany({
+        where: eq(schema.queuedTasks.status, filters.status),
+        orderBy: (tasks, { asc }) => [asc(tasks.priority), asc(tasks.createdAt)],
+        limit: filters?.limit,
+      });
+    }
+    
+    return db.query.queuedTasks.findMany({
+      orderBy: (tasks, { asc }) => [asc(tasks.priority), asc(tasks.createdAt)],
+      limit: filters?.limit,
+    });
+  },
+
+  /**
+   * Get queued tasks by parent ID
+   * @param parentId - The parent task ID
+   * @returns Array of child tasks
+   */
+  getQueuedTasksByParentId: async (parentId: string) => {
+    return db.query.queuedTasks.findMany({
+      where: eq(schema.queuedTasks.parentId, parentId),
+      orderBy: (tasks, { asc }) => [asc(tasks.priority), asc(tasks.createdAt)],
+    });
+  },
+
+  /**
+   * Get the next pending task from the queue
+   * @returns The next task or null
+   */
+  getNextPendingTask: async () => {
+    const result = await db.query.queuedTasks.findFirst({
+      where: eq(schema.queuedTasks.status, 'pending'),
+      orderBy: (tasks, { asc }) => [asc(tasks.priority), asc(tasks.createdAt)],
+    });
+    return result || null;
+  },
+
+  /**
+   * Get tasks waiting for input
+   * @returns Array of tasks
+   */
+  getTasksWaitingForInput: async () => {
+    return db.query.queuedTasks.findMany({
+      where: eq(schema.queuedTasks.status, 'waiting_input'),
+      orderBy: (tasks, { asc }) => [asc(tasks.createdAt)],
+    });
+  },
+
+  /**
+   * Update a queued task
+   * @param taskId - The task ID
+   * @param updates - Fields to update
+   * @returns The updated task
+   */
+  updateQueuedTask: async (taskId: string, updates: Partial<schema.InsertQueuedTask>) => {
+    const [updated] = await db
+      .update(schema.queuedTasks)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(schema.queuedTasks.id, taskId))
+      .returning();
+    return updated || null;
+  },
+
+  /**
+   * Delete a queued task
+   * @param taskId - The task ID
+   * @returns True if deleted
+   */
+  deleteQueuedTask: async (taskId: string): Promise<boolean> => {
+    const result = await db
+      .delete(schema.queuedTasks)
+      .where(eq(schema.queuedTasks.id, taskId));
+    return (result.rowCount ?? 0) > 0;
+  },
+
+  /**
+   * Get queue statistics
+   * @returns Queue stats
+   */
+  getQueueStats: async () => {
+    const result = await db
+      .select({
+        totalTasks: sql<number>`COUNT(*)`,
+        pendingTasks: sql<number>`COUNT(CASE WHEN ${schema.queuedTasks.status} = 'pending' THEN 1 END)`,
+        runningTasks: sql<number>`COUNT(CASE WHEN ${schema.queuedTasks.status} = 'running' THEN 1 END)`,
+        completedTasks: sql<number>`COUNT(CASE WHEN ${schema.queuedTasks.status} = 'completed' THEN 1 END)`,
+        failedTasks: sql<number>`COUNT(CASE WHEN ${schema.queuedTasks.status} = 'failed' THEN 1 END)`,
+      })
+      .from(schema.queuedTasks);
+    
+    return result[0] || {
+      totalTasks: 0,
+      pendingTasks: 0,
+      runningTasks: 0,
+      completedTasks: 0,
+      failedTasks: 0,
+    };
+  },
+
+  // ------------------------------------------------------------------------
+  // Workflows & Triggers Operations
+  // ------------------------------------------------------------------------
+
+  /**
+   * Create a workflow
+   * @param workflow - Workflow data
+   * @returns The created workflow
+   */
+  createWorkflow: async (workflow: schema.InsertWorkflow) => {
+    const [created] = await db
+      .insert(schema.workflows)
+      .values(workflow)
+      .returning();
+    return created;
+  },
+
+  /**
+   * Get a workflow by ID
+   * @param workflowId - The workflow ID
+   * @returns The workflow or null
+   */
+  getWorkflowById: async (workflowId: string) => {
+    const result = await db.query.workflows.findFirst({
+      where: eq(schema.workflows.id, workflowId),
+    });
+    return result || null;
+  },
+
+  /**
+   * Get all workflows for a user
+   * @param userId - The user ID
+   * @returns Array of workflows
+   */
+  getWorkflows: async (userId: string) => {
+    return db.query.workflows.findMany({
+      where: eq(schema.workflows.userId, userId),
+      orderBy: (workflows, { desc }) => [desc(workflows.createdAt)],
+    });
+  },
+
+  /**
+   * Update a workflow
+   * @param workflowId - The workflow ID
+   * @param updates - Fields to update
+   * @returns The updated workflow
+   */
+  updateWorkflow: async (workflowId: string, updates: Partial<schema.InsertWorkflow>) => {
+    const [updated] = await db
+      .update(schema.workflows)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(schema.workflows.id, workflowId))
+      .returning();
+    return updated || null;
+  },
+
+  /**
+   * Delete a workflow
+   * @param workflowId - The workflow ID
+   * @returns True if deleted
+   */
+  deleteWorkflow: async (workflowId: string): Promise<boolean> => {
+    const result = await db
+      .delete(schema.workflows)
+      .where(eq(schema.workflows.id, workflowId));
+    return (result.rowCount ?? 0) > 0;
+  },
+
+  /**
+   * Create a trigger
+   * @param trigger - Trigger data
+   * @returns The created trigger
+   */
+  createTrigger: async (trigger: schema.InsertTrigger) => {
+    const [created] = await db
+      .insert(schema.triggers)
+      .values(trigger)
+      .returning();
+    return created;
+  },
+
+  /**
+   * Get a trigger by ID
+   * @param triggerId - The trigger ID
+   * @returns The trigger or null
+   */
+  getTriggerById: async (triggerId: string) => {
+    const result = await db.query.triggers.findFirst({
+      where: eq(schema.triggers.id, triggerId),
+    });
+    return result || null;
+  },
+
+  /**
+   * Get all triggers
+   * @returns Array of triggers
+   */
+  getTriggers: async () => {
+    return db.query.triggers.findMany({
+      orderBy: (triggers, { desc }) => [desc(triggers.createdAt)],
+    });
+  },
+
+  /**
+   * Get triggers by type
+   * @param type - The trigger type
+   * @returns Array of triggers
+   */
+  getTriggersByType: async (type: string) => {
+    return db.query.triggers.findMany({
+      where: eq(schema.triggers.type, type),
+      orderBy: (triggers, { desc }) => [desc(triggers.createdAt)],
+    });
+  },
+
+  /**
+   * Update a trigger
+   * @param triggerId - The trigger ID
+   * @param updates - Fields to update
+   * @returns The updated trigger
+   */
+  updateTrigger: async (triggerId: string, updates: Partial<schema.InsertTrigger>) => {
+    const [updated] = await db
+      .update(schema.triggers)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(schema.triggers.id, triggerId))
+      .returning();
+    return updated || null;
+  },
+
+  /**
+   * Delete a trigger
+   * @param triggerId - The trigger ID
+   * @returns True if deleted
+   */
+  deleteTrigger: async (triggerId: string): Promise<boolean> => {
+    const result = await db
+      .delete(schema.triggers)
+      .where(eq(schema.triggers.id, triggerId));
+    return (result.rowCount ?? 0) > 0;
+  },
+
+  // ------------------------------------------------------------------------
+  // Schedules Operations
+  // ------------------------------------------------------------------------
+
+  /**
+   * Create a schedule
+   * @param schedule - Schedule data
+   * @returns The created schedule
+   */
+  createSchedule: async (schedule: schema.InsertSchedule) => {
+    const [created] = await db
+      .insert(schema.schedules)
+      .values(schedule)
+      .returning();
+    return created;
+  },
+
+  /**
+   * Get a schedule by ID
+   * @param scheduleId - The schedule ID
+   * @returns The schedule or null
+   */
+  getScheduleById: async (scheduleId: string) => {
+    const result = await db.query.schedules.findFirst({
+      where: eq(schema.schedules.id, scheduleId),
+    });
+    return result || null;
+  },
+
+  /**
+   * Get all schedules for a user
+   * @param userId - The user ID
+   * @returns Array of schedules
+   */
+  getSchedules: async (userId: string) => {
+    return db.query.schedules.findMany({
+      where: eq(schema.schedules.userId, userId),
+      orderBy: (schedules, { asc }) => [asc(schedules.nextRun)],
+    });
+  },
+
+  /**
+   * Get due schedules
+   * @returns Array of schedules that should run now
+   */
+  getDueSchedules: async () => {
+    const now = new Date();
+    return db.query.schedules.findMany({
+      where: (schedules, { and, eq, lte }) => and(
+        eq(schedules.enabled, true),
+        lte(schedules.nextRun, now)
+      ),
+      orderBy: (schedules, { asc }) => [asc(schedules.nextRun)],
+    });
+  },
+
+  /**
+   * Update a schedule
+   * @param scheduleId - The schedule ID
+   * @param updates - Fields to update
+   * @returns The updated schedule
+   */
+  updateSchedule: async (scheduleId: string, updates: Partial<schema.InsertSchedule>) => {
+    const [updated] = await db
+      .update(schema.schedules)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(schema.schedules.id, scheduleId))
+      .returning();
+    return updated || null;
+  },
+
+  /**
+   * Delete a schedule
+   * @param scheduleId - The schedule ID
+   * @returns True if deleted
+   */
+  deleteSchedule: async (scheduleId: string): Promise<boolean> => {
+    const result = await db
+      .delete(schema.schedules)
+      .where(eq(schema.schedules.id, scheduleId));
+    return (result.rowCount ?? 0) > 0;
+  },
+
+  // ------------------------------------------------------------------------
+  // Agent Identity & Activity Operations
+  // ------------------------------------------------------------------------
+
+  /**
+   * Create an agent identity
+   * @param identity - Identity data
+   * @returns The created identity
+   */
+  createAgentIdentity: async (identity: schema.InsertAgentIdentity) => {
+    const [created] = await db
+      .insert(schema.agentIdentities)
+      .values(identity)
+      .returning();
+    return created;
+  },
+
+  /**
+   * Get agent identities for a user
+   * @param userId - The user ID
+   * @returns Array of identities
+   */
+  getAgentIdentities: async (userId: string) => {
+    return db.query.agentIdentities.findMany({
+      where: eq(schema.agentIdentities.userId, userId),
+      orderBy: (identities, { desc }) => [desc(identities.createdAt)],
+    });
+  },
+
+  /**
+   * Get an agent by ID
+   * @param agentId - The agent ID
+   * @returns The agent identity or null
+   */
+  getAgentById: async (agentId: string) => {
+    const result = await db.query.agentIdentities.findFirst({
+      where: eq(schema.agentIdentities.id, agentId),
+    });
+    return result || null;
+  },
+
+  /**
+   * Get an agent by name
+   * @param userId - The user ID
+   * @param name - The agent name
+   * @returns The agent identity or null
+   */
+  getAgentByName: async (userId: string, name: string) => {
+    const result = await db.query.agentIdentities.findFirst({
+      where: (identities, { and, eq }) => and(
+        eq(identities.userId, userId),
+        eq(identities.name, name)
+      ),
+    });
+    return result || null;
+  },
+
+  /**
+   * Get enabled agents for a user
+   * @param userId - The user ID
+   * @returns Array of enabled agents
+   */
+  getEnabledAgents: async (userId: string) => {
+    return db.query.agentIdentities.findMany({
+      where: (identities, { and, eq }) => and(
+        eq(identities.userId, userId),
+        eq(identities.enabled, true)
+      ),
+      orderBy: (identities, { desc }) => [desc(identities.createdAt)],
+    });
+  },
+
+  /**
+   * Update an agent identity
+   * @param agentId - The agent ID
+   * @param updates - Fields to update
+   * @returns The updated identity
+   */
+  updateAgentIdentity: async (agentId: string, updates: Partial<schema.InsertAgentIdentity>) => {
+    const [updated] = await db
+      .update(schema.agentIdentities)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(schema.agentIdentities.id, agentId))
+      .returning();
+    return updated || null;
+  },
+
+  /**
+   * Log agent activity
+   * @param activity - Activity data
+   * @returns The created activity log
+   */
+  logAgentActivity: async (activity: InsertAgentActivityLog) => {
+    const [created] = await db
+      .insert(schema.agentActivityLog)
+      .values(activity)
+      .returning();
+    return created;
+  },
+
+  /**
+   * Get agent activity logs
+   * @param agentId - The agent ID
+   * @param limit - Number of logs to return
+   * @returns Array of activity logs
+   */
+  getAgentActivity: async (agentId: string, limit: number = 50) => {
+    return db.query.agentActivityLog.findMany({
+      where: eq(schema.agentActivityLog.agentId, agentId),
+      orderBy: (logs, { desc }) => [desc(logs.timestamp)],
+      limit,
+    });
+  },
+
+  /**
+   * Get recent agent activity across all agents
+   * @param limit - Number of logs to return
+   * @returns Array of activity logs
+   */
+  getRecentAgentActivity: async (limit: number = 100) => {
+    return db.query.agentActivityLog.findMany({
+      orderBy: (logs, { desc }) => [desc(logs.timestamp)],
+      limit,
+    });
+  },
+
+  // ------------------------------------------------------------------------
+  // Feedback Operations
+  // ------------------------------------------------------------------------
+
+  /**
+   * Create feedback
+   * @param feedback - Feedback data
+   * @returns The created feedback
+   */
+  createFeedback: async (feedback: schema.InsertFeedback) => {
+    const [created] = await db
+      .insert(schema.feedback)
+      .values(feedback)
+      .returning();
+    return created;
+  },
+
+  /**
+   * Get feedback by ID
+   * @param feedbackId - The feedback ID
+   * @returns The feedback or null
+   */
+  getFeedback: async (feedbackId: string) => {
+    const result = await db.query.feedback.findFirst({
+      where: eq(schema.feedback.id, feedbackId),
+    });
+    return result || null;
+  },
+
+  /**
+   * Mark feedback as submitted
+   * @param feedbackId - The feedback ID
+   * @returns The updated feedback
+   */
+  markFeedbackSubmitted: async (feedbackId: string) => {
+    const [updated] = await db
+      .update(schema.feedback)
+      .set({ submittedAt: new Date() })
+      .where(eq(schema.feedback.id, feedbackId))
+      .returning();
+    return updated || null;
+  },
+
+  /**
+   * Get feedback statistics
+   * @returns Feedback stats
+   */
+  getFeedbackStats: async () => {
+    const result = await db
+      .select({
+        totalFeedback: sql<number>`COUNT(*)`,
+        submittedFeedback: sql<number>`COUNT(CASE WHEN ${schema.feedback.submittedAt} IS NOT NULL THEN 1 END)`,
+        avgRating: sql<number>`AVG(${schema.feedback.rating})`,
+      })
+      .from(schema.feedback);
+    
+    return result[0] || {
+      totalFeedback: 0,
+      submittedFeedback: 0,
+      avgRating: 0,
+    };
+  },
+
+  // ------------------------------------------------------------------------
+  // Tool Tasks & Execution Logs Operations
+  // ------------------------------------------------------------------------
+
+  /**
+   * Create a tool task
+   * @param task - Tool task data
+   * @returns The created task
+   */
+  createToolTask: async (task: schema.InsertToolTask) => {
+    const [created] = await db
+      .insert(schema.toolTasks)
+      .values(task)
+      .returning();
+    return created;
+  },
+
+  /**
+   * Update tool task status
+   * @param taskId - The task ID
+   * @param status - New status
+   * @param result - Optional result data
+   * @returns The updated task
+   */
+  updateToolTaskStatus: async (taskId: string, status: string, result?: any) => {
+    const updates: any = { status, updatedAt: new Date() };
+    if (result !== undefined) {
+      updates.result = result;
+    }
+    if (status === 'completed' || status === 'failed') {
+      updates.completedAt = new Date();
+    }
+    
+    const [updated] = await db
+      .update(schema.toolTasks)
+      .set(updates)
+      .where(eq(schema.toolTasks.id, taskId))
+      .returning();
+    return updated || null;
+  },
+
+  /**
+   * Create an execution log
+   * @param log - Execution log data
+   * @returns The created log
+   */
+  createExecutionLog: async (log: schema.InsertExecutionLog) => {
+    const [created] = await db
+      .insert(schema.executionLogs)
+      .values(log)
+      .returning();
+    return created;
+  },
+
+  // ------------------------------------------------------------------------
+  // Debug & Admin Operations
+  // ------------------------------------------------------------------------
+
+  /**
+   * Get the database connection for raw queries
+   * @returns The Drizzle db instance
+   */
+  getDb: () => {
+    return db;
+  },
+
+  /**
+   * Get debug database information
+   * @returns Database connection and table info
+   */
+  getDebugDatabaseInfo: async () => {
+    try {
+      // Get table counts
+      const chatCount = await db.select({ count: sql<number>`count(*)` }).from(schema.chats);
+      const messageCount = await db.select({ count: sql<number>`count(*)` }).from(schema.messages);
+      const userCount = await db.select({ count: sql<number>`count(*)` }).from(schema.users);
+      
+      return {
+        connected: true,
+        tables: {
+          chats: chatCount[0]?.count || 0,
+          messages: messageCount[0]?.count || 0,
+          users: userCount[0]?.count || 0,
+        },
+      };
+    } catch (error) {
+      return {
+        connected: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      };
+    }
+  },
+
+  /**
+   * Get data from any table (for debugging/admin)
+   * WARNING: Use with caution - bypasses normal access controls
+   * @param tableName - The table name
+   * @param limit - Number of rows to return
+   * @returns Array of rows
+   */
+  getTableData: async (tableName: string, limit: number = 100) => {
+    // This is intentionally generic and should be restricted to admin users
+    const table = (schema as any)[tableName];
+    if (!table) {
+      throw new Error(`Table ${tableName} not found`);
+    }
+    
+    return db.select().from(table).limit(limit);
+  },
+
+  /**
+   * Update a record in any table (for debugging/admin)
+   * WARNING: Use with caution - bypasses normal access controls
+   * @param tableName - The table name
+   * @param id - The record ID
+   * @param updates - Fields to update
+   * @returns The updated record
+   */
+  updateTableRecord: async (tableName: string, id: string, updates: any) => {
+    const table = (schema as any)[tableName];
+    if (!table) {
+      throw new Error(`Table ${tableName} not found`);
+    }
+    
+    const [updated] = await db
+      .update(table)
+      .set(updates)
+      .where(eq(table.id, id))
+      .returning();
+    return updated || null;
+  },
+
+  /**
+   * Delete a record from any table (for debugging/admin)
+   * WARNING: Use with caution - bypasses normal access controls
+   * @param tableName - The table name
+   * @param id - The record ID
+   * @returns True if deleted
+   */
+  deleteTableRecord: async (tableName: string, id: string): Promise<boolean> => {
+    const table = (schema as any)[tableName];
+    if (!table) {
+      throw new Error(`Table ${tableName} not found`);
+    }
+    
+    const result = await db
+      .delete(table)
+      .where(eq(table.id, id));
+    return (result.rowCount ?? 0) > 0;
   },
 };
