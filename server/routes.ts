@@ -1327,6 +1327,8 @@ The user has MUTE mode enabled. Minimize all output.
             filename: a.filename,
             mimeType: a.mimeType,
           })),
+          ragContext: composedPrompt.ragContext,
+          injectedFiles: composedPrompt.injectedFiles,
           rawResponse: fullResponse,
           parsedToolCalls: parsedResponse?.toolCalls || [],
           cleanContent: finalContent,
