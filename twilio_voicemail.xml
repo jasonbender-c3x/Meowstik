@@ -1,0 +1,5 @@
+<Response>
+    <Say>Hello. You've reached Jason's AI assistant. Please leave a message after the beep. I will transcribe it and send it to him immediately.</Say>
+    <Record transcribe="true" transcribeCallback="/handle-transcription" />
+    <Hangup/>
+</Response>

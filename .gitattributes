@@ -1,0 +1,7 @@
+# Memory log files - always merge, never overwrite
+logs/cache.md merge=union
+logs/execution.md merge=union
+logs/Short_Term_Memory.md merge=union
+logs/personal.md merge=union
+logs/replit.md merge=union
+logs/STM_APPEND.md merge=union

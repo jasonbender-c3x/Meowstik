@@ -1,0 +1,17 @@
+node_modules
+dist
+.DS_Store
+server/public
+vite.config.ts.*
+*.tar.gz 
+google-credentials.json
+attached_assets/*.json
+logs/
+repos/
+/icons/
+.env
+notebooklm-output/
+test-ssh-*.ts
+test-ssh-*.mjs
+test-tokenless-connection.ts
+client/src/pages/debug-old.tsx
