@@ -32,7 +32,7 @@ interface EnvironmentMetadata {
 }
 ```
 
-## Example Output
+## Example Output in System Prompts
 
 When included in a system prompt, the metadata appears as:
 
@@ -49,6 +49,70 @@ When included in a system prompt, the metadata appears as:
 - Available system resources and capabilities
 ```
 
+### Sample System Prompt Structure
+
+The environment metadata is strategically placed in the system prompt:
+
+```markdown
+# Agent Identity
+You are Meowstik AI, referred to as Meowstik.
+
+---
+
+# Environment Metadata
+
+**Environment**: `local`
+**Server Hostname**: `runnervmmtnos`
+
+*This metadata allows you to make context-aware decisions about:*
+- Which tools are available (e.g., ssh-keygen may be available locally but not in production)
+- Which secrets to use (production vs. development credentials)
+- Network constraints and firewall rules
+- Available system resources and capabilities
+
+---
+
+# Core Directives
+
+[... rest of core directives ...]
+
+---
+
+# Personality
+
+[... personality instructions ...]
+
+---
+
+# Tools
+
+[... tool definitions ...]
+
+---
+
+# Short-Term Memory
+
+[... persistent user-defined memory ...]
+
+---
+
+# Thoughts Forward (from last turn)
+
+[... cached thoughts from previous turn ...]
+
+---
+
+# FINAL INSTRUCTIONS (NON-NEGOTIABLE)
+
+[... mandatory final instructions ...]
+```
+
+**Position in Prompt:**
+1. **After** the Agent Identity section
+2. **Before** the Core Directives
+
+This ensures the AI is immediately aware of its environment context before reading its behavior instructions.
+
 ## Use Cases
 
 ### 1. Tool Availability Decisions
@@ -58,12 +122,28 @@ The AI can determine which tools are available based on the environment:
 - **Local Environment**: Full access to system tools like `ssh-keygen`, local file system operations, development tools
 - **Production Environment**: May have restricted tool access due to security policies
 
+**Example:**
+
+**User**: "Can you generate an SSH key for me?"
+
+**AI (seeing environment: local)**: "Yes! Since we're in a local environment, I can use the ssh-keygen tool. Let me create an SSH key pair for you..."
+
+**AI (seeing environment: production)**: "I'm running in a production environment where ssh-keygen may not be available due to security restrictions. Let me check what key generation tools are accessible..."
+
 ### 2. Secret Management
 
 The AI can choose the appropriate credentials:
 
 - **Local Environment**: Use development API keys, test credentials
 - **Production Environment**: Use production secrets, enforce stricter security
+
+**Example:**
+
+**User**: "Connect to the database."
+
+**AI (seeing environment: local)**: "I'll use the local development database credentials from .env file..."
+
+**AI (seeing environment: production)**: "I'll use the production database credentials from the secure secret store..."
 
 ### 3. Network Awareness
 
@@ -72,6 +152,12 @@ The hostname information helps with:
 - Logging and debugging (know which machine the AI is running on)
 - Understanding firewall constraints
 - Network topology awareness
+
+**Example:**
+
+**User**: "Why can't I access that external service?"
+
+**AI (seeing hostname: runnervmmtnos)**: "I can see we're running on 'runnervmmtnos'. Let me check the network configuration for this specific host..."
 
 ### 4. Resource Management
 
@@ -102,6 +188,19 @@ npx tsx scripts/test-prompt-integration.ts
 npx tsx scripts/demo-environment-metadata.ts
 
 # Test with production environment
+NODE_ENV=production npx tsx scripts/test-environment-metadata.ts
+```
+
+### Viewing the System Prompt
+
+You can see the actual system prompt by running:
+
+```bash
+# View the metadata section
+npx tsx scripts/demo-environment-metadata.ts
+
+# Test with different environments
+NODE_ENV=local npx tsx scripts/test-environment-metadata.ts
 NODE_ENV=production npx tsx scripts/test-environment-metadata.ts
 ```
 
@@ -163,6 +262,16 @@ NODE_ENV=production npm start
 
 The feature works out of the box with no additional configuration. The hostname is automatically detected from the system.
 
+## Impact
+
+This small change (just 2 lines of code in prompt-composer.ts) gives the AI powerful context awareness that enables:
+- **Smarter tool selection** based on environment
+- **Appropriate secret handling** for each context
+- **Better debugging** with hostname information
+- **Environment-specific behavior** when needed
+
+All of this happens automatically - no additional configuration required!
+
 ## Future Enhancements
 
 Potential future improvements could include:
@@ -180,3 +289,8 @@ Potential future improvements could include:
 - `scripts/test-environment-metadata.ts` - Unit tests
 - `scripts/test-prompt-integration.ts` - Integration tests
 - `scripts/demo-environment-metadata.ts` - Demo script
+
+---
+
+**Last Updated**: 2026-01-31  
+**Version**: 1.0.1 (Consolidated from environment-metadata.md and environment-metadata-example.md)
