@@ -117,7 +117,7 @@ await storage.logAgentActivity({
 | File | Purpose |
 |------|---------|
 | `docs/AGENT_ATTRIBUTION.md` | Complete documentation (9.5KB) |
-| `docs/BEFORE_AFTER_COMPARISON.md` | Before/after comparison (10.6KB) |
+| `docs/historical/exhibit/BEFORE_AFTER_COMPARISON.md` | Before/after comparison (10.6KB) |
 | `scripts/seed-agents.ts` | Initialize agents |
 | `scripts/demo-agent-attribution.ts` | Interactive demo |
 | `server/routes/agents.ts` | Agent management API |
@@ -193,7 +193,7 @@ Result:
 - **Documentation:** `docs/AGENT_ATTRIBUTION.md`
 - **Examples:** `server/services/agent-attribution-examples.ts`
 - **Scripts Guide:** `scripts/README.md`
-- **Before/After:** `docs/BEFORE_AFTER_COMPARISON.md`
+- **Before/After:** `docs/historical/exhibit/BEFORE_AFTER_COMPARISON.md`
 
 ## Status
 
