@@ -82,10 +82,11 @@ Twilio webhooks require a publicly accessible HTTPS URL. You cannot use `localho
 ### Option B: Deploy to Other Platforms
 
 Popular hosting options:
-- **Vercel**: `https://your-app.vercel.app/api/twilio/webhook/sms`
-- **Railway**: `https://your-app.railway.app/api/twilio/webhook/sms`
-- **Render**: `https://your-app.onrender.com/api/twilio/webhook/sms`
-- **Fly.io**: `https://your-app.fly.dev/api/twilio/webhook/sms`
+- **Production (meowstik.com)**: `https://meowstik.com/api/twilio/webhook/sms`
+- **Vercel**: `https://meowstik.vercel.app/api/twilio/webhook/sms`
+- **Railway**: `https://meowstik.railway.app/api/twilio/webhook/sms`
+- **Render**: `https://meowstik.onrender.com/api/twilio/webhook/sms`
+- **Fly.io**: `https://meowstik.fly.dev/api/twilio/webhook/sms`
 
 ### Option C: Local Development with ngrok
 
@@ -125,7 +126,7 @@ Once your server is running on a public URL, configure Twilio to send incoming S
    - Scroll down to the **Messaging Configuration** section
    - Under "A MESSAGE COMES IN":
      - Select **Webhook** from the dropdown
-     - Enter your full webhook URL: `https://your-domain.com/api/twilio/webhook/sms`
+     - Enter your full webhook URL: `https://meowstik.com/api/twilio/webhook/sms`
      - Set HTTP Method to **POST**
 
 5. **Save Configuration**: Click **Save** at the bottom of the page
@@ -134,13 +135,12 @@ Once your server is running on a public URL, configure Twilio to send incoming S
 
 Your webhook URL must be:
 ```
-https://your-production-domain.com/api/twilio/webhook/sms
+https://meowstik.com/api/twilio/webhook/sms
 ```
 
-Replace `your-production-domain.com` with:
-- Your Replit deployment URL
-- Your custom domain
-- Your ngrok URL (for testing only)
+This assumes you've deployed to your production domain `meowstik.com`. Alternatively:
+- Your Replit deployment URL (e.g., `https://meowstik.replit.app/api/twilio/webhook/sms`)
+- Your ngrok URL for testing (e.g., `https://abc123.ngrok.io/api/twilio/webhook/sms`)
 
 ## Step 4: Verify and Test
 
@@ -206,7 +206,7 @@ AI: I'm sorry, I can only share public information with unknown contacts. I can 
    - Ensure your server is running and publicly accessible
    - Test the URL directly in a browser or with curl:
      ```bash
-     curl https://your-domain.com/api/twilio/webhook/sms
+     curl https://meowstik.com/api/twilio/webhook/sms
      ```
    - Check server logs for errors or crashes
 
@@ -230,8 +230,8 @@ AI: I'm sorry, I can only share public information with unknown contacts. I can 
    - The URL configured in Twilio Console must **exactly** match what the server sees
    - Include protocol (https://), domain, and path
    - Example mismatch:
-     - Twilio Console: `https://example.com/api/twilio/webhook/sms`
-     - Server sees: `http://example.com/api/twilio/webhook/sms` (http vs https)
+     - Twilio Console: `https://meowstik.com/api/twilio/webhook/sms`
+     - Server sees: `http://meowstik.com/api/twilio/webhook/sms` (http vs https)
 
 3. **Development Mode Workaround**:
    - For local testing, set `NODE_ENV=development`
