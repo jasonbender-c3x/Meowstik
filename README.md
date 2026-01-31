@@ -214,7 +214,66 @@ Receive and respond to text messages with AI-powered SMS capabilities.
 His calendar shows a client meeting until 3 PM.
 ```
 
-### 10. Modern UI/UX
+### 10. RAG Knowledge Base 🧠
+
+**Retrieval-Augmented Generation (RAG)** - Store and retrieve information from a searchable knowledge base.
+
+- **Integrated RAG System**: Built directly into Meowstik (no separate service needed)
+- **file_ingest Tool**: Ingest documents, notes, and text into the knowledge base
+- **Semantic Search**: Automatically retrieve relevant information based on context
+- **Multiple Backends**: 
+  - **pgvector**: Production-ready (PostgreSQL + pgvector extension)
+  - **Vertex AI**: Managed by Google Cloud
+  - **Memory**: For testing and development
+- **Smart Chunking**: Documents split into semantically meaningful pieces
+- **Vector Embeddings**: Content converted to 768-dimensional vectors via Gemini
+- **User Data Isolation**: Each user's data is isolated for privacy
+- **Hybrid Search**: Combines semantic similarity with keyword matching
+
+> 📖 **User Guide**: See [docs/FILE_INGEST_GUIDE.md](docs/FILE_INGEST_GUIDE.md) for complete documentation on using the file_ingest tool
+> 
+> 📖 **Architecture**: See [docs/RAG_ARCHITECTURE.md](docs/RAG_ARCHITECTURE.md) for technical details on the integrated RAG system
+>
+> 📖 **Pipeline Details**: See [docs/exhibit/03-advanced-ai/RAG_PIPELINE.md](docs/exhibit/03-advanced-ai/RAG_PIPELINE.md) for the complete ingestion and retrieval flow
+
+#### Example Usage
+```json
+{
+  "type": "file_ingest",
+  "id": "kb1",
+  "parameters": {
+    "content": "# Python Best Practices\n\n- Use PEP 8 style guide\n- Write unit tests\n- Profile before optimizing",
+    "filename": "python_tips.md",
+    "mimeType": "text/markdown"
+  }
+}
+```
+
+**Returns:**
+```json
+{
+  "success": true,
+  "documentId": "doc-1234567890-abc123",
+  "chunksCreated": 3,
+  "message": "Successfully ingested python_tips.md into RAG system (3 chunks created)"
+}
+```
+
+#### Configuration
+```bash
+# Required for embeddings
+GEMINI_API_KEY=your_gemini_api_key
+
+# For production (pgvector backend)
+DATABASE_URL=postgresql://user:password@localhost:5432/meowstik
+VECTOR_STORE_BACKEND=pgvector  # or: vertex, memory
+
+# Vector configuration (defaults shown)
+VECTOR_DIMENSION=768
+VECTOR_METRIC=cosine
+```
+
+### 11. Modern UI/UX
 
 - **Google-esque Design**: Clean, airy aesthetic with lots of whitespace
 - **Responsive Layout**: Works on mobile, tablet, and desktop

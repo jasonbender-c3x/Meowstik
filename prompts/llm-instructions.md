@@ -24,16 +24,24 @@ PUT  /repos/{owner}/{repo}/contents/{path} → create/update file {message, cont
 // Save doc: file_put to knowledge/{category}/{name}.md
 {"type": "file_put", "parameters": {"path": "knowledge/apis/github-api.md", "content": "# GitHub API\n..."}}
 
-// Ingest for RAG: use file_ingest for semantic search
-{"type": "file_ingest", "parameters": {"content": "...", "filename": "github-api.md"}}
+// Ingest for RAG: use file_ingest to enable semantic search & auto-retrieval
+// Use for: notes, docs, reference material you want automatically retrieved later
+{"type": "file_ingest", "parameters": {"content": "...", "filename": "github-api.md", "mimeType": "text/markdown"}}
+// Returns: {success: true, documentId: "doc-...", chunksCreated: 5}
 ```
+
+**When to use `file_ingest`:**
+- Store information for future semantic retrieval (auto-injected into context when relevant)
+- Build knowledge base from docs, notes, code snippets, meeting notes
+- Enable AI to "remember" information across conversations
+- **vs file_put**: file_put writes to disk, file_ingest stores in vector DB for semantic search
 
 ### Read (retrieve from knowledge)
 ```json
 // Direct read
 {"type": "file_get", "parameters": {"path": "knowledge/apis/github-api.md"}}
 
-// RAG search (automatic) - retrieved_knowledge section appears in prompt
+// RAG search (automatic) - retrieved_knowledge section appears in prompt when relevant
 // Manual search via web_search for external sources
 ```
 
