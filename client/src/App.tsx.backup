@@ -111,9 +111,6 @@ import InstallPage from "@/pages/install";
 import RagDebugPage from "@/pages/rag-debug";
 import LoginPage from "@/pages/login";
 import AudioSettingsPage from "@/pages/audio-settings";
-import VoiceLabPage from "@/pages/voice-lab";
-import SoundSettingsPage from "@/pages/sound-settings";
-import CommunicationsPage from "@/pages/communications";
 
 import { TTSProvider } from "@/contexts/tts-context";
 import { LocalDriveProvider } from "@/contexts/LocalDriveContext";
@@ -184,18 +181,8 @@ function Router() {
         {() => <ProtectedRoute><MusicGenerationPage /></ProtectedRoute>}
       </Route>
       
-      <Route path="/speech">{() => { window.location.href = '/voice-lab'; return null; }}</Route>
-      
-      <Route path="/voice-lab">
-        {() => <ProtectedRoute><VoiceLabPage /></ProtectedRoute>}
-      </Route>
-      
-      <Route path="/sound-settings">
-        {() => <ProtectedRoute><SoundSettingsPage /></ProtectedRoute>}
-      </Route>
-      
-      <Route path="/communications">
-        {() => <ProtectedRoute><CommunicationsPage /></ProtectedRoute>}
+      <Route path="/speech">
+        {() => <ProtectedRoute><ExpressiveSpeechPage /></ProtectedRoute>}
       </Route>
       
       <Route path="/image">
