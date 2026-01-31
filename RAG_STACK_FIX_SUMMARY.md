@@ -1,7 +1,7 @@
 # RAG Stack Fix - Implementation Summary
 
 **Date**: January 31, 2024  
-**Issue**: #[file_ingest tool requires documentation and is currently non-functional]  
+**Issue**: file_ingest tool requires documentation and is currently non-functional  
 **PR**: copilot/add-file-ingest-documentation
 
 ---
