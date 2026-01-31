@@ -49,8 +49,8 @@ async function lookupContact(phoneNumber: string, userId: string | null): Promis
   }
 
   try {
-    const { getContacts } = await import("../integrations/google-contacts");
-    const contacts = await getContacts(userId, { query: phoneNumber, maxResults: 10 });
+    const { searchContacts } = await import("../integrations/google-contacts");
+    const contacts = await searchContacts(phoneNumber, 10);
     
     // Find matching contact by phone number
     for (const contact of contacts) {
@@ -89,7 +89,8 @@ async function lookupContact(phoneNumber: string, userId: string | null): Promis
     console.error('[Twilio] Error looking up contact:', error);
   }
   
-  return { name, isSpecialRelationship: false, relationshipContext: null };
+  // No contact found
+  return { name: null, isSpecialRelationship: false, relationshipContext: null };
 }
 
 // ===========================================================================
@@ -176,14 +177,17 @@ twilioRouter.post("/webhooks/sms", async (req: Request, res: Response) => {
   const signature = req.header("X-Twilio-Signature");
   const url = 'https://' + req.get('host') + req.originalUrl;
 
-  // Validate Twilio signature (in production)
-  if (process.env.NODE_ENV !== 'development') {
-    if (!signature || !twilioIntegration.validateWebhookSignature(signature, url, req.body)) {
+  // Validate Twilio signature
+  const isDevelopment = process.env.NODE_ENV === 'development';
+  const isValidSignature = signature && twilioIntegration.validateWebhookSignature(signature, url, req.body);
+  
+  if (!isValidSignature) {
+    if (isDevelopment) {
+      console.warn('[Twilio] Invalid signature in dev mode - continuing anyway');
+    } else {
       console.error('[Twilio] Invalid webhook signature');
       return res.status(403).send("Forbidden: Invalid Twilio Signature");
     }
-  } else if (!signature || !twilioIntegration.validateWebhookSignature(signature, url, req.body)) {
-    console.warn('[Twilio] Invalid signature in dev mode - continuing anyway');
   }
 
   try {
