@@ -20,7 +20,7 @@ export async function withRetry<T>(
     ...options,
   };
 
-  let lastError: Error;
+  let lastError: Error = new Error('Unknown error');
   let delay = config.initialDelay;
 
   for (let attempt = 1; attempt <= config.maxAttempts; attempt++) {
