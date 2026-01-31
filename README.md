@@ -138,7 +138,31 @@ Advanced web interaction capabilities for API integrations and automated data ex
 - **Advanced Automation**: POST and PUT data to perform actions on other platforms
 - **Webhook Integration**: Send notifications and trigger automated workflows
 
-### 8. Hardware & IoT Device Integration 🔧
+### 8. Twilio SMS Integration 📱
+
+Real-time SMS messaging with AI-powered responses, contact recognition, and owner authentication.
+
+- **Inbound SMS Processing**: Receive and automatically process SMS messages via Twilio webhooks
+- **AI-Powered Responses**: Natural language responses powered by Gemini AI
+- **Contact Recognition**: Identifies senders using Google Contacts integration
+- **Tiered Authentication**: Different access levels for owner, known contacts, and guests
+- **Owner Access**: Full authenticated access when texting from your registered phone number
+- **Known Contact Access**: Enhanced capabilities for recognized contacts (e.g., asking about your whereabouts)
+- **Guest Access**: Restricted, safe responses for unknown numbers
+- **Secure Webhooks**: Validates X-Twilio-Signature header to prevent spoofed requests
+- **Tool Execution**: AI can execute tools including sending SMS replies
+
+> 📖 **Setup Guide**: See [docs/exhibit/02-integrations/TWILIO_DEPLOYMENT_GUIDE.md](docs/exhibit/02-integrations/TWILIO_DEPLOYMENT_GUIDE.md) for deployment instructions
+> 
+> 📖 **Configuration**: See [docs/exhibit/02-integrations/twilio-sms-webhook.md](docs/exhibit/02-integrations/twilio-sms-webhook.md) for technical details
+
+#### Example Use Cases
+- Ask your AI about your calendar while on the go
+- Known contacts can text to ask about your availability
+- Receive AI assistance via SMS from anywhere
+- Automated responses without opening your laptop
+
+### 9. Hardware & IoT Device Integration 🔧
 
 Comprehensive tools for interacting with hardware devices, microcontrollers, and IoT platforms.
 
@@ -251,6 +275,10 @@ npm run dev
 | `GOOGLE_CLIENT_ID` | Google OAuth2 client ID for user authentication |
 | `GOOGLE_CLIENT_SECRET` | Google OAuth2 client secret |
 | `GOOGLE_APPLICATION_CREDENTIALS` | Path to Google service account JSON key for TTS (see [Credential Management Guide](docs/CREDENTIAL_MANAGEMENT.md) and [Voice Setup Guide](docs/VOICE_SYNTHESIS_SETUP.md)) |
+| `TWILIO_ACCOUNT_SID` | Twilio Account SID for SMS integration (optional, see [Twilio Deployment Guide](docs/exhibit/02-integrations/TWILIO_DEPLOYMENT_GUIDE.md)) |
+| `TWILIO_AUTH_TOKEN` | Twilio Auth Token for webhook signature validation (optional) |
+| `TWILIO_PHONE_NUMBER` | Your Twilio phone number in E.164 format (optional) |
+| `OWNER_PHONE_NUMBER` | Your personal phone number for owner authentication in SMS (optional) |
 
 For a complete list of environment variables, see [`.env.example`](.env.example).
 
