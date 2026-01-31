@@ -2631,6 +2631,12 @@ export const callConversations = pgTable("call_conversations", {
   turnCount: integer("turn_count").default(0).notNull(), // Number of speech turns
   currentContext: text("current_context"), // Last question asked or context
   
+  // Recording and transcription
+  recordingUrl: text("recording_url"), // URL to the full call recording
+  recordingSid: text("recording_sid"), // Twilio recording identifier
+  transcription: text("transcription"), // Full call transcription
+  transcriptionStatus: text("transcription_status"), // pending, completed, failed
+  
   // Timing
   startedAt: timestamp("started_at").defaultNow().notNull(),
   endedAt: timestamp("ended_at"),
@@ -2644,6 +2650,7 @@ export const callConversations = pgTable("call_conversations", {
 }, (table) => [
   index("idx_call_conversations_sid").on(table.callSid),
   index("idx_call_conversations_status").on(table.status),
+  index("idx_call_conversations_recording_sid").on(table.recordingSid),
 ]);
 
 export const insertCallConversationSchema = createInsertSchema(callConversations).omit({
@@ -2692,6 +2699,52 @@ export const insertCallTurnSchema = createInsertSchema(callTurns).omit({
 });
 export type InsertCallTurn = z.infer<typeof insertCallTurnSchema>;
 export type CallTurn = typeof callTurns.$inferSelect;
+
+/**
+ * VOICEMAILS TABLE
+ * ----------------
+ * Stores voicemail recordings and transcriptions from Twilio.
+ * Each voicemail represents a recorded message left by a caller.
+ */
+export const voicemails = pgTable("voicemails", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  
+  // Twilio identification
+  recordingSid: text("recording_sid").notNull().unique(), // Twilio recording identifier
+  callSid: text("call_sid"), // Associated call SID if available
+  
+  // Caller information
+  fromNumber: text("from_number").notNull(), // Caller's phone number
+  toNumber: text("to_number").notNull(), // Receiving number (our Twilio number)
+  
+  // Recording details
+  recordingUrl: text("recording_url").notNull(), // URL to access the recording
+  duration: integer("duration"), // Duration in seconds
+  
+  // Transcription
+  transcription: text("transcription"), // Transcribed voicemail text
+  transcriptionStatus: text("transcription_status"), // pending, completed, failed
+  
+  // Status
+  heard: boolean("heard").default(false).notNull(), // Whether voicemail has been listened to
+  heardAt: timestamp("heard_at"), // When it was marked as heard
+  
+  // Timestamps
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_voicemails_recording_sid").on(table.recordingSid),
+  index("idx_voicemails_from_number").on(table.fromNumber),
+  index("idx_voicemails_heard").on(table.heard),
+]);
+
+export const insertVoicemailSchema = createInsertSchema(voicemails).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export type InsertVoicemail = z.infer<typeof insertVoicemailSchema>;
+export type Voicemail = typeof voicemails.$inferSelect;
 
 // =============================================================================
 // RAG TRACEABILITY SYSTEM
