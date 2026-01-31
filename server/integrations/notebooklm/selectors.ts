@@ -99,12 +99,12 @@ export async function smartClick(
   selectorConfig: SelectorConfig,
   options: { timeout?: number } = {}
 ): Promise<void> {
-  const timeout = options.timeout || 10000;
+  const selectorTimeout = options.timeout || 5000;
   const selectors = [selectorConfig.primary, ...selectorConfig.fallbacks];
 
   for (const selector of selectors) {
     try {
-      await page.waitForSelector(selector, { timeout: 5000, state: 'visible' });
+      await page.waitForSelector(selector, { timeout: selectorTimeout, state: 'visible' });
       await page.click(selector);
       return;
     } catch (error) {
@@ -125,12 +125,12 @@ export async function smartFill(
   value: string,
   options: { timeout?: number } = {}
 ): Promise<void> {
-  const timeout = options.timeout || 10000;
+  const selectorTimeout = options.timeout || 5000;
   const selectors = [selectorConfig.primary, ...selectorConfig.fallbacks];
 
   for (const selector of selectors) {
     try {
-      await page.waitForSelector(selector, { timeout: 5000, state: 'visible' });
+      await page.waitForSelector(selector, { timeout: selectorTimeout, state: 'visible' });
       await page.fill(selector, value);
       return;
     } catch (error) {
@@ -150,13 +150,13 @@ export async function smartWaitForSelector(
   selectorConfig: SelectorConfig,
   options: { timeout?: number; state?: 'attached' | 'detached' | 'visible' | 'hidden' } = {}
 ): Promise<void> {
-  const timeout = options.timeout || 30000;
+  const selectorTimeout = options.timeout || 5000;
   const state = options.state || 'visible';
   const selectors = [selectorConfig.primary, ...selectorConfig.fallbacks];
 
   for (const selector of selectors) {
     try {
-      await page.waitForSelector(selector, { timeout: 5000, state });
+      await page.waitForSelector(selector, { timeout: selectorTimeout, state });
       return;
     } catch (error) {
       // Try next selector

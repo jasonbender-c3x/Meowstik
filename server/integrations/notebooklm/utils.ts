@@ -42,7 +42,8 @@ export async function withRetry<T>(
     }
   }
 
-  throw lastError!;
+  // This should never be reached due to the throw in the loop above
+  throw lastError || new Error('Operation failed after all retry attempts');
 }
 
 /**
