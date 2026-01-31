@@ -41,6 +41,7 @@ import {
   InsertUser,
   InsertSmsMessage,
   InsertCallConversation,
+  InsertCallTurn,
   InsertVoicemail,
   InsertUserBranding,
   UserBranding,
@@ -404,7 +405,7 @@ export const storage = {
    * @param turn - The call turn data
    * @returns The created call turn
    */
-  createCallTurn: async (turn: any) => {
+  createCallTurn: async (turn: InsertCallTurn) => {
     const [created] = await db
       .insert(schema.callTurns)
       .values(turn)

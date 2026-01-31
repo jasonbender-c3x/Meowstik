@@ -57,38 +57,45 @@ communicationsRouter.get("/conversations", async (req: Request, res: Response) =
     const conversations = Array.from(conversationsMap.values());
     
     // Lookup contact names from Google Contacts (async, non-blocking)
-    // We do this in parallel for better performance
-    const lookupPromises = conversations.map(async (conv) => {
-      try {
-        const { searchContacts } = await import("../integrations/google-contacts");
-        const contacts = await searchContacts(conv.phoneNumber, 5);
-        
-        // Find matching contact by phone number
-        for (const contact of contacts) {
-          if (contact.phoneNumbers) {
-            for (const phone of contact.phoneNumbers) {
-              const normalizedContact = phone.value.replace(/[^\d+]/g, '');
-              const normalizedSearch = conv.phoneNumber.replace(/[^\d+]/g, '');
-              
-              if (normalizedContact === normalizedSearch || 
-                  normalizedContact.endsWith(normalizedSearch.slice(-10))) {
-                conv.contactName = contact.displayName;
-                return;
+    // Import once for all lookups
+    try {
+      const { searchContacts } = await import("../integrations/google-contacts");
+      
+      // We do this in parallel for better performance
+      const lookupPromises = conversations.map(async (conv) => {
+        try {
+          const contacts = await searchContacts(conv.phoneNumber, 5);
+          
+          // Find matching contact by phone number
+          for (const contact of contacts) {
+            if (contact.phoneNumbers) {
+              for (const phone of contact.phoneNumbers) {
+                const normalizedContact = phone.value.replace(/[^\d+]/g, '');
+                const normalizedSearch = conv.phoneNumber.replace(/[^\d+]/g, '');
+                
+                if (normalizedContact === normalizedSearch || 
+                    normalizedContact.endsWith(normalizedSearch.slice(-10))) {
+                  conv.contactName = contact.displayName;
+                  return;
+                }
               }
             }
           }
+        } catch (error: any) {
+          // Silently fail contact lookup for individual conversation - not critical
+          console.warn('[Communications] Failed to lookup contact for', conv.phoneNumber, ':', error.message);
         }
-      } catch (error) {
-        // Silently fail contact lookup - not critical
-        console.warn('[Communications] Failed to lookup contact:', error.message);
-      }
-    });
-    
-    // Wait for all lookups to complete (with timeout)
-    await Promise.race([
-      Promise.all(lookupPromises),
-      new Promise(resolve => setTimeout(resolve, 2000)) // 2 second timeout
-    ]);
+      });
+      
+      // Wait for all lookups to complete (with timeout)
+      await Promise.race([
+        Promise.all(lookupPromises),
+        new Promise(resolve => setTimeout(resolve, 2000)) // 2 second timeout
+      ]);
+    } catch (error: any) {
+      // Silently fail if Google Contacts not available
+      console.warn('[Communications] Google Contacts integration not available:', error.message);
+    }
     
     res.json(conversations);
   } catch (error) {
