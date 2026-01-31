@@ -475,7 +475,7 @@ export class RAGDispatcher {
           result = await this.executeHttpPut(toolCall);
           break;
         case "file_ingest":
-          result = await this.executeFileOperation(toolCall);
+          result = await this.executeFileOperation(toolCall, messageId);
           break;
         case "file_get":
         case "get": // V2 core primitive alias
@@ -1337,9 +1337,63 @@ export class RAGDispatcher {
 
   /**
    * Execute file ingest/upload operations
+   * Ingests content into the RAG system for semantic search
+   * 
+   * Parameters:
+   * - content: The file content to ingest (string)
+   * - filename: Name of the file being ingested
+   * - mimeType: Optional MIME type (e.g., 'text/plain', 'application/json')
    */
-  private async executeFileOperation(toolCall: ToolCall): Promise<unknown> {
-    return { message: "File operation processed", parameters: toolCall.parameters };
+  private async executeFileOperation(toolCall: ToolCall, messageId: string): Promise<unknown> {
+    const params = toolCall.parameters as {
+      content: string;
+      filename: string;
+      mimeType?: string;
+    };
+
+    // Validate required parameters
+    if (!params.content || typeof params.content !== 'string') {
+      throw new Error('file_ingest requires a content parameter (string)');
+    }
+    if (!params.filename || typeof params.filename !== 'string') {
+      throw new Error('file_ingest requires a filename parameter (string)');
+    }
+
+    try {
+      // Get the message to find the userId for data isolation
+      const message = await storage.getMessageById(messageId);
+      let userId: string | null = null;
+      
+      if (message?.chatId) {
+        const chat = await storage.getChatById(message.chatId);
+        userId = chat?.userId || null;
+      }
+
+      // Ingest the document into the RAG system
+      const result = await ragService.ingestDocument(
+        params.content,
+        null, // attachmentId - not from an attachment
+        params.filename,
+        params.mimeType || 'text/plain',
+        undefined, // options - use default chunking strategy
+        userId // userId for data isolation
+      );
+
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to ingest document');
+      }
+
+      return {
+        success: true,
+        documentId: result.documentId,
+        chunksCreated: result.chunksCreated,
+        filename: params.filename,
+        message: `Successfully ingested ${params.filename} into RAG system (${result.chunksCreated} chunks created)`
+      };
+    } catch (error) {
+      console.error('[RAGDispatcher] File ingest error:', error);
+      throw new Error(`Failed to ingest file: ${error instanceof Error ? error.message : String(error)}`);
+    }
   }
 
   /**
