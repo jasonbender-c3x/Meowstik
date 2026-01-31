@@ -1201,7 +1201,7 @@ The user has MUTE mode enabled. Minimize all output.
               const hasNoTruncate = typeof r.result === 'object' && 
                 r.result !== null && 
                 'noTruncate' in r.result && 
-                (r.result as any).noTruncate === true;
+                (r.result as { noTruncate?: boolean }).noTruncate === true;
               const limitedSummary = hasNoTruncate ? summary : (summary.length > 500 ? summary.substring(0, 500) + "..." : summary);
               return `• ${r.type}: ${limitedSummary}`;
             })
