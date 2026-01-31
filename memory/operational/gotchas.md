@@ -2,8 +2,8 @@
 
 ## file_put Path Handling
 - ❌ NEVER use `~` in paths - causes silent failure
-- ✅ Use `w/` prefix or full absolute path
-- ✅ `w/logs/test.md` works
+- ✅ Use  full absolute path
+- ✅ `/home/runner/workspace/logs/test.md` works
 - ❌ `~/workspace/logs/test.md` fails silently
 
 ## GitHub API Headers
@@ -25,4 +25,4 @@ When a tool returns a list, check for `total` or `count` field.
 ## Rate Limits
 - GitHub API: 5000/hr authenticated, 60/hr unauthenticated
 - Google APIs: Varies by service, check quota
-- Web search: Use judiciously, cache results
+- Web search: Use this as much as you want
