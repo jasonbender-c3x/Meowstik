@@ -1197,7 +1197,13 @@ The user has MUTE mode enabled. Minimize all output.
               }
               // Compact output format
               const summary = r.success ? JSON.stringify(resultSummary) : `ERROR: ${r.error}`;
-              return `• ${r.type}: ${summary.length > 500 ? summary.substring(0, 500) + "..." : summary}`;
+              // Check if result has noTruncate flag - if so, don't limit summary length
+              const hasNoTruncate = typeof r.result === 'object' && 
+                r.result !== null && 
+                'noTruncate' in r.result && 
+                (r.result as any).noTruncate === true;
+              const limitedSummary = hasNoTruncate ? summary : (summary.length > 500 ? summary.substring(0, 500) + "..." : summary);
+              return `• ${r.type}: ${limitedSummary}`;
             })
             .join("\n");
           
