@@ -13,6 +13,7 @@
 10. [MCP Servers](#10-mcp-servers)
 11. [Chrome DevTools (Port 9222)](#11-chrome-devtools-port-9222)
 12. [Virtual Framebuffer & Streaming](#12-virtual-framebuffer--streaming)
+13. [Testing Twilio SMS Locally](#13-testing-twilio-sms-locally)
 
 ---
 
@@ -757,6 +758,227 @@ const stream = await navigator.mediaDevices.getDisplayMedia({
 
 ---
 
+## 13. Testing Twilio SMS Locally
+
+### Overview
+
+Twilio SMS webhooks require a publicly accessible HTTPS URL, which means you cannot test directly with `localhost`. The solution is to use a tunneling service like **ngrok** to expose your local development server to the internet.
+
+### Prerequisites
+
+1. **Twilio Account**: Sign up at [twilio.com](https://www.twilio.com/try-twilio)
+2. **Twilio Phone Number**: Purchase one from the Twilio Console
+3. **ngrok**: Download from [ngrok.com](https://ngrok.com/download)
+4. **Environment Variables**: Configure in your `.env` file (see below)
+
+### Step-by-Step Setup
+
+#### 1. Configure Environment Variables
+
+Add these to your `.env` file:
+
+```bash
+# Twilio credentials (from Twilio Console)
+TWILIO_ACCOUNT_SID=ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+TWILIO_AUTH_TOKEN=your_auth_token_here
+TWILIO_PHONE_NUMBER=+15551234567
+
+# Your personal phone number for owner authentication
+# CRITICAL: Use E.164 format (+ followed by country code and number)
+OWNER_PHONE_NUMBER=+15551234567
+
+# Optional: Your user ID from the database (for linking SMS to your account)
+# Find with: SELECT id FROM users WHERE email='your-email@example.com';
+OWNER_USER_ID=your_user_uuid
+
+# Set to development to bypass signature validation warnings during testing
+NODE_ENV=development
+
+# Required for AI processing
+GEMINI_API_KEY=your_gemini_api_key
+```
+
+#### 2. Install and Setup ngrok
+
+```bash
+# Download ngrok
+# Visit https://ngrok.com/download and follow instructions for your OS
+
+# Authenticate (sign up for free account at ngrok.com)
+ngrok config add-authtoken YOUR_NGROK_AUTH_TOKEN
+
+# Verify installation
+ngrok version
+```
+
+#### 3. Start Your Local Server
+
+```bash
+# Terminal 1: Start the development server
+npm run dev
+```
+
+The server should start on `http://localhost:5000`.
+
+#### 4. Create ngrok Tunnel
+
+```bash
+# Terminal 2: Create a tunnel to your local server
+ngrok http 5000
+```
+
+You'll see output like:
+
+```
+Forwarding  https://abc123.ngrok.io -> http://localhost:5000
+```
+
+Copy the HTTPS URL (e.g., `https://abc123.ngrok.io`).
+
+> **Note**: Free ngrok URLs change every time you restart ngrok. For a persistent URL, upgrade to a paid ngrok account.
+
+#### 5. Configure Twilio Webhook
+
+1. Go to [Twilio Console](https://console.twilio.com/)
+2. Navigate to **Phone Numbers** → **Manage** → **Active Numbers**
+3. Select your Twilio phone number
+4. Scroll to **Messaging Configuration**
+5. Under "A MESSAGE COMES IN":
+   - Select **Webhook**
+   - Enter: `https://abc123.ngrok.io/api/twilio/webhook/sms` (use your actual ngrok URL)
+   - Set HTTP Method to **POST**
+6. Click **Save**
+
+#### 6. Test the Integration
+
+Send an SMS to your Twilio phone number from your `OWNER_PHONE_NUMBER`:
+
+```
+Text to your Twilio number:
+"What's on my calendar today?"
+```
+
+You should see logs in your server terminal:
+
+```
+[Twilio] Incoming SMS from +15551234567
+[Twilio] Message: What's on my calendar today?
+[Twilio] SMS from owner: +15551234567
+[Twilio] Processing with 15 available tools
+[Twilio] Executing tool: sms_send
+[Twilio] SMS processing complete
+```
+
+And receive an SMS response within seconds.
+
+### Monitoring Webhook Requests
+
+#### View ngrok Requests
+
+ngrok provides a web interface at `http://localhost:4040` showing all webhook requests:
+
+```bash
+# Access ngrok inspector
+open http://localhost:4040
+# or
+curl http://localhost:4040/api/requests/http
+```
+
+This is invaluable for debugging:
+- See exact payload Twilio sends
+- Inspect headers (including `X-Twilio-Signature`)
+- View response from your server
+- Replay requests for testing
+
+#### Check Server Logs
+
+Watch for `[Twilio]` tagged messages:
+
+```bash
+# In your server terminal, you'll see:
+[Twilio] Incoming SMS from +15551234567: Hello
+[Twilio] SMS from owner: +15551234567
+[Twilio] ✓ Tool sms_send executed successfully
+```
+
+#### Twilio Console Debugger
+
+Go to **Twilio Console** → **Monitor** → **Logs** → **Errors** to see any webhook failures.
+
+### Common Issues and Solutions
+
+#### Issue: 403 Forbidden - Invalid Signature
+
+**Cause**: Webhook signature validation fails when URL mismatch occurs.
+
+**Solutions**:
+1. Ensure `TWILIO_AUTH_TOKEN` in `.env` matches Twilio Console exactly
+2. Verify webhook URL in Twilio Console matches your ngrok URL exactly
+3. Use HTTPS (not HTTP) for the ngrok URL
+4. For testing, set `NODE_ENV=development` to log warnings instead of blocking
+
+#### Issue: No Response Received
+
+**Cause**: Webhook not reaching your server.
+
+**Solutions**:
+1. Check that ngrok tunnel is still running (they expire)
+2. Verify webhook URL in Twilio Console is correct
+3. Check ngrok inspector at `http://localhost:4040` for incoming requests
+4. Ensure your local server is running on port 5000
+
+#### Issue: Contact Not Recognized
+
+**Cause**: Google Contacts integration not working.
+
+**Solutions**:
+1. Ensure `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` are configured
+2. Verify you've logged into the app at least once via Google OAuth
+3. Check that People API is enabled in Google Cloud Console
+4. Ensure phone numbers in Google Contacts are in E.164 format (+15551234567)
+
+### Testing Script
+
+Use the provided test script to simulate webhook requests without sending real SMS:
+
+```bash
+# Run the Twilio webhook test script
+npx tsx scripts/test-twilio-webhook.ts
+```
+
+This sends mock webhook data to your local server for testing.
+
+### Security Notes
+
+1. **Development Mode**: When `NODE_ENV=development`, signature validation warnings are logged but don't block requests. **Never use this in production**.
+
+2. **ngrok URLs**: Don't share your ngrok URL publicly - it provides direct access to your local server.
+
+3. **Twilio Credentials**: Never commit `.env` files with real credentials to git.
+
+### Production Deployment
+
+When deploying to production:
+
+1. Deploy to a permanent HTTPS domain (Replit, Vercel, Railway, etc.)
+2. Set `NODE_ENV=production` in environment variables
+3. Update Twilio webhook URL to production domain
+4. Signature validation will reject invalid requests (no bypass)
+
+Example production webhook URL:
+```
+https://meowstik.com/api/twilio/webhook/sms
+```
+
+### Additional Resources
+
+- [Twilio SMS Documentation](https://www.twilio.com/docs/sms)
+- [ngrok Documentation](https://ngrok.com/docs)
+- [Complete Twilio Setup Guide](TWILIO_SMS_SETUP.md)
+- [E.164 Phone Number Format](https://www.twilio.com/docs/glossary/what-e164)
+
+---
+
 ## Quick Reference Card
 
 ```bash
@@ -783,4 +1005,7 @@ chromium --headless --remote-debugging-port=9222
 
 # Virtual display
 Xvfb :99 -screen 0 1920x1080x24 & export DISPLAY=:99
+
+# Start ngrok tunnel for Twilio testing
+ngrok http 5000
 ```
