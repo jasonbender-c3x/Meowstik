@@ -22,7 +22,8 @@
     "dev:ext": "vite -c vite.config.extension.ts --mode development",
     "build:ext": "vite build -c vite.config.extension.ts --mode production",
     "prepare:notebooklm": "tsx scripts/prepare-notebooklm.ts",
-    "dev:notebooklm": "tsx server/examples/notebooklm-example.ts"
+    "dev:notebooklm": "tsx server/examples/notebooklm-example.ts",
+    "test:notebooklm": "tsx scripts/validate-notebooklm.ts"
   },
   "dependencies": {
     "@browserbasehq/sdk": "^2.6.0",
