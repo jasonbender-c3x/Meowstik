@@ -465,3 +465,63 @@ twilioRouter.post("/webhooks/status", (req: Request, res: Response) => {
   }
   res.status(204).send();
 });
+
+/**
+ * POST /api/twilio/webhooks/voicemail-recording
+ * Handle voicemail recording completion
+ */
+twilioRouter.post("/webhooks/voicemail-recording", async (req: Request, res: Response) => {
+  try {
+    const { RecordingSid, RecordingUrl, RecordingDuration, CallSid, From, To } = req.body;
+    
+    console.log(`[Twilio Voicemail] Recording received: ${RecordingSid}`);
+    
+    // Store voicemail in database
+    await storage.createVoicemail({
+      recordingSid: RecordingSid,
+      callSid: CallSid,
+      fromNumber: From,
+      toNumber: To,
+      recordingUrl: RecordingUrl,
+      duration: parseInt(RecordingDuration || '0'),
+      transcriptionStatus: 'pending',
+    });
+    
+    console.log(`[Twilio Voicemail] Saved to database: ${RecordingSid}`);
+    
+    res.status(200).send('OK');
+  } catch (error) {
+    console.error('[Twilio Voicemail] Error processing recording:', error);
+    res.status(500).send('Error processing recording');
+  }
+});
+
+/**
+ * POST /api/twilio/webhooks/voicemail-transcription
+ * Handle voicemail transcription completion
+ */
+twilioRouter.post("/webhooks/voicemail-transcription", async (req: Request, res: Response) => {
+  try {
+    const { RecordingSid, TranscriptionText, TranscriptionStatus } = req.body;
+    
+    console.log(`[Twilio Voicemail] Transcription received: ${RecordingSid}`);
+    
+    // Find voicemail by recording SID and update transcription
+    const voicemail = await storage.getVoicemailByRecordingSid(RecordingSid);
+    if (voicemail) {
+      await storage.updateVoicemailTranscription(
+        voicemail.id, 
+        TranscriptionText || '', 
+        TranscriptionStatus === 'completed' ? 'completed' : 'failed'
+      );
+      console.log(`[Twilio Voicemail] Transcription updated: ${RecordingSid}`);
+    } else {
+      console.warn(`[Twilio Voicemail] Voicemail not found for recording: ${RecordingSid}`);
+    }
+    
+    res.status(200).send('OK');
+  } catch (error) {
+    console.error('[Twilio Voicemail] Error processing transcription:', error);
+    res.status(500).send('Error processing transcription');
+  }
+});
