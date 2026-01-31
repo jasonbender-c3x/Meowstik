@@ -413,20 +413,33 @@ When responding:
   }
 }
 
-twilioRouter.post("/webhooks/voice", (req: Request, res: Response) => {
+twilioRouter.post("/webhooks/voice", async (req: Request, res: Response) => {
+    const { CallSid, From, To } = req.body;
+    
+    console.log(`[Twilio Voice] Incoming call from ${From}, SID: ${CallSid}`);
+    
+    // Create call conversation record
+    try {
+      const chat = await storage.insertChat({
+        userId: process.env.OWNER_USER_ID || 'guest',
+        title: `Call from ${From}`,
+      });
+      
+      await storage.insertCallConversation({
+        callSid: CallSid,
+        fromNumber: From,
+        toNumber: To,
+        chatId: chat.id,
+        status: 'in_progress',
+        transcriptionStatus: 'pending',
+      });
+      
+      console.log(`[Twilio Voice] Created conversation for call ${CallSid}`);
+    } catch (error) {
+      console.error('[Twilio Voice] Error creating conversation:', error);
+    }
+    
     const voiceTwiml = new twilio.twiml.VoiceResponse();
-    
-    // Enable call recording with transcription
-    voiceTwiml.record({
-      action: '/api/twilio/webhooks/handle-speech',
-      transcribe: true,
-      transcribeCallback: '/api/twilio/webhooks/call-transcription',
-      recordingStatusCallback: '/api/twilio/webhooks/call-recording',
-      maxLength: 3600, // 1 hour max
-      playBeep: false,
-    });
-    
-    // Initial greeting (will be part of recording)
     voiceTwiml.say('Hello! I am Meowstik, a conversational AI. How can I help you today?');
     voiceTwiml.gather({
       input: ['speech'],

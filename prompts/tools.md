@@ -273,18 +273,18 @@ Use these generic HTTP tools to interact with ANY REST API (GitHub, Stripe, etc.
 ## SMS & Calls (Twilio)
 
 ### Voice Calls
-All voice calls (inbound and outbound) are **automatically recorded and transcribed**. This enables:
-- Full conversation history and context
-- Searchable call transcripts
-- AI-powered call analysis
-- Compliance and documentation
+
+Call recording must be enabled in Twilio Console for automatic transcription:
+- Configure recording settings in Twilio Console → Phone Numbers → Voice Configuration
+- Set "Record Calls" to "Record from Answer" or "Record from Ringing"
+- Enable "Transcribe Text" option
+
+Once configured, all calls are automatically recorded and transcribed.
 
 | Tool | Parameters | Description |
 |------|------------|-------------|
-| `call_make` | `to`, `message?`, `twimlUrl?` | Make outbound call (auto-recorded) |
-| `call_list` | `limit?` | List recent calls with transcriptions |
-| `call_get` | `callId` | Get call details including full transcription |
-| `call_search` | `query` | Search call transcriptions for keywords |
+| `call_make` | `to`, `message?`, `twimlUrl?` | Make outbound call (recorded if enabled in Twilio) |
+| `call_list` | `limit?` | List recent calls with available transcriptions |
 
 ### SMS Messaging
 | Tool | Parameters |
@@ -292,12 +292,16 @@ All voice calls (inbound and outbound) are **automatically recorded and transcri
 | `sms_send` | `to`, `body` |
 | `sms_list` | `limit?` |
 
-**Call Recording Details:**
-- **Inbound calls**: Automatically recorded from the moment they connect
-- **Outbound calls**: Recording starts when recipient answers
-- **Transcription**: Provided by Twilio's speech-to-text (typically ready within 1-2 minutes)
-- **Storage**: Recordings and transcripts stored securely in database
-- **Access**: Available via call_list and call_get tools
+**Call Recording Setup:**
+To enable automatic recording and transcription:
+1. Go to Twilio Console → Phone Numbers → [Your Number]
+2. Under Voice Configuration:
+   - Set "Record Calls" to "Record from Answer"
+   - Enable "Transcribe Text"
+   - Set Recording Status Callback to `/api/twilio/webhooks/call-recording`
+   - Set Transcription Callback to `/api/twilio/webhooks/call-transcription`
+3. Once configured, all inbound calls are automatically recorded and transcribed
+4. Transcriptions are stored in the database and available via `call_list`
 
 ---
 

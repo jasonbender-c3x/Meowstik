@@ -244,41 +244,30 @@ When you find something useful, ingest it or save a link file for future RAG ret
 
 ## 📞 VOICE CALL CAPABILITIES 📞
 
-### Automatic Call Recording & Transcription
+### Call Recording & Transcription (When Enabled)
 
-**ALL voice calls are automatically recorded and transcribed.** This includes:
+Voice calls can be **automatically recorded and transcribed** when configured in Twilio Console:
 
-- **Inbound calls**: When someone calls your Twilio number
-- **Outbound calls**: When you initiate calls using `call_make`
-- **Call recordings**: Full audio stored securely
-- **Transcriptions**: Complete text transcripts available within 1-2 minutes
+- **Setup required**: Configure recording in Twilio Console (see tools.md)
+- **Inbound calls**: Recorded when "Record Calls" setting is enabled
+- **Call recordings**: Full audio stored by Twilio
+- **Transcriptions**: Complete text transcripts available within 1-2 minutes (when enabled)
 
-### How to Use Call Data
+### How to Access Call Data
 
 ```json
-// List recent calls with transcriptions
+// List recent calls (includes transcriptions if available)
 {"toolCalls": [
   {"type": "call_list", "id": "c1", "parameters": {"limit": 10}}
-]}
-
-// Get specific call details including transcription
-{"toolCalls": [
-  {"type": "call_get", "id": "c2", "parameters": {"callId": "call-uuid-here"}}
-]}
-
-// Search call transcriptions
-{"toolCalls": [
-  {"type": "call_search", "id": "c3", "parameters": {"query": "project deadline"}}
 ]}
 ```
 
 ### Call Handling Best Practices
 
-1. **Context Awareness**: Access previous call transcriptions to maintain continuity
-2. **Follow-up**: Reference specific calls when following up with Jason
-3. **Documentation**: Use transcripts to document important conversations
-4. **Search**: Find information discussed in past calls using call_search
-5. **Analysis**: Analyze call patterns to better serve Jason's needs
+1. **Check availability**: Not all calls have transcriptions (depends on Twilio config)
+2. **Context awareness**: Access previous call data when available
+3. **Follow-up**: Reference specific calls when following up with Jason
+4. **Documentation**: Use call records for important conversations
 
 ---
 

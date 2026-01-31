@@ -2,23 +2,45 @@
 
 ## Overview
 
-All voice calls in Meowstik are now **automatically recorded and transcribed**. This applies to both inbound calls (when someone calls your Twilio number) and outbound calls (when you make calls using the system).
+Meowstik supports **call recording and transcription** for voice calls when enabled in Twilio Console. This applies to inbound calls (when someone calls your Twilio number).
+
+**Note**: Recording and transcription must be configured in Twilio Console for each phone number. This is not enabled programmatically but rather through Twilio's phone number settings.
 
 ---
 
 ## Features
 
-### Automatic Recording
-- **Inbound calls**: Recording starts immediately when call connects
-- **Outbound calls**: Recording starts when recipient answers
-- **Full conversation**: Entire call is captured, including all speech turns
+### Call Recording (When Enabled)
+- **Inbound calls**: Recording controlled by Twilio Console settings
+- **Full conversation**: Entire call is captured when recording is enabled
 - **Secure storage**: Recording URLs stored in database
 
-### Automatic Transcription
+### Call Transcription (When Enabled)
 - **Speech-to-text**: Provided by Twilio's transcription service
 - **Availability**: Typically ready within 1-2 minutes after call ends
 - **Full text**: Complete transcription of entire call
-- **Searchable**: Transcripts can be searched for keywords and context
+- **Searchable**: Transcripts stored in database
+
+---
+
+## Configuration
+
+### Twilio Console Setup (Required)
+
+To enable recording and transcription for inbound calls:
+
+1. Go to [Twilio Console](https://console.twilio.com/)
+2. Navigate to: **Phone Numbers → Manage → Active Numbers**
+3. Click on your Twilio phone number
+4. Under **Voice Configuration**:
+   - **Record Calls**: Select "Record from Answer" or "Record from Ringing"
+   - **Transcribe Recordings**: Enable this checkbox
+   - **Recording Status Callback**: `https://your-domain.com/api/twilio/webhooks/call-recording`
+   - **Transcription Callback**: `https://your-domain.com/api/twilio/webhooks/call-transcription`
+   - **HTTP Method**: POST (for both callbacks)
+5. **Save** the configuration
+
+**Important**: Without this console configuration, calls will NOT be recorded or transcribed, regardless of the webhook handlers being present.
 
 ---
 
@@ -50,16 +72,14 @@ transcription_status  text    -- Status: pending, completed, failed
 
 ### Call Configuration
 
-All calls are created with these Twilio parameters:
-```javascript
-{
-  record: true,
-  recordingStatusCallback: '/api/twilio/webhooks/call-recording',
-  transcribe: true,
-  transcribeCallback: '/api/twilio/webhooks/call-transcription',
-  maxLength: 3600  // 1 hour maximum
-}
-```
+When configured in Twilio Console, calls are recorded with these settings:
+- **Record from**: Answer (or Ringing, based on console setting)
+- **Transcription**: Enabled via console checkbox
+- **Recording Status Callback**: Webhook endpoint for recording completion
+- **Transcription Callback**: Webhook endpoint for transcription completion
+- **Max length**: Based on Twilio limits (typically hours)
+
+**Note**: Recording parameters are NOT set programmatically in the code. They must be configured in Twilio Console for each phone number.
 
 ---
 
