@@ -48,7 +48,7 @@ Documents related to Retrieval-Augmented Generation and AI capabilities.
 | [RAG_PIPELINE.md](./RAG_PIPELINE.md) | 2025-01-15 | Core RAG implementation and configuration |
 | [ragent/RAG-ANALYSIS.md](./ragent/RAG-ANALYSIS.md) | 2025-01-15 | Critical analysis and proposed improvements |
 | [COGNITIVE_ARCHITECTURE_2.0.md](./COGNITIVE_ARCHITECTURE_2.0.md) | 2025-01-15 | Advanced AI reasoning capabilities |
-| [PROJECT_SUMMARY_CA_2.0.md](./PROJECT_SUMMARY_CA_2.0.md) | 2025-01-15 | Cognitive Architecture 2.0 project summary |
+| [historical/exhibit/PROJECT_SUMMARY_CA_2.0.md](./historical/exhibit/PROJECT_SUMMARY_CA_2.0.md) | 2025-01-15 | Cognitive Architecture 2.0 project summary |
 | [ragent/CHAIN_OF_THOUGHT_PROPOSAL.md](./ragent/CHAIN_OF_THOUGHT_PROPOSAL.md) | 2025-01-15 | Chain-of-thought prompting strategy |
 | [AGENT_ATTRIBUTION.md](./AGENT_ATTRIBUTION.md) | 2025-01-15 | Agent identification and tracking |
 | [MARKDOWN_EMBEDDING_GUIDE.md](./MARKDOWN_EMBEDDING_GUIDE.md) | 2025-01-15 | Embedding markdown documents for RAG |
@@ -69,16 +69,16 @@ External service integrations and API documentation.
 | [twilio-sms-webhook.md](./twilio-sms-webhook.md) | 2025-01-15 | SMS webhook technical details |
 | [twilio_voice_features.md](./twilio_voice_features.md) | 2025-01-15 | Voice feature capabilities |
 | [VOICE_SYNTHESIS_SETUP.md](./VOICE_SYNTHESIS_SETUP.md) | 2025-01-15 | Text-to-speech configuration |
-| [VOICE_SYNTHESIS_FIX_SUMMARY.md](./VOICE_SYNTHESIS_FIX_SUMMARY.md) | 2025-01-15 | Voice synthesis troubleshooting |
-| [TTS_FIX_SUMMARY_FOR_JASON.md](./TTS_FIX_SUMMARY_FOR_JASON.md) | 2025-01-15 | TTS implementation fixes |
-| [TTS_IAM_PERMISSION_FIX.md](./TTS_IAM_PERMISSION_FIX.md) | 2025-01-15 | IAM permission configuration |
+| [historical/exhibit/VOICE_SYNTHESIS_FIX_SUMMARY.md](./historical/exhibit/VOICE_SYNTHESIS_FIX_SUMMARY.md) | 2025-01-15 | Voice synthesis troubleshooting |
+| [historical/exhibit/TTS_FIX_SUMMARY_FOR_JASON.md](./historical/exhibit/TTS_FIX_SUMMARY_FOR_JASON.md) | 2025-01-15 | TTS implementation fixes |
+| [historical/exhibit/TTS_IAM_PERMISSION_FIX.md](./historical/exhibit/TTS_IAM_PERMISSION_FIX.md) | 2025-01-15 | IAM permission configuration |
 
 ### Google Services
 
 | Document | Date | Description |
 |----------|------|-------------|
-| [CREDENTIAL_MANAGEMENT.md](./CREDENTIAL_MANAGEMENT.md) | 2025-01-15 | OAuth and API credential handling |
-| [CREDENTIAL_FIX_SUMMARY.md](./CREDENTIAL_FIX_SUMMARY.md) | 2025-01-15 | Credential system repairs |
+| [historical/exhibit/CREDENTIAL_MANAGEMENT.md](./historical/exhibit/CREDENTIAL_MANAGEMENT.md) | 2025-01-15 | OAuth and API credential handling |
+| [historical/exhibit/CREDENTIAL_FIX_SUMMARY.md](./historical/exhibit/CREDENTIAL_FIX_SUMMARY.md) | 2025-01-15 | Credential system repairs |
 
 ---
 
@@ -110,9 +110,8 @@ Technical guides for developers working on Meowstik.
 | [ragent/tool-protocol.md](./ragent/tool-protocol.md) | 2025-01-15 | Tool invocation reference |
 | [ragent/docs-site.md](./ragent/docs-site.md) | 2025-01-15 | Documentation system architecture |
 | [orchestration-layer.md](./orchestration-layer.md) | 2025-01-15 | Job orchestration architecture |
-| [orchestration-implementation-summary.md](./orchestration-implementation-summary.md) | 2025-01-15 | Orchestration implementation details |
+| [historical/exhibit/orchestration-implementation-summary.md](./historical/exhibit/orchestration-implementation-summary.md) | 2025-01-15 | Orchestration implementation details |
 | [http-client-tools.md](./http-client-tools.md) | 2025-01-15 | HTTP client tool usage |
-| [tool_logging_standard.md](./tool_logging_standard.md) | 2025-01-15 | Logging conventions |
 | [ssh-gateway-guide.md](./ssh-gateway-guide.md) | 2025-01-15 | SSH gateway configuration |
 
 ---
@@ -125,8 +124,8 @@ Post-implementation summaries and reports.
 |----------|------|-------------|
 | [BROWSER_EXTENSION_DEV_IMPLEMENTATION.md](./BROWSER_EXTENSION_DEV_IMPLEMENTATION.md) | 2025-01-15 | Browser extension development |
 | [BROWSER_EXTENSION_DEV_SUMMARY.md](./BROWSER_EXTENSION_DEV_SUMMARY.md) | 2025-01-15 | Extension implementation summary |
-| [PROJECT_CHIMERA_PHASE1_REPORT.md](./PROJECT_CHIMERA_PHASE1_REPORT.md) | 2025-01-15 | Project Chimera phase 1 results |
-| [BEFORE_AFTER_COMPARISON.md](./BEFORE_AFTER_COMPARISON.md) | 2025-01-15 | System improvements comparison |
+| [historical/exhibit/chimera/PROJECT_CHIMERA_PHASE1_REPORT.md](./historical/exhibit/chimera/PROJECT_CHIMERA_PHASE1_REPORT.md) | 2025-01-15 | Project Chimera phase 1 results |
+| [historical/exhibit/BEFORE_AFTER_COMPARISON.md](./historical/exhibit/BEFORE_AFTER_COMPARISON.md) | 2025-01-15 | System improvements comparison |
 
 ---
 
@@ -137,12 +136,10 @@ Forward-looking proposals and roadmaps.
 | Document | Date | Description |
 |----------|------|-------------|
 | [BROWSER_EXTENSION_DEV_PROPOSAL.md](./BROWSER_EXTENSION_DEV_PROPOSAL.md) | 2025-01-15 | Browser extension proposal |
-| [EXHIBIT-LLM-Canvas-Integration.md](./EXHIBIT-LLM-Canvas-Integration.md) | 2025-01-15 | Canvas integration proposal |
+| [historical/exhibit/EXHIBIT-LLM-Canvas-Integration.md](./historical/exhibit/EXHIBIT-LLM-Canvas-Integration.md) | 2025-01-15 | Canvas integration proposal |
 | [EXTERNAL-DOCS-HOSTING.md](./EXTERNAL-DOCS-HOSTING.md) | 2025-01-15 | Documentation hosting strategy |
-| [PROTOCOL_ANALYSIS.md](./PROTOCOL_ANALYSIS.md) | 2025-01-15 | Protocol analysis and design |
-| [Roadmap_to_Friday.md](./Roadmap_to_Friday.md) | 2025-01-15 | Short-term roadmap |
-| [v2-roadmap/MASTER-ROADMAP.md](./v2-roadmap/MASTER-ROADMAP.md) | 2025-01-15 | Long-term vision and roadmap |
-| [UPGRADES-2025-12-29.md](./UPGRADES-2025-12-29.md) | 2025-12-29 | System upgrade notes |
+| [forward-looking/roadmap/MASTER-ROADMAP.md](./forward-looking/roadmap/MASTER-ROADMAP.md) | 2025-01-15 | Long-term vision and roadmap |
+| [historical/exhibit/UPGRADES-2025-12-29.md](./historical/exhibit/UPGRADES-2025-12-29.md) | 2025-12-29 | System upgrade notes |
 
 ---
 
