@@ -2,6 +2,11 @@
 
 This guide walks you through configuring and deploying the Twilio SMS integration for Meowstik AI assistant.
 
+> 📖 **Related Documentation**:
+> - [Technical Implementation Details](exhibit/02-integrations/TWILIO_SMS_WEBHOOK.md)
+> - [Webhook API Reference](exhibit/02-integrations/twilio-sms-webhook.md)
+> - [Implementation Summary](../TWILIO_IMPLEMENTATION_SUMMARY.md)
+
 ## Overview
 
 The Twilio SMS integration enables Meowstik to receive and respond to text messages in real-time. When someone sends an SMS to your Twilio number, the message is automatically processed through the AI system with responses sent back via SMS.
@@ -380,7 +385,7 @@ twilioRouter.post("/webhooks/sms", smsLimiter, async (req, res) => {
 
 ## Cost Estimation
 
-Typical Twilio SMS costs (as of 2024):
+Typical Twilio SMS costs (as of January 2026):
 
 | Service                | Cost per Message |
 |------------------------|------------------|
@@ -410,7 +415,7 @@ After successful deployment:
 
 - **Twilio Documentation**: [Programmable SMS](https://www.twilio.com/docs/sms)
 - **Google Contacts API**: [People API Guide](https://developers.google.com/people)
-- **Webhook Guide**: [docs/exhibit/02-integrations/twilio-sms-webhook.md](exhibit/02-integrations/twilio-sms-webhook.md)
+- **Webhook Guide**: [twilio-sms-webhook.md](exhibit/02-integrations/twilio-sms-webhook.md)
 - **E.164 Format**: [Twilio E.164 Guide](https://www.twilio.com/docs/glossary/what-e164)
 - **ngrok**: [Getting Started with ngrok](https://ngrok.com/docs/getting-started)
 
