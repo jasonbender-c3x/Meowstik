@@ -114,6 +114,63 @@ The `~` character is automatically expanded to the user's home directory:
 - `~/path` → User's home directory + path
 - Works with all prefixes (e.g., `client:~/file.txt`)
 
+### file_ingest - RAG Knowledge Ingestion
+
+The `file_ingest` tool ingests content into the RAG (Retrieval-Augmented Generation) system for semantic search and knowledge retrieval.
+
+**Purpose**: Store content in the knowledge base so it can be retrieved later when relevant to user queries.
+
+**Parameters**:
+- `content` (string, required): The text content to ingest
+- `filename` (string, required): Name of the file/document being ingested
+- `mimeType` (string, optional): MIME type (default: 'text/plain')
+  - Supported: `text/plain`, `text/markdown`, `application/json`, `text/html`
+
+**Process**:
+1. Content is chunked into semantically meaningful pieces
+2. Each chunk is embedded using Gemini's embedding API
+3. Embeddings are stored in the vector database (pgvector/Vertex AI/memory)
+4. Content is isolated by user ID for data privacy
+
+**Returns**:
+```json
+{
+  "success": true,
+  "documentId": "doc-1234567890-abc123",
+  "chunksCreated": 5,
+  "filename": "example.txt",
+  "message": "Successfully ingested example.txt into RAG system (5 chunks created)"
+}
+```
+
+**Examples**:
+```json
+{"type": "file_ingest", "id": "r1", "parameters": {
+  "content": "Python is a high-level programming language...",
+  "filename": "python_notes.txt"
+}}
+
+{"type": "file_ingest", "id": "r2", "parameters": {
+  "content": "{\"project\": \"Meowstik\", \"description\": \"AI assistant\"}",
+  "filename": "project_info.json",
+  "mimeType": "application/json"
+}}
+
+{"type": "file_ingest", "id": "r3", "parameters": {
+  "content": "# Meeting Notes\n\n## Action Items\n- Review code\n- Update docs",
+  "filename": "meeting_notes.md",
+  "mimeType": "text/markdown"
+}}
+```
+
+**Use Cases**:
+- Ingest documentation for later reference
+- Store project information for context-aware responses
+- Build a personal knowledge base from notes and files
+- Enable semantic search across ingested content
+
+**Note**: Unlike `file_put` which writes to the filesystem, `file_ingest` stores content in the vector database for semantic retrieval. Use `file_ingest` when you want the AI to remember and retrieve information later.
+
 Examples:
 ```json
 {"type": "file_put", "id": "f1", "parameters": {"path": "~/workspace/test.txt", "content": "..."}}
