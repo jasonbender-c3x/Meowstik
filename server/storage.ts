@@ -41,6 +41,8 @@ import {
   InsertUser,
   InsertSmsMessage,
   InsertCallConversation,
+  InsertCallTurn,
+  InsertVoicemail,
   InsertUserBranding,
   UserBranding,
   InsertUserAgent,
@@ -335,6 +337,195 @@ export const storage = {
    */
   insertCallConversation: async (conversation: InsertCallConversation) => {
     return db.insert(schema.callConversations).values(conversation).returning();
+  },
+
+  /**
+   * Get recent call conversations
+   * @param limit - Maximum number of conversations to return
+   * @returns Array of call conversations ordered by most recent first
+   */
+  getRecentCallConversations: async (limit: number = 20) => {
+    return db.query.callConversations.findMany({
+      limit,
+      orderBy: (conversations, { desc }) => [desc(conversations.startedAt)],
+    });
+  },
+
+  /**
+   * Get call conversation by Twilio call SID
+   * @param callSid - The Twilio call SID
+   * @returns The call conversation or null
+   */
+  getCallConversationBySid: async (callSid: string) => {
+    return db.query.callConversations.findFirst({
+      where: eq(schema.callConversations.callSid, callSid),
+    });
+  },
+
+  /**
+   * Get call conversation by ID
+   * @param id - The conversation ID
+   * @returns The call conversation or null
+   */
+  getCallConversationById: async (id: string) => {
+    return db.query.callConversations.findFirst({
+      where: eq(schema.callConversations.id, id),
+    });
+  },
+
+  /**
+   * Update call conversation
+   * @param id - The conversation ID
+   * @param updates - Fields to update
+   * @returns The updated conversation
+   */
+  updateCallConversation: async (id: string, updates: Partial<InsertCallConversation>) => {
+    const [updated] = await db
+      .update(schema.callConversations)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(schema.callConversations.id, id))
+      .returning();
+    return updated;
+  },
+
+  /**
+   * Update call conversation by call SID
+   * @param callSid - The Twilio call SID
+   * @param updates - Fields to update
+   * @returns The updated conversation
+   */
+  updateCallConversationBySid: async (callSid: string, updates: Partial<InsertCallConversation>) => {
+    const [updated] = await db
+      .update(schema.callConversations)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(schema.callConversations.callSid, callSid))
+      .returning();
+    return updated;
+  },
+
+  /**
+   * Get call conversation by recording SID
+   * @param recordingSid - The Twilio recording SID
+   * @returns The call conversation or null
+   */
+  getCallConversationByRecordingSid: async (recordingSid: string) => {
+    return db.query.callConversations.findFirst({
+      where: eq(schema.callConversations.recordingSid, recordingSid),
+    });
+  },
+
+  /**
+   * Get call turns for a conversation
+   * @param conversationId - The conversation ID
+   * @returns Array of call turns ordered by turn number
+   */
+  getCallTurns: async (conversationId: string) => {
+    return db.query.callTurns.findMany({
+      where: eq(schema.callTurns.conversationId, conversationId),
+      orderBy: (turns, { asc }) => [asc(turns.turnNumber)],
+    });
+  },
+
+  /**
+   * Create a call turn
+   * @param turn - The call turn data
+   * @returns The created call turn
+   */
+  createCallTurn: async (turn: InsertCallTurn) => {
+    const [created] = await db
+      .insert(schema.callTurns)
+      .values(turn)
+      .returning();
+    return created;
+  },
+
+  // ------------------------------------------------------------------------
+  // Voicemail Operations
+  // ------------------------------------------------------------------------
+
+  /**
+   * Create a voicemail record
+   * @param voicemail - The voicemail data
+   * @returns The created voicemail
+   */
+  createVoicemail: async (voicemail: InsertVoicemail) => {
+    const [created] = await db
+      .insert(schema.voicemails)
+      .values(voicemail)
+      .returning();
+    return created;
+  },
+
+  /**
+   * Get recent voicemails
+   * @param limit - Maximum number of voicemails to return
+   * @returns Array of voicemails ordered by most recent first
+   */
+  getRecentVoicemails: async (limit: number = 20) => {
+    return db.query.voicemails.findMany({
+      limit,
+      orderBy: (voicemails, { desc }) => [desc(voicemails.createdAt)],
+    });
+  },
+
+  /**
+   * Get voicemail by recording SID
+   * @param recordingSid - The Twilio recording SID
+   * @returns The voicemail or null
+   */
+  getVoicemailByRecordingSid: async (recordingSid: string) => {
+    return db.query.voicemails.findFirst({
+      where: eq(schema.voicemails.recordingSid, recordingSid),
+    });
+  },
+
+  /**
+   * Get voicemail by ID
+   * @param id - The voicemail ID
+   * @returns The voicemail or null
+   */
+  getVoicemailById: async (id: string) => {
+    return db.query.voicemails.findFirst({
+      where: eq(schema.voicemails.id, id),
+    });
+  },
+
+  /**
+   * Mark voicemail as heard
+   * @param id - The voicemail ID
+   * @returns The updated voicemail
+   */
+  markVoicemailAsHeard: async (id: string) => {
+    const [updated] = await db
+      .update(schema.voicemails)
+      .set({ 
+        heard: true, 
+        heardAt: new Date(),
+        updatedAt: new Date() 
+      })
+      .where(eq(schema.voicemails.id, id))
+      .returning();
+    return updated;
+  },
+
+  /**
+   * Update voicemail transcription
+   * @param id - The voicemail ID
+   * @param transcription - The transcription text
+   * @param status - The transcription status
+   * @returns The updated voicemail
+   */
+  updateVoicemailTranscription: async (id: string, transcription: string, status: string = 'completed') => {
+    const [updated] = await db
+      .update(schema.voicemails)
+      .set({ 
+        transcription,
+        transcriptionStatus: status,
+        updatedAt: new Date() 
+      })
+      .where(eq(schema.voicemails.id, id))
+      .returning();
+    return updated;
   },
 
   // ------------------------------------------------------------------------

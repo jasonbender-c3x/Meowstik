@@ -413,7 +413,32 @@ When responding:
   }
 }
 
-twilioRouter.post("/webhooks/voice", (req: Request, res: Response) => {
+twilioRouter.post("/webhooks/voice", async (req: Request, res: Response) => {
+    const { CallSid, From, To } = req.body;
+    
+    console.log(`[Twilio Voice] Incoming call from ${From}, SID: ${CallSid}`);
+    
+    // Create call conversation record
+    try {
+      const chat = await storage.insertChat({
+        userId: process.env.OWNER_USER_ID || 'guest',
+        title: `Call from ${From}`,
+      });
+      
+      await storage.insertCallConversation({
+        callSid: CallSid,
+        fromNumber: From,
+        toNumber: To,
+        chatId: chat.id,
+        status: 'in_progress',
+        transcriptionStatus: 'pending',
+      });
+      
+      console.log(`[Twilio Voice] Created conversation for call ${CallSid}`);
+    } catch (error) {
+      console.error('[Twilio Voice] Error creating conversation:', error);
+    }
+    
     const voiceTwiml = new twilio.twiml.VoiceResponse();
     voiceTwiml.say('Hello! I am Meowstik, a conversational AI. How can I help you today?');
     voiceTwiml.gather({
@@ -464,4 +489,130 @@ twilioRouter.post("/webhooks/status", (req: Request, res: Response) => {
     console.log(`Message status update for ${MessageSid}: ${MessageStatus}`);
   }
   res.status(204).send();
+});
+
+/**
+ * POST /api/twilio/webhooks/voicemail-recording
+ * Handle voicemail recording completion
+ */
+twilioRouter.post("/webhooks/voicemail-recording", async (req: Request, res: Response) => {
+  try {
+    const { RecordingSid, RecordingUrl, RecordingDuration, CallSid, From, To } = req.body;
+    
+    console.log(`[Twilio Voicemail] Recording received: ${RecordingSid}`);
+    
+    // Store voicemail in database
+    await storage.createVoicemail({
+      recordingSid: RecordingSid,
+      callSid: CallSid,
+      fromNumber: From,
+      toNumber: To,
+      recordingUrl: RecordingUrl,
+      duration: parseInt(RecordingDuration || '0'),
+      transcriptionStatus: 'pending',
+    });
+    
+    console.log(`[Twilio Voicemail] Saved to database: ${RecordingSid}`);
+    
+    res.status(200).send('OK');
+  } catch (error) {
+    console.error('[Twilio Voicemail] Error processing recording:', error);
+    res.status(500).send('Error processing recording');
+  }
+});
+
+/**
+ * POST /api/twilio/webhooks/voicemail-transcription
+ * Handle voicemail transcription completion
+ */
+twilioRouter.post("/webhooks/voicemail-transcription", async (req: Request, res: Response) => {
+  try {
+    const { RecordingSid, TranscriptionText, TranscriptionStatus } = req.body;
+    
+    console.log(`[Twilio Voicemail] Transcription received: ${RecordingSid}`);
+    
+    // Find voicemail by recording SID and update transcription
+    const voicemail = await storage.getVoicemailByRecordingSid(RecordingSid);
+    if (voicemail) {
+      await storage.updateVoicemailTranscription(
+        voicemail.id, 
+        TranscriptionText || '', 
+        TranscriptionStatus === 'completed' ? 'completed' : 'failed'
+      );
+      console.log(`[Twilio Voicemail] Transcription updated: ${RecordingSid}`);
+    } else {
+      console.warn(`[Twilio Voicemail] Voicemail not found for recording: ${RecordingSid}`);
+    }
+    
+    res.status(200).send('OK');
+  } catch (error) {
+    console.error('[Twilio Voicemail] Error processing transcription:', error);
+    res.status(500).send('Error processing transcription');
+  }
+});
+
+/**
+ * POST /api/twilio/webhooks/call-recording
+ * Handle call recording completion
+ */
+twilioRouter.post("/webhooks/call-recording", async (req: Request, res: Response) => {
+  try {
+    const { RecordingSid, RecordingUrl, RecordingDuration, CallSid } = req.body;
+    
+    console.log(`[Twilio Call] Recording completed for call ${CallSid}: ${RecordingSid}`);
+    
+    // Update call conversation with recording details
+    await storage.updateCallConversationBySid(CallSid, {
+      recordingUrl: RecordingUrl,
+      recordingSid: RecordingSid,
+      duration: parseInt(RecordingDuration || '0'),
+      transcriptionStatus: 'pending',
+    });
+    
+    console.log(`[Twilio Call] Recording URL saved: ${RecordingUrl}`);
+    
+    res.status(200).send('OK');
+  } catch (error) {
+    console.error('[Twilio Call] Error processing call recording:', error);
+    res.status(500).send('Error processing recording');
+  }
+});
+
+/**
+ * POST /api/twilio/webhooks/call-transcription
+ * Handle call transcription completion
+ */
+twilioRouter.post("/webhooks/call-transcription", async (req: Request, res: Response) => {
+  try {
+    const { RecordingSid, TranscriptionText, TranscriptionStatus, CallSid } = req.body;
+    
+    console.log(`[Twilio Call] Transcription received for call ${CallSid}: ${RecordingSid}`);
+    
+    // Find call conversation by recording SID and update transcription
+    const conversation = await storage.getCallConversationByRecordingSid(RecordingSid);
+    if (conversation) {
+      await storage.updateCallConversation(conversation.id, {
+        transcription: TranscriptionText || '',
+        transcriptionStatus: TranscriptionStatus === 'completed' ? 'completed' : 'failed',
+      });
+      console.log(`[Twilio Call] Transcription updated for call ${CallSid}`);
+    } else {
+      // Fallback: try to find by call SID
+      const conversationByCallSid = await storage.getCallConversationBySid(CallSid);
+      if (conversationByCallSid) {
+        await storage.updateCallConversation(conversationByCallSid.id, {
+          transcription: TranscriptionText || '',
+          transcriptionStatus: TranscriptionStatus === 'completed' ? 'completed' : 'failed',
+        });
+        console.log(`[Twilio Call] Transcription updated for call ${CallSid} (via CallSid)`);
+      } else {
+        console.warn(`[Twilio Call] Call conversation not found for recording: ${RecordingSid}`);
+      }
+    }
+    
+    res.status(200).send('OK');
+  } catch (error) {
+    console.error('[Twilio Call] Error processing call transcription:', error);
+    res.status(500).send('Error processing transcription');
+  }
 });

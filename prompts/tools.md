@@ -272,12 +272,36 @@ Use these generic HTTP tools to interact with ANY REST API (GitHub, Stripe, etc.
 
 ## SMS & Calls (Twilio)
 
+### Voice Calls
+
+Call recording must be enabled in Twilio Console for automatic transcription:
+- Configure recording settings in Twilio Console → Phone Numbers → Voice Configuration
+- Set "Record Calls" to "Record from Answer" or "Record from Ringing"
+- Enable "Transcribe Text" option
+
+Once configured, all calls are automatically recorded and transcribed.
+
+| Tool | Parameters | Description |
+|------|------------|-------------|
+| `call_make` | `to`, `message?`, `twimlUrl?` | Make outbound call (recorded if enabled in Twilio) |
+| `call_list` | `limit?` | List recent calls with available transcriptions |
+
+### SMS Messaging
 | Tool | Parameters |
 |------|------------|
 | `sms_send` | `to`, `body` |
 | `sms_list` | `limit?` |
-| `call_make` | `to`, `message?`, `twimlUrl?` |
-| `call_list` | `limit?` |
+
+**Call Recording Setup:**
+To enable automatic recording and transcription:
+1. Go to Twilio Console → Phone Numbers → [Your Number]
+2. Under Voice Configuration:
+   - Set "Record Calls" to "Record from Answer"
+   - Enable "Transcribe Text"
+   - Set Recording Status Callback to `/api/twilio/webhooks/call-recording`
+   - Set Transcription Callback to `/api/twilio/webhooks/call-transcription`
+3. Once configured, all inbound calls are automatically recorded and transcribed
+4. Transcriptions are stored in the database and available via `call_list`
 
 ---
 
