@@ -1,15 +1,15 @@
-modules = ["nodejs-20", "web", "python-3.11", "postgresql-16"]
+modules = ["nodejs-20", "python-3.12", "bash", "web", "postgresql-16"]
 run = "npm run dev"
 hidden = [".config", ".git", "generated-icon.png", "node_modules", "dist"]
 
 [nix]
-channel = "stable-24_05"
+channel = "stable-25_05"
 packages = ["ffmpeg", "chromium", "playwright-driver", "openssh", "python3", "killall", "gash-utils"]
 
 [deployment]
 deploymentTarget = "autoscale"
 build = ["npm", "run", "build"]
-run = ["npm", "run", "start"]
+run = ["node", "./dist/index.cjs"]
 
 [env]
 PORT = "5000"
@@ -51,8 +51,6 @@ externalPort = 3000
 [userenv]
 
 [userenv.shared]
-PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH = "/nix/store/zi4f80l169xlmivz8vja8wlphq74qqk0-chromium-125.0.6422.141/bin/chromium"
-GOOGLE_APPLICATION_CREDENTIALS = "/home/runner/workspace/attached_assets/ai-stack-e2a5f-72c8fed5d463_1767324141242.json"
 GOOGLE_REDIRECT_URI = "https://meowstik.com/api/auth/google/callback"
 GOOGLE_CLOUD_PROJECT = "ai-stack-e2a5f"
 

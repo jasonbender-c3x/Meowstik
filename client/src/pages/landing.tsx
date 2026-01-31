@@ -68,7 +68,7 @@ const integrations = [
   { name: "Gmail", icon: Mail, href: "/google" },
   { name: "Calendar", icon: Calendar, href: "/google" },
   { name: "GitHub", icon: GitBranch, href: "/google" },
-  { name: "SMS/Voice", icon: Phone, href: "/" },
+  { name: "SMS/Voice", icon: Phone, href: "/communications" },
   { name: "Browser", icon: Globe, href: "/browser" },
   { name: "Files", icon: FileText, href: "/" }
 ];

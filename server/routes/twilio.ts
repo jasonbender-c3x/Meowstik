@@ -9,7 +9,7 @@ import { Router, Request, Response } from "express";
 import * as twilioIntegration from "../integrations/twilio";
 import twilio from "twilio";
 import { storage } from "../storage";
-import { insertSmsMessageSchema, GUEST_USER_ID } from "@shared/schemas";
+import { insertSmsMessageSchema, GUEST_USER_ID } from "@shared/schema";
 import { z } from "zod";
 import { GoogleGenAI, FunctionCallingConfigMode } from "@google/genai";
 import { getToolDeclarations } from "../gemini-tools-guest";

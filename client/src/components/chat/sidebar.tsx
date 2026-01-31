@@ -94,7 +94,8 @@ import {
   LogOut,
   User,
   Info,
-  Search
+  Search,
+  Phone
 } from "lucide-react";
 
 import { useAppSession } from "@/hooks/use-app-session";
@@ -592,6 +593,23 @@ export function Sidebar({ isOpen, setIsOpen, onNewChat, chats, currentChatId, on
                   >
                     <Globe className="h-4 w-4" />
                     {!effectiveCollapsed && "Web Search"}
+                  </Button>
+                </Link>
+                
+                {/* Communications Button (SMS, Voice Calls) */}
+                <Link href="/communications">
+                  <Button 
+                    variant="ghost" 
+                    className={cn(
+                      "font-normal text-muted-foreground hover:text-foreground",
+                      effectiveCollapsed ? "w-12 h-9 p-0 justify-center" : "w-full justify-start gap-3",
+                      location === "/communications" && "bg-secondary/50 text-foreground"
+                    )}
+                    title={effectiveCollapsed ? "Communications" : undefined}
+                    data-testid="button-communications"
+                  >
+                    <Phone className="h-4 w-4" />
+                    {!effectiveCollapsed && "Communications"}
                   </Button>
                 </Link>
                 
