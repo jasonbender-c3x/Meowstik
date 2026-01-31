@@ -389,6 +389,32 @@ export const storage = {
   },
 
   /**
+   * Update call conversation by call SID
+   * @param callSid - The Twilio call SID
+   * @param updates - Fields to update
+   * @returns The updated conversation
+   */
+  updateCallConversationBySid: async (callSid: string, updates: Partial<InsertCallConversation>) => {
+    const [updated] = await db
+      .update(schema.callConversations)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(schema.callConversations.callSid, callSid))
+      .returning();
+    return updated;
+  },
+
+  /**
+   * Get call conversation by recording SID
+   * @param recordingSid - The Twilio recording SID
+   * @returns The call conversation or null
+   */
+  getCallConversationByRecordingSid: async (recordingSid: string) => {
+    return db.query.callConversations.findFirst({
+      where: eq(schema.callConversations.recordingSid, recordingSid),
+    });
+  },
+
+  /**
    * Get call turns for a conversation
    * @param conversationId - The conversation ID
    * @returns Array of call turns ordered by turn number

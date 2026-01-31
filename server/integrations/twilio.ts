@@ -148,7 +148,7 @@ export async function getMessage(sid: string): Promise<{
 /**
  * Make an outbound voice call
  */
-export async function makeCall(to: string, twimlUrl: string): Promise<{
+export async function makeCall(to: string, twimlUrl: string, record: boolean = true): Promise<{
   sid: string;
   status: string;
   to: string;
@@ -158,11 +158,21 @@ export async function makeCall(to: string, twimlUrl: string): Promise<{
     throw new Error("TWILIO_PHONE_NUMBER not configured");
   }
 
-  const call = await getClient().calls.create({
+  const callParams: any = {
     url: twimlUrl,
     from: twilioPhoneNumber,
     to,
-  });
+  };
+
+  // Enable recording and transcription if requested
+  if (record) {
+    callParams.record = true;
+    callParams.recordingStatusCallback = `${process.env.BASE_URL || ''}/api/twilio/webhooks/call-recording`;
+    callParams.transcribe = true;
+    callParams.transcribeCallback = `${process.env.BASE_URL || ''}/api/twilio/webhooks/call-transcription`;
+  }
+
+  const call = await getClient().calls.create(callParams);
 
   return {
     sid: call.sid,
@@ -175,7 +185,7 @@ export async function makeCall(to: string, twimlUrl: string): Promise<{
 /**
  * Make a call with TwiML directly (using say)
  */
-export async function makeCallWithMessage(to: string, message: string): Promise<{
+export async function makeCallWithMessage(to: string, message: string, record: boolean = true): Promise<{
   sid: string;
   status: string;
   to: string;
@@ -190,11 +200,21 @@ export async function makeCallWithMessage(to: string, message: string): Promise<
   <Say voice="Polly.Joanna">${escapeXml(message)}</Say>
 </Response>`;
 
-  const call = await getClient().calls.create({
+  const callParams: any = {
     twiml,
     from: twilioPhoneNumber,
     to,
-  });
+  };
+
+  // Enable recording and transcription if requested
+  if (record) {
+    callParams.record = true;
+    callParams.recordingStatusCallback = `${process.env.BASE_URL || ''}/api/twilio/webhooks/call-recording`;
+    callParams.transcribe = true;
+    callParams.transcribeCallback = `${process.env.BASE_URL || ''}/api/twilio/webhooks/call-transcription`;
+  }
+
+  const call = await getClient().calls.create(callParams);
 
   return {
     sid: call.sid,

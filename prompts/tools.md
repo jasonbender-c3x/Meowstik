@@ -215,12 +215,32 @@ Use these generic HTTP tools to interact with ANY REST API (GitHub, Stripe, etc.
 
 ## SMS & Calls (Twilio)
 
+### Voice Calls
+All voice calls (inbound and outbound) are **automatically recorded and transcribed**. This enables:
+- Full conversation history and context
+- Searchable call transcripts
+- AI-powered call analysis
+- Compliance and documentation
+
+| Tool | Parameters | Description |
+|------|------------|-------------|
+| `call_make` | `to`, `message?`, `twimlUrl?` | Make outbound call (auto-recorded) |
+| `call_list` | `limit?` | List recent calls with transcriptions |
+| `call_get` | `callId` | Get call details including full transcription |
+| `call_search` | `query` | Search call transcriptions for keywords |
+
+### SMS Messaging
 | Tool | Parameters |
 |------|------------|
 | `sms_send` | `to`, `body` |
 | `sms_list` | `limit?` |
-| `call_make` | `to`, `message?`, `twimlUrl?` |
-| `call_list` | `limit?` |
+
+**Call Recording Details:**
+- **Inbound calls**: Automatically recorded from the moment they connect
+- **Outbound calls**: Recording starts when recipient answers
+- **Transcription**: Provided by Twilio's speech-to-text (typically ready within 1-2 minutes)
+- **Storage**: Recordings and transcripts stored securely in database
+- **Access**: Available via call_list and call_get tools
 
 ---
 

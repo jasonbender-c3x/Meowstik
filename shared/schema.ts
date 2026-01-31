@@ -2631,6 +2631,12 @@ export const callConversations = pgTable("call_conversations", {
   turnCount: integer("turn_count").default(0).notNull(), // Number of speech turns
   currentContext: text("current_context"), // Last question asked or context
   
+  // Recording and transcription
+  recordingUrl: text("recording_url"), // URL to the full call recording
+  recordingSid: text("recording_sid"), // Twilio recording identifier
+  transcription: text("transcription"), // Full call transcription
+  transcriptionStatus: text("transcription_status"), // pending, completed, failed
+  
   // Timing
   startedAt: timestamp("started_at").defaultNow().notNull(),
   endedAt: timestamp("ended_at"),
@@ -2644,6 +2650,7 @@ export const callConversations = pgTable("call_conversations", {
 }, (table) => [
   index("idx_call_conversations_sid").on(table.callSid),
   index("idx_call_conversations_status").on(table.status),
+  index("idx_call_conversations_recording_sid").on(table.recordingSid),
 ]);
 
 export const insertCallConversationSchema = createInsertSchema(callConversations).omit({
