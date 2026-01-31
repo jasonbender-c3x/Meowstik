@@ -181,6 +181,39 @@ Comprehensive tools for interacting with hardware devices, microcontrollers, and
 - 3D printers with OctoPrint
 - KiCad electronic design automation
 
+### 9. SMS Integration (Twilio) 📱
+
+Receive and respond to text messages with AI-powered SMS capabilities.
+
+- **Real-time Message Processing**: Incoming SMS automatically processed through the AI
+- **Smart Contact Recognition**: Looks up senders in Google Contacts for personalized responses
+- **Multi-tier Access Control**:
+  - **Owner**: Full authenticated access to personal data (Calendar, Gmail, Drive)
+  - **Known Contacts**: Can ask personal questions about your whereabouts and activities
+  - **Unknown Numbers**: Guest access with limited, safe-only capabilities
+- **Secure Webhook Validation**: Validates `X-Twilio-Signature` header to prevent spoofing
+- **Conversational AI**: Natural language responses optimized for SMS format
+
+> 📖 **Setup Guide**: See [docs/exhibit/02-integrations/twilio-sms-webhook.md](docs/exhibit/02-integrations/twilio-sms-webhook.md) for complete configuration instructions
+
+#### Example Conversations
+
+**Owner SMS:**
+```
+[You → Twilio]: What's on my calendar today?
+[AI → You]: You have 3 events:
+- 9 AM: Team standup
+- 2 PM: Client meeting with Acme
+- 5 PM: Gym
+```
+
+**Known Contact SMS:**
+```
+[Mom → Twilio]: Where is Jason?
+[AI → Mom]: Hello Mom! Jason is currently at the office.
+His calendar shows a client meeting until 3 PM.
+```
+
 ### 10. Modern UI/UX
 
 - **Google-esque Design**: Clean, airy aesthetic with lots of whitespace
