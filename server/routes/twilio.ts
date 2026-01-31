@@ -9,10 +9,88 @@ import { Router, Request, Response } from "express";
 import * as twilioIntegration from "../integrations/twilio";
 import twilio from "twilio";
 import { storage } from "../storage";
-import { insertSmsMessageSchema } from "@shared/schemas";
+import { insertSmsMessageSchema, GUEST_USER_ID } from "@shared/schemas";
 import { z } from "zod";
+import { GoogleGenAI, FunctionCallingConfigMode } from "@google/genai";
+import { getToolDeclarations } from "../gemini-tools-guest";
+import { ragDispatcher } from "../services/rag-dispatcher";
 
 export const twilioRouter = Router();
+
+// Gemini AI instance for SMS processing
+const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
+
+// Owner identification from environment
+const OWNER_PHONE = process.env.OWNER_PHONE_NUMBER;
+const OWNER_USER_ID = process.env.OWNER_USER_ID;
+
+/**
+ * Normalize phone number to E.164 format for comparison
+ * Removes all non-digit characters except the leading +
+ */
+function normalizePhoneNumber(phone: string): string {
+  // Keep the + if it exists, remove all other non-digits
+  const normalized = phone.replace(/[^\d+]/g, '');
+  return normalized;
+}
+
+/**
+ * Lookup sender in Google Contacts (if authenticated)
+ * Returns contact name and special relationship if found
+ */
+async function lookupContact(phoneNumber: string, userId: string | null): Promise<{
+  name: string | null;
+  isSpecialRelationship: boolean;
+  relationshipContext: string | null;
+}> {
+  // If not authenticated or no userId, can't lookup contacts
+  if (!userId || userId === GUEST_USER_ID) {
+    return { name: null, isSpecialRelationship: false, relationshipContext: null };
+  }
+
+  try {
+    const { getContacts } = await import("../integrations/google-contacts");
+    const contacts = await getContacts(userId, { query: phoneNumber, maxResults: 10 });
+    
+    // Find matching contact by phone number
+    for (const contact of contacts) {
+      if (contact.phoneNumbers) {
+        for (const phone of contact.phoneNumbers) {
+          const contactPhone = normalizePhoneNumber(phone.value);
+          const searchPhone = normalizePhoneNumber(phoneNumber);
+          
+          if (contactPhone === searchPhone || contactPhone.endsWith(searchPhone.slice(-10))) {
+            // Check for special relationships
+            const name = contact.names?.[0]?.displayName || contact.names?.[0]?.givenName || null;
+            const nameLower = name?.toLowerCase() || '';
+            
+            // Check for family members
+            if (nameLower.includes('mom') || nameLower.includes('mother')) {
+              return {
+                name,
+                isSpecialRelationship: true,
+                relationshipContext: "The creator's mother"
+              };
+            }
+            if (nameLower.includes('dad') || nameLower.includes('father')) {
+              return {
+                name,
+                isSpecialRelationship: true,
+                relationshipContext: "The creator's father"
+              };
+            }
+            
+            return { name, isSpecialRelationship: false, relationshipContext: null };
+          }
+        }
+      }
+    }
+  } catch (error) {
+    console.error('[Twilio] Error looking up contact:', error);
+  }
+  
+  return { name, isSpecialRelationship: false, relationshipContext: null };
+}
 
 // ===========================================================================
 // SMS Routes
@@ -98,12 +176,27 @@ twilioRouter.post("/webhooks/sms", async (req: Request, res: Response) => {
   const signature = req.header("X-Twilio-Signature");
   const url = 'https://' + req.get('host') + req.originalUrl;
 
-  if (!signature || !twilioIntegration.validateWebhookSignature(signature, url, req.body)) {
-    return res.status(403).send("Forbidden: Invalid Twilio Signature");
+  // Validate Twilio signature (in production)
+  if (process.env.NODE_ENV !== 'development') {
+    if (!signature || !twilioIntegration.validateWebhookSignature(signature, url, req.body)) {
+      console.error('[Twilio] Invalid webhook signature');
+      return res.status(403).send("Forbidden: Invalid Twilio Signature");
+    }
+  } else if (!signature || !twilioIntegration.validateWebhookSignature(signature, url, req.body)) {
+    console.warn('[Twilio] Invalid signature in dev mode - continuing anyway');
   }
 
   try {
     const parsedData = twilioSmsWebhookSchema.parse(req.body);
+    const from = parsedData.From;
+    const body = parsedData.Body;
+    
+    console.log(`\n${"=".repeat(60)}`);
+    console.log(`[Twilio] Incoming SMS from ${from}`);
+    console.log(`[Twilio] Message: ${body}`);
+    console.log(`${"=".repeat(60)}\n`);
+
+    // Store the incoming SMS
     const smsData: z.infer<typeof insertSmsMessageSchema> = {
       sid: parsedData.SmsSid,
       accountSid: parsedData.AccountSid,
@@ -116,21 +209,205 @@ twilioRouter.post("/webhooks/sms", async (req: Request, res: Response) => {
     };
     await storage.insertSmsMessage(smsData);
 
+    // Respond immediately with TwiML (Twilio requires response within 10s)
     const twiml = new twilio.twiml.MessagingResponse();
-    twiml.message("Thanks for your message! We'll be in touch shortly.");
-
     res.type("text/xml");
-    res.send(twiml.toString());
+    res.send(twiml.toString()); // Empty response, we'll send reply via API
+
+    // Process the message asynchronously (don't block Twilio webhook)
+    processSmsMessage(from, body, parsedData.SmsSid).catch(error => {
+      console.error('[Twilio] Error in async SMS processing:', error);
+    });
 
   } catch (error) {
     if (error instanceof z.ZodError) {
-      console.error("Validation error for incoming SMS:", error.errors);
+      console.error('[Twilio] Validation error:', error.errors);
       return res.status(400).json({ success: false, error: "Invalid SMS data format", details: error.errors });
     }
-    console.error("Error processing incoming SMS:", error);
+    console.error('[Twilio] Error processing incoming SMS:', error);
     res.status(500).json({ success: false, error: "Failed to process incoming SMS" });
   }
 });
+
+/**
+ * Process SMS message through AI and send response
+ * This runs asynchronously after the webhook returns
+ */
+async function processSmsMessage(from: string, messageBody: string, smsSid: string): Promise<void> {
+  try {
+    // Determine authentication status
+    const normalizedFrom = normalizePhoneNumber(from);
+    const normalizedOwner = OWNER_PHONE ? normalizePhoneNumber(OWNER_PHONE) : null;
+    const isOwner = normalizedOwner && normalizedFrom === normalizedOwner;
+    
+    let userId: string | null = null;
+    let authStatus: { isAuthenticated: boolean; userId?: string; isGuest?: boolean } = {
+      isAuthenticated: false,
+      isGuest: true
+    };
+    
+    if (isOwner && OWNER_USER_ID) {
+      // Owner gets full authenticated access
+      userId = OWNER_USER_ID;
+      authStatus = { isAuthenticated: true, userId: OWNER_USER_ID };
+      console.log(`[Twilio] SMS from owner: ${from}`);
+    } else {
+      // Guest access for non-owners
+      userId = null;
+      authStatus = { isAuthenticated: false, isGuest: true };
+      console.log(`[Twilio] SMS from guest: ${from}`);
+    }
+    
+    // Lookup contact (even for guests, for context)
+    const contact = await lookupContact(from, OWNER_USER_ID || null);
+    
+    // Build sender context for system prompt
+    let senderContext = '';
+    if (isOwner) {
+      senderContext = `\n\nYou are responding to an SMS from the authenticated owner (${from}).`;
+    } else if (contact.name) {
+      if (contact.isSpecialRelationship && contact.relationshipContext) {
+        senderContext = `\n\nYou are responding to an SMS from ${contact.name} (${contact.relationshipContext}) at ${from}.`;
+      } else {
+        senderContext = `\n\nYou are responding to an SMS from ${contact.name} (a known contact) at ${from}.`;
+      }
+    } else {
+      senderContext = `\n\nYou are responding to an SMS from an unknown number: ${from}. Be helpful but do not share private information.`;
+    }
+    
+    // Create or retrieve chat session for this phone number
+    // Use title pattern to find existing SMS chat
+    const smsIdentifier = `SMS: ${from}`;
+    const existingChats = await storage.getChatsByUser(userId || GUEST_USER_ID, 100);
+    let chat = existingChats.find(c => c.title.includes(from) && c.title.startsWith('SMS'));
+    
+    if (!chat) {
+      const chatTitle = contact.name 
+        ? `SMS: ${contact.name} (${from})`
+        : smsIdentifier;
+      
+      chat = await storage.createChat({
+        title: chatTitle,
+        userId: userId || GUEST_USER_ID,
+        isGuest: !isOwner
+      });
+      console.log(`[Twilio] Created new chat session: ${chat.id}`);
+    }
+    
+    // Save user message to chat
+    const userMessage = await storage.createMessage({
+      chatId: chat.id,
+      role: 'user',
+      content: messageBody,
+      userId: userId || GUEST_USER_ID
+    });
+    
+    // Get chat history (last 10 messages for context)
+    const historyMessages = await storage.getMessagesByChat(chat.id, 10);
+    const history = historyMessages
+      .filter(m => m.id !== userMessage.id) // Exclude the current message
+      .map(m => ({
+        role: m.role as 'user' | 'model',
+        parts: [{ text: m.content }]
+      }));
+    
+    // Build system prompt
+    const systemPrompt = `You are Meowstik, a helpful AI assistant responding via SMS text message.
+
+IMPORTANT SMS GUIDELINES:
+- Keep responses CONCISE and BRIEF (1-3 sentences max)
+- Use conversational, friendly tone
+- Format for SMS readability (short paragraphs, minimal formatting)
+- If you need to send a long response, break it into multiple messages using sms_send tool
+${senderContext}
+
+When responding:
+1. Always use the sms_send tool to send your reply
+2. Make sure to set the "to" parameter to the sender's number: ${from}
+3. After sending, call end_turn to complete the conversation`;
+    
+    // Select tool declarations based on authentication
+    const toolDeclarations = getToolDeclarations(authStatus.isAuthenticated);
+    
+    console.log(`[Twilio] Processing with ${toolDeclarations.length} available tools`);
+    console.log(`[Twilio] Auth: ${authStatus.isAuthenticated ? 'AUTHENTICATED' : 'GUEST'}`);
+    
+    // Call Gemini AI
+    const result = await genAI.models.generateContent({
+      model: "gemini-2.0-flash-exp",
+      config: {
+        systemInstruction: systemPrompt,
+        tools: [{ functionDeclarations: toolDeclarations }],
+        toolConfig: {
+          functionCallingConfig: {
+            mode: FunctionCallingConfigMode.ANY,
+          },
+        },
+      },
+      contents: [...history, { role: "user", parts: [{ text: messageBody }] }],
+    });
+    
+    // Collect function calls
+    const functionCalls = result.functionCalls || [];
+    console.log(`[Twilio] Received ${functionCalls.length} function calls from Gemini`);
+    
+    // Execute tool calls
+    let assistantResponse = '';
+    for (const fc of functionCalls) {
+      console.log(`[Twilio] Executing tool: ${fc.name}`);
+      
+      const toolCall = {
+        id: `fc_${Date.now()}`,
+        type: fc.name as any,
+        operation: fc.name || "execute",
+        parameters: (fc.args as Record<string, unknown>) || {},
+        priority: 0,
+      };
+      
+      try {
+        const toolResult = await ragDispatcher.executeToolCall(toolCall, userMessage.id, chat.id);
+        
+        if (toolResult.success) {
+          console.log(`[Twilio] ✓ Tool ${fc.name} executed successfully`);
+          
+          // Capture send_chat content for storage
+          if (fc.name === 'send_chat' || fc.name === 'sms_send') {
+            const result = toolResult.result as { content?: string };
+            if (result?.content) {
+              assistantResponse += result.content;
+            }
+          }
+        } else {
+          console.error(`[Twilio] ✗ Tool ${fc.name} failed:`, toolResult.error);
+        }
+      } catch (error) {
+        console.error(`[Twilio] Error executing tool ${fc.name}:`, error);
+      }
+    }
+    
+    // Save assistant response to chat if we have any
+    if (assistantResponse) {
+      await storage.createMessage({
+        chatId: chat.id,
+        role: 'assistant',
+        content: assistantResponse,
+        userId: userId || GUEST_USER_ID
+      });
+    }
+    
+    console.log(`[Twilio] SMS processing complete for ${from}`);
+    
+  } catch (error) {
+    console.error('[Twilio] Error in processSmsMessage:', error);
+    
+    // Send error message to sender
+    try {
+      await twilioIntegration.sendSMS(from, "Sorry, I encountered an error processing your message. Please try again later.");
+    } catch (sendError) {
+      console.error('[Twilio] Failed to send error SMS:', sendError);
+    }
+  }
+}
 
 twilioRouter.post("/webhooks/voice", (req: Request, res: Response) => {
     const voiceTwiml = new twilio.twiml.VoiceResponse();
