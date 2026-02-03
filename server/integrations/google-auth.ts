@@ -27,15 +27,17 @@ let initialized = false;
 let initializationPromise: Promise<void> | null = null;
 
 function getRedirectUri(): string {
-  if (process.env.GOOGLE_REDIRECT_URI) {
-    return process.env.GOOGLE_REDIRECT_URI;
-  }
-  
   let host: string;
   
+  // In development mode, always use dynamic detection
+  const isDevMode = process.env.HOME_DEV_MODE === 'true' || process.env.NODE_ENV === 'development';
+  
   if (process.env.REPLIT_DEV_DOMAIN) {
-    // Development environment
+    // Development environment - always use dev domain
     host = `https://${process.env.REPLIT_DEV_DOMAIN}`;
+  } else if (!isDevMode && process.env.GOOGLE_REDIRECT_URI) {
+    // Production: use configured redirect URI
+    return process.env.GOOGLE_REDIRECT_URI;
   } else if (process.env.REPLIT_DOMAINS) {
     // Production deployment - use first domain from comma-separated list
     const domains = process.env.REPLIT_DOMAINS.split(',');
