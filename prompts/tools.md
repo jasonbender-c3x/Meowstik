@@ -190,6 +190,86 @@ Examples:
 | `browserbase_load` | `url` |
 | `browserbase_screenshot` | `sessionId` |
 
+### Terminal Command Examples
+
+The `terminal` (or `terminal_execute`) tool executes shell commands for file operations, searches, and system tasks.
+
+#### Workspace & Documentation Search
+
+```json
+// Search file contents (grep)
+{"type": "terminal", "id": "t1", "parameters": {"command": "grep -r 'search term' ~/workspace --include='*.js'"}}
+{"type": "terminal", "id": "t2", "parameters": {"command": "grep -r 'function.*authenticate' . --include='*.ts' -n"}}
+
+// Search documentation
+{"type": "terminal", "id": "t3", "parameters": {"command": "grep -r 'API usage' ~/workspace/docs"}}
+{"type": "terminal", "id": "t4", "parameters": {"command": "find ~/workspace/docs -name '*.md' -exec grep -l 'configuration' {} \\;"}}
+
+// Find files by name
+{"type": "terminal", "id": "t5", "parameters": {"command": "find ~/workspace -name 'config*.json' -type f"}}
+{"type": "terminal", "id": "t6", "parameters": {"command": "find . -name '*.md' -path '*/docs/*'"}}
+
+// Search for error patterns
+{"type": "terminal", "id": "t7", "parameters": {"command": "grep -r 'Error:' ~/workspace/logs --include='*.log' | tail -20"}}
+
+// Search for imports/dependencies
+{"type": "terminal", "id": "t8", "parameters": {"command": "grep -r 'import.*Component' ~/workspace/src --include='*.tsx' | head -10"}}
+```
+
+#### Common Search Patterns
+
+```bash
+# Case-insensitive search
+grep -ri "pattern" ~/workspace
+
+# Search with context (lines before/after match)
+grep -r "error" ~/workspace/logs -A 3 -B 3
+
+# Count occurrences
+grep -r "TODO" ~/workspace --include="*.ts" | wc -l
+
+# Search excluding directories
+grep -r "pattern" ~/workspace --exclude-dir=node_modules --exclude-dir=dist
+
+# Find recently modified files
+find ~/workspace -name "*.js" -mtime -7
+
+# List directory contents
+ls -lah ~/workspace/src
+```
+
+#### File Operations
+
+```json
+// Create directory
+{"type": "terminal", "id": "t1", "parameters": {"command": "mkdir -p ~/workspace/docs/apis"}}
+
+// Copy files
+{"type": "terminal", "id": "t2", "parameters": {"command": "cp ~/workspace/example.js ~/workspace/backup/"}}
+
+// Move/rename files
+{"type": "terminal", "id": "t3", "parameters": {"command": "mv ~/workspace/old-name.js ~/workspace/new-name.js"}}
+
+// Check file exists
+{"type": "terminal", "id": "t4", "parameters": {"command": "test -f ~/workspace/file.txt && echo 'exists' || echo 'not found'"}}
+```
+
+#### System Information
+
+```json
+// Check current directory
+{"type": "terminal", "id": "t1", "parameters": {"command": "pwd"}}
+
+// List environment variables
+{"type": "terminal", "id": "t2", "parameters": {"command": "env | grep NODE"}}
+
+// Check disk space
+{"type": "terminal", "id": "t3", "parameters": {"command": "df -h ~/workspace"}}
+
+// Process information
+{"type": "terminal", "id": "t4", "parameters": {"command": "ps aux | grep node"}}
+```
+
 ---
 
 ## SSH (Remote Server Access)
