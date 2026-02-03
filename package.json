@@ -110,6 +110,7 @@
     "playwright": "^1.57.0",
     "playwright-core": "^1.57.0",
     "playwright-extra": "^4.3.6",
+    "pnpm": "^10.28.2",
     "postgres": "^3.4.8",
     "react": "^19.2.0",
     "react-day-picker": "^9.11.1",
