@@ -1964,7 +1964,18 @@ export class RAGDispatcher {
     // Remove directory traversal attempts but preserve leading slashes for absolute paths
     const sanitizedPath = actualPath.replace(/\.\./g, "");
     // Use absolute path as-is, or join relative path with workspaceDir
-    const fullPath = path.isAbsolute(sanitizedPath) ? sanitizedPath : path.join(this.workspaceDir, sanitizedPath);
+    let fullPath: string;
+    if (path.isAbsolute(sanitizedPath)) {
+      // For absolute paths, normalize and verify they don't escape allowed directories
+      fullPath = path.normalize(sanitizedPath);
+    } else {
+      // For relative paths, join with workspace and normalize
+      fullPath = path.normalize(path.join(this.workspaceDir, sanitizedPath));
+      // Verify the resolved path is within the workspace (security check)
+      if (!fullPath.startsWith(this.workspaceDir)) {
+        throw new Error(`Access denied: Path traversal detected. Resolved path must be within workspace.`);
+      }
+    }
     
     try {
       let content = await fs.readFile(fullPath, params.encoding === 'base64' ? 'base64' : 'utf8');
@@ -2083,7 +2094,18 @@ export class RAGDispatcher {
     // Remove directory traversal attempts but preserve leading slashes for absolute paths
     const sanitizedPath = actualPath.replace(/\.\./g, "");
     // Use absolute path as-is, or join relative path with workspaceDir
-    const fullPath = path.isAbsolute(sanitizedPath) ? sanitizedPath : path.join(this.workspaceDir, sanitizedPath);
+    let fullPath: string;
+    if (path.isAbsolute(sanitizedPath)) {
+      // For absolute paths, normalize and verify they don't escape allowed directories
+      fullPath = path.normalize(sanitizedPath);
+    } else {
+      // For relative paths, join with workspace and normalize
+      fullPath = path.normalize(path.join(this.workspaceDir, sanitizedPath));
+      // Verify the resolved path is within the workspace (security check)
+      if (!fullPath.startsWith(this.workspaceDir)) {
+        throw new Error(`Access denied: Path traversal detected. Resolved path must be within workspace.`);
+      }
+    }
     
     try {
       await fs.mkdir(path.dirname(fullPath), { recursive: true });
