@@ -1961,8 +1961,10 @@ export class RAGDispatcher {
     }
 
     // Read from server filesystem (default)
-    const sanitizedPath = actualPath.replace(/\.\./g, "").replace(/^\/+/, "");
-    const fullPath = path.join(this.workspaceDir, sanitizedPath);
+    // Remove directory traversal attempts but preserve leading slashes for absolute paths
+    const sanitizedPath = actualPath.replace(/\.\./g, "");
+    // Use absolute path as-is, or join relative path with workspaceDir
+    const fullPath = path.isAbsolute(sanitizedPath) ? sanitizedPath : path.join(this.workspaceDir, sanitizedPath);
     
     try {
       let content = await fs.readFile(fullPath, params.encoding === 'base64' ? 'base64' : 'utf8');
@@ -2078,8 +2080,10 @@ export class RAGDispatcher {
     }
 
     // Write to server filesystem (default)
-    const sanitizedPath = actualPath.replace(/\.\./g, "").replace(/^\/+/, "");
-    const fullPath = path.join(this.workspaceDir, sanitizedPath);
+    // Remove directory traversal attempts but preserve leading slashes for absolute paths
+    const sanitizedPath = actualPath.replace(/\.\./g, "");
+    // Use absolute path as-is, or join relative path with workspaceDir
+    const fullPath = path.isAbsolute(sanitizedPath) ? sanitizedPath : path.join(this.workspaceDir, sanitizedPath);
     
     try {
       await fs.mkdir(path.dirname(fullPath), { recursive: true });
