@@ -114,23 +114,24 @@ The `~` character is automatically expanded to the user's home directory:
 - `~/path` → User's home directory + path
 - Works with all prefixes (e.g., `client:~/file.txt`)
 
-### file_ingest - RAG Knowledge Ingestion
+### file_ingest - RAG Knowledge Ingestion ✅ FUNCTIONAL
 
-The `file_ingest` tool ingests content into the RAG (Retrieval-Augmented Generation) system for semantic search and knowledge retrieval.
+**The `file_ingest` tool IS FUNCTIONAL and IMPORTANT.**
 
-**Purpose**: Store content in the knowledge base so it can be retrieved later when relevant to user queries.
+**Purpose**: Ingest content into RAG system for automatic semantic retrieval in future queries.
+
+**How it works:**
+1. Content is chunked into semantically meaningful pieces
+2. Each chunk is embedded using Gemini's embedding API
+3. Embeddings are stored in vector database
+4. Future queries automatically retrieve relevant chunks
+5. Retrieved knowledge appears in `<retrieved_knowledge>` section of your prompt
 
 **Parameters**:
 - `content` (string, required): The text content to ingest
 - `filename` (string, required): Name of the file/document being ingested
 - `mimeType` (string, optional): MIME type (default: 'text/plain')
   - Supported: `text/plain`, `text/markdown`, `application/json`, `text/html`
-
-**Process**:
-1. Content is chunked into semantically meaningful pieces
-2. Each chunk is embedded using Gemini's embedding API
-3. Embeddings are stored in the vector database (pgvector/Vertex AI/memory)
-4. Content is isolated by user ID for data privacy
 
 **Returns**:
 ```json
@@ -164,12 +165,27 @@ The `file_ingest` tool ingests content into the RAG (Retrieval-Augmented Generat
 ```
 
 **Use Cases**:
-- Ingest documentation for later reference
+- Ingest documentation for automatic future reference
 - Store project information for context-aware responses
 - Build a personal knowledge base from notes and files
-- Enable semantic search across ingested content
+- Enable automatic semantic search across ingested content
 
-**Note**: Unlike `file_put` which writes to the filesystem, `file_ingest` stores content in the vector database for semantic retrieval. Use `file_ingest` when you want the AI to remember and retrieve information later.
+**Best Practice**: After ingesting with `file_ingest`, also save to regular files with `file_put` for direct access:
+
+```json
+// Ingest into RAG for semantic search
+{"type": "file_ingest", "id": "i1", "parameters": {
+  "content": "API documentation content...",
+  "filename": "api-docs.md",
+  "mimeType": "text/markdown"
+}}
+
+// ALSO save to filesystem for direct access
+{"type": "file_put", "id": "p1", "parameters": {
+  "path": "~/workspace/knowledge/api-docs.md",
+  "content": "API documentation content..."
+}}
+```
 
 Examples:
 ```json
@@ -189,6 +205,94 @@ Examples:
 | `browser_scrape` | `url`, `selector?` |
 | `browserbase_load` | `url` |
 | `browserbase_screenshot` | `sessionId` |
+
+### Terminal Command Examples
+
+The `terminal` (or `terminal_execute`) tool executes shell commands for file operations and system tasks.
+
+**⚠️ IMPORTANT:** `grep` and `find` commands are unreliable in this environment. Use the alternatives shown below.
+
+#### Directory Exploration (RELIABLE)
+
+```json
+// List directory contents
+{"type": "terminal", "id": "t1", "parameters": {"command": "ls -la ~/workspace"}}
+{"type": "terminal", "id": "t2", "parameters": {"command": "ls -lah ~/workspace/docs"}}
+{"type": "terminal", "id": "t3", "parameters": {"command": "ls ~/workspace/src/*.ts"}}
+
+// Tree view (if available)
+{"type": "terminal", "id": "t4", "parameters": {"command": "ls -R ~/workspace/docs | head -50"}}
+
+// Check if file exists
+{"type": "terminal", "id": "t5", "parameters": {"command": "test -f ~/workspace/file.txt && echo 'exists' || echo 'not found'"}}
+
+// Count files in directory
+{"type": "terminal", "id": "t6", "parameters": {"command": "ls ~/workspace/src | wc -l"}}
+```
+
+#### File Search with Node.js (PREFERRED METHOD)
+
+```json
+// Search for files by name pattern
+{"type": "terminal", "id": "t1", "parameters": {"command": "node -e \"const fs=require('fs'),path=require('path');function search(d,p){let r=[];try{fs.readdirSync(d).forEach(f=>{const fp=path.join(d,f);try{const stat=fs.statSync(fp);if(stat.isDirectory()&&!['node_modules','.git','dist','build'].includes(f))r=r.concat(search(fp,p));else if(f.includes(p))r.push(fp)}catch(e){}});}catch(e){}return r}console.log(JSON.stringify(search('~/workspace','.md').slice(0,20),null,2))\""}}
+
+// Search file contents with Node.js
+{"type": "terminal", "id": "t2", "parameters": {"command": "node -e \"const fs=require('fs');const content=fs.readFileSync('~/workspace/file.js','utf8');const matches=content.split('\\n').map((line,i)=>({line:i+1,text:line})).filter(l=>l.text.includes('search term'));console.log(JSON.stringify(matches,null,2))\""}}
+
+// List all markdown files
+{"type": "terminal", "id": "t3", "parameters": {"command": "node -e \"const fs=require('fs'),path=require('path');function find(d,ext){let r=[];try{fs.readdirSync(d).forEach(f=>{const fp=path.join(d,f);try{if(fs.statSync(fp).isDirectory()&&!f.startsWith('.'))r=r.concat(find(fp,ext));else if(f.endsWith(ext))r.push(fp)}catch(e){}});}catch(e){}return r}console.log(find('.','.md').join('\\n'))\""}}
+```
+
+#### File Operations (RELIABLE)
+
+```json
+// Create directory
+{"type": "terminal", "id": "t1", "parameters": {"command": "mkdir -p ~/workspace/docs/apis"}}
+
+// Copy files
+{"type": "terminal", "id": "t2", "parameters": {"command": "cp ~/workspace/example.js ~/workspace/backup/"}}
+
+// Move/rename files
+{"type": "terminal", "id": "t3", "parameters": {"command": "mv ~/workspace/old-name.js ~/workspace/new-name.js"}}
+
+// Remove files (use with caution)
+{"type": "terminal", "id": "t4", "parameters": {"command": "rm ~/workspace/temp-file.txt"}}
+```
+
+#### System Information (RELIABLE)
+
+```json
+// Check current directory
+{"type": "terminal", "id": "t1", "parameters": {"command": "pwd"}}
+
+// List environment variables
+{"type": "terminal", "id": "t2", "parameters": {"command": "env | head -20"}}
+
+// Check disk space
+{"type": "terminal", "id": "t3", "parameters": {"command": "df -h ~"}}
+
+// Check Node.js version
+{"type": "terminal", "id": "t4", "parameters": {"command": "node --version"}}
+```
+
+### Recommended Workflow for File Discovery
+
+Instead of using `grep`/`find`, follow this pattern:
+
+```json
+// Step 1: List directory to see structure
+{"type": "terminal", "id": "t1", "parameters": {"command": "ls -la ~/workspace/docs"}}
+
+// Step 2: Read specific files directly
+{"type": "get", "id": "g1", "parameters": {"path": "~/workspace/docs/api-reference.md"}}
+
+// Step 3: If you need to search file contents, read the file first
+{"type": "get", "id": "g2", "parameters": {"path": "~/workspace/src/component.tsx"}}
+// Then search the returned content in your processing
+
+// Step 4: For complex searches, use Node.js one-liner
+{"type": "terminal", "id": "t2", "parameters": {"command": "node -e \"console.log('search results')\""}}
+```
 
 ---
 
@@ -247,6 +351,96 @@ Use these generic HTTP tools to interact with ANY REST API (GitHub, Stripe, etc.
   "body": {"title": "Bug report", "body": "Description here"}
 }}
 ```
+
+---
+
+## 🔥 Codebase Analysis & RAG Ingestion
+
+**CRITICAL:** Use these tools to ingest codebases into RAG for semantic search.
+
+| Tool | Parameters | Description |
+|------|------------|-------------|
+| `codebase_analyze` | `path?` | Crawl directory, extract entities (functions/classes), ingest files to RAG. Default: ~/workspace |
+| `codebase_progress` | none | Get current analysis progress (files/entities/chunks processed) |
+
+### codebase_analyze - Automatic Workspace Indexing
+
+**Purpose:** Index an entire codebase into RAG for semantic code search.
+
+**What it does:**
+1. Recursively discovers code files (supports 40+ languages)
+2. Extracts entities (functions, classes, imports, exports)
+3. Chunks files semantically
+4. Embeds and stores in RAG system
+5. Enables semantic code search in future queries
+
+**Parameters:**
+- `path` (string, optional): Root directory to analyze (default: `~/workspace`)
+
+**When to use:**
+- ✅ **FIRST TIME** in any workspace (check `<retrieved_knowledge>` first)
+- ✅ New project or repository
+- ✅ Before working on unfamiliar code
+- ✅ When RAG doesn't have code context
+
+**Example workflow:**
+```json
+// Step 1: Check if workspace already in RAG
+{"toolCalls": [
+  {"type": "write", "id": "w1", "parameters": {"content": "🔍 Checking RAG for workspace context..."}}
+]}
+// Look in <retrieved_knowledge> - if no code found, proceed
+
+// Step 2: Analyze workspace
+{"toolCalls": [
+  {"type": "write", "id": "w2", "parameters": {"content": "📚 Indexing workspace into RAG system...\n\nThis will:\n- Discover all code files\n- Extract functions/classes\n- Enable semantic search\n- Take ~30-60 seconds"}},
+  {"type": "codebase_analyze", "id": "c1", "parameters": {"path": "~/workspace"}}
+]}
+
+// Step 3: Check progress
+{"toolCalls": [
+  {"type": "codebase_progress", "id": "c2", "parameters": {}},
+  {"type": "write", "id": "w3", "parameters": {"content": "✅ Workspace indexed! Now I can semantically search your code."}}
+]}
+```
+
+**Supported languages:** TypeScript, JavaScript, Python, Ruby, Go, Rust, Java, Kotlin, C/C++, C#, PHP, Swift, and 30+ more.
+
+**Returns:**
+```json
+{
+  "success": true,
+  "totalFiles": 127,
+  "totalEntities": 342,
+  "totalChunks": 89,
+  "analysisTime": "45.2s",
+  "message": "Successfully analyzed workspace: 127 files, 342 entities, 89 chunks ingested"
+}
+```
+
+### codebase_progress - Check Analysis Status
+
+**Purpose:** Get current progress of ongoing codebase analysis.
+
+**Returns:**
+```json
+{
+  "phase": "ingestion",
+  "filesDiscovered": 127,
+  "filesProcessed": 89,
+  "entitiesFound": 234,
+  "chunksIngested": 67,
+  "currentFile": "src/components/App.tsx"
+}
+```
+
+### Best Practices
+
+1. **Always check RAG first** - Look for code in `<retrieved_knowledge>`
+2. **Analyze on first interaction** - Don't wait to be asked
+3. **Analyze subdirectories** - Can analyze specific modules
+4. **Report progress** - Tell user you're indexing
+5. **Use results** - Future queries will find code semantically
 
 ---
 
