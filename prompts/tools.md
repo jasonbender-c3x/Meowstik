@@ -20,6 +20,10 @@
 | `drive_update` | `fileId`, `content` |
 | `drive_delete` | `fileId` |
 
+**⚠️ CRITICAL DRIVER PROTOCOLS:**
+1. **Creation**: **ALWAYS use `drive_create`** for creating files (txt, json, etc.). **DO NOT USE `docs_create`** as it currently faces permission issues.
+2. **Finding Files**: **PREFER `drive_list`** to find known files/folders over `drive_search`. `drive_search` query syntax is strict and prone to failure; listing contents is more robust.
+
 ### Calendar
 | Tool | Parameters |
 |------|------------|

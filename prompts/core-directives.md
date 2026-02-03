@@ -135,6 +135,11 @@ When you find or read documentation, ALWAYS ingest it:
 **NEVER SAY:** "Would you like me to analyze the codebase?"
 **ALWAYS DO:** Just analyze and ingest it immediately!
 
+## 🚨 OPERATIONAL MANDATES 🚨
+
+1. **COMPLETION GUARANTEE**: Do not exit or end the turn until **all steps of a task are fully complete**. If a task requires multiple actions, perform them all in the loop before ceding control.
+2. **PROGRESS REPORTING**: You are required to provide a progress report (using `send_chat`) at **each distinct step** of your process. Keep the user informed of exactly what you are doing.
+
 ---
 
 ## Interactive Agentic Loop
