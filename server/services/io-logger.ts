@@ -15,6 +15,128 @@
 import * as fs from 'fs';
 import * as path from 'path';
 
+/**
+ * =============================================================================
+ * CREDENTIAL REDACTION UTILITIES
+ * =============================================================================
+ * 
+ * These functions ensure that sensitive credentials (API keys, tokens, passwords,
+ * secrets) are NEVER exposed in logs. All credential patterns are redacted
+ * before being written to disk.
+ * 
+ * This is a critical security feature to prevent accidental credential leakage.
+ * =============================================================================
+ */
+
+/**
+ * Patterns for detecting common credential formats
+ * Covers: API keys, tokens, passwords, secrets, OAuth tokens, etc.
+ */
+const CREDENTIAL_PATTERNS = [
+  // Generic API keys and tokens
+  /\b[A-Za-z0-9_-]{20,}\b/g, // Long alphanumeric strings (likely keys)
+  
+  // Specific service patterns
+  /ghp_[A-Za-z0-9]{36}/g, // GitHub Personal Access Token
+  /gho_[A-Za-z0-9]{36}/g, // GitHub OAuth Token
+  /github_pat_[A-Za-z0-9_]{82}/g, // GitHub Fine-grained PAT
+  /sk-[A-Za-z0-9]{48}/g, // OpenAI API Key
+  /sk-proj-[A-Za-z0-9_-]{48,}/g, // OpenAI Project API Key
+  /AIza[A-Za-z0-9_-]{35}/g, // Google API Key
+  /ya29\.[A-Za-z0-9_-]{68,}/g, // Google OAuth2 Access Token
+  /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi, // UUIDs (often used as API keys)
+  /AC[a-z0-9]{32}/g, // Twilio Account SID
+  /SK[a-z0-9]{32}/g, // Twilio API Key SID
+  /[A-Za-z0-9]{32}/g, // Twilio Auth Token (32 chars)
+  /xoxb-[A-Za-z0-9-]+/g, // Slack Bot Token
+  /xoxp-[A-Za-z0-9-]+/g, // Slack User Token
+  /AKIA[A-Z0-9]{16}/g, // AWS Access Key ID
+  
+  // Password-like patterns in JSON
+  /"(password|passwd|pwd|secret|api_key|apikey|token|auth_token|access_token|private_key)"\s*:\s*"[^"]+"/gi,
+  
+  // Authorization headers
+  /Authorization:\s*Bearer\s+[A-Za-z0-9._-]+/gi,
+  /Authorization:\s*Basic\s+[A-Za-z0-9+/=]+/gi,
+  
+  // Generic credential field patterns
+  /api[_-]?key[s]?\s*[:=]\s*['"]?[A-Za-z0-9_-]{20,}['"]?/gi,
+  /token[s]?\s*[:=]\s*['"]?[A-Za-z0-9._-]{20,}['"]?/gi,
+  /secret[s]?\s*[:=]\s*['"]?[A-Za-z0-9._-]{20,}['"]?/gi,
+  /password[s]?\s*[:=]\s*['"]?[^\s'"]{8,}['"]?/gi,
+];
+
+/**
+ * Redact sensitive credentials from text
+ * @param text - The text to redact
+ * @returns Text with credentials replaced by [REDACTED]
+ */
+function redactCredentials(text: string): string {
+  let redacted = text;
+  
+  for (const pattern of CREDENTIAL_PATTERNS) {
+    redacted = redacted.replace(pattern, (match) => {
+      // Preserve the structure for JSON keys
+      if (match.includes(':')) {
+        const [key, _] = match.split(':');
+        return `${key}: "[REDACTED]"`;
+      }
+      // For authorization headers, preserve the type
+      if (match.toLowerCase().includes('authorization')) {
+        return match.split(' ')[0] + ' [REDACTED]';
+      }
+      // For everything else, just redact
+      return '[REDACTED]';
+    });
+  }
+  
+  return redacted;
+}
+
+/**
+ * Recursively redact credentials from objects (for JSON data)
+ * @param obj - The object to redact
+ * @returns Deep copy with credentials redacted
+ */
+function redactObjectCredentials(obj: any): any {
+  if (obj === null || obj === undefined) {
+    return obj;
+  }
+  
+  if (typeof obj === 'string') {
+    return redactCredentials(obj);
+  }
+  
+  if (Array.isArray(obj)) {
+    return obj.map(item => redactObjectCredentials(item));
+  }
+  
+  if (typeof obj === 'object') {
+    const redacted: any = {};
+    for (const [key, value] of Object.entries(obj)) {
+      // Check if the key name suggests it's a credential field
+      const keyLower = key.toLowerCase();
+      const isCredentialKey = 
+        keyLower.includes('password') ||
+        keyLower.includes('secret') ||
+        keyLower.includes('token') ||
+        keyLower.includes('key') && keyLower.includes('api') ||
+        keyLower.includes('credential') ||
+        keyLower === 'auth' ||
+        keyLower === 'authorization';
+      
+      if (isCredentialKey && typeof value === 'string') {
+        redacted[key] = '[REDACTED]';
+      } else {
+        redacted[key] = redactObjectCredentials(value);
+      }
+    }
+    return redacted;
+  }
+  
+  return obj;
+}
+
 export interface LoggedInput {
   timestamp: string;
   messageId: string;
@@ -65,11 +187,25 @@ class IOLogger {
 
   /**
    * Log input (everything sent TO the LLM)
+   * SECURITY: All credentials are redacted before logging
    */
   logInput(data: LoggedInput): string {
     const timestamp = Date.now();
     const filename = `input-${timestamp}-${data.messageId}.md`;
     const filepath = path.join(this.logsDir, filename);
+
+    // Redact credentials from all text content
+    const redactedSystemPrompt = redactCredentials(data.systemPrompt);
+    const redactedUserMessage = redactCredentials(data.userMessage);
+    const redactedHistory = data.conversationHistory.map(msg => ({
+      role: msg.role,
+      content: redactCredentials(msg.content)
+    }));
+    const redactedRagContext = data.ragContext?.map(ctx => ({
+      source: ctx.source,
+      content: redactCredentials(ctx.content),
+      score: ctx.score
+    }));
 
     const breakdown = data.systemPromptBreakdown;
     const breakdownSection = breakdown ? `
@@ -85,10 +221,10 @@ class IOLogger {
 
 ` : '';
 
-    const historySection = data.conversationHistory.length > 0 ? `
-## Conversation History (${data.conversationHistory.length} messages)
+    const historySection = redactedHistory.length > 0 ? `
+## Conversation History (${redactedHistory.length} messages)
 
-${data.conversationHistory.map((msg, idx) => `
+${redactedHistory.map((msg, idx) => `
 ### Message ${idx + 1} - ${msg.role.toUpperCase()}
 \`\`\`
 ${msg.content}
@@ -107,10 +243,10 @@ ${data.attachments.map((att, idx) => `
 `).join('\n')}
 ` : '';
 
-    const ragSection = data.ragContext && data.ragContext.length > 0 ? `
-## RAG Context (${data.ragContext.length} chunks)
+    const ragSection = redactedRagContext && redactedRagContext.length > 0 ? `
+## RAG Context (${redactedRagContext.length} chunks)
 
-${data.ragContext.map((ctx, idx) => `
+${redactedRagContext.map((ctx, idx) => `
 ### Chunk ${idx + 1} - Score: ${ctx.score?.toFixed(3) || 'N/A'}
 **Source:** ${ctx.source}
 
@@ -121,6 +257,7 @@ ${ctx.content}
 ` : '';
 
     const content = `# LLM INPUT LOG
+**⚠️ SECURITY NOTE: All credentials have been redacted for security ⚠️**
 
 **Timestamp:** ${data.timestamp}  
 **Message ID:** ${data.messageId}  
@@ -130,20 +267,20 @@ ${ctx.content}
 
 ---
 
-## System Prompt (${data.systemPrompt.length} chars)
+## System Prompt (${redactedSystemPrompt.length} chars)
 
 ${breakdownSection}
 
 \`\`\`
-${data.systemPrompt}
+${redactedSystemPrompt}
 \`\`\`
 
 ---
 
-## User Message (${data.userMessage.length} chars)
+## User Message (${redactedUserMessage.length} chars)
 
 \`\`\`
-${data.userMessage}
+${redactedUserMessage}
 \`\`\`
 
 ---
@@ -154,7 +291,7 @@ ${ragSection}
 
 ---
 
-**Total Input Size:** ${data.systemPrompt.length + data.userMessage.length} chars  
+**Total Input Size:** ${redactedSystemPrompt.length + redactedUserMessage.length} chars  
 **Estimated Tokens:** ~${data.totalInputTokensEstimate}
 `;
 
@@ -170,16 +307,34 @@ ${ragSection}
 
   /**
    * Log output (everything received FROM the LLM)
+   * SECURITY: All credentials are redacted before logging
    */
   logOutput(data: LoggedOutput): string {
     const timestamp = Date.now();
     const filename = `output-${timestamp}-${data.messageId}.md`;
     const filepath = path.join(this.logsDir, filename);
 
-    const toolCallsSection = data.toolCalls.length > 0 ? `
-## Tool Calls (${data.toolCalls.length} calls)
+    // Redact credentials from all output content
+    const redactedRawResponse = redactCredentials(data.rawResponse);
+    const redactedCleanContent = redactCredentials(data.cleanContent);
+    
+    // Redact credentials from tool calls and results
+    const redactedToolCalls = data.toolCalls.map(tc => ({
+      type: tc.type,
+      parameters: redactObjectCredentials(tc.parameters)
+    }));
+    
+    const redactedToolResults = data.toolResults.map(tr => ({
+      type: tr.type,
+      success: tr.success,
+      result: tr.result ? redactObjectCredentials(tr.result) : undefined,
+      error: tr.error ? redactCredentials(tr.error) : undefined
+    }));
 
-${data.toolCalls.map((tc, idx) => `
+    const toolCallsSection = redactedToolCalls.length > 0 ? `
+## Tool Calls (${redactedToolCalls.length} calls)
+
+${redactedToolCalls.map((tc, idx) => `
 ### ${idx + 1}. ${tc.type}
 
 **Parameters:**
@@ -189,10 +344,10 @@ ${JSON.stringify(tc.parameters, null, 2)}
 `).join('\n')}
 ` : '';
 
-    const toolResultsSection = data.toolResults.length > 0 ? `
-## Tool Results (${data.toolResults.length} results)
+    const toolResultsSection = redactedToolResults.length > 0 ? `
+## Tool Results (${redactedToolResults.length} results)
 
-${data.toolResults.map((tr, idx) => `
+${redactedToolResults.map((tr, idx) => `
 ### ${idx + 1}. ${tr.type}
 
 **Status:** ${tr.success ? '✓ SUCCESS' : '✗ FAILED'}
@@ -214,6 +369,7 @@ ${tr.error}
 ` : '';
 
     const content = `# LLM OUTPUT LOG
+**⚠️ SECURITY NOTE: All credentials have been redacted for security ⚠️**
 
 **Timestamp:** ${data.timestamp}  
 **Message ID:** ${data.messageId}  
@@ -224,18 +380,18 @@ ${tr.error}
 
 ---
 
-## Raw Response (${data.rawResponse.length} chars)
+## Raw Response (${redactedRawResponse.length} chars)
 
 \`\`\`
-${data.rawResponse}
+${redactedRawResponse}
 \`\`\`
 
 ---
 
-## Clean Content (${data.cleanContent.length} chars)
+## Clean Content (${redactedCleanContent.length} chars)
 
 \`\`\`
-${data.cleanContent}
+${redactedCleanContent}
 \`\`\`
 
 ---
@@ -245,7 +401,7 @@ ${toolResultsSection}
 
 ---
 
-**Total Output Size:** ${data.rawResponse.length} chars  
+**Total Output Size:** ${redactedRawResponse.length} chars  
 **Estimated Tokens:** ~${data.totalOutputTokensEstimate}  
 **Processing Time:** ${data.durationMs}ms
 `;

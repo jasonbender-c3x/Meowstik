@@ -26,6 +26,73 @@
 export type LogLevel = "debug" | "info" | "warn" | "error" | "critical";
 export type LogSource = "orchestrator" | "agent" | "task" | "system";
 
+/**
+ * =============================================================================
+ * CREDENTIAL REDACTION FOR ORCHESTRATION LOGS
+ * =============================================================================
+ */
+
+/**
+ * Simple credential redaction for log messages
+ * Redacts common patterns to prevent credential leakage
+ */
+function redactLogMessage(text: string): string {
+  if (typeof text !== 'string') return text;
+  
+  return text
+    // API keys and tokens (long alphanumeric strings)
+    .replace(/\b[A-Za-z0-9_-]{32,}\b/g, '[REDACTED]')
+    // GitHub tokens
+    .replace(/ghp_[A-Za-z0-9]{36}/g, '[REDACTED]')
+    .replace(/gho_[A-Za-z0-9]{36}/g, '[REDACTED]')
+    .replace(/github_pat_[A-Za-z0-9_]{82}/g, '[REDACTED]')
+    // OpenAI keys
+    .replace(/sk-[A-Za-z0-9]{48}/g, '[REDACTED]')
+    .replace(/sk-proj-[A-Za-z0-9_-]{48,}/g, '[REDACTED]')
+    // Google API keys
+    .replace(/AIza[A-Za-z0-9_-]{35}/g, '[REDACTED]')
+    .replace(/ya29\.[A-Za-z0-9_-]{68,}/g, '[REDACTED]')
+    // Twilio
+    .replace(/AC[a-z0-9]{32}/g, '[REDACTED]')
+    .replace(/SK[a-z0-9]{32}/g, '[REDACTED]')
+    // Authorization headers
+    .replace(/Bearer\s+[A-Za-z0-9._-]+/gi, 'Bearer [REDACTED]')
+    .replace(/Basic\s+[A-Za-z0-9+/=]+/gi, 'Basic [REDACTED]');
+}
+
+/**
+ * Redact credentials from data objects
+ */
+function redactLogData(data: Record<string, unknown> | undefined): Record<string, unknown> | undefined {
+  if (!data) return data;
+  
+  const redacted: Record<string, unknown> = {};
+  
+  for (const [key, value] of Object.entries(data)) {
+    const keyLower = key.toLowerCase();
+    const isCredentialKey = 
+      keyLower.includes('password') ||
+      keyLower.includes('secret') ||
+      keyLower.includes('token') ||
+      keyLower.includes('key') && keyLower.includes('api') ||
+      keyLower.includes('credential') ||
+      keyLower === 'auth' ||
+      keyLower === 'authorization';
+    
+    if (isCredentialKey && typeof value === 'string') {
+      redacted[key] = '[REDACTED]';
+    } else if (typeof value === 'string') {
+      redacted[key] = redactLogMessage(value);
+    } else if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+      redacted[key] = redactLogData(value as Record<string, unknown>);
+    } else {
+      redacted[key] = value;
+    }
+  }
+  
+  return redacted;
+}
+
 export interface LogEntry {
   id: string;
   timestamp: Date;
@@ -184,6 +251,7 @@ class OrchestrationLoggerService {
 
   /**
    * Core logging method
+   * SECURITY: Redacts credentials before storing and displaying logs
    */
   private log(
     level: LogLevel,
@@ -201,6 +269,15 @@ class OrchestrationLoggerService {
       };
     }
   ): void {
+    // Redact credentials from message and data
+    const redactedMessage = redactLogMessage(message);
+    const redactedData = context?.data ? redactLogData(context.data) : undefined;
+    const redactedError = context?.error ? {
+      name: context.error.name,
+      message: redactLogMessage(context.error.message),
+      stack: context.error.stack ? redactLogMessage(context.error.stack) : undefined
+    } : undefined;
+    
     const entry: LogEntry = {
       id: this.generateLogId(),
       timestamp: new Date(),
@@ -209,9 +286,9 @@ class OrchestrationLoggerService {
       sessionId: context?.sessionId,
       taskId: context?.taskId,
       agentId: context?.agentId,
-      message,
-      data: context?.data,
-      error: context?.error,
+      message: redactedMessage,
+      data: redactedData,
+      error: redactedError,
     };
 
     this.logs.push(entry);
@@ -221,7 +298,7 @@ class OrchestrationLoggerService {
       this.logs = this.logs.slice(-this.maxLogs);
     }
 
-    // Console output
+    // Console output (already redacted)
     this.logToConsole(entry);
   }
 

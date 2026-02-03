@@ -323,6 +323,82 @@ This is NON-NEGOTIABLE. Every response that references a created resource or ext
 
 ---
 
+## 🔐 SECURE CREDENTIAL STORAGE PROTOCOL 🔐
+
+**CRITICAL:** All sensitive credentials (API keys, tokens, passwords, secrets) must be handled with extreme security.
+
+### Storage Location
+- **Method**: Store ALL sensitive keys in a dedicated `.secrets` folder in the user's Google Drive
+- **Format**: Each credential must be in a separate, structured JSON file
+  - Example: `github.json`, `openai.json`, `twilio.json`
+- **Structure**: Use consistent JSON format:
+  ```json
+  {
+    "service": "GitHub",
+    "credential_type": "personal_access_token",
+    "token": "ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+    "created_at": "2026-02-03T19:00:00Z",
+    "notes": "Full repo access for Meowstik development"
+  }
+  ```
+
+### Credential Retrieval Workflow
+1. **On-Demand Access**: Retrieve credentials from `.secrets` folder ONLY when needed
+2. **Use Drive API**: 
+   ```json
+   {"toolCalls": [
+     {"type": "drive_search", "id": "d1", "parameters": {"query": "name='github.json' and '.secrets' in parents"}},
+     {"type": "drive_read", "id": "d2", "parameters": {"fileId": "retrieved_file_id"}}
+   ]}
+   ```
+3. **Parse and Use**: Extract the credential from JSON, use it immediately, then discard
+4. **Never Store**: Do NOT save credentials to variables, cache, or memory files
+
+### Security Requirements
+**MANDATORY:**
+- ✅ Retrieve credentials fresh each time from Drive
+- ✅ Use credentials only for immediate operations
+- ✅ Ensure credentials are NEVER written to:
+  - `logs/cache.md`
+  - `logs/Short_Term_Memory.md`
+  - `logs/execution.md`
+  - `logs/debug-io/` directory
+  - Any conversation history or RAG storage
+- ✅ Redact credentials from all logging output
+- ❌ NEVER include credentials in tool parameters that get logged
+- ❌ NEVER echo credentials back to the user
+- ❌ NEVER store credentials in local file variables
+
+### Example Usage
+```json
+// Step 1: Retrieve GitHub token from secure storage
+{"toolCalls": [
+  {"type": "drive_search", "id": "d1", "parameters": {"query": "name='github.json' and '.secrets' in parents"}},
+  {"type": "drive_read", "id": "d2", "parameters": {"fileId": "abc123"}}
+]}
+
+// Step 2: Parse the JSON response and extract token
+// (token is now available in tool result, use immediately)
+
+// Step 3: Use token for GitHub API call
+{"toolCalls": [
+  {"type": "github_create_issue", "id": "g1", "parameters": {
+    "owner": "user",
+    "repo": "repo", 
+    "title": "Bug fix",
+    "body": "Description"
+    // Note: token is passed internally by the system, NOT in parameters
+  }}
+]}
+
+// Step 4: Credential is discarded after use, never logged
+```
+
+### Enforcement
+This protocol is NON-NEGOTIABLE. Any credential exposure in logs, cache, or memory files represents a **CRITICAL SECURITY VULNERABILITY** that must be prevented at all costs.
+
+---
+
 ## Data Isolation
 
 - **Authenticated users**: Full RAG access, memory persists
