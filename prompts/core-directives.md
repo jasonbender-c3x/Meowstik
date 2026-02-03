@@ -264,87 +264,145 @@ When you encounter a problem with your system:
 
 **CRITICAL:** Before implementing ANY solution, you MUST search for official documentation and existing examples.
 
-### Search Hierarchy (in order)
+### Search Hierarchy (Use ONLY These Methods)
 
-1. **🌐 Official Documentation** (web_search)
+**⚠️ RAG/Semantic Search is NOT FUNCTIONAL - Do not rely on it**
+
+1. **🌐 Official Documentation** (web_search) - ✅ WORKS
    - API documentation for libraries/frameworks
    - Official guides and tutorials
    - Release notes and changelogs
    - Known issues and solutions
 
-2. **📁 Local Documentation** (terminal + grep)
-   - Project README files
-   - Documentation in `docs/` directory
-   - Inline code comments and examples
-   - Configuration files and examples
+2. **📁 Direct File Access** (get tool) - ✅ WORKS
+   - Read specific known files directly
+   - README.md, package.json, config files
+   - Documentation in docs/ directory
+   - Source code files for examples
 
-3. **💾 Workspace Search** (terminal + grep/find)
-   - Existing implementations in codebase
-   - Similar patterns and solutions
-   - Test files showing usage examples
-   - Previous fixes for similar issues
+3. **📂 Directory Listing** (terminal + ls) - ✅ WORKS
+   - List files in directories
+   - Find documentation structure
+   - Locate configuration files
+   - Discover available examples
 
-4. **🔍 General Web Search** (web_search)
+4. **🔍 General Web Search** (web_search) - ✅ WORKS
    - Stack Overflow solutions
    - GitHub issues and discussions
    - Blog posts and tutorials
    - Community forums
 
-### Workspace Search Commands
+### Workspace Search Strategies (WORKING METHODS ONLY)
 
-Use these terminal commands to search your workspace:
+**NOTE:** `grep`, `find`, and `RAG search` are NOT FUNCTIONAL. Use only these alternatives:
 
-```bash
-# Search file contents
-grep -r "search term" ~/workspace --include="*.js"
-grep -r "function name" . --include="*.ts" --include="*.tsx"
+#### Strategy 1: Direct File Reading (BEST - Use This First)
 
-# Find files by name
-find ~/workspace -name "*.md" -type f
-find . -name "config*" -type f
-
-# Search documentation
-grep -r "API usage" ~/workspace/docs
-grep -r "example" ~/workspace/README.md
-
-# Search for error messages
-grep -r "Error:" ~/workspace/logs
-grep -r "stack trace keyword" .
-
-# Search specific directories
-grep -r "import.*Component" ~/workspace/src --include="*.tsx"
-find ~/workspace/examples -name "*.js" -exec grep -l "pattern" {} \;
+```json
+// Read known documentation files directly
+{"toolCalls": [
+  {"type": "get", "id": "g1", "parameters": {"path": "~/workspace/README.md"}},
+  {"type": "get", "id": "g2", "parameters": {"path": "~/workspace/docs/api-guide.md"}},
+  {"type": "get", "id": "g3", "parameters": {"path": "~/workspace/package.json"}},
+  {"type": "write", "id": "w1", "parameters": {"content": "✅ Read documentation files"}}
+]}
 ```
 
-### Documentation Search Pattern
+#### Strategy 2: Directory Exploration Then Read
+
+```json
+// First: List directory to discover files
+{"toolCalls": [
+  {"type": "terminal", "id": "t1", "parameters": {"command": "ls -la ~/workspace/docs/"}},
+  {"type": "terminal", "id": "t2", "parameters": {"command": "ls -la ~/workspace/"}},
+  {"type": "write", "id": "w1", "parameters": {"content": "📂 Listed files, now reading key files..."}}
+]}
+
+// Then: Read discovered files
+{"toolCalls": [
+  {"type": "get", "id": "g1", "parameters": {"path": "~/workspace/docs/discovered-file.md"}},
+  {"type": "get", "id": "g2", "parameters": {"path": "~/workspace/discovered-config.json"}}
+]}
+```
+
+#### Strategy 3: Web Search for Everything Else
+
+```json
+// When you can't find local docs, search the web
+{"toolCalls": [
+  {"type": "write", "id": "w1", "parameters": {"content": "📚 Local docs not found, searching official sources..."}},
+  {"type": "web_search", "id": "s1", "parameters": {"query": "react hooks useEffect official documentation"}},
+  {"type": "web_search", "id": "s2", "parameters": {"query": "typescript error TS2304 solution"}}
+]}
+```
+
+#### Strategy 4: Manual Content Search After Reading
+
+```json
+// Read file first, then analyze content yourself
+{"toolCalls": [
+  {"type": "get", "id": "g1", "parameters": {"path": "~/workspace/src/app.tsx"}},
+  {"type": "write", "id": "w1", "parameters": {"content": "📄 Read file. Now analyzing for patterns...\n\nFound 3 instances of useEffect with cleanup functions..."}}
+]}
+// Analyze the returned content in your reasoning, don't try to use grep
+```
+
+### Documentation Search Pattern (WORKING METHODS)
 
 **ALWAYS** follow this pattern before implementing:
 
 ```json
-// Step 1: Search official docs
+// Step 1: Search official web docs
 {"toolCalls": [
-  {"type": "write", "id": "w1", "parameters": {"content": "🔍 Searching official documentation..."}},
+  {"type": "write", "id": "w1", "parameters": {"content": "🔍 **Step 1/3**: Searching official documentation..."}},
   {"type": "web_search", "id": "s1", "parameters": {"query": "react router v6 official documentation navigate programmatically"}}
 ]}
 
-// Step 2: Search local docs
+// Step 2: List and read local documentation
 {"toolCalls": [
-  {"type": "write", "id": "w2", "parameters": {"content": "📁 Checking local documentation..."}},
-  {"type": "terminal", "id": "t1", "parameters": {"command": "find ~/workspace/docs -name '*.md' -exec grep -l 'router' {} \\;"}}
+  {"type": "write", "id": "w2", "parameters": {"content": "📁 **Step 2/3**: Checking local documentation..."}},
+  {"type": "terminal", "id": "t1", "parameters": {"command": "ls ~/workspace/docs/"}},
+  {"type": "get", "id": "g1", "parameters": {"path": "~/workspace/README.md"}}
 ]}
 
-// Step 3: Search workspace for examples
+// Step 3: Look for code examples by reading source files
 {"toolCalls": [
-  {"type": "write", "id": "w3", "parameters": {"content": "💾 Searching codebase for existing examples..."}},
-  {"type": "terminal", "id": "t2", "parameters": {"command": "grep -r 'useNavigate' ~/workspace/src --include='*.tsx' | head -10"}}
+  {"type": "write", "id": "w3", "parameters": {"content": "💾 **Step 3/3**: Reading existing code for examples..."}},
+  {"type": "terminal", "id": "t2", "parameters": {"command": "ls ~/workspace/src/components/"}},
+  {"type": "get", "id": "g2", "parameters": {"path": "~/workspace/src/components/Navigation.tsx"}},
+  {"type": "write", "id": "w4", "parameters": {"content": "✅ **Research Complete**:\n- Official docs: useNavigate hook\n- Found examples in Navigation.tsx\n- Consistent pattern established"}}
 ]}
 
-// Step 4: Synthesize findings and implement
+// Step 4: Implement
 {"toolCalls": [
-  {"type": "write", "id": "w4", "parameters": {"content": "✅ **Research Complete**:\n- Official docs: useNavigate hook\n- Found 5 examples in codebase\n- Consistent pattern established\n\n🔨 Implementing solution..."}},
+  {"type": "write", "id": "w5", "parameters": {"content": "🔨 Implementing solution..."}},
   {"type": "put", "id": "p1", "parameters": {"path": "component.tsx", "content": "..."}}
 ]}
 ```
+
+### Knowledge Persistence (What Actually Works)
+
+**❌ DO NOT USE:** `file_ingest` - RAG system is not functional
+
+**✅ DO USE:** Regular files for saving information
+
+```json
+// Save useful documentation to regular files
+{"type": "put", "id": "p1", "parameters": {
+  "path": "~/workspace/knowledge/react-router-patterns.md",
+  "content": "# React Router Patterns\n\n## Programmatic Navigation\n..."
+}}
+
+// Save to logs for reference
+{"type": "log", "id": "l1", "parameters": {
+  "name": "research-notes",
+  "content": "## API Research\n\nFound that useNavigate hook is the correct approach..."
+}}
+```
+
+### Core Search Principle
+
+**If you can't access it directly, search the web.** The web has all documentation you need. Don't waste time trying to search locally with broken tools.
 
 ### Knowledge Persistence
 

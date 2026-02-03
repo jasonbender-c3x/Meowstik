@@ -101,7 +101,6 @@ The Master To-Do List is your persistent task tracker. It's stored in the databa
 |------|------------|
 | `file_get` | `path` (prefix `editor:` for Monaco canvas) |
 | `file_put` | `path`, `content`, `mimeType?`, `summary?` |
-| `file_ingest` | `content`, `filename`, `mimeType?` |
 
 ### Path Prefixes
 - `server:path` or just `path` → Server filesystem (default)
@@ -114,62 +113,25 @@ The `~` character is automatically expanded to the user's home directory:
 - `~/path` → User's home directory + path
 - Works with all prefixes (e.g., `client:~/file.txt`)
 
-### file_ingest - RAG Knowledge Ingestion
+### ⚠️ file_ingest - NOT FUNCTIONAL
 
-The `file_ingest` tool ingests content into the RAG (Retrieval-Augmented Generation) system for semantic search and knowledge retrieval.
+**DO NOT USE `file_ingest`** - The RAG system is not functional. 
 
-**Purpose**: Store content in the knowledge base so it can be retrieved later when relevant to user queries.
+For saving information for later reference, use regular files instead:
 
-**Parameters**:
-- `content` (string, required): The text content to ingest
-- `filename` (string, required): Name of the file/document being ingested
-- `mimeType` (string, optional): MIME type (default: 'text/plain')
-  - Supported: `text/plain`, `text/markdown`, `application/json`, `text/html`
-
-**Process**:
-1. Content is chunked into semantically meaningful pieces
-2. Each chunk is embedded using Gemini's embedding API
-3. Embeddings are stored in the vector database (pgvector/Vertex AI/memory)
-4. Content is isolated by user ID for data privacy
-
-**Returns**:
 ```json
-{
-  "success": true,
-  "documentId": "doc-1234567890-abc123",
-  "chunksCreated": 5,
-  "filename": "example.txt",
-  "message": "Successfully ingested example.txt into RAG system (5 chunks created)"
-}
-```
-
-**Examples**:
-```json
-{"type": "file_ingest", "id": "r1", "parameters": {
-  "content": "Python is a high-level programming language...",
-  "filename": "python_notes.txt"
+// Save to knowledge directory
+{"type": "file_put", "id": "f1", "parameters": {
+  "path": "~/workspace/knowledge/api-notes.md",
+  "content": "# API Documentation Notes\n\n..."
 }}
 
-{"type": "file_ingest", "id": "r2", "parameters": {
-  "content": "{\"project\": \"Meowstik\", \"description\": \"AI assistant\"}",
-  "filename": "project_info.json",
-  "mimeType": "application/json"
-}}
-
-{"type": "file_ingest", "id": "r3", "parameters": {
-  "content": "# Meeting Notes\n\n## Action Items\n- Review code\n- Update docs",
-  "filename": "meeting_notes.md",
-  "mimeType": "text/markdown"
+// Save to logs
+{"type": "log", "id": "l1", "parameters": {
+  "name": "research",
+  "content": "## React Router Research\n\nFound that useNavigate is the correct approach..."
 }}
 ```
-
-**Use Cases**:
-- Ingest documentation for later reference
-- Store project information for context-aware responses
-- Build a personal knowledge base from notes and files
-- Enable semantic search across ingested content
-
-**Note**: Unlike `file_put` which writes to the filesystem, `file_ingest` stores content in the vector database for semantic retrieval. Use `file_ingest` when you want the AI to remember and retrieve information later.
 
 Examples:
 ```json
@@ -192,53 +154,42 @@ Examples:
 
 ### Terminal Command Examples
 
-The `terminal` (or `terminal_execute`) tool executes shell commands for file operations, searches, and system tasks.
+The `terminal` (or `terminal_execute`) tool executes shell commands for file operations and system tasks.
 
-#### Workspace & Documentation Search
+**⚠️ IMPORTANT:** `grep` and `find` commands are unreliable in this environment. Use the alternatives shown below.
+
+#### Directory Exploration (RELIABLE)
 
 ```json
-// Search file contents (grep)
-{"type": "terminal", "id": "t1", "parameters": {"command": "grep -r 'search term' ~/workspace --include='*.js'"}}
-{"type": "terminal", "id": "t2", "parameters": {"command": "grep -r 'function.*authenticate' . --include='*.ts' -n"}}
+// List directory contents
+{"type": "terminal", "id": "t1", "parameters": {"command": "ls -la ~/workspace"}}
+{"type": "terminal", "id": "t2", "parameters": {"command": "ls -lah ~/workspace/docs"}}
+{"type": "terminal", "id": "t3", "parameters": {"command": "ls ~/workspace/src/*.ts"}}
 
-// Search documentation
-{"type": "terminal", "id": "t3", "parameters": {"command": "grep -r 'API usage' ~/workspace/docs"}}
-{"type": "terminal", "id": "t4", "parameters": {"command": "find ~/workspace/docs -name '*.md' -exec grep -l 'configuration' {} \\;"}}
+// Tree view (if available)
+{"type": "terminal", "id": "t4", "parameters": {"command": "ls -R ~/workspace/docs | head -50"}}
 
-// Find files by name
-{"type": "terminal", "id": "t5", "parameters": {"command": "find ~/workspace -name 'config*.json' -type f"}}
-{"type": "terminal", "id": "t6", "parameters": {"command": "find . -name '*.md' -path '*/docs/*'"}}
+// Check if file exists
+{"type": "terminal", "id": "t5", "parameters": {"command": "test -f ~/workspace/file.txt && echo 'exists' || echo 'not found'"}}
 
-// Search for error patterns
-{"type": "terminal", "id": "t7", "parameters": {"command": "grep -r 'Error:' ~/workspace/logs --include='*.log' | tail -20"}}
-
-// Search for imports/dependencies
-{"type": "terminal", "id": "t8", "parameters": {"command": "grep -r 'import.*Component' ~/workspace/src --include='*.tsx' | head -10"}}
+// Count files in directory
+{"type": "terminal", "id": "t6", "parameters": {"command": "ls ~/workspace/src | wc -l"}}
 ```
 
-#### Common Search Patterns
+#### File Search with Node.js (PREFERRED METHOD)
 
-```bash
-# Case-insensitive search
-grep -ri "pattern" ~/workspace
+```json
+// Search for files by name pattern
+{"type": "terminal", "id": "t1", "parameters": {"command": "node -e \"const fs=require('fs'),path=require('path');function search(d,p){let r=[];try{fs.readdirSync(d).forEach(f=>{const fp=path.join(d,f);try{const stat=fs.statSync(fp);if(stat.isDirectory()&&!['node_modules','.git','dist','build'].includes(f))r=r.concat(search(fp,p));else if(f.includes(p))r.push(fp)}catch(e){}});}catch(e){}return r}console.log(JSON.stringify(search('~/workspace','.md').slice(0,20),null,2))\""}}
 
-# Search with context (lines before/after match)
-grep -r "error" ~/workspace/logs -A 3 -B 3
+// Search file contents with Node.js
+{"type": "terminal", "id": "t2", "parameters": {"command": "node -e \"const fs=require('fs');const content=fs.readFileSync('~/workspace/file.js','utf8');const matches=content.split('\\n').map((line,i)=>({line:i+1,text:line})).filter(l=>l.text.includes('search term'));console.log(JSON.stringify(matches,null,2))\""}}
 
-# Count occurrences
-grep -r "TODO" ~/workspace --include="*.ts" | wc -l
-
-# Search excluding directories
-grep -r "pattern" ~/workspace --exclude-dir=node_modules --exclude-dir=dist
-
-# Find recently modified files
-find ~/workspace -name "*.js" -mtime -7
-
-# List directory contents
-ls -lah ~/workspace/src
+// List all markdown files
+{"type": "terminal", "id": "t3", "parameters": {"command": "node -e \"const fs=require('fs'),path=require('path');function find(d,ext){let r=[];try{fs.readdirSync(d).forEach(f=>{const fp=path.join(d,f);try{if(fs.statSync(fp).isDirectory()&&!f.startsWith('.'))r=r.concat(find(fp,ext));else if(f.endsWith(ext))r.push(fp)}catch(e){}});}catch(e){}return r}console.log(find('.','.md').join('\\n'))\""}}
 ```
 
-#### File Operations
+#### File Operations (RELIABLE)
 
 ```json
 // Create directory
@@ -250,24 +201,43 @@ ls -lah ~/workspace/src
 // Move/rename files
 {"type": "terminal", "id": "t3", "parameters": {"command": "mv ~/workspace/old-name.js ~/workspace/new-name.js"}}
 
-// Check file exists
-{"type": "terminal", "id": "t4", "parameters": {"command": "test -f ~/workspace/file.txt && echo 'exists' || echo 'not found'"}}
+// Remove files (use with caution)
+{"type": "terminal", "id": "t4", "parameters": {"command": "rm ~/workspace/temp-file.txt"}}
 ```
 
-#### System Information
+#### System Information (RELIABLE)
 
 ```json
 // Check current directory
 {"type": "terminal", "id": "t1", "parameters": {"command": "pwd"}}
 
 // List environment variables
-{"type": "terminal", "id": "t2", "parameters": {"command": "env | grep NODE"}}
+{"type": "terminal", "id": "t2", "parameters": {"command": "env | head -20"}}
 
 // Check disk space
-{"type": "terminal", "id": "t3", "parameters": {"command": "df -h ~/workspace"}}
+{"type": "terminal", "id": "t3", "parameters": {"command": "df -h ~"}}
 
-// Process information
-{"type": "terminal", "id": "t4", "parameters": {"command": "ps aux | grep node"}}
+// Check Node.js version
+{"type": "terminal", "id": "t4", "parameters": {"command": "node --version"}}
+```
+
+### Recommended Workflow for File Discovery
+
+Instead of using `grep`/`find`, follow this pattern:
+
+```json
+// Step 1: List directory to see structure
+{"type": "terminal", "id": "t1", "parameters": {"command": "ls -la ~/workspace/docs"}}
+
+// Step 2: Read specific files directly
+{"type": "get", "id": "g1", "parameters": {"path": "~/workspace/docs/api-reference.md"}}
+
+// Step 3: If you need to search file contents, read the file first
+{"type": "get", "id": "g2", "parameters": {"path": "~/workspace/src/component.tsx"}}
+// Then search the returned content in your processing
+
+// Step 4: For complex searches, use Node.js one-liner
+{"type": "terminal", "id": "t2", "parameters": {"command": "node -e \"console.log('search results')\""}}
 ```
 
 ---
