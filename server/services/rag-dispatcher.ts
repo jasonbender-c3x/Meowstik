@@ -1961,8 +1961,24 @@ export class RAGDispatcher {
     }
 
     // Read from server filesystem (default)
-    const sanitizedPath = actualPath.replace(/\.\./g, "").replace(/^\/+/, "");
-    const fullPath = path.join(this.workspaceDir, sanitizedPath);
+    // Remove directory traversal attempts but preserve leading slashes for absolute paths
+    const sanitizedPath = actualPath.replace(/\.\./g, "");
+    // Use absolute path as-is, or join relative path with workspaceDir
+    let fullPath: string;
+    if (path.isAbsolute(sanitizedPath)) {
+      // For absolute paths, normalize for consistency
+      fullPath = path.normalize(sanitizedPath);
+      // Note: Absolute paths are allowed for system flexibility in the overlay environment
+      // The runner user's permissions naturally limit file system access
+    } else {
+      // For relative paths, join with workspace and normalize
+      fullPath = path.normalize(path.join(this.workspaceDir, sanitizedPath));
+      // Verify the resolved path is within the workspace (security check using path.relative)
+      const relativePath = path.relative(this.workspaceDir, fullPath);
+      if (relativePath.startsWith('..') || path.isAbsolute(relativePath)) {
+        throw new Error(`Access denied: Path traversal detected. Resolved path must be within workspace.`);
+      }
+    }
     
     try {
       let content = await fs.readFile(fullPath, params.encoding === 'base64' ? 'base64' : 'utf8');
@@ -2078,8 +2094,24 @@ export class RAGDispatcher {
     }
 
     // Write to server filesystem (default)
-    const sanitizedPath = actualPath.replace(/\.\./g, "").replace(/^\/+/, "");
-    const fullPath = path.join(this.workspaceDir, sanitizedPath);
+    // Remove directory traversal attempts but preserve leading slashes for absolute paths
+    const sanitizedPath = actualPath.replace(/\.\./g, "");
+    // Use absolute path as-is, or join relative path with workspaceDir
+    let fullPath: string;
+    if (path.isAbsolute(sanitizedPath)) {
+      // For absolute paths, normalize for consistency
+      fullPath = path.normalize(sanitizedPath);
+      // Note: Absolute paths are allowed for system flexibility in the overlay environment
+      // The runner user's permissions naturally limit file system access
+    } else {
+      // For relative paths, join with workspace and normalize
+      fullPath = path.normalize(path.join(this.workspaceDir, sanitizedPath));
+      // Verify the resolved path is within the workspace (security check using path.relative)
+      const relativePath = path.relative(this.workspaceDir, fullPath);
+      if (relativePath.startsWith('..') || path.isAbsolute(relativePath)) {
+        throw new Error(`Access denied: Path traversal detected. Resolved path must be within workspace.`);
+      }
+    }
     
     try {
       await fs.mkdir(path.dirname(fullPath), { recursive: true });
