@@ -56,3 +56,6 @@ GOOGLE_CLOUD_PROJECT = "ai-stack-e2a5f"
 
 [userenv.development]
 HOME_DEV_MODE = "true"
+
+[userenv.production]
+HOME_DEV_MODE = "FALSE"

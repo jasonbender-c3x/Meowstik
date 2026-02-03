@@ -83,13 +83,13 @@ function StatusBarTip() {
 export default function ExpressiveSpeechPage() {
   const [mode, setMode] = useState<"single" | "multi">("multi");
   
-  const [singleText, setSingleText] = useState("Hello! Welcome to Nebula Chat's expressive speech synthesis.");
+  const [singleText, setSingleText] = useState("Hello! Welcome to Meowstik's expressive speech synthesis.");
   const [singleVoice, setSingleVoice] = useState("Kore");
   const [singleStyle, setSingleStyle] = useState("natural");
   
   const [speakers, setSpeakers] = useState<Speaker[]>([
-    { id: "1", name: "Host", voice: "Kore", style: "natural" },
-    { id: "2", name: "Guest", voice: "Puck", style: "natural" }
+    { id: "1", name: "Meowstik", voice: "Kore", style: "natural" },
+    { id: "2", name: "Alter Ego", voice: "Puck", style: "natural" }
   ]);
   
   const [conversation, setConversation] = useState<ConversationLine[]>([
