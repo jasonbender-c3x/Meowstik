@@ -354,6 +354,96 @@ Use these generic HTTP tools to interact with ANY REST API (GitHub, Stripe, etc.
 
 ---
 
+## 🔥 Codebase Analysis & RAG Ingestion
+
+**CRITICAL:** Use these tools to ingest codebases into RAG for semantic search.
+
+| Tool | Parameters | Description |
+|------|------------|-------------|
+| `codebase_analyze` | `path?` | Crawl directory, extract entities (functions/classes), ingest files to RAG. Default: ~/workspace |
+| `codebase_progress` | none | Get current analysis progress (files/entities/chunks processed) |
+
+### codebase_analyze - Automatic Workspace Indexing
+
+**Purpose:** Index an entire codebase into RAG for semantic code search.
+
+**What it does:**
+1. Recursively discovers code files (supports 40+ languages)
+2. Extracts entities (functions, classes, imports, exports)
+3. Chunks files semantically
+4. Embeds and stores in RAG system
+5. Enables semantic code search in future queries
+
+**Parameters:**
+- `path` (string, optional): Root directory to analyze (default: `~/workspace`)
+
+**When to use:**
+- ✅ **FIRST TIME** in any workspace (check `<retrieved_knowledge>` first)
+- ✅ New project or repository
+- ✅ Before working on unfamiliar code
+- ✅ When RAG doesn't have code context
+
+**Example workflow:**
+```json
+// Step 1: Check if workspace already in RAG
+{"toolCalls": [
+  {"type": "write", "id": "w1", "parameters": {"content": "🔍 Checking RAG for workspace context..."}}
+]}
+// Look in <retrieved_knowledge> - if no code found, proceed
+
+// Step 2: Analyze workspace
+{"toolCalls": [
+  {"type": "write", "id": "w2", "parameters": {"content": "📚 Indexing workspace into RAG system...\n\nThis will:\n- Discover all code files\n- Extract functions/classes\n- Enable semantic search\n- Take ~30-60 seconds"}},
+  {"type": "codebase_analyze", "id": "c1", "parameters": {"path": "~/workspace"}}
+]}
+
+// Step 3: Check progress
+{"toolCalls": [
+  {"type": "codebase_progress", "id": "c2", "parameters": {}},
+  {"type": "write", "id": "w3", "parameters": {"content": "✅ Workspace indexed! Now I can semantically search your code."}}
+]}
+```
+
+**Supported languages:** TypeScript, JavaScript, Python, Ruby, Go, Rust, Java, Kotlin, C/C++, C#, PHP, Swift, and 30+ more.
+
+**Returns:**
+```json
+{
+  "success": true,
+  "totalFiles": 127,
+  "totalEntities": 342,
+  "totalChunks": 89,
+  "analysisTime": "45.2s",
+  "message": "Successfully analyzed workspace: 127 files, 342 entities, 89 chunks ingested"
+}
+```
+
+### codebase_progress - Check Analysis Status
+
+**Purpose:** Get current progress of ongoing codebase analysis.
+
+**Returns:**
+```json
+{
+  "phase": "ingestion",
+  "filesDiscovered": 127,
+  "filesProcessed": 89,
+  "entitiesFound": 234,
+  "chunksIngested": 67,
+  "currentFile": "src/components/App.tsx"
+}
+```
+
+### Best Practices
+
+1. **Always check RAG first** - Look for code in `<retrieved_knowledge>`
+2. **Analyze on first interaction** - Don't wait to be asked
+3. **Analyze subdirectories** - Can analyze specific modules
+4. **Report progress** - Tell user you're indexing
+5. **Use results** - Future queries will find code semantically
+
+---
+
 ## Codebase Analysis
 
 | Tool | Parameters |
