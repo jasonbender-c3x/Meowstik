@@ -6,6 +6,7 @@
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import * as os from 'os';
+import { pathToFileURL } from 'url';
 
 /**
  * Test path sanitization logic
@@ -193,7 +194,7 @@ async function runTests() {
 }
 
 // Run tests if this file is executed directly
-const isMainModule = process.argv[1] && import.meta.url.endsWith(process.argv[1]);
+const isMainModule = process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href;
 if (isMainModule) {
   runTests();
 }

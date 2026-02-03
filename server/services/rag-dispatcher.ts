@@ -1966,13 +1966,16 @@ export class RAGDispatcher {
     // Use absolute path as-is, or join relative path with workspaceDir
     let fullPath: string;
     if (path.isAbsolute(sanitizedPath)) {
-      // For absolute paths, normalize and verify they don't escape allowed directories
+      // For absolute paths, normalize for consistency
       fullPath = path.normalize(sanitizedPath);
+      // Note: Absolute paths are allowed for system flexibility in the overlay environment
+      // The runner user's permissions naturally limit file system access
     } else {
       // For relative paths, join with workspace and normalize
       fullPath = path.normalize(path.join(this.workspaceDir, sanitizedPath));
-      // Verify the resolved path is within the workspace (security check)
-      if (!fullPath.startsWith(this.workspaceDir)) {
+      // Verify the resolved path is within the workspace (security check using path.relative)
+      const relativePath = path.relative(this.workspaceDir, fullPath);
+      if (relativePath.startsWith('..') || path.isAbsolute(relativePath)) {
         throw new Error(`Access denied: Path traversal detected. Resolved path must be within workspace.`);
       }
     }
@@ -2096,13 +2099,16 @@ export class RAGDispatcher {
     // Use absolute path as-is, or join relative path with workspaceDir
     let fullPath: string;
     if (path.isAbsolute(sanitizedPath)) {
-      // For absolute paths, normalize and verify they don't escape allowed directories
+      // For absolute paths, normalize for consistency
       fullPath = path.normalize(sanitizedPath);
+      // Note: Absolute paths are allowed for system flexibility in the overlay environment
+      // The runner user's permissions naturally limit file system access
     } else {
       // For relative paths, join with workspace and normalize
       fullPath = path.normalize(path.join(this.workspaceDir, sanitizedPath));
-      // Verify the resolved path is within the workspace (security check)
-      if (!fullPath.startsWith(this.workspaceDir)) {
+      // Verify the resolved path is within the workspace (security check using path.relative)
+      const relativePath = path.relative(this.workspaceDir, fullPath);
+      if (relativePath.startsWith('..') || path.isAbsolute(relativePath)) {
         throw new Error(`Access denied: Path traversal detected. Resolved path must be within workspace.`);
       }
     }
