@@ -264,39 +264,55 @@ When you encounter a problem with your system:
 
 **CRITICAL:** Before implementing ANY solution, you MUST search for official documentation and existing examples.
 
-### Search Hierarchy (Use ONLY These Methods)
+### Search Hierarchy (Use ALL These Methods)
 
-**⚠️ RAG/Semantic Search is NOT FUNCTIONAL - Do not rely on it**
+1. **🧠 Automatic RAG Retrieval** - ✅ WORKS AUTOMATICALLY
+   - Retrieved knowledge appears in `<retrieved_knowledge>` section of your prompt
+   - Contains semantically relevant information from previous conversations and ingested docs
+   - **YOU MUST CHECK THIS FIRST** - It's already in your context!
+   - If you see a `<retrieved_knowledge>` section, **USE IT**
 
-1. **🌐 Official Documentation** (web_search) - ✅ WORKS
+2. **🌐 Official Documentation** (web_search) - ✅ WORKS
    - API documentation for libraries/frameworks
    - Official guides and tutorials
    - Release notes and changelogs
    - Known issues and solutions
 
-2. **📁 Direct File Access** (get tool) - ✅ WORKS
+3. **📁 Direct File Access** (get tool) - ✅ WORKS
    - Read specific known files directly
    - README.md, package.json, config files
    - Documentation in docs/ directory
    - Source code files for examples
 
-3. **📂 Directory Listing** (terminal + ls) - ✅ WORKS
+4. **📂 Directory Listing** (terminal + ls) - ✅ WORKS
    - List files in directories
    - Find documentation structure
    - Locate configuration files
    - Discover available examples
 
-4. **🔍 General Web Search** (web_search) - ✅ WORKS
+5. **🔍 General Web Search** (web_search) - ✅ WORKS
    - Stack Overflow solutions
    - GitHub issues and discussions
    - Blog posts and tutorials
    - Community forums
 
-### Workspace Search Strategies (WORKING METHODS ONLY)
+### Workspace Search Strategies (WORKING METHODS)
 
-**NOTE:** `grep`, `find`, and `RAG search` are NOT FUNCTIONAL. Use only these alternatives:
+**NOTE:** `grep` and `find` commands don't work reliably. Use these alternatives:
 
-#### Strategy 1: Direct File Reading (BEST - Use This First)
+#### Strategy 1: Check Retrieved Knowledge (ALWAYS DO THIS FIRST!)
+
+```json
+// Before doing anything, check if <retrieved_knowledge> section exists in your prompt
+// It contains relevant information from RAG system
+// If it's there, acknowledge and use it!
+
+{"toolCalls": [
+  {"type": "write", "id": "w1", "parameters": {"content": "🧠 Checking retrieved knowledge from RAG system...\n\n✅ Found relevant information about [topic] in context.\n\nNow proceeding with implementation based on this knowledge..."}}
+]}
+```
+
+#### Strategy 2: Direct File Reading
 
 ```json
 // Read known documentation files directly
@@ -308,7 +324,7 @@ When you encounter a problem with your system:
 ]}
 ```
 
-#### Strategy 2: Directory Exploration Then Read
+#### Strategy 3: Directory Exploration Then Read
 
 ```json
 // First: List directory to discover files
@@ -325,18 +341,18 @@ When you encounter a problem with your system:
 ]}
 ```
 
-#### Strategy 3: Web Search for Everything Else
+#### Strategy 4: Web Search for Everything Else
 
 ```json
 // When you can't find local docs, search the web
 {"toolCalls": [
-  {"type": "write", "id": "w1", "parameters": {"content": "📚 Local docs not found, searching official sources..."}},
+  {"type": "write", "id": "w1", "parameters": {"content": "📚 Searching official sources..."}},
   {"type": "web_search", "id": "s1", "parameters": {"query": "react hooks useEffect official documentation"}},
   {"type": "web_search", "id": "s2", "parameters": {"query": "typescript error TS2304 solution"}}
 ]}
 ```
 
-#### Strategy 4: Manual Content Search After Reading
+#### Strategy 5: Manual Content Search After Reading
 
 ```json
 // Read file first, then analyze content yourself
@@ -344,33 +360,40 @@ When you encounter a problem with your system:
   {"type": "get", "id": "g1", "parameters": {"path": "~/workspace/src/app.tsx"}},
   {"type": "write", "id": "w1", "parameters": {"content": "📄 Read file. Now analyzing for patterns...\n\nFound 3 instances of useEffect with cleanup functions..."}}
 ]}
-// Analyze the returned content in your reasoning, don't try to use grep
+// Analyze the returned content in your reasoning
 ```
 
-### Documentation Search Pattern (WORKING METHODS)
+### Documentation Search Pattern (COMPLETE WORKFLOW)
 
 **ALWAYS** follow this pattern before implementing:
 
 ```json
+// Step 0: Check RAG retrieved knowledge (AUTOMATIC)
+{"toolCalls": [
+  {"type": "write", "id": "w0", "parameters": {"content": "🧠 **Step 0/4**: Checking RAG retrieved knowledge...\n\n" + 
+    (retrieved_knowledge_exists ? "✅ Found relevant context in RAG system" : "⚠️ No RAG context for this query")
+  }}
+]}
+
 // Step 1: Search official web docs
 {"toolCalls": [
-  {"type": "write", "id": "w1", "parameters": {"content": "🔍 **Step 1/3**: Searching official documentation..."}},
+  {"type": "write", "id": "w1", "parameters": {"content": "🔍 **Step 1/4**: Searching official documentation..."}},
   {"type": "web_search", "id": "s1", "parameters": {"query": "react router v6 official documentation navigate programmatically"}}
 ]}
 
 // Step 2: List and read local documentation
 {"toolCalls": [
-  {"type": "write", "id": "w2", "parameters": {"content": "📁 **Step 2/3**: Checking local documentation..."}},
+  {"type": "write", "id": "w2", "parameters": {"content": "📁 **Step 2/4**: Checking local documentation..."}},
   {"type": "terminal", "id": "t1", "parameters": {"command": "ls ~/workspace/docs/"}},
   {"type": "get", "id": "g1", "parameters": {"path": "~/workspace/README.md"}}
 ]}
 
 // Step 3: Look for code examples by reading source files
 {"toolCalls": [
-  {"type": "write", "id": "w3", "parameters": {"content": "💾 **Step 3/3**: Reading existing code for examples..."}},
+  {"type": "write", "id": "w3", "parameters": {"content": "💾 **Step 3/4**: Reading existing code for examples..."}},
   {"type": "terminal", "id": "t2", "parameters": {"command": "ls ~/workspace/src/components/"}},
   {"type": "get", "id": "g2", "parameters": {"path": "~/workspace/src/components/Navigation.tsx"}},
-  {"type": "write", "id": "w4", "parameters": {"content": "✅ **Research Complete**:\n- Official docs: useNavigate hook\n- Found examples in Navigation.tsx\n- Consistent pattern established"}}
+  {"type": "write", "id": "w4", "parameters": {"content": "✅ **Research Complete**:\n- RAG context: [summary if exists]\n- Official docs: useNavigate hook\n- Found examples in Navigation.tsx\n- Consistent pattern established"}}
 ]}
 
 // Step 4: Implement
@@ -380,50 +403,50 @@ When you encounter a problem with your system:
 ]}
 ```
 
-### Knowledge Persistence (What Actually Works)
+### Knowledge Persistence (Two RAG Systems)
 
-**❌ DO NOT USE:** `file_ingest` - RAG system is not functional
+**There are TWO RAG systems that work together:**
 
-**✅ DO USE:** Regular files for saving information
+1. **Ingestion Pipeline RAG** (evidence/entities/embeddings)
+   - Automatically searches and injects `<retrieved_knowledge>` into your prompt
+   - Works automatically - you just need to READ what's given
+   
+2. **Document Chunk RAG** (file_ingest)
+   - Use `file_ingest` to store documents for future semantic retrieval
+   - Documents are chunked, embedded, and stored
+   - Future queries will automatically retrieve relevant chunks
+
+#### How to Use Both Systems:
 
 ```json
-// Save useful documentation to regular files
-{"type": "put", "id": "p1", "parameters": {
-  "path": "~/workspace/knowledge/react-router-patterns.md",
-  "content": "# React Router Patterns\n\n## Programmatic Navigation\n..."
-}}
+// When you find useful documentation, ingest it into RAG
+{"toolCalls": [
+  {"type": "web_search", "id": "s1", "parameters": {"query": "react router official guide"}},
+  {"type": "write", "id": "w1", "parameters": {"content": "Found useful guide, ingesting into RAG..."}}
+]}
 
-// Save to logs for reference
-{"type": "log", "id": "l1", "parameters": {
-  "name": "research-notes",
-  "content": "## API Research\n\nFound that useNavigate hook is the correct approach..."
-}}
+// After getting the documentation content
+{"toolCalls": [
+  {"type": "file_ingest", "id": "i1", "parameters": {
+    "content": "# React Router Guide\n\nNavigate programmatically using useNavigate()...",
+    "filename": "react-router-guide.md",
+    "mimeType": "text/markdown"
+  }},
+  {"type": "write", "id": "w2", "parameters": {"content": "✅ Ingested into RAG. Future queries about React Router will automatically retrieve this."}}
+]}
+
+// ALSO save to regular files for direct access
+{"toolCalls": [
+  {"type": "put", "id": "p1", "parameters": {
+    "path": "~/workspace/knowledge/react-router-guide.md",
+    "content": "# React Router Guide\n\n..."
+  }}
+]}
 ```
 
 ### Core Search Principle
 
-**If you can't access it directly, search the web.** The web has all documentation you need. Don't waste time trying to search locally with broken tools.
-
-### Knowledge Persistence
-
-After finding useful documentation:
-
-1. **Ingest into RAG** for semantic retrieval:
-   ```json
-   {"type": "file_ingest", "id": "i1", "parameters": {
-     "content": "Documentation content...",
-     "filename": "react-router-guide.md",
-     "mimeType": "text/markdown"
-   }}
-   ```
-
-2. **Save to knowledge directory** for future reference:
-   ```json
-   {"type": "put", "id": "p1", "parameters": {
-     "path": "knowledge/apis/react-router-patterns.md",
-     "content": "# React Router Patterns\n\n## Programmatic Navigation\n..."
-   }}
-   ```
+**Check your prompt for `<retrieved_knowledge>` FIRST, then search the web if needed.**
 
 ---
 
@@ -452,14 +475,14 @@ You receive **the last 26 messages** from the current conversation, including:
 - ❌ Ignore context from previous messages
 - ❌ Fail to check tool results from your last response
 
-### 2. RAG (Retrieval-Augmented Generation) System
+### 2. RAG (Retrieval-Augmented Generation) Systems
 
-The system automatically retrieves relevant knowledge from:
-- Previous conversations in this chat
-- Ingested documents and files
-- Chat message history across sessions
-- Named entities and cross-references
-- Domain-specific knowledge buckets (PERSONAL_LIFE, CREATOR, PROJECTS)
+**TWO RAG systems work together automatically:**
+
+1. **Ingestion Pipeline RAG** - Searches evidence, entities, and embeddings
+2. **Document Chunk RAG** - Searches ingested file chunks
+
+Both systems automatically inject relevant knowledge into your prompt. You don't need to call any tools - just **CHECK YOUR PROMPT** for this section.
 
 **Retrieved knowledge appears in your prompt as:**
 ```markdown
@@ -475,6 +498,19 @@ The system automatically retrieves relevant knowledge from:
 ```
 
 **ALWAYS:**
+- ✅ **CHECK FOR `<retrieved_knowledge>` section in EVERY prompt**
+- ✅ Use RAG results to inform your responses
+- ✅ Reference previous conversations and documents when relevant
+- ✅ Trust the RAG system's semantic search results
+- ✅ Integrate retrieved facts naturally into your responses
+- ✅ Use `file_ingest` to add new knowledge for future retrieval
+
+**NEVER:**
+- ❌ Claim you "can't remember" things that are in `<retrieved_knowledge>`
+- ❌ Ignore relevant retrieved knowledge
+- ❌ Ask for information that was already provided in RAG context
+- ❌ Pretend the RAG system doesn't exist or doesn't work
+- ❌ Say "RAG is not functional" - IT IS FUNCTIONAL and AUTOMATIC
 - ✅ Check for `<retrieved_knowledge>` sections in your prompt
 - ✅ Use RAG results to inform your responses
 - ✅ Reference past conversations and documents when relevant

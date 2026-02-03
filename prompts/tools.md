@@ -101,6 +101,7 @@ The Master To-Do List is your persistent task tracker. It's stored in the databa
 |------|------------|
 | `file_get` | `path` (prefix `editor:` for Monaco canvas) |
 | `file_put` | `path`, `content`, `mimeType?`, `summary?` |
+| `file_ingest` | `content`, `filename`, `mimeType?` |
 
 ### Path Prefixes
 - `server:path` or just `path` → Server filesystem (default)
@@ -113,23 +114,76 @@ The `~` character is automatically expanded to the user's home directory:
 - `~/path` → User's home directory + path
 - Works with all prefixes (e.g., `client:~/file.txt`)
 
-### ⚠️ file_ingest - NOT FUNCTIONAL
+### file_ingest - RAG Knowledge Ingestion ✅ FUNCTIONAL
 
-**DO NOT USE `file_ingest`** - The RAG system is not functional. 
+**The `file_ingest` tool IS FUNCTIONAL and IMPORTANT.**
 
-For saving information for later reference, use regular files instead:
+**Purpose**: Ingest content into RAG system for automatic semantic retrieval in future queries.
 
+**How it works:**
+1. Content is chunked into semantically meaningful pieces
+2. Each chunk is embedded using Gemini's embedding API
+3. Embeddings are stored in vector database
+4. Future queries automatically retrieve relevant chunks
+5. Retrieved knowledge appears in `<retrieved_knowledge>` section of your prompt
+
+**Parameters**:
+- `content` (string, required): The text content to ingest
+- `filename` (string, required): Name of the file/document being ingested
+- `mimeType` (string, optional): MIME type (default: 'text/plain')
+  - Supported: `text/plain`, `text/markdown`, `application/json`, `text/html`
+
+**Returns**:
 ```json
-// Save to knowledge directory
-{"type": "file_put", "id": "f1", "parameters": {
-  "path": "~/workspace/knowledge/api-notes.md",
-  "content": "# API Documentation Notes\n\n..."
+{
+  "success": true,
+  "documentId": "doc-1234567890-abc123",
+  "chunksCreated": 5,
+  "filename": "example.txt",
+  "message": "Successfully ingested example.txt into RAG system (5 chunks created)"
+}
+```
+
+**Examples**:
+```json
+{"type": "file_ingest", "id": "r1", "parameters": {
+  "content": "Python is a high-level programming language...",
+  "filename": "python_notes.txt"
 }}
 
-// Save to logs
-{"type": "log", "id": "l1", "parameters": {
-  "name": "research",
-  "content": "## React Router Research\n\nFound that useNavigate is the correct approach..."
+{"type": "file_ingest", "id": "r2", "parameters": {
+  "content": "{\"project\": \"Meowstik\", \"description\": \"AI assistant\"}",
+  "filename": "project_info.json",
+  "mimeType": "application/json"
+}}
+
+{"type": "file_ingest", "id": "r3", "parameters": {
+  "content": "# Meeting Notes\n\n## Action Items\n- Review code\n- Update docs",
+  "filename": "meeting_notes.md",
+  "mimeType": "text/markdown"
+}}
+```
+
+**Use Cases**:
+- Ingest documentation for automatic future reference
+- Store project information for context-aware responses
+- Build a personal knowledge base from notes and files
+- Enable automatic semantic search across ingested content
+
+**Best Practice**: After ingesting with `file_ingest`, also save to regular files with `file_put` for direct access:
+
+```json
+// Ingest into RAG for semantic search
+{"type": "file_ingest", "id": "i1", "parameters": {
+  "content": "API documentation content...",
+  "filename": "api-docs.md",
+  "mimeType": "text/markdown"
+}}
+
+// ALSO save to filesystem for direct access
+{"type": "file_put", "id": "p1", "parameters": {
+  "path": "~/workspace/knowledge/api-docs.md",
+  "content": "API documentation content..."
 }}
 ```
 
