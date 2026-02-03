@@ -51,7 +51,6 @@ const EXCLUDED_DIRECTORIES = [
   'temp',
   '__pycache__',
   'venv',
-  'logs',
   'repos', // Project-specific: Exclude nested repository clones
   'attached_assets',
 ];
