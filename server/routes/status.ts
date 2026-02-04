@@ -108,7 +108,7 @@ router.get("/connectors/:name/authorize-url", async (req, res) => {
     return res.status(500).json({ error: "Connectors not configured" });
   }
 
-  const replSlug = process.env.REPL_SLUG || "nebula-chat";
+  const replSlug = process.env.REPL_SLUG || "meowstic-chat";
   const replOwner = process.env.REPL_OWNER || "user";
   
   res.json({

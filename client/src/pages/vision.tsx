@@ -137,7 +137,7 @@ Our long-term aspirations include:
 - **Reasoning & Planning:** Complex multi-step workflow automation
 - **Autonomous Self-Evolution:** Continuous learning without intervention
 - **Ethical AI:** Safeguards against bias, discrimination, and misuse
-- **Nebula AI:** Fully self-evolving, self-aware AI system
+- **Meowstic AI:** Fully self-evolving, self-aware AI system
 - **Desktop Collaboration:** TeamViewer-style AI collaboration with screen sharing
 
 ## JOIN US

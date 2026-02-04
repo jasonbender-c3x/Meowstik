@@ -51,6 +51,7 @@
 // =============================================================================
 const { app, BrowserWindow, Menu, Tray, ipcMain, dialog, shell } = require('electron');
 const path = require('path');
+const fs = require('fs');
 const { spawn } = require('child_process');
 const http = require('http');
 
@@ -65,8 +66,111 @@ let backendProcess = null;   // Child process running the Express server
 let backendPort = 5001;      // Port for the backend (5000 is used by frontend in dev)
 let isQuitting = false;      // Flag to handle graceful shutdown
 
-// Detect if we're in development mode (for DevTools, hot reload, etc.)
+// detect if we're in development mode (for DevTools, hot reload, etc.)
 const isDev = process.env.NODE_ENV === 'development';
+
+/**
+ * Ensure required secrets (API keys) are available
+ * 
+ * Checks in order:
+ * 1. Environment variables
+ * 2. secrets.json file in app directory
+ * 3. User prompts via File Open Dialog
+ */
+async function ensureSecrets() {
+  // 1. Check if already in environment
+  if (process.env.GEMINI_API_KEY) {
+    console.log('✅ Secrets found in environment');
+    return;
+  }
+
+  // 2. Check for secrets.json in User Data (Preferred) or App Path (Dev)
+  const userDataPath = path.join(app.getPath('userData'), 'secrets.json');
+  const appPath = path.join(app.getAppPath(), 'secrets.json');
+  
+  let loadedSecrets = null;
+
+  // Helper to try loading
+  const tryLoad = (p) => {
+    if (fs.existsSync(p)) {
+      try {
+        const d = JSON.parse(fs.readFileSync(p, 'utf8'));
+        if (d.GEMINI_API_KEY) return d;
+      } catch (e) { console.error(`Bad secrets at ${p}`, e); }
+    }
+    return null;
+  };
+
+  loadedSecrets = tryLoad(userDataPath) || tryLoad(appPath);
+
+  if (loadedSecrets) {
+    process.env.GEMINI_API_KEY = loadedSecrets.GEMINI_API_KEY;
+    if (loadedSecrets.DATABASE_URL) process.env.DATABASE_URL = loadedSecrets.DATABASE_URL;
+    console.log('✅ Secrets loaded successfully');
+    return;
+  }
+
+  // 3. Ask user for file
+  console.log('⚠️ Secrets not found. Asking user...');
+  
+  const { response } = await dialog.showMessageBox({
+    type: 'info',
+    buttons: ['Select Secrets File', 'Exit'],
+    defaultId: 0,
+    title: 'Setup Required',
+    message: 'Welcome to Meowstik!',
+    detail: 'To get started, please select a JSON file containing your GEMINI_API_KEY which you can get from Google AI Studio.',
+    cancelId: 1
+  });
+
+  if (response === 1) {
+    app.quit();
+    return;
+  }
+
+  const { canceled, filePaths } = await dialog.showOpenDialog({
+    title: 'Select Secrets Config',
+    filters: [{ name: 'JSON Config', extensions: ['json'] }],
+    properties: ['openFile']
+  });
+
+  if (canceled || filePaths.length === 0) {
+    app.quit();
+    return;
+  }
+
+  // Load from selected file
+  try {
+    const data = fs.readFileSync(filePaths[0], 'utf8');
+    const secrets = JSON.parse(data);
+    
+    if (!secrets.GEMINI_API_KEY) {
+      dialog.showErrorBox('Invalid File', 'Missing "GEMINI_API_KEY" field.');
+      app.quit();
+      return;
+    }
+
+    process.env.GEMINI_API_KEY = secrets.GEMINI_API_KEY;
+    if (secrets.DATABASE_URL) process.env.DATABASE_URL = secrets.DATABASE_URL;
+    
+    // 4. Auto-Save for next time
+    try {
+      fs.writeFileSync(userDataPath, JSON.stringify(secrets, null, 2));
+      dialog.showMessageBox({
+        type: 'info',
+        title: 'Setup Complete',
+        message: 'Configuration Saved',
+        detail: `Your secrets have been saved to:\n${userDataPath}\n\nYou won't need to do this again.`
+      });
+    } catch (saveErr) {
+      console.error('Failed to save secrets:', saveErr);
+    }
+
+  } catch (err) {
+    dialog.showErrorBox('Error', 'Failed to load file: ' + err.message);
+    app.quit();
+  }
+}
 
 // =============================================================================
 // HELPER FUNCTIONS
@@ -522,19 +626,26 @@ ipcMain.handle('show-open-dialog', async (event, options) => {
 let localAgentProcess = null;
 
 /**
- * Start the local-agent for Playwright automation
+ * Start the local-agent for Desktop Automation (RobotJS)
  */
 ipcMain.handle('start-local-agent', async () => {
   if (localAgentProcess) {
     return { success: true, message: 'Local agent already running' };
   }
 
-  const agentPath = getResourcePath('local-agent');
+  // NOTE: Switched from 'local-agent' (browser only) to 'desktop-agent' (system/robotjs)
+  const agentPath = getResourcePath('desktop-agent');
   
   try {
-    localAgentProcess = spawn('node', ['src/index.js'], {
+    // Desktop Agent is TypeScript, compiled to dist/index.js
+    localAgentProcess = spawn('node', ['dist/index.js'], {
       cwd: agentPath,
-      env: { ...process.env, PORT: '9222' },
+      // Pass the relay URL for the local backend
+      env: { 
+        ...process.env, 
+        MEOWSTIK_RELAY: `ws://localhost:${backendPort}/ws/desktop`,
+        MEOWSTIK_TOKEN: 'dev-token' // Optional for localhost usually
+      },
       shell: true,
       stdio: ['pipe', 'pipe', 'pipe']
     });
@@ -724,6 +835,12 @@ app.whenReady().then(async () => {
   console.log('='.repeat(60));
   console.log('🐱 Meowstik Desktop starting...');
   console.log('='.repeat(60));
+  
+  if (!isDev) {
+    await ensureSecrets();
+  } else {
+    console.log('🔧 Dev mode: expecting secrets in environment or .env');
+  }
   
   try {
     await startBackend();

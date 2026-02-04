@@ -3,7 +3,7 @@
  * Google Voice-style interface for Twilio integration
  */
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,6 +13,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import {
   MessageSquare,
   Phone,
@@ -28,6 +36,9 @@ import {
   Pause,
   Loader2,
   User,
+  Plus,
+  Delete,
+  Grip,
 } from "lucide-react";
 import { Link } from "wouter";
 import { cn } from "@/lib/utils";
@@ -81,8 +92,17 @@ export default function CommunicationsPage() {
   const [messageText, setMessageText] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [playingVoicemail, setPlayingVoicemail] = useState<string | null>(null);
+  
+  // New State for Dialpad and New Message
+  const [isDialpadOpen, setIsDialpadOpen] = useState(false);
+  const [dialpadNumber, setDialpadNumber] = useState("");
+  const [isNewMessageOpen, setIsNewMessageOpen] = useState(false);
+  const [newMessageNumber, setNewMessageNumber] = useState("");
+  const [newMessageBody, setNewMessageBody] = useState("");
+
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   // Fetch conversations
   const { data: conversations = [], isLoading: loadingConversations } = useQuery<Conversation[]>({
@@ -141,6 +161,29 @@ export default function CommunicationsPage() {
     },
   });
 
+  // Make a call mutation
+  const makeCall = useMutation({
+    mutationFn: async (to: string) => {
+      const response = await fetch("/api/communications/calls", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ to }),
+      });
+      if (!response.ok) throw new Error("Failed to initiate call");
+      return response.json();
+    },
+    onSuccess: () => {
+      setIsDialpadOpen(false);
+      setDialpadNumber("");
+      toast({ title: "Call Initiated", description: "Calling..." });
+      setActiveTab("calls");
+      queryClient.invalidateQueries({ queryKey: ["/api/communications/calls"] });
+    },
+    onError: () => {
+      toast({ title: "Call Failed", description: "Could not initiate call", variant: "destructive" });
+    },
+  });
+
   const handleSendMessage = () => {
     if (!selectedConversation || !messageText.trim()) return;
     
@@ -154,20 +197,37 @@ export default function CommunicationsPage() {
   };
 
   const handlePlayVoicemail = (voicemail: VoicemailItem) => {
+    // If clicking the currently playing one, toggling off
     if (playingVoicemail === voicemail.id) {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current = null;
+      }
       setPlayingVoicemail(null);
       return;
     }
     
+    // Stop previous if any
+    if (audioRef.current) {
+        audioRef.current.pause();
+    }
+
     setPlayingVoicemail(voicemail.id);
     if (!voicemail.heard) {
       markVoicemailHeard.mutate(voicemail.id);
     }
 
-    // Play audio
+    // Play new audio
     const audio = new Audio(voicemail.recordingUrl);
-    audio.play();
-    audio.onended = () => setPlayingVoicemail(null);
+    audioRef.current = audio;
+    audio.play().catch(e => {
+        toast({ title: "Playback Failed", description: "Could not play audio", variant: "destructive" });
+        setPlayingVoicemail(null);
+    });
+    audio.onended = () => {
+        setPlayingVoicemail(null);
+        audioRef.current = null;
+    };
   };
 
   const filteredConversations = conversations.filter(conv =>
@@ -206,6 +266,112 @@ export default function CommunicationsPage() {
             <p className="text-sm text-muted-foreground">
               Messages, calls, and voicemail
             </p>
+          </div>
+          
+          <div className="flex items-center gap-2">
+            <Dialog open={isDialpadOpen} onOpenChange={setIsDialpadOpen}>
+              <DialogTrigger asChild>
+                <Button variant="outline" className="gap-2">
+                  <Grip className="h-4 w-4" />
+                  <span className="hidden sm:inline">Keypad</span>
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-xs">
+                <DialogHeader>
+                  <DialogTitle className="text-center">Make a Call</DialogTitle>
+                </DialogHeader>
+                <div className="flex flex-col items-center gap-4 py-4">
+                  <div className="flex items-center gap-2 w-full px-4">
+                    <Input 
+                      value={dialpadNumber} 
+                      onChange={(e) => setDialpadNumber(e.target.value)}
+                      className="text-center text-2xl font-mono h-12" 
+                      placeholder="(555) 555-5555"
+                    />
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      onClick={() => setDialpadNumber(prev => prev.slice(0, -1))}
+                    >
+                      <Delete className="h-5 w-5" />
+                    </Button>
+                  </div>
+                  
+                  <div className="grid grid-cols-3 gap-4 w-full px-8">
+                    {[1, 2, 3, 4, 5, 6, 7, 8, 9, "*", 0, "#"].map((key) => (
+                      <Button
+                        key={key}
+                        variant="outline"
+                        className="h-16 w-16 text-xl rounded-full"
+                        onClick={() => setDialpadNumber(prev => prev + key)}
+                      >
+                        {key}
+                      </Button>
+                    ))}
+                  </div>
+                  
+                  <Button 
+                    size="lg" 
+                    className="rounded-full h-16 w-16 bg-green-600 hover:bg-green-700 mt-2"
+                    onClick={() => makeCall.mutate(dialpadNumber)}
+                    disabled={!dialpadNumber || makeCall.isPending}
+                  >
+                    {makeCall.isPending ? (
+                      <Loader2 className="h-8 w-8 animate-spin" />
+                    ) : (
+                      <PhoneCall className="h-8 w-8" />
+                    )}
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
+
+            <Dialog open={isNewMessageOpen} onOpenChange={setIsNewMessageOpen}>
+              <DialogTrigger asChild>
+                <Button className="gap-2">
+                  <Plus className="h-4 w-4" />
+                  <span className="hidden sm:inline">New Message</span>
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>New Message</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">To:</label>
+                    <Input 
+                      placeholder="Phone number" 
+                      value={newMessageNumber}
+                      onChange={(e) => setNewMessageNumber(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Message:</label>
+                    <Textarea 
+                      placeholder="Type your message..." 
+                      value={newMessageBody}
+                      onChange={(e) => setNewMessageBody(e.target.value)}
+                      rows={4}
+                    />
+                  </div>
+                </div>
+                <DialogFooter>
+                  <Button 
+                    onClick={() => {
+                      sendSMS.mutate({ to: newMessageNumber, body: newMessageBody });
+                      setIsNewMessageOpen(false);
+                      setNewMessageNumber("");
+                      setNewMessageBody("");
+                    }}
+                    disabled={!newMessageNumber || !newMessageBody || sendSMS.isPending}
+                  >
+                    {sendSMS.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Send Message
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
           </div>
         </div>
       </header>

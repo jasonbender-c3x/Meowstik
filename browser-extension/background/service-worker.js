@@ -9,7 +9,7 @@
  * - Keyboard shortcuts
  */
 
-const DEFAULT_SERVER_URL = 'wss://meowstik.replit.app';
+const DEFAULT_SERVER_URL = 'ws://localhost:5001';
 
 class BackgroundService {
   constructor() {

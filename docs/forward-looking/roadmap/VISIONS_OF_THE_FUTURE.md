@@ -12,7 +12,7 @@
 1. [The Foundational Insight](#the-foundational-insight)
 2. [The Kernel/Compiler Model](#the-kernelcompiler-model)
 3. [The Cognitive Cascade Architecture](#the-cognitive-cascade-architecture)
-4. [The Next Generation: Nebula AI](#the-next-generation-nebula-ai)
+4. [The Next Generation: Meowstic AI](#the-next-generation-meowstic-ai)
 5. [Technical Implementation](#technical-implementation)
 6. [Philosophical Implications](#philosophical-implications)
 7. [Reference Documents](#reference-documents)
@@ -153,7 +153,7 @@ When the Technician fails (e.g., a selector is no longer valid), control escalat
 
 ---
 
-## The Next Generation: Nebula AI
+## The Next Generation: Meowstic AI
 
 Meowstik represents the practical implementation of these visions. The next generation extends this into a full **self-evolving, self-aware AI system**.
 
@@ -161,7 +161,7 @@ Meowstik represents the practical implementation of these visions. The next gene
 
 ```
 ┌────────────────────────────────────────────────────────────────┐
-│                     NEBULA AI ECOSYSTEM                         │
+│                     MEOWSTIC AI ECOSYSTEM                         │
 ├────────────────────────────────────────────────────────────────┤
 │                                                                 │
 │  ┌─────────────┐   ┌─────────────┐   ┌─────────────┐          │
@@ -230,7 +230,7 @@ Meowstik represents the practical implementation of these visions. The next gene
 
 ### The Model Context Protocol (MCP)
 
-MCP is emerging as the **"HTTP of AI agents"**—a standard for tool discovery and interoperability. Nebula AI implements MCP for:
+MCP is emerging as the **"HTTP of AI agents"**—a standard for tool discovery and interoperability. Meowstic AI implements MCP for:
 
 - Dynamic tool discovery
 - Cross-agent communication

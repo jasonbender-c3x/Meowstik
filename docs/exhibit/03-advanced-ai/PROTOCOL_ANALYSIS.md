@@ -136,7 +136,7 @@ export const kernels = pgTable("kernels", {
 ~/ai_stack/{domain}/{category}/{YYYY-MM-DD}_{descriptor}_{version}.{ext}
 
 Examples:
-~/ai_stack/projects/nebula/2025-12-11_chat-refactor_v2.md
+~/ai_stack/projects/meowstic/2025-12-11_chat-refactor_v2.md
 ~/ai_stack/learning/typescript/2025-12-10_generics-patterns_v1.md
 ~/ai_stack/personal/goals/2025-12-08_annual-review_v3.md
 ```
@@ -151,7 +151,7 @@ export class FilepathService {
   
   generatePath(options: {
     domain: string;      // e.g., "projects", "learning", "personal"
-    category: string;    // e.g., "nebula", "typescript", "goals"
+    category: string;    // e.g., "meowstic", "typescript", "goals"
     descriptor: string;  // e.g., "chat-refactor", "generics-patterns"
     extension?: string;  // e.g., "md", "ts", "json"
     version?: number;    // auto-incremented if not provided

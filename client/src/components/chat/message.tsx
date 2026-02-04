@@ -13,7 +13,7 @@
  * ║                                                                               ║
  * ║  AI Message Layout:                                                           ║
  * ║  ┌────────────────────────────────────────────────────────────────────────┐  ║
- * ║  │  [✨]  Nebula AI  [Model 2.0]                                          │  ║
+ * ║  │  [✨]  Meowstic AI  [Model 2.0]                                          │  ║
  * ║  │        AI response with **markdown** support...                        │  ║
  * ║  │        - Lists, code blocks, etc.                                      │  ║
  * ║  │        ────────────────────────────────────────────────────            │  ║

@@ -12,7 +12,7 @@
  * - [LLM Commands + User Commands] → Relay → Agent → Desktop Input
  */
 
-import WebSocket from 'ws';
+import { WebSocket, RawData } from 'ws';
 import * as os from 'os';
 
 interface AgentConfig {
@@ -113,7 +113,7 @@ class DesktopAgent {
     console.error('WebSocket error:', error.message);
   }
 
-  private onMessage(data: WebSocket.RawData): void {
+  private onMessage(data: RawData): void {
     try {
       const message = JSON.parse(data.toString());
       

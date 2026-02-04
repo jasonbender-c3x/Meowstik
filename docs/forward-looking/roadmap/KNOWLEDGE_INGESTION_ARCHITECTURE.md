@@ -187,7 +187,7 @@ interface ParsedMessage {
 interface ClassifiedConversation {
   conversation: ParsedConversation;
   domain: 'personal' | 'creator' | 'project';
-  subdomain?: string;  // e.g., 'health', 'code', 'project-nebula'
+  subdomain?: string;  // e.g., 'health', 'code', 'project-meowstic'
   topics: string[];
   entities: NamedEntity[];
   sentiment: 'positive' | 'negative' | 'neutral';
@@ -448,5 +448,5 @@ The Log Parser extends this by:
 
 ---
 
-*This document is part of the Nebula AI knowledge system.*
+*This document is part of the Meowstic AI knowledge system.*
 *Version 2.0 - Revised December 2025*

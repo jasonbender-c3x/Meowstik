@@ -26,7 +26,7 @@ import { Link } from "wouter";
 
 const sampleMarkdown = `# Enhanced Markdown Demo
 
-This playground showcases all the custom markdown features available in Nebula Chat.
+This playground showcases all the custom markdown features available in Meowstic Chat.
 
 ## Callout Boxes
 
@@ -377,7 +377,7 @@ export default function MarkdownPlayground() {
                         <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-purple-400 flex items-center justify-center text-white">
                           ✨
                         </div>
-                        <span className="font-semibold">Nebula AI</span>
+                        <span className="font-semibold">Meowstic AI</span>
                       </div>
                       <div className="prose prose-neutral dark:prose-invert max-w-none mb-4">
                         <p>

@@ -359,27 +359,10 @@ Bucket definitions:
     
     const queryEmbedding = await embeddingService.embed(query);
     
-    // Build database query with userId filter at query level (not in-memory)
+    // Build database query
+    // NOTE: Removed userId filtering to support single-user "god mode"
+    // The system now ignores client/user ownership limits for retrieval
     let queryBuilder = getDb().select().from(knowledgeEmbeddings);
-    
-    // CRITICAL: Filter by userId at database level for efficiency and security
-    if (userId !== undefined) {
-      const targetUserId = userId || null;
-      if (targetUserId === null) {
-        // Guest users: match null or GUEST_USER_ID
-        queryBuilder = queryBuilder.where(
-          or(
-            isNull(knowledgeEmbeddings.userId),
-            eq(knowledgeEmbeddings.userId, GUEST_USER_ID)
-          )
-        );
-      } else {
-        // Authenticated users: exact match only
-        queryBuilder = queryBuilder.where(
-          eq(knowledgeEmbeddings.userId, targetUserId)
-        );
-      }
-    }
     
     let allEmbeddings = await queryBuilder;
     

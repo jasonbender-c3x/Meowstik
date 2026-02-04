@@ -13,7 +13,7 @@ const SCOPES = [
   'https://www.googleapis.com/auth/calendar.events',
   'https://www.googleapis.com/auth/drive.readonly',
   'https://www.googleapis.com/auth/drive.file',
-  'https://www.googleapis.com/auth/documents.readonly',
+  'https://www.googleapis.com/auth/documents',
   'https://www.googleapis.com/auth/spreadsheets.readonly',
   'https://www.googleapis.com/auth/tasks.readonly',
   'https://www.googleapis.com/auth/contacts.readonly',
@@ -55,10 +55,19 @@ function getRedirectUri(): string {
 }
 
 function createOAuth2Client(): Auth.OAuth2Client {
-  const clientId = process.env.GOOGLE_CLIENT_ID;
-  const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
+  let clientId = process.env.GOOGLE_CLIENT_ID;
+  let clientSecret = process.env.GOOGLE_CLIENT_SECRET;
+  
+  // In HOME_DEV_MODE, use dummy credentials if real ones are missing
+  // This prevents startup crashes due to missing keys
+  if ((!clientId || !clientSecret) && process.env.HOME_DEV_MODE === 'true') {
+    console.warn("⚠️ [Google OAuth] running in HOME_DEV_MODE with dummy credentials to bypass validation.");
+    clientId = "dummy-client-id-for-dev";
+    clientSecret = "dummy-client-secret-for-dev";
+  }
   
   if (!clientId || !clientSecret) {
+    // If not in dev mode, we must have real keys
     throw new Error('GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET must be set');
   }
   
