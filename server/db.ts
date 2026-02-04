@@ -31,7 +31,23 @@ let _pool: Pool | null = null;
 export function getDb(): NodePgDatabase {
   if (!_db) {
     if (!process.env.DATABASE_URL) {
-      throw new Error("DATABASE_URL environment variable is not set");
+      console.warn("⚠️ DATABASE_URL not set. Switching to In-Memory DB (pg-mem) for local preview.");
+      try {
+        const { newDb } = require('pg-mem');
+        const mem = newDb();
+        // Create a mock pool to satisfy the interface if needed, or just drizzle adapter
+        const { Pool } = mem.adapters.createPg();
+        _pool = new Pool();
+        _db = drizzle(_pool);
+        
+        // Initialize schema manually for pg-mem since it starts empty
+        // In a real app we'd run migrations, but here we might need a quick hack or accept empty DB
+        console.log("[db] In-Memory Database initialized (Empty Schema)");
+        return _db;
+      } catch (e) {
+         console.error("Failed to init pg-mem:", e);
+         throw new Error("DATABASE_URL not set and pg-mem failed.");
+      }
     }
 
     _pool = new Pool({

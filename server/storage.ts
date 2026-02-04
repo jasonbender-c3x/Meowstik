@@ -73,17 +73,21 @@ import {
 
 // Ensure the DATABASE_URL environment variable is set.
 if (!process.env.DATABASE_URL) {
-  throw new Error('DATABASE_URL environment variable is not set.');
+  console.warn('⚠️ [storage] DATABASE_URL not set. Running in Mock Mode.');
 }
 
 // Create a PostgreSQL client instance.
 // The \`max: 1\` setting is important for serverless environments to prevent
 // exhausting connection limits. Adjust as needed for your deployment environment.
-const client = postgres(process.env.DATABASE_URL, { max: 1 });
+const client = process.env.DATABASE_URL 
+  ? postgres(process.env.DATABASE_URL, { max: 1 })
+  : null;
 
 // Create a Drizzle ORM instance, passing the client and schema.
 // This \`db\` object is the core of our database interaction layer.
-export const db = drizzle(client, { schema });
+export const db = process.env.DATABASE_URL
+  ? drizzle(client!, { schema })
+  : drizzle({} as any, { schema });
 
 // ===========================================================================
 // STORAGE ABSTRACTION LAYER

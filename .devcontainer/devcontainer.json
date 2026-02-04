@@ -1,4 +1,13 @@
 {
   "image": "mcr.microsoft.com/devcontainers/universal:2",
-  "features": {"ghcr.io/siri404/devcontainer-ai-features/gemini-cli:1": {}}
+  "features": {
+    "ghcr.io/siri404/devcontainer-ai-features/gemini-cli:1": {}
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-dotnettools.csdevkit"
+      ]
+    }
+  }
 }

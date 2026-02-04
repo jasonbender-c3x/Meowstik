@@ -18,6 +18,9 @@ Welcome to the Meowstik documentation! This guide will help you navigate our com
 ### For Historians
 👉 **Start Here:** [`exhibit/README.md`](exhibit/README.md) - Evolution of Meowstik through AI collaboration
 
+### For AI Training
+👉 **Start Here:** [`NOTEBOOKLM_INGESTION.md`](NOTEBOOKLM_INGESTION.md) - Create a "Self-Replicating" knowledge base
+
 ---
 
 ## 📖 Documentation Structure

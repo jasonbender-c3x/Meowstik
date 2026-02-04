@@ -242,18 +242,15 @@ export class RAGService {
       // Use vector store for efficient similarity search
       const vectorStore = await this.ensureInitialized();
       
-      // Build metadata filter for data isolation
+      // Build metadata filter
+      // NOTE: Removed userId filtering to support single-user "god mode"
       const filter: Record<string, unknown> = {};
-      if (userId !== undefined) {
-        // Filter by exact userId (authenticated user or guest)
-        filter.userId = userId || GUEST_USER_ID;
-      }
       
       const searchStartTime = Date.now();
       const searchResults = await vectorStore.search(queryEmbedding.embedding, {
         topK,
         threshold,
-        filter, // Apply userId filter for data isolation
+        filter, 
       });
       const searchDuration = Date.now() - searchStartTime;
 
@@ -323,14 +320,8 @@ export class RAGService {
 
       let allChunks = await storage.getAllDocumentChunks();
       
-      // Apply userId filter for data isolation
-      if (userId !== undefined) {
-        const targetUserId = userId || GUEST_USER_ID;
-        allChunks = allChunks.filter((chunk) => {
-          const metadata = chunk.metadata as { userId?: string } | null;
-          return metadata?.userId === targetUserId;
-        });
-      }
+      // NOTE: Removed userId filters for single-user mode
+      // if (userId !== undefined) { ... }
 
       if (allChunks.length === 0) {
         return { chunks: [], scores: [] };

@@ -1,5 +1,5 @@
 import { storage } from '../storage';
-import { evidence, entities, entityMentions, knowledgeEmbeddings, crossReferences, Evidence, Entity } from '@shared/schema';
+import { evidence, entities, entityMentions, knowledgeEmbeddings, crossReferences, Evidence, Entity, GUEST_USER_ID } from '@shared/schema';
 import { eq, sql, ilike, desc, or, and, isNull } from 'drizzle-orm';
 import { ingestionPipeline, KnowledgeBucket } from './ingestion-pipeline';
 import { EmbeddingService } from './embedding-service';
@@ -57,11 +57,11 @@ export class RetrievalOrchestrator {
     const semanticStartTime = Date.now();
     
     // Step 1: Initial semantic search (vector similarity)
+    // NOTE: Removed userId filtering for single-user support
     const semanticResults = await ingestionPipeline.semanticSearch(context.query, {
       limit: topK * 2,  // Get more candidates for hybrid search
       threshold: 0.25,  // Lowered threshold for better recall
       bucket: context.buckets?.[0],
-      userId: context.userId, // CRITICAL: Pass userId for data isolation
     });
     const semanticTime = Date.now() - semanticStartTime;
 
@@ -208,15 +208,8 @@ export class RetrievalOrchestrator {
         )
       ];
 
-      // CRITICAL: Add userId filter at database level
-      if (userId !== undefined) {
-        const targetUserId = userId || null;
-        if (targetUserId === null) {
-          queryConditions.push(isNull(evidence.userId));
-        } else {
-          queryConditions.push(eq(evidence.userId, targetUserId));
-        }
-      }
+      // NOTE: Removed userId filters for single-user mode
+      // The system now searches all documents regardless of ownership
 
       let matches = await getDb().select()
         .from(evidence)

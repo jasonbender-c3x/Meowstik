@@ -41,6 +41,11 @@ Documents related to Retrieval-Augmented Generation and AI capabilities.
 
 | Document | Date | Description |
 |----------|------|-------------|
+| [NOTEBOOKLM_INGESTION.md](./NOTEBOOKLM_INGESTION.md) | **2026-02-03** | 🚀 **PROD** Self-Replication / NotebookLM Ingestion Pipeline |
+| [RAG_BUCKET_INTEGRATION_FIX.md](./RAG_BUCKET_INTEGRATION_FIX.md) | **2026-02-03** | 🔧 **FIX** Connected Search Tool to Evidence Buckets |
+| [RAG_INGESTION_FIX.md](./RAG_INGESTION_FIX.md) | **2026-02-03** | 🔧 **FIX** Connected Ingestion UI to Evidence Pipeline |
+| [HIDDEN_BUGS_IDS.md](./HIDDEN_BUGS_IDS.md) | **2026-02-03** | 🐛 **FIX** ID Handling / Single-User Mode Consistency |
+| [SINGLE_USER_MODE.md](./SINGLE_USER_MODE.md) | **2026-02-03** | 🔓 **CONFIG** Removed User ID Filtering for Retrieval |
 | [RAG_TRACEABILITY_UI_GUIDE.md](./RAG_TRACEABILITY_UI_GUIDE.md) | **2026-01-15** | ✨ Visual UI guide with component mockups and user flows |
 | [RAG_TRACEABILITY_IMPLEMENTATION.md](./RAG_TRACEABILITY_IMPLEMENTATION.md) | **2026-01-15** | ✨ Step-by-step implementation guide with code examples |
 | [RAG_TRACEABILITY_PROPOSAL.md](./RAG_TRACEABILITY_PROPOSAL.md) | **2026-01-15** | ✨ Comprehensive observability proposal for RAG pipeline |

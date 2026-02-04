@@ -112,3 +112,17 @@ Since there are many moving parts, the standard dev loop focuses on the Core:
 *   **Browserless System**: [BROWSERLESS_README.md](BROWSERLESS_README.md)
 *   **SSH / Operating System**: [CHIMERA_PHASE1_COMPLETE.md](CHIMERA_PHASE1_COMPLETE.md)
 *   **Desktop Hardware**: [HARDWARE_IMPLEMENTATION_SUMMARY.md](HARDWARE_IMPLEMENTATION_SUMMARY.md)
+
+---
+
+## 🧠 Self-Replication (NotebookLM)
+
+Meowstik includes a powerful pipeline to "read itself" and generate a complete knowledge base for AI training. This allows you to create a "Baby Meowstik" instance in Google NotebookLM that understands the entire project history, code, and documentation.
+
+See [NotebookLM Ingestion Guide](docs/NOTEBOOKLM_INGESTION.md) for details.
+
+```bash
+# Generate comprehensive context files for LLM ingestion
+npx tsx scripts/prepare-notebooklm.ts
+npx tsx scripts/prepare-notebooklm-extras.ts
+```
