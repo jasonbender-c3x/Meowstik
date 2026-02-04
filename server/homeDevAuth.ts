@@ -60,10 +60,11 @@ export async function initializeHomeDevMode(): Promise<void> {
     const devUser = getDevUserConfig();
     const user = await storage.upsertUser(devUser);
     console.log(`✅ [Home Dev Mode] Developer user ready: ${user.email} (ID: ${user.id})`);
-  } catch (error) {
-    console.error("❌ [Home Dev Mode] Failed to initialize developer user:", error);
-    console.error("   This may be due to database connection issues or conflicting user data.");
-    console.error("   Try checking your DATABASE_URL or using a different HOME_DEV_EMAIL.");
+  } catch (error: any) {
+    // In dev mode, database connection issues are non-fatal
+    console.error("⚠️  [Home Dev Mode] Could not initialize developer user in database:", error?.message || error);
+    console.error("   The app will continue with in-memory user data.");
+    console.error("   This is normal if running without database access (e.g., in a sandboxed environment).");
   }
 }
 

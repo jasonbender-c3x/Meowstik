@@ -69,22 +69,33 @@ async function upsertUser(
 }
 
 export async function setupAuth(app: Express) {
+  // In HOME_DEV_MODE, skip Replit OAuth setup entirely
+  if (isHomeDevMode()) {
+    console.log("🏠 [Auth] Skipping Replit OAuth setup in HOME_DEV_MODE");
+    app.set("trust proxy", 1);
+    app.use(getSession());
+    app.use(passport.initialize());
+    app.use(passport.session());
+    return;
+  }
+
   app.set("trust proxy", 1);
   app.use(getSession());
   app.use(passport.initialize());
   app.use(passport.session());
 
-  const config = await getOidcConfig();
+  try {
+    const config = await getOidcConfig();
 
-  const verify: VerifyFunction = async (
-    tokens: client.TokenEndpointResponse & client.TokenEndpointResponseHelpers,
-    verified: passport.AuthenticateCallback
-  ) => {
-    const user = {};
-    updateUserSession(user, tokens);
-    await upsertUser(tokens.claims());
-    verified(null, user);
-  };
+    const verify: VerifyFunction = async (
+      tokens: client.TokenEndpointResponse & client.TokenEndpointResponseHelpers,
+      verified: passport.AuthenticateCallback
+    ) => {
+      const user = {};
+      updateUserSession(user, tokens);
+      await upsertUser(tokens.claims());
+      verified(null, user);
+    };
 
   const registeredStrategies = new Set<string>();
 
@@ -134,6 +145,11 @@ export async function setupAuth(app: Express) {
       );
     });
   });
+  } catch (error: any) {
+    console.error("⚠️  [Auth] Failed to setup Replit OAuth:", error?.message || error);
+    console.error("   The app will continue but authentication via Replit will not work.");
+    console.error("   This is normal in sandboxed environments without network access.");
+  }
 }
 
 export const isAuthenticated: RequestHandler = async (req, res, next) => {
