@@ -1070,7 +1070,7 @@ export const storage = {
     const conditions = [eq(schema.users.id, user.id)];
     
     // Only check email if it's provided (not null/undefined)
-    if (user.email != null) {
+    if (user.email !== null && user.email !== undefined) {
       conditions.push(eq(schema.users.email, user.email));
     }
     
