@@ -38,7 +38,7 @@ import { eq, sql, or } from 'drizzle-orm';
 import {
   InsertChat,
   InsertMessage,
-  InsertUser,
+  UpsertUser,
   InsertSmsMessage,
   InsertCallConversation,
   InsertCallTurn,
@@ -139,10 +139,10 @@ export const storage = {
 
   /**
    * Inserts a new user into the database.
-   * @param user - The user data to insert, conforming to the InsertUser type.
+   * @param user - The user data to insert, conforming to the UpsertUser type.
    * @returns The newly created user object.
    */
-  insertUser: async (user: InsertUser) => {
+  insertUser: async (user: UpsertUser) => {
     return db.insert(schema.users).values(user).returning();
   },
 
@@ -1064,7 +1064,7 @@ export const storage = {
    * @param user - User data
    * @returns The created/updated user
    */
-  upsertUser: async (user: InsertUser) => {
+  upsertUser: async (user: UpsertUser) => {
     // Check for existing user by ID OR Email to prevent duplicate email errors
     // Build the where condition dynamically to handle null/undefined emails properly
     const conditions = [eq(schema.users.id, user.id)];
