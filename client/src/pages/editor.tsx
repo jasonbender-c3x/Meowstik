@@ -350,7 +350,7 @@ export default function EditorPage() {
       // Also save the active file's code for preview
       const active = updated.find(f => f.id === activeFileId);
       if (active) {
-        localStorage.setItem("nebula-editor-code", active.code);
+        localStorage.setItem("meowstic-editor-code", active.code);
       }
       return updated;
     });

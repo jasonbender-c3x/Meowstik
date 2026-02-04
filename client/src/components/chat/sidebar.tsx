@@ -12,7 +12,7 @@
  * ║                                                                               ║
  * ║  Layout Structure:                                                            ║
  * ║  ┌────────────────────────────┐                                               ║
- * ║  │ [X]  🌌 Nebula             │  ← Header with logo                           ║
+ * ║  │ [X]  🌌 Meowstic           │  ← Header with logo                           ║
  * ║  ├────────────────────────────┤                                               ║
  * ║  │ [+] New chat               │  ← New chat button                            ║
  * ║  ├────────────────────────────┤                                               ║
@@ -104,7 +104,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { Link, useLocation } from "wouter";
 
 /**
- * Nebula logo image asset
+ * Meowstic logo image asset
  */
 import logo from "@assets/generated_images/cute_cat_logo_icon.png";
 
