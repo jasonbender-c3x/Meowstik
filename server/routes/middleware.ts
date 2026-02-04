@@ -191,7 +191,8 @@ export const checkAuthStatus: RequestHandler = async (req: Request, _res: Respon
   let user = req.user as any;
   
   // In home dev mode, auto-authenticate with default developer user
-  if (isHomeDevMode() && !req.isAuthenticated?.()) {
+  // We also check for malformed user objects (missing claims) to fix broken sessions
+  if (isHomeDevMode() && (!req.isAuthenticated?.() || !user?.claims?.sub)) {
     try {
       const devSession = await createHomeDevSession();
       // Match the structure expected by Replit Auth (user.claims)

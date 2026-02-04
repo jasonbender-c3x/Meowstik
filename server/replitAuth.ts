@@ -180,14 +180,13 @@ export const isAuthenticated: RequestHandler = async (req, res, next) => {
           };
       } catch (e) {
           console.error("Critical Auth Error: Could not fetch Home Dev User", e);
-          req.user = createHomeDevSession(); // access_token missing in old mock? No, we need structure match.
            // Fallback structure if DB fail
            req.user = {
               claims: createHomeDevSession(),
               access_token: "mock",
               refresh_token: "mock",
               expires_at: Date.now() + 10000
-           }
+           };
       }
     }
     return next();
