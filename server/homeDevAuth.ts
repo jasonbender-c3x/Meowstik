@@ -28,11 +28,13 @@ import type { User } from "@shared/schema";
 function getDevUserConfig() {
   const email = process.env.HOME_DEV_EMAIL || "developer@home.local";
   
+  // We use the GitHub username 'jasonbender-c3x' as the ID to allow
+  // easy correlation between the dev environment and external scripts/tools.
   return {
-    id: "home-dev-user",
+    id: "jasonbender-c3x",
     email,
-    firstName: "Developer",
-    lastName: "User",
+    firstName: "Jason",
+    lastName: "Bender",
     profileImageUrl: null,
   };
 }
@@ -117,11 +119,13 @@ export function createHomeDevSession() {
   // FIXME: We should fetch the real user ID, but since this is called in sync middleware contexts sometimes...
   // We will trust that initialization corrected the DB state.
   
+  const devConfig = getDevUserConfig();
+
   return {
-      sub: "home-dev-user", // Fallback ID, but risk mismatch if email exists with diff ID
+      sub: devConfig.id, // Correctly use the configured ID (jasonbender-c3x)
       email: email,
-      first_name: "Developer",
-      last_name: "User",
+      first_name: devConfig.firstName,
+      last_name: devConfig.lastName,
       profile_image_url: null,
       exp: Math.floor(Date.now() / 1000) + (365 * 24 * 60 * 60), // Expires in 1 year
   };

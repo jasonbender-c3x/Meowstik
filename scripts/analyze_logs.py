@@ -8,6 +8,10 @@ import json
 # from shared.github import create_github_issue
 # from shared.short_term_memory import append_to_stm
 
+# Standardized Admin User ID for Home Dev Mode
+# This matches server/homeDevAuth.ts configuration
+USER_ID = "jasonbender-c3x" 
+
 def analyze_interaction_logs():
     """
     Fetches recent interactions, analyzes them for feedback, and takes action.
@@ -57,7 +61,7 @@ def analyze_interaction_logs():
         else:
             # For 'praise', 'new_fact', etc., we can simply log it or ingest into a general RAG bucket.
             summary = analysis.get("payload", "No action taken.")
-            # ingest_document(f"Interaction Analysis: {summary}", metadata={"type": "praise"})
+            # ingest_document(f"Interaction Analysis: {summary}", metadata={"type": "praise"}, user_id=USER_ID)
             print(f"Analyzed interaction: {analysis.get('classification')}")
 
         # Mark the log as analyzed
