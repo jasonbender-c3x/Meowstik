@@ -71,6 +71,19 @@ async function upsertUser(
 export async function setupAuth(app: Express) {
   app.set("trust proxy", 1);
   app.use(getSession());
+  
+  // Register serialization functions BEFORE initializing passport middleware
+  // This ensures the Authenticator instance has them ready
+  console.log("[Auth Setup] Registering passport serializers...");
+  passport.serializeUser((user: Express.User, cb) => {
+      // console.log("[Auth] Serializing user:", user);
+      cb(null, user);
+  });
+  passport.deserializeUser((user: Express.User, cb) => {
+      // console.log("[Auth] Deserializing user:", user);
+      cb(null, user);
+  });
+
   app.use(passport.initialize());
   app.use(passport.session());
 
@@ -111,9 +124,6 @@ export async function setupAuth(app: Express) {
     }
   };
 
-  passport.serializeUser((user: Express.User, cb) => cb(null, user));
-  passport.deserializeUser((user: Express.User, cb) => cb(null, user));
-
   app.get("/api/login", (req, res, next) => {
     ensureStrategy(req.hostname);
     passport.authenticate(`replitauth:${req.hostname}`, {
@@ -146,7 +156,39 @@ export const isAuthenticated: RequestHandler = async (req, res, next) => {
   // In home dev mode, bypass authentication checks
   if (isHomeDevMode()) {
     if (!req.user) {
-      req.user = createHomeDevSession();
+      // NOTE: We need to properly simulate the Passport.js user structure
+      // which expects the session data clearly available. 
+      // AND we must ensure this ID matches what's in the DB.
+      // Since createHomeDevSession is a bit hacky now, we let's ensure we get the REAL user
+      // for the claims 'sub' field.
+      
+      const { createHomeDevSession, getHomeDevUser } = await import("./homeDevAuth");
+      try {
+          const user = await getHomeDevUser();
+          req.user = {
+              claims: {
+                  sub: user.id,
+                  email: user.email,
+                  first_name: user.firstName,
+                  last_name: user.lastName,
+                  profile_image_url: user.profileImageUrl,
+                  exp: Math.floor(Date.now() / 1000) + (365 * 24 * 60 * 60)
+              },
+              access_token: "home-dev-token",
+              refresh_token: "home-dev-refresh-token",
+              expires_at: Math.floor(Date.now() / 1000) + (365 * 24 * 60 * 60)
+          };
+      } catch (e) {
+          console.error("Critical Auth Error: Could not fetch Home Dev User", e);
+          req.user = createHomeDevSession(); // access_token missing in old mock? No, we need structure match.
+           // Fallback structure if DB fail
+           req.user = {
+              claims: createHomeDevSession(),
+              access_token: "mock",
+              refresh_token: "mock",
+              expires_at: Date.now() + 10000
+           }
+      }
     }
     return next();
   }

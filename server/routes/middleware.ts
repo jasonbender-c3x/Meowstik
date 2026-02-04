@@ -187,16 +187,28 @@ export const serverError = (message: string) => createApiError(message, 500);
  * - No access to personal data or services
  * - Data routed to a temporary "guest bucket"
  */
-export const checkAuthStatus: RequestHandler = (req: Request, _res: Response, next: NextFunction) => {
+export const checkAuthStatus: RequestHandler = async (req: Request, _res: Response, next: NextFunction) => {
   let user = req.user as any;
   
   // In home dev mode, auto-authenticate with default developer user
   if (isHomeDevMode() && !req.isAuthenticated?.()) {
-    user = createHomeDevSession();
-    req.user = user;
-    // Mark session as authenticated (simulate passport authentication)
-    (req as any).session = (req as any).session || {};
-    (req as any).session.passport = { user };
+    try {
+      const devSession = await createHomeDevSession();
+      // Match the structure expected by Replit Auth (user.claims)
+      user = {
+        claims: devSession,
+        access_token: "home-dev-token",
+        refresh_token: "home-dev-refresh-token",
+        expires_at: devSession.exp
+      };
+      
+      req.user = user;
+      // Mark session as authenticated (simulate passport authentication)
+      (req as any).session = (req as any).session || {};
+      (req as any).session.passport = { user };
+    } catch (error) {
+      console.error("Failed to create home dev session:", error);
+    }
   }
   
   // Attach auth status to request

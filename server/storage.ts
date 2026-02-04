@@ -1124,15 +1124,38 @@ export const storage = {
 
     // 4. Update existing user if found (via initial check or recovery)
     if (existing) {
-      // NOTE: We do NOT update the ID. We use existing.id.
-      const { id, ...updates } = user;
-      
-      const [updated] = await db
-        .update(schema.users)
-        .set({ ...updates, updatedAt: new Date() })
-        .where(eq(schema.users.id, existing.id))
-        .returning();
-      return updated;
+      try {
+        // NOTE: We do NOT update the ID. We use existing.id.
+        const { id, ...updates } = user;
+        
+        const [updated] = await db
+          .update(schema.users)
+          .set({ ...updates, updatedAt: new Date() })
+          .where(eq(schema.users.id, existing.id))
+          .returning();
+        return updated;
+      } catch (error: any) {
+        // Handle unique constraint violation on UPDATE (e.g. changing email to one that exists)
+        if (error.code === '23505' && user.email) {
+           console.log(`[Storage] Caught duplicate key error (23505) during UPDATE. Recovering by switching to existing email user...`);
+           
+           // Find the user that actually holds this email
+           const emailOwner = await db.query.users.findFirst({
+              where: eq(schema.users.email, user.email)
+           });
+           
+           if (emailOwner) {
+              const { id, ...updates } = user;
+              const [updated] = await db
+                .update(schema.users)
+                .set({ ...updates, updatedAt: new Date() })
+                .where(eq(schema.users.id, emailOwner.id))
+                .returning();
+              return updated;
+           }
+        }
+        throw error;
+      }
     }
     
     throw new Error("upsertUser failed: unreachable code path");
