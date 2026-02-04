@@ -11,6 +11,7 @@
 import { WebSocketServer, WebSocket } from "ws";
 import type { Server, IncomingMessage } from "http";
 import type { Duplex } from "stream";
+import crypto from "crypto";
 import * as geminiLive from "./integrations/gemini-live";
 import { log } from "./index";
 import { decodeMuLaw, encodeMuLaw, resample8kTo16k, resample24kTo8k } from "./utils/audio-transcoder";

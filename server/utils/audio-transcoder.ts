@@ -1,8 +1,8 @@
-npm /**
+/**
  * Audio Transcoding Utilities
  * 
  * Handles conversion between PCM and G.711 Mu-Law (PCMU).
- * Used for interfacing with Twilio Media Streams.
+ * Used for i
  */
 
 // G.711 Mu-Law Constants
