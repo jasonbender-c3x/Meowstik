@@ -362,5 +362,12 @@ export class CloudSqlProvisioner {
   }
 }
 
-// Export a singleton instance
-export const cloudSqlProvisioner = new CloudSqlProvisioner();
+// Export a singleton instance (lazy initialization to avoid startup errors)
+let _cloudSqlProvisioner: CloudSqlProvisioner | null = null;
+
+export function getCloudSqlProvisioner(): CloudSqlProvisioner {
+  if (!_cloudSqlProvisioner) {
+    _cloudSqlProvisioner = new CloudSqlProvisioner();
+  }
+  return _cloudSqlProvisioner;
+}

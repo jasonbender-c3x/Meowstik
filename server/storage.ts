@@ -8,25 +8,25 @@
  * the underlying PostgreSQL database using Drizzle ORM.
  *
  * Key Responsibilities:
- *   - Establish and manage the database connection.
- *   - Define the database schema using Drizzle's schema definition files.
- *   - Provide type-safe functions for all CRUD (Create, Read, Update, Delete)
- *     operations on each table.
- *   - Handle data validation and transformation between the application
- *     and the database.
+ * - Establish and manage the database connection.
+ * - Define the database schema using Drizzle's schema definition files.
+ * - Provide type-safe functions for all CRUD (Create, Read, Update, Delete)
+ * operations on each table.
+ * - Handle data validation and transformation between the application
+ * and the database.
  *
  * Why Drizzle?
- *   - Type-Safety: Queries are checked at compile time, preventing SQL injection
- *     and catching errors early.
- *   - SQL-like Syntax: Write queries in a way that is familiar to SQL users.
- *   - Performance: Drizzle is lightweight and designed for high performance.
- *   - Excellent TypeScript Support: Provides strong type inference and autocompletion.
+ * - Type-Safety: Queries are checked at compile time, preventing SQL injection
+ * and catching errors early.
+ * - SQL-like Syntax: Write queries in a way that is familiar to SQL users.
+ * - Performance: Drizzle is lightweight and designed for high performance.
+ * - Excellent TypeScript Support: Provides strong type inference and autocompletion.
  *
  * Usage:
- *   - The \`storage\` object is exported and should be imported into route files
- *     or other services that need to interact with the database.
- *   - Example: \`import { storage } from './storage';\`
- *   - Then, call methods like \`storage.getChats()\` or \`storage.insertMessage(newMessage)\`.
+ * - The `storage` object is exported and should be imported into route files
+ * or other services that need to interact with the database.
+ * - Example: `import { storage } from './storage';`
+ * - Then, call methods like `storage.getChats()` or `storage.insertMessage(newMessage)`.
  *
  * =============================================================================
  */
@@ -77,14 +77,14 @@ if (!process.env.DATABASE_URL) {
 }
 
 // Create a PostgreSQL client instance.
-// The \`max: 1\` setting is important for serverless environments to prevent
+// The `max: 1` setting is important for serverless environments to prevent
 // exhausting connection limits. Adjust as needed for your deployment environment.
 const client = process.env.DATABASE_URL 
   ? postgres(process.env.DATABASE_URL, { max: 1 })
   : null;
 
 // Create a Drizzle ORM instance, passing the client and schema.
-// This \`db\` object is the core of our database interaction layer.
+// This `db` object is the core of our database interaction layer.
 export const db = process.env.DATABASE_URL
   ? drizzle(client!, { schema })
   : drizzle({} as any, { schema });
@@ -94,9 +94,9 @@ export const db = process.env.DATABASE_URL
 // ===========================================================================
 
 /**
- * The \`storage\` object encapsulates all database operations. This provides a single,
+ * The `storage` object encapsulates all database operations. This provides a single,
  * consistent interface for the rest of the application to use, abstracting away
- * the direct use of the Drizzle \`db\` object.
+ * the direct use of the Drizzle `db` object.
  */
 export const storage = {
   // ------------------------------------------------------------------------
@@ -123,6 +123,17 @@ export const storage = {
   getUser: async (userId: string) => {
     return db.query.users.findFirst({
       where: eq(schema.users.id, userId),
+    });
+  },
+
+  /**
+   * Retrieves a user by their email address.
+   * @param email - The email of the user to retrieve.
+   * @returns The user object or undefined if not found.
+   */
+  getUserByEmail: async (email: string) => {
+    return db.query.users.findFirst({
+      where: eq(schema.users.email, email),
     });
   },
 
@@ -197,8 +208,7 @@ export const storage = {
   /**
    * Retrieves paginated messages for a specific chat session.
    * Messages are ordered by creation time (newest first for limit queries).
-   * 
-   * @param chatId - The ID of the chat whose messages to retrieve.
+   * * @param chatId - The ID of the chat whose messages to retrieve.
    * @param options - Pagination options
    * @param options.limit - Maximum number of messages to return
    * @param options.before - Message ID cursor for loading older messages
