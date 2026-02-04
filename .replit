@@ -53,9 +53,8 @@ externalPort = 3000
 [userenv.shared]
 GOOGLE_REDIRECT_URI = "https://meowstik.com/api/auth/google/callback"
 GOOGLE_CLOUD_PROJECT = "ai-stack-e2a5f"
+HOME_DEV_MODE = "FALSE"
 
 [userenv.development]
-HOME_DEV_MODE = "true"
 
 [userenv.production]
-HOME_DEV_MODE = "FALSE"
