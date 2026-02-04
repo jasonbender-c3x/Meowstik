@@ -127,6 +127,17 @@ export const storage = {
   },
 
   /**
+   * Get a user by their email address.
+   * @param email - The email address of the user to retrieve.
+   * @returns The user object or undefined if not found.
+   */
+  getUserByEmail: async (email: string) => {
+    return db.query.users.findFirst({
+      where: eq(schema.users.email, email),
+    });
+  },
+
+  /**
    * Inserts a new user into the database.
    * @param user - The user data to insert, conforming to the InsertUser type.
    * @returns The newly created user object.
@@ -1055,11 +1066,16 @@ export const storage = {
    */
   upsertUser: async (user: InsertUser) => {
     // Check for existing user by ID OR Email to prevent duplicate email errors
+    // Build the where condition dynamically to handle null/undefined emails properly
+    const conditions = [eq(schema.users.id, user.id)];
+    
+    // Only check email if it's provided (not null/undefined)
+    if (user.email != null) {
+      conditions.push(eq(schema.users.email, user.email));
+    }
+    
     const existing = await db.query.users.findFirst({
-      where: or(
-        eq(schema.users.id, user.id),
-        eq(schema.users.email, user.email)
-      ),
+      where: conditions.length > 1 ? or(...conditions) : conditions[0],
     });
 
     if (existing) {
