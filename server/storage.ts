@@ -34,7 +34,7 @@
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
 import * as schema from '@shared/schema';
-import { eq, sql } from 'drizzle-orm';
+import { eq, sql, or } from 'drizzle-orm';
 import {
   InsertChat,
   InsertMessage,
@@ -1054,17 +1054,23 @@ export const storage = {
    * @returns The created/updated user
    */
   upsertUser: async (user: InsertUser) => {
+    // Check by ID OR Email since both must be unique
     const existing = await db.query.users.findFirst({
-      where: eq(schema.users.id, user.id),
+      where: or(
+        eq(schema.users.id, user.id),
+        eq(schema.users.email, user.email)
+      ),
     });
 
     if (existing) {
+      // If found, update it (using the found ID to handle ID drifts or email matches)
       const [updated] = await db
         .update(schema.users)
         .set({ ...user, updatedAt: new Date() })
-        .where(eq(schema.users.id, user.id))
+        // Use the EXISTING record's ID, not necessarily the one passed in
+        .where(eq(schema.users.id, existing.id))
         .returning();
-      return updated[0];
+      return updated;
     } else {
       const result = await db.insert(schema.users).values(user).returning();
       return result[0];
