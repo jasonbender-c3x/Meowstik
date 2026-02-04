@@ -55,16 +55,8 @@ function getRedirectUri(): string {
 }
 
 function createOAuth2Client(): Auth.OAuth2Client {
-  let clientId = process.env.GOOGLE_CLIENT_ID?.trim();
-  let clientSecret = process.env.GOOGLE_CLIENT_SECRET?.trim();
-  
-  // Treat empty strings as undefined
-  if (!clientId || clientId === '') {
-    clientId = undefined;
-  }
-  if (!clientSecret || clientSecret === '') {
-    clientSecret = undefined;
-  }
+  let clientId = process.env.GOOGLE_CLIENT_ID?.trim() || undefined;
+  let clientSecret = process.env.GOOGLE_CLIENT_SECRET?.trim() || undefined;
   
   // In HOME_DEV_MODE, use dummy credentials if real ones are missing
   // This prevents startup crashes due to missing keys
