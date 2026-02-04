@@ -2,20 +2,16 @@
  * =============================================================================
  * HOME DEV AUTHENTICATION
  * =============================================================================
- * 
- * This module provides a simplified authentication flow for local development.
+ * * This module provides a simplified authentication flow for local development.
  * When HOME_DEV_MODE is enabled, it bypasses the standard Replit OAuth flow
  * and auto-logs in a default developer user.
- * 
- * WARNING: This should ONLY be used on local development machines.
+ * * WARNING: This should ONLY be used on local development machines.
  * NEVER enable HOME_DEV_MODE in production environments.
- * 
- * USAGE:
+ * * USAGE:
  * ------
  * Set HOME_DEV_MODE=true in your .env file to enable this mode.
  * The system will automatically create and authenticate a default developer user.
- * 
- * =============================================================================
+ * * =============================================================================
  */
 
 import { storage } from "./storage";
@@ -60,15 +56,14 @@ export async function initializeHomeDevMode(): Promise<void> {
   try {
     // Ensure the default developer user exists in the database
     const devUser = getDevUserConfig();
+    const user = await storage.upsertUser(devUser);
     
-    // UPSERT returns the user (either created or existing)
-    // IMPORTANT: The returned user might contain a DIFFERENT ID than 'home-dev-user'
-    // if we matched by email. We must clear any cached "mock" IDs.
-    const actualUser = await storage.upsertUser(devUser);
-    
-    console.log(`✅ [Home Dev Mode] Default developer user initialized: ${actualUser.email} (ID: ${actualUser.id})`);
-  } catch (error) {
-    console.error("❌ [Home Dev Mode] Failed to initialize developer user:", error);
+    console.log(`✅ [Home Dev Mode] Developer user ready: ${user.email} (ID: ${user.id})`);
+  } catch (error: any) {
+    // In dev mode, database connection issues are non-fatal
+    console.error("⚠️  [Home Dev Mode] Could not initialize developer user in database:", error?.message || error);
+    console.error("    The app will continue with in-memory user data.");
+    console.error("    This is normal if running without database access (e.g., in a sandboxed environment).");
   }
 }
 
@@ -108,21 +103,10 @@ export async function getHomeDevUser(): Promise<User> {
  */
 export function createHomeDevSession() {
   const email = process.env.HOME_DEV_EMAIL || "developer@home.local";
-  // NOTE: This session mock must be synchronous for middleware usage.
-  // We use the ID returned during initialization log if accessed elsewhere,
-  // but for the session CLAIMS, we use the raw expected values.
-  
-  // Since we can't await here easily in middleware context without refactoring everything,
-  // we return a shell that satisfies the type. Ideally, middleware should fetch real user.
-  // However, the claims 'sub' is what matters.
-  
-  // FIXME: We should fetch the real user ID, but since this is called in sync middleware contexts sometimes...
-  // We will trust that initialization corrected the DB state.
-  
   const devConfig = getDevUserConfig();
 
   return {
-      sub: devConfig.id, // Correctly use the configured ID (jasonbender-c3x)
+      sub: devConfig.id,
       email: email,
       first_name: devConfig.firstName,
       last_name: devConfig.lastName,
