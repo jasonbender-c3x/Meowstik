@@ -1,3 +1,4 @@
+T R 
 # Single-User "God Mode" Implementation
 
 **Date**: February 3, 2026
