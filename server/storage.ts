@@ -34,7 +34,7 @@
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
 import * as schema from '@shared/schema';
-import { eq, sql } from 'drizzle-orm';
+import { eq, sql, or } from 'drizzle-orm';
 import {
   InsertChat,
   InsertMessage,
@@ -1054,18 +1054,30 @@ export const storage = {
    * @returns The created/updated user
    */
   upsertUser: async (user: InsertUser) => {
+    // Check for existing user by ID OR Email to prevent duplicate email errors
     const existing = await db.query.users.findFirst({
-      where: eq(schema.users.id, user.id),
+      where: or(
+        eq(schema.users.id, user.id),
+        eq(schema.users.email, user.email)
+      ),
     });
 
     if (existing) {
+      // If we found a user, update them.
+      // NOTE: We do NOT update the ID to match the passed 'user.id' if they differ.
+      // Changing a Primary Key is risky/often fails due to foreign keys.
+      // We just update the fields, keeping their existing ID.
+      // We exclude 'id' from the update payload.
+      const { id, ...updates } = user;
+      
       const [updated] = await db
         .update(schema.users)
-        .set({ ...user, updatedAt: new Date() })
-        .where(eq(schema.users.id, user.id))
+        .set({ ...updates, updatedAt: new Date() })
+        .where(eq(schema.users.id, existing.id))
         .returning();
-      return updated[0];
+      return updated;
     } else {
+      // No ID match, no Email match -> Safe to insert
       const result = await db.insert(schema.users).values(user).returning();
       return result[0];
     }

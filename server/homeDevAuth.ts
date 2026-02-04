@@ -58,8 +58,13 @@ export async function initializeHomeDevMode(): Promise<void> {
   try {
     // Ensure the default developer user exists in the database
     const devUser = getDevUserConfig();
-    await storage.upsertUser(devUser);
-    console.log(`✅ [Home Dev Mode] Default developer user initialized: ${devUser.email}`);
+    
+    // UPSERT returns the user (either created or existing)
+    // IMPORTANT: The returned user might contain a DIFFERENT ID than 'home-dev-user'
+    // if we matched by email. We must clear any cached "mock" IDs.
+    const actualUser = await storage.upsertUser(devUser);
+    
+    console.log(`✅ [Home Dev Mode] Default developer user initialized: ${actualUser.email} (ID: ${actualUser.id})`);
   } catch (error) {
     console.error("❌ [Home Dev Mode] Failed to initialize developer user:", error);
   }
@@ -74,16 +79,22 @@ export async function getHomeDevUser(): Promise<User> {
   }
 
   const devUser = getDevUserConfig();
-  const user = await storage.getUser(devUser.id);
+  
+  // First, try to find the user by ID
+  let user = await storage.getUser(devUser.id);
+  
+  // If not found by ID, try finding by Email
+  if (!user) {
+     user = await storage.getUserByEmail(devUser.email);
+  }
   
   if (!user) {
-    // If user doesn't exist, create it
-    await storage.upsertUser(devUser);
-    const newUser = await storage.getUser(devUser.id);
-    if (!newUser) {
-      throw new Error("Failed to create home dev user");
-    }
-    return newUser;
+    // If still not user, try upserting
+    user = await storage.upsertUser(devUser);
+  }
+  
+  if (!user) {
+    throw new Error("Failed to create or retrieve home dev user");
   }
 
   return user;
@@ -93,16 +104,16 @@ export async function getHomeDevUser(): Promise<User> {
  * Create a mock user session object for home dev mode
  * This mimics the structure expected by the Replit auth flow
  */
-export function createHomeDevSession() {
-  const devUser = getDevUserConfig();
+export async function createHomeDevSession() {
+  const user = await getHomeDevUser();
   
   return {
     claims: {
-      sub: devUser.id,
-      email: devUser.email,
-      first_name: devUser.firstName,
-      last_name: devUser.lastName,
-      profile_image_url: devUser.profileImageUrl,
+      sub: user.id, // Use the REAL ID from the database
+      email: user.email,
+      first_name: user.firstName,
+      last_name: user.lastName,
+      profile_image_url: user.profileImageUrl,
       exp: Math.floor(Date.now() / 1000) + (365 * 24 * 60 * 60), // Expires in 1 year
     },
     access_token: "home-dev-token",
