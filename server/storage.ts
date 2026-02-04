@@ -1072,8 +1072,24 @@ export const storage = {
         .returning();
       return updated;
     } else {
-      const result = await db.insert(schema.users).values(user).returning();
-      return result[0];
+      // Before inserting, check one more time if email exists (race condition protection)
+      try {
+        const result = await db.insert(schema.users).values(user).returning();
+        return result[0];
+      } catch (error: any) {
+        // If we get a unique constraint violation on email, fetch and return existing user
+        if (error?.code === '23505' && error?.constraint === 'users_email_unique') {
+          console.log(`[storage] User with email ${user.email} already exists, fetching existing user`);
+          const existingByEmail = await db.query.users.findFirst({
+            where: eq(schema.users.email, user.email)
+          });
+          if (existingByEmail) {
+            return existingByEmail;
+          }
+        }
+        // If it's a different error or we couldn't find the user, re-throw
+        throw error;
+      }
     }
   },
 

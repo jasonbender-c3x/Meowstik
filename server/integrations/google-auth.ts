@@ -55,20 +55,32 @@ function getRedirectUri(): string {
 }
 
 function createOAuth2Client(): Auth.OAuth2Client {
-  let clientId = process.env.GOOGLE_CLIENT_ID;
-  let clientSecret = process.env.GOOGLE_CLIENT_SECRET;
+  let clientId = process.env.GOOGLE_CLIENT_ID?.trim();
+  let clientSecret = process.env.GOOGLE_CLIENT_SECRET?.trim();
+  
+  // Treat empty strings as undefined
+  if (!clientId || clientId === '') {
+    clientId = undefined;
+  }
+  if (!clientSecret || clientSecret === '') {
+    clientSecret = undefined;
+  }
   
   // In HOME_DEV_MODE, use dummy credentials if real ones are missing
   // This prevents startup crashes due to missing keys
   if ((!clientId || !clientSecret) && process.env.HOME_DEV_MODE === 'true') {
-    console.warn("⚠️ [Google OAuth] running in HOME_DEV_MODE with dummy credentials to bypass validation.");
-    clientId = "dummy-client-id-for-dev";
-    clientSecret = "dummy-client-secret-for-dev";
+    console.warn("⚠️ [Google OAuth] Running in HOME_DEV_MODE with dummy credentials.");
+    console.warn("   Google OAuth features will not work, but the app will start successfully.");
+    clientId = "dummy-client-id-for-dev-mode";
+    clientSecret = "dummy-client-secret-for-dev-mode";
   }
   
   if (!clientId || !clientSecret) {
     // If not in dev mode, we must have real keys
-    throw new Error('GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET must be set');
+    throw new Error(
+      'GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET must be set. ' +
+      'Set HOME_DEV_MODE=true in your .env file to bypass this requirement for local development.'
+    );
   }
   
   return new google.auth.OAuth2(clientId, clientSecret, getRedirectUri());

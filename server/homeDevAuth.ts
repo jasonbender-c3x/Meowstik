@@ -58,10 +58,12 @@ export async function initializeHomeDevMode(): Promise<void> {
   try {
     // Ensure the default developer user exists in the database
     const devUser = getDevUserConfig();
-    await storage.upsertUser(devUser);
-    console.log(`✅ [Home Dev Mode] Default developer user initialized: ${devUser.email}`);
+    const user = await storage.upsertUser(devUser);
+    console.log(`✅ [Home Dev Mode] Developer user ready: ${user.email} (ID: ${user.id})`);
   } catch (error) {
     console.error("❌ [Home Dev Mode] Failed to initialize developer user:", error);
+    console.error("   This may be due to database connection issues or conflicting user data.");
+    console.error("   Try checking your DATABASE_URL or using a different HOME_DEV_EMAIL.");
   }
 }
 
