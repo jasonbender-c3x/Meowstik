@@ -440,45 +440,56 @@ twilioRouter.post("/webhooks/voice", async (req: Request, res: Response) => {
     }
     
     const voiceTwiml = new twilio.twiml.VoiceResponse();
-    voiceTwiml.say('Hello! I am Meowstik, a conversational AI. How can I help you today?');
-    voiceTwiml.gather({
-      input: ['speech'],
-      action: '/api/twilio/webhooks/handle-speech',
-      speechTimeout: 'auto',
-      speechModel: 'experimental_conversations',
+    
+    // Connect to Media Stream for live LLM conversation
+    const connect = voiceTwiml.connect();
+    const stream = connect.stream({
+      url: `wss://${req.get('host')}/streams/twilio`
     });
-    voiceTwiml.say("I didn't hear anything. Goodbye.");
-    voiceTwiml.hangup();
+    
+    // Pass custom parameters to the stream
+    stream.parameter({
+      name: 'userId',
+      value: process.env.OWNER_USER_ID || 'guest'
+    });
+    
+    stream.parameter({
+      name: 'fromNumber',
+      value: From
+    });
+
+    console.log(`[Twilio Voice] Redirecting call ${CallSid} to Media Stream`);
 
     res.type("text/xml");
     res.send(voiceTwiml.toString());
 });
 
-twilioRouter.post("/webhooks/handle-speech", async (req: Request, res: Response) => {
-    const speechTwiml = new twilio.twiml.VoiceResponse();
-    const speechResult = req.body.SpeechResult;
-    const callSid = req.body.CallSid;
-
-    console.log(`Speech captured from call ${callSid}: "${speechResult}"`);
-    const responseMessage = `I heard you say: "${speechResult}". This is a placeholder response. Goodbye.`;
-
-    speechTwiml.say(responseMessage);
-    speechTwiml.hangup();
-
-    try {
-      await storage.insertCallConversation({
-        callSid,
-        turn: 1,
-        userInput: speechResult,
-        aiResponse: responseMessage,
-      });
-    } catch (error) {
-      console.error("Failed to store call conversation:", error);
-    }
-
-    res.type("text/xml");
-    res.send(speechTwiml.toString());
-});
+// Deprecated: Old gather-based handler
+// twilioRouter.post("/webhooks/handle-speech", async (req: Request, res: Response) => {
+// //     const speechTwiml = new twilio.twiml.VoiceResponse();
+// //     const speechResult = req.body.SpeechResult;
+// //     const callSid = req.body.CallSid;
+// //
+// //     console.log(`Speech captured from call ${callSid}: "${speechResult}"`);
+// //     const responseMessage = `I heard you say: "${speechResult}". This is a placeholder response. Goodbye.`;
+// //
+// //     speechTwiml.say(responseMessage);
+// //     speechTwiml.hangup();
+// //
+// //     try {
+// //       await storage.insertCallConversation({
+// //         callSid,
+// //         turn: 1,
+// //         userInput: speechResult,
+// //         aiResponse: responseMessage,
+// //       });
+// //     } catch (error) {
+// //       console.error("Failed to store call conversation:", error);
+// //     }
+// //
+// //     res.type("text/xml");
+// //     res.send(speechTwiml.toString());
+// // // });
 
 twilioRouter.post("/webhooks/status", (req: Request, res: Response) => {
   const { CallStatus, MessageStatus, CallSid, MessageSid } = req.body;

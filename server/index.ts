@@ -254,6 +254,15 @@ app.use((req, res, next) => {
   setupLiveWebSocket(httpServer);
 
   /**
+   * SETUP TWILIO MEDIA STREAM WEBSOCKET
+   * -----------------------------------
+   * Initialize WebSocket server for Twilio Phone integrations.
+   * Handles real-time audio streams from phone calls.
+   */
+  const { setupTwilioWebSocket } = await import("./websocket-twilio");
+  setupTwilioWebSocket(httpServer);
+
+  /**
    * SETUP AGENT WEBSOCKET
    * ---------------------
    * Initialize WebSocket server for local agent connections.
