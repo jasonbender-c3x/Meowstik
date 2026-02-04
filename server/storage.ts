@@ -38,7 +38,7 @@ import { eq, sql, or } from 'drizzle-orm';
 import {
   InsertChat,
   InsertMessage,
-  InsertUser,
+  UpsertUser,
   InsertSmsMessage,
   InsertCallConversation,
   InsertCallTurn,
@@ -127,8 +127,8 @@ export const storage = {
   },
 
   /**
-   * Retrieves a user by their email address.
-   * @param email - The email of the user to retrieve.
+   * Get a user by their email address.
+   * @param email - The email address of the user to retrieve.
    * @returns The user object or undefined if not found.
    */
   getUserByEmail: async (email: string) => {
@@ -139,10 +139,10 @@ export const storage = {
 
   /**
    * Inserts a new user into the database.
-   * @param user - The user data to insert, conforming to the InsertUser type.
+   * @param user - The user data to insert, conforming to the UpsertUser type.
    * @returns The newly created user object.
    */
-  insertUser: async (user: InsertUser) => {
+  insertUser: async (user: UpsertUser) => {
     return db.insert(schema.users).values(user).returning();
   },
 
@@ -1063,31 +1063,18 @@ export const storage = {
    * @param user - User data
    * @returns The created/updated user
    */
-  upsertUser: async (user: InsertUser) => {
-    console.log(`[Storage] upsertUser called for ${user.email} / ${user.id}`);
-
-    // 1. Prepare checks: ID is usually present, Email is optional but key for uniqueness
-    const checks = [];
-    if (user.id) checks.push(eq(schema.users.id, user.id));
-    if (user.email) checks.push(eq(schema.users.email, user.email));
+  upsertUser: async (user: UpsertUser) => {
+    // Check for existing user by ID OR Email to prevent duplicate email errors
+    // Build the where condition dynamically to handle null/undefined emails properly
+    const conditions = [eq(schema.users.id, user.id)];
     
-    // If no unique keys to check, fall back to simple insert (will invoke default ID gen)
-    if (checks.length === 0) {
-       const [inserted] = await db.insert(schema.users).values(user).returning();
-       return inserted;
+    // Only check email if it's provided (not null/undefined)
+    if (user.email !== null && user.email !== undefined) {
+      conditions.push(eq(schema.users.email, user.email));
     }
-
-    // 2. Try simple find first
-    // Handle specific case where 'or' might behave unexpectedly with single argument
-    let condition;
-    if (checks.length === 1) {
-        condition = checks[0];
-    } else {
-        condition = or(...checks);
-    }
-
-    let existing = await db.query.users.findFirst({
-      where: condition,
+    
+    const existing = await db.query.users.findFirst({
+      where: conditions.length > 1 ? or(...conditions) : conditions[0],
     });
     
     console.log(`[Storage] Existing user found? ${existing ? "Yes: " + existing.id : "No"}`);
