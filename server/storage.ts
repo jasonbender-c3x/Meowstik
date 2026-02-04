@@ -1,6 +1,6 @@
 /**
  * =============================================================================
- * NEBULA CHAT - DATABASE STORAGE LAYER
+ * MEOWSTIC CHAT - DATABASE STORAGE LAYER
  * =============================================================================
  *
  * This file implements the data access layer for the Meowstik application.

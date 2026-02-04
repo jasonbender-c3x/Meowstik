@@ -2,7 +2,7 @@
 
 ## Overview
 
-This directory contains the modular system prompt configuration for Nebula, the AI assistant powering Meowstik. The prompt is split into separate files for maintainability, versioning, and easy customization.
+This directory contains the modular system prompt configuration for Meowstic, the AI assistant powering Meowstik. The prompt is split into separate files for maintainability, versioning, and easy customization.
 
 ## File Structure
 

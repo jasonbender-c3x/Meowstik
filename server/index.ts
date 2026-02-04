@@ -1,6 +1,6 @@
 /**
  * =============================================================================
- * NEBULA CHAT - SERVER ENTRY POINT
+ * MEOWSTIC CHAT - SERVER ENTRY POINT
  * =============================================================================
  * 
  * This is the main entry point for the Meowstik backend server.

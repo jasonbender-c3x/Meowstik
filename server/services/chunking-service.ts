@@ -1,6 +1,6 @@
 /**
  * =============================================================================
- * NEBULA CHAT - DOCUMENT CHUNKING SERVICE
+ * MEOWSTIC CHAT - DOCUMENT CHUNKING SERVICE
  * =============================================================================
  * 
  * Splits documents into semantic chunks for RAG processing.

@@ -1,6 +1,6 @@
 /**
  * =============================================================================
- * NEBULA CHAT - PROMPT COMPOSER SERVICE
+ * MEOWSTIC CHAT - PROMPT COMPOSER SERVICE
  * =============================================================================
  *
  * Assembles multimodal prompts from user input, attachments, and context
@@ -365,7 +365,7 @@ These steps are mandatory before sending your response via send_chat.
    */
   private applyBrandingToText(text: string, agentName: string): string {
     return text
-      .replace(/Nebula/g, agentName)
+      .replace(/Meowstic/g, agentName)
       .replace(/Meowstik/gi, agentName);
   }
 
@@ -527,7 +527,7 @@ These steps are mandatory before sending your response via send_chat.
   private getFallbackCoreDirectives(): string {
     return `# Core Directives
 
-You are Nebula, an advanced AI assistant. You must:
+You are Meowstic, an advanced AI assistant. You must:
 1. Provide accurate, helpful responses
 2. Process multimodal inputs (text, images, documents)
 3. Communicate clearly and naturally
