@@ -1,4 +1,4 @@
-# Meowstik - System Prompt Architecture
+npm run dev# Meowstik - System Prompt Architecture
 
 ## Overview
 

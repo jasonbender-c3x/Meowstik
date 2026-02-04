@@ -51,7 +51,7 @@ AI responses now have a **download button** to save content to disk:
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
-│  ✨  Nebula AI                                         [Model 2.0]  │
+│  ✨  Meowstic AI                                         [Model 2.0]  │
 │                                                                     │
 │  Here's the code you requested:                                    │
 │                                                                     │
