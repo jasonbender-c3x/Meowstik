@@ -74,7 +74,7 @@ This document describes the UI components implemented for RAG traceability.
 ### AI Response with Sources
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│ ✨ Nebula AI [Model 2.0]                                        │
+│ ✨ Meowstic AI [Model 2.0]                                        │
 │                                                                  │
 │ RAG (Retrieval-Augmented Generation) is a technique that        │
 │ combines information retrieval with text generation. It          │

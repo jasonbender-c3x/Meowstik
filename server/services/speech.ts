@@ -1,6 +1,6 @@
 /**
  * =============================================================================
- * NEBULA CHAT - SPEECH SERVICE
+ * MEOWSTIC CHAT - SPEECH SERVICE
  * =============================================================================
  * 
  * Provides speech-to-text transcription using multiple backends:

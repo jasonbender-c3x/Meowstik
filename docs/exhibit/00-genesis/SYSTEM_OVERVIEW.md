@@ -128,7 +128,7 @@ See: [FEATURES.md](./FEATURES.md#3-code-editor--live-preview)
 
 ## 2. Intelligence Layer
 
-The AI processing pipeline that powers Nebula's capabilities.
+The AI processing pipeline that powers Meowstic's capabilities.
 
 ### 2.1 LLM Orchestration
 
@@ -261,7 +261,7 @@ Advanced AI capabilities for media creation.
 
 ## 4. Productivity Integrations
 
-External service integrations that extend Nebula's capabilities.
+External service integrations that extend Meowstic's capabilities.
 
 ### 4.1 Google Workspace
 

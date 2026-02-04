@@ -2,20 +2,16 @@
  * =============================================================================
  * HOME DEV AUTHENTICATION
  * =============================================================================
- * 
- * This module provides a simplified authentication flow for local development.
+ * * This module provides a simplified authentication flow for local development.
  * When HOME_DEV_MODE is enabled, it bypasses the standard Replit OAuth flow
  * and auto-logs in a default developer user.
- * 
- * WARNING: This should ONLY be used on local development machines.
+ * * WARNING: This should ONLY be used on local development machines.
  * NEVER enable HOME_DEV_MODE in production environments.
- * 
- * USAGE:
+ * * USAGE:
  * ------
  * Set HOME_DEV_MODE=true in your .env file to enable this mode.
  * The system will automatically create and authenticate a default developer user.
- * 
- * =============================================================================
+ * * =============================================================================
  */
 
 import { storage } from "./storage";
@@ -28,11 +24,13 @@ import type { User } from "@shared/schema";
 function getDevUserConfig() {
   const email = process.env.HOME_DEV_EMAIL || "developer@home.local";
   
+  // We use the GitHub username 'jasonbender-c3x' as the ID to allow
+  // easy correlation between the dev environment and external scripts/tools.
   return {
-    id: "home-dev-user",
+    id: "jasonbender-c3x",
     email,
-    firstName: "Developer",
-    lastName: "User",
+    firstName: "Jason",
+    lastName: "Bender",
     profileImageUrl: null,
   };
 }
@@ -58,15 +56,14 @@ export async function initializeHomeDevMode(): Promise<void> {
   try {
     // Ensure the default developer user exists in the database
     const devUser = getDevUserConfig();
+    const user = await storage.upsertUser(devUser);
     
-    // UPSERT returns the user (either created or existing)
-    // IMPORTANT: The returned user might contain a DIFFERENT ID than 'home-dev-user'
-    // if we matched by email. We must clear any cached "mock" IDs.
-    const actualUser = await storage.upsertUser(devUser);
-    
-    console.log(`✅ [Home Dev Mode] Default developer user initialized: ${actualUser.email} (ID: ${actualUser.id})`);
-  } catch (error) {
-    console.error("❌ [Home Dev Mode] Failed to initialize developer user:", error);
+    console.log(`✅ [Home Dev Mode] Developer user ready: ${user.email} (ID: ${user.id})`);
+  } catch (error: any) {
+    // In dev mode, database connection issues are non-fatal
+    console.error("⚠️  [Home Dev Mode] Could not initialize developer user in database:", error?.message || error);
+    console.error("    The app will continue with in-memory user data.");
+    console.error("    This is normal if running without database access (e.g., in a sandboxed environment).");
   }
 }
 
@@ -104,20 +101,16 @@ export async function getHomeDevUser(): Promise<User> {
  * Create a mock user session object for home dev mode
  * This mimics the structure expected by the Replit auth flow
  */
-export async function createHomeDevSession() {
-  const user = await getHomeDevUser();
-  
+export function createHomeDevSession() {
+  const email = process.env.HOME_DEV_EMAIL || "developer@home.local";
+  const devConfig = getDevUserConfig();
+
   return {
-    claims: {
-      sub: user.id, // Use the REAL ID from the database
-      email: user.email,
-      first_name: user.firstName,
-      last_name: user.lastName,
-      profile_image_url: user.profileImageUrl,
+      sub: devConfig.id,
+      email: email,
+      first_name: devConfig.firstName,
+      last_name: devConfig.lastName,
+      profile_image_url: null,
       exp: Math.floor(Date.now() / 1000) + (365 * 24 * 60 * 60), // Expires in 1 year
-    },
-    access_token: "home-dev-token",
-    refresh_token: "home-dev-refresh-token",
-    expires_at: Math.floor(Date.now() / 1000) + (365 * 24 * 60 * 60), // Expires in 1 year
   };
 }
