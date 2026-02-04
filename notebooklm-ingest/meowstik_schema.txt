@@ -1,0 +1,4302 @@
+MEOWSTIK DATA SCHEMA (The Skeleton)
+================================================================================
+Use this as the definitive reference for Database Tables, Zod Schemas, and Types.
+================================================================================
+
+
+--- FILE: shared/schema.ts ---
+/**
+ * =============================================================================
+ * NEBULA CHAT - DATABASE SCHEMA DEFINITIONS
+ * =============================================================================
+ * 
+ * This file defines the complete data model for the Meowstik application.
+ * It uses Drizzle ORM to define PostgreSQL table schemas and generates
+ * TypeScript types for type-safe database operations throughout the app.
+ * 
+ * ARCHITECTURE OVERVIEW:
+ * ----------------------
+ * The application uses a simple two-table relational model:
+ * 
+ *   ┌──────────────┐       ┌──────────────────┐
+ *   │    chats     │       │     messages     │
+ *   ├──────────────┤       ├──────────────────┤
+ *   │ id (PK)      │◄──────│ chatId (FK)      │
+ *   │ title        │       │ id (PK)          │
+ *   │ createdAt    │       │ role             │
+ *   │ updatedAt    │       │ content          │
+ *   └──────────────┘       │ createdAt        │
+ *                          └──────────────────┘
+ * 
+ * RELATIONSHIP:
+ * - One Chat has many Messages (1:N relationship)
+ * - Messages are cascade deleted when their parent Chat is deleted
+ * 
+ * EXPORTS:
+ * --------
+ * - chats: Drizzle table definition for chat conversations
+ * - messages: Drizzle table definition for individual messages
+ * - insertChatSchema: Zod validation schema for creating new chats
+ * - insertMessageSchema: Zod validation schema for creating new messages
+ * - InsertChat: TypeScript type for chat insert operations
+ * - InsertMessage: TypeScript type for message insert operations
+ * - Chat: TypeScript type for a chat record from the database
+ * - Message: TypeScript type for a message record from the database
+ * =============================================================================
+ */
+
+import { sql } from "drizzle-orm";
+import { pgTable, text, varchar, timestamp, integer, jsonb, bigint, index, boolean } from "drizzle-orm/pg-core";
+import { createInsertSchema } from "drizzle-zod";
+import { z } from "zod";
+
+// =============================================================================
+// CONSTANTS
+// =============================================================================
+
+/**
+ * Identifier for guest (unauthenticated) users
+ * Used consistently across the codebase for guest data isolation
+ */
+export const GUEST_USER_ID = "guest";
+
+/**
+ * Default branding values
+ */
+export const DEFAULT_AGENT_NAME = "Meowstik";
+export const DEFAULT_DISPLAY_NAME = "Meowstik AI";
+export const DEFAULT_BRAND_COLOR = "#4285f4";
+
+// =============================================================================
+// REPLIT AUTH TABLES
+// (IMPORTANT) These tables are mandatory for Replit Auth, don't drop them.
+// =============================================================================
+
+/**
+ * SESSION STORAGE TABLE
+ * Required for Replit Auth - stores user sessions
+ */
+export const sessions = pgTable(
+  "sessions",
+  {
+    sid: varchar("sid").primaryKey(),
+    sess: jsonb("sess").notNull(),
+    expire: timestamp("expire").notNull(),
+  },
+  (table) => [index("IDX_session_expire").on(table.expire)],
+);
+
+/**
+ * USER STORAGE TABLE
+ * Required for Replit Auth - stores user profiles
+ */
+export const users = pgTable("users", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  email: varchar("email").unique(),
+  firstName: varchar("first_name"),
+  lastName: varchar("last_name"),
+  profileImageUrl: varchar("profile_image_url"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export type UpsertUser = typeof users.$inferInsert;
+export type User = typeof users.$inferSelect;
+
+/**
+ * USER BRANDING TABLE
+ * -------------------
+ * Stores per-user custom branding configuration.
+ * Allows users to customize agent name, signature, avatar, and domain.
+ */
+export const userBranding = pgTable("user_branding", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").references(() => users.id, { onDelete: "cascade" }).notNull().unique(),
+  
+  // Custom agent identity
+  agentName: varchar("agent_name").default(DEFAULT_AGENT_NAME).notNull(),
+  displayName: varchar("display_name").default(DEFAULT_DISPLAY_NAME).notNull(),
+  
+  // Visual branding
+  avatarUrl: text("avatar_url"), // Custom avatar image URL
+  brandColor: varchar("brand_color").default(DEFAULT_BRAND_COLOR), // Primary brand color (hex)
+  
+  // Signatures and metadata
+  githubSignature: text("github_signature"), // Signature for GitHub commits/PRs
+  emailSignature: text("email_signature"), // Signature for emails
+  
+  // Domain branding
+  canonicalDomain: varchar("canonical_domain"), // e.g., "catpilot.pro"
+  
+  // Timestamps
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertUserBrandingSchema = createInsertSchema(userBranding).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export type InsertUserBranding = z.infer<typeof insertUserBrandingSchema>;
+export type UserBranding = typeof userBranding.$inferSelect;
+
+/**
+ * USER AGENTS TABLE
+ * -----------------
+ * Stores multiple AI agent personas per user.
+ * Allows users to create and switch between different agent identities.
+ */
+export const userAgents = pgTable("user_agents", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
+  
+  // Agent identity
+  name: varchar("name").notNull(), // e.g., "Catpilot", "CodeBot", "Researcher"
+  displayName: varchar("display_name").notNull(), // e.g., "Catpilot Pro"
+  description: text("description"), // Brief description of agent purpose
+  
+  // Agent type/category
+  agentType: varchar("agent_type").default("assistant").notNull(), // assistant, coder, researcher, writer, etc.
+  
+  // Visual branding
+  avatarUrl: text("avatar_url"),
+  brandColor: varchar("brand_color").default(DEFAULT_BRAND_COLOR),
+  
+  // Personality and behavior
+  personalityPrompt: text("personality_prompt"), // Custom personality description
+  systemPromptOverrides: text("system_prompt_overrides"), // Additional system prompt instructions
+  
+  // Signatures
+  githubSignature: text("github_signature"),
+  emailSignature: text("email_signature"),
+  
+  // Settings
+  isDefault: boolean("is_default").default(false).notNull(), // Default agent for this user
+  isActive: boolean("is_active").default(true).notNull(), // Can be disabled without deleting
+  
+  // Metadata
+  canonicalDomain: varchar("canonical_domain"),
+  tags: text("tags").array(), // For categorization/search
+  
+  // Timestamps
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertUserAgentSchema = createInsertSchema(userAgents).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export type InsertUserAgent = z.infer<typeof insertUserAgentSchema>;
+export type UserAgent = typeof userAgents.$inferSelect;
+
+/**
+ * CHATS TABLE
+ * -----------
+ * Stores metadata for each chat conversation in the application.
+ * 
+ * A chat represents a complete conversation session between the user
+ * and the AI assistant. Each chat can contain multiple messages.
+ * 
+ * COLUMNS:
+ * - id: Unique identifier (UUID) generated automatically by PostgreSQL
+ * - title: Display name for the chat, shown in the sidebar
+ * - createdAt: Timestamp when the chat was first created
+ * - updatedAt: Timestamp when the chat was last modified (new message added)
+ * 
+ * USAGE EXAMPLE:
+ * ```typescript
+ * const newChat = await storage.createChat({ title: "My New Chat" });
+ * const allChats = await storage.getChats(); // Returns Chat[]
+ * ```
+ */
+export const chats = pgTable("chats", {
+  /**
+   * Primary key - Auto-generated UUID using PostgreSQL's gen_random_uuid()
+   * UUIDs are used instead of sequential integers for:
+   * - Better security (IDs are not guessable)
+   * - Easier data migration and replication
+   * - No collision issues in distributed systems
+   */
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  
+  /**
+   * Human-readable title for the chat conversation
+   * Displayed in the sidebar navigation and chat header
+   * Cannot be null - every chat must have a title
+   */
+  title: text("title").notNull(),
+  
+  /**
+   * User ID - Foreign key reference to users table
+   * NULL for guest (unauthenticated) conversations
+   * Used for data isolation and user-specific chat history
+   * 
+   * CLEANUP STRATEGY:
+   * Guest chats (userId = null) should be periodically cleaned up to prevent
+   * database bloat. Recommended approach:
+   * - Implement a cron job to delete guest chats older than 7 days
+   * - Cascade delete will automatically remove associated messages and chunks
+   * - No orphaned records since guest chats don't reference users table
+   */
+  userId: varchar("user_id").references(() => users.id, { onDelete: "cascade" }),
+  
+  /**
+   * Guest flag - Indicates if this is a guest conversation
+   * Guest conversations:
+   * - Are isolated in a separate "guest bucket"
+   * - Have access to limited, safe tools only
+   * - Should be periodically cleaned up (see userId documentation)
+   * - Use GUEST_USER_ID constant for identification
+   */
+  isGuest: boolean("is_guest").default(false).notNull(),
+  
+  /**
+   * Timestamp when this chat was first created
+   * Automatically set by PostgreSQL using defaultNow()
+   * Used for sorting chats chronologically
+   */
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  
+  /**
+   * Timestamp when this chat was last updated
+   * Updated whenever a new message is added to the chat
+   * Used for sorting chats by "most recent activity"
+   */
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+/**
+ * MESSAGES TABLE
+ * --------------
+ * Stores individual messages within chat conversations.
+ * 
+ * Each message belongs to exactly one chat (enforced by foreign key).
+ * Messages can be from either the user or the AI assistant.
+ * 
+ * COLUMNS:
+ * - id: Unique identifier (UUID) for the message
+ * - chatId: Foreign key linking to the parent chat
+ * - role: Who sent the message ("user" or "ai")
+ * - content: The actual text content of the message (supports markdown)
+ * - createdAt: When the message was sent
+ * 
+ * CASCADE DELETE:
+ * When a chat is deleted, all its messages are automatically deleted too.
+ * This ensures no orphaned messages exist in the database.
+ * 
+ * USAGE EXAMPLE:
+ * ```typescript
+ * await storage.addMessage({
+ *   chatId: "chat-uuid",
+ *   role: "user",
+ *   content: "Hello, AI!"
+ * });
+ * ```
+ */
+export const messages = pgTable("messages", {
+  /**
+   * Primary key - Auto-generated UUID for each message
+   * Ensures globally unique identification of every message
+   */
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  
+  /**
+   * Foreign key reference to the parent chat
+   * - Links each message to its conversation
+   * - CASCADE DELETE: Messages are deleted when their chat is deleted
+   * - NOT NULL: Every message must belong to a chat
+   */
+  chatId: varchar("chat_id").references(() => chats.id, { onDelete: "cascade" }).notNull(),
+  
+  /**
+   * Identifies the sender of the message
+   * Valid values:
+   * - "user": Message sent by the human user
+   * - "ai": Message generated by the AI assistant
+   * Used for styling and conversation history reconstruction
+   */
+  role: text("role").notNull(),
+  
+  /**
+   * The actual text content of the message
+   * Supports markdown formatting for rich text display
+   * Can be any length (PostgreSQL text type has no practical limit)
+   */
+  content: text("content").notNull(),
+  
+  /**
+   * Timestamp when this message was created/sent
+   * Used for chronological ordering of messages within a chat
+   */
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  
+  /**
+   * Optional JSON metadata for AI messages
+   * Stores tool results, file operations, autoexec results, etc.
+   */
+  metadata: jsonb("metadata"),
+  
+  /**
+   * Full Gemini API content object for model responses
+   * Stores the complete Content object including thought_signature
+   * This preserves the model's reasoning state for multi-turn function calling
+   * See: https://cloud.google.com/vertex-ai/generative-ai/docs/thought-signatures
+   */
+  geminiContent: jsonb("gemini_content"),
+});
+
+/**
+ * ZOD VALIDATION SCHEMAS
+ * ----------------------
+ * These schemas are used to validate incoming data before database insertion.
+ * They automatically derive validation rules from the Drizzle table definitions.
+ * 
+ * The .omit() method removes auto-generated fields that should not be
+ * provided by the client (like id and timestamps).
+ */
+
+/**
+ * Schema for validating new chat creation requests
+ * Excludes: id (auto-generated), createdAt/updatedAt (auto-set)
+ * Requires: title
+ */
+export const insertChatSchema = createInsertSchema(chats).omit({ 
+  id: true, 
+  createdAt: true, 
+  updatedAt: true 
+});
+
+/**
+ * Schema for validating new message creation requests
+ * Excludes: id (auto-generated), createdAt (auto-set)
+ * Requires: chatId, role, content
+ */
+export const insertMessageSchema = createInsertSchema(messages).omit({ 
+  id: true, 
+  createdAt: true 
+});
+
+/**
+ * TYPESCRIPT TYPES
+ * ----------------
+ * These types are derived from the schemas and used throughout the application
+ * to ensure type safety when working with chat and message data.
+ */
+
+/**
+ * Type for creating a new chat - only includes fields the client should provide
+ * Example: { title: "New Conversation" }
+ */
+export type InsertChat = z.infer<typeof insertChatSchema>;
+
+/**
+ * Type for creating a new message - only includes fields the client should provide
+ * Example: { chatId: "uuid", role: "user", content: "Hello" }
+ */
+export type InsertMessage = z.infer<typeof insertMessageSchema>;
+
+/**
+ * Complete Chat type as returned from the database
+ * Includes all fields: id, title, createdAt, updatedAt
+ */
+export type Chat = typeof chats.$inferSelect;
+
+/**
+ * Complete Message type as returned from the database
+ * Includes all fields: id, chatId, role, content, createdAt
+ */
+export type Message = typeof messages.$inferSelect;
+
+// =============================================================================
+// ATTACHMENT SYSTEM
+// =============================================================================
+/**
+ * ATTACHMENTS TABLE
+ * -----------------
+ * Stores file attachments, screenshots, and voice transcripts associated with messages.
+ * 
+ * Attachment types:
+ * - "file": User-uploaded files (documents, images, etc.)
+ * - "screenshot": Screen captures taken via the capture button
+ * - "voice_transcript": Transcribed voice input text
+ * 
+ * Binary data is stored as base64 for simplicity and portability.
+ */
+export const attachments = pgTable("attachments", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  messageId: varchar("message_id").references(() => messages.id, { onDelete: "cascade" }),
+  draftId: varchar("draft_id").references(() => drafts.id, { onDelete: "cascade" }),
+  type: text("type").notNull(), // "file" | "screenshot" | "voice_transcript"
+  filename: text("filename").notNull(),
+  mimeType: text("mime_type"),
+  size: bigint("size", { mode: "number" }), // File size in bytes
+  content: text("content"), // Base64 encoded content or text
+  path: text("path"), // Optional file path for created files
+  permissions: text("permissions"), // Unix permission string (e.g., "755")
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertAttachmentSchema = createInsertSchema(attachments).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertAttachment = z.infer<typeof insertAttachmentSchema>;
+export type Attachment = typeof attachments.$inferSelect;
+
+// =============================================================================
+// DRAFT PROMPTS SYSTEM
+// =============================================================================
+/**
+ * DRAFTS TABLE
+ * ------------
+ * Stores in-progress message drafts before they are submitted.
+ * 
+ * A draft contains:
+ * - The user's typed text input
+ * - References to attached files and screenshots
+ * - Voice transcript accumulations
+ * 
+ * When submitted, the draft is assembled into a complete prompt
+ * and sent to the RAG backend.
+ */
+export const drafts = pgTable("drafts", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  chatId: varchar("chat_id").references(() => chats.id, { onDelete: "cascade" }).notNull(),
+  textContent: text("text_content").default(""),
+  voiceTranscript: text("voice_transcript").default(""),
+  status: text("status").default("active").notNull(), // "active" | "submitted" | "cancelled"
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertDraftSchema = createInsertSchema(drafts).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export type InsertDraft = z.infer<typeof insertDraftSchema>;
+export type Draft = typeof drafts.$inferSelect;
+
+// =============================================================================
+// TOOL TASKS SYSTEM
+// =============================================================================
+/**
+ * TOOL TASKS TABLE
+ * ----------------
+ * Stores individual tool operations to be executed by the system.
+ * 
+ * Tool types:
+ * - "api_call": External API requests
+ * - "file_create": Create new text file
+ * - "file_replace": Replace existing file content
+ * - "file_append": Append to existing file
+ * - "binary_create": Create binary file from base64
+ * - "search": Search operations
+ * - "autoexec": Execute script with elevated permissions
+ * 
+ * Execution status tracks the lifecycle of each task.
+ */
+export const toolTasks = pgTable("tool_tasks", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  messageId: varchar("message_id").references(() => messages.id, { onDelete: "cascade" }).notNull(),
+  taskType: text("task_type").notNull(),
+  payload: jsonb("payload").notNull(), // Task parameters as JSONB
+  status: text("status").default("pending").notNull(), // "pending" | "running" | "completed" | "failed"
+  result: jsonb("result"), // Execution result as JSONB
+  error: text("error"), // Error message if failed
+  executedAt: timestamp("executed_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertToolTaskSchema = createInsertSchema(toolTasks).omit({
+  id: true,
+  createdAt: true,
+  executedAt: true,
+});
+export type InsertToolTask = z.infer<typeof insertToolTaskSchema>;
+export type ToolTask = typeof toolTasks.$inferSelect;
+
+// =============================================================================
+// TOOL CALL LOGS SYSTEM - Real-time tool call tracking for UI bubbles
+// =============================================================================
+/**
+ * TOOL CALL LOGS TABLE
+ * --------------------
+ * Stores recent tool call executions for display as real-time bubbles in chat.
+ * Limited to 10 most recent tool calls per chat to prevent bloat.
+ * 
+ * Lifecycle:
+ * - Created when tool call starts (status: "pending")
+ * - Updated when tool completes (status: "success" or "failure")
+ * - Old entries automatically pruned when new ones are added (keep last 10 per chat)
+ */
+export const toolCallLogs = pgTable("tool_call_logs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  chatId: varchar("chat_id").references(() => chats.id, { onDelete: "cascade" }).notNull(),
+  messageId: varchar("message_id").references(() => messages.id, { onDelete: "cascade" }),
+  
+  // Tool identification
+  toolCallId: text("tool_call_id").notNull(), // Unique ID for this specific tool call
+  toolType: text("tool_type").notNull(), // Type of tool (e.g., "gmail_send", "drive_read")
+  
+  // State tracking
+  status: text("status").default("pending").notNull(), // "pending" | "success" | "failure"
+  
+  // Request/Response data
+  request: jsonb("request").notNull(), // Tool call parameters
+  response: jsonb("response"), // Tool execution result (set when completed)
+  errorMessage: text("error_message"), // Error details if failed
+  
+  // Timing
+  startedAt: timestamp("started_at").defaultNow().notNull(),
+  completedAt: timestamp("completed_at"),
+  duration: integer("duration"), // Duration in milliseconds
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_tool_call_logs_chat").on(table.chatId),
+  index("idx_tool_call_logs_message").on(table.messageId),
+  index("idx_tool_call_logs_status").on(table.status),
+]);
+
+export const insertToolCallLogSchema = createInsertSchema(toolCallLogs).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  completedAt: true,
+});
+export type InsertToolCallLog = z.infer<typeof insertToolCallLogSchema>;
+export type ToolCallLog = typeof toolCallLogs.$inferSelect;
+
+// =============================================================================
+// EXECUTION LOGS SYSTEM
+// =============================================================================
+/**
+ * EXECUTION LOGS TABLE
+ * --------------------
+ * Audit trail for all tool executions, especially important for
+ * security-sensitive operations like autoexec scripts.
+ */
+export const executionLogs = pgTable("execution_logs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  taskId: varchar("task_id").references(() => toolTasks.id, { onDelete: "cascade" }),
+  action: text("action").notNull(),
+  input: jsonb("input"), // Input parameters as JSONB
+  output: jsonb("output"), // Output/result as JSONB
+  exitCode: text("exit_code"),
+  duration: text("duration"), // Execution time in milliseconds
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertExecutionLogSchema = createInsertSchema(executionLogs).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertExecutionLog = z.infer<typeof insertExecutionLogSchema>;
+export type ExecutionLog = typeof executionLogs.$inferSelect;
+
+// =============================================================================
+// FEEDBACK SYSTEM - User feedback on AI responses for evolution
+// =============================================================================
+/**
+ * FEEDBACK TABLE
+ * --------------
+ * Stores user feedback on AI responses. This is the backbone for the evolution
+ * system - feedback is analyzed to generate improvements via GitHub PRs.
+ */
+export const feedback = pgTable("feedback", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  messageId: varchar("message_id").references(() => messages.id, { onDelete: "cascade" }),
+  chatId: varchar("chat_id").references(() => chats.id, { onDelete: "cascade" }),
+  rating: varchar("rating", { length: 20 }), // "positive" | "negative" | null
+  categories: jsonb("categories"), // { accuracy, helpfulness, clarity, completeness }
+  likedAspects: text("liked_aspects").array(),
+  dislikedAspects: text("disliked_aspects").array(),
+  freeformText: text("freeform_text"),
+  promptSnapshot: text("prompt_snapshot"), // Full prompt at time of response
+  responseSnapshot: text("response_snapshot"), // Full AI response
+  kernelId: varchar("kernel_id"), // Reference to kernel version used
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  submittedAt: timestamp("submitted_at"), // Set when feedback is submitted to GitHub PR
+});
+
+export const insertFeedbackSchema = createInsertSchema(feedback).omit({
+  id: true,
+  createdAt: true,
+  submittedAt: true,
+});
+export type InsertFeedback = z.infer<typeof insertFeedbackSchema>;
+export type Feedback = typeof feedback.$inferSelect;
+
+// =============================================================================
+// LLM USAGE TRACKING - Token usage logging for all LLM calls
+// =============================================================================
+/**
+ * LLM_USAGE TABLE
+ * ---------------
+ * Logs every LLM API call with token counts for monitoring and cost tracking.
+ * Captures input tokens, output tokens, model used, and timing information.
+ */
+export const llmUsage = pgTable("llm_usage", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  chatId: varchar("chat_id").references(() => chats.id, { onDelete: "cascade" }),
+  messageId: varchar("message_id").references(() => messages.id, { onDelete: "cascade" }),
+  model: text("model").notNull(), // e.g., "gemini-2.0-flash-exp"
+  promptTokens: integer("prompt_tokens").notNull(), // Input tokens
+  completionTokens: integer("completion_tokens").notNull(), // Output tokens
+  totalTokens: integer("total_tokens").notNull(), // Total tokens
+  durationMs: integer("duration_ms"), // Request duration in milliseconds
+  metadata: jsonb("metadata"), // Additional metadata (e.g., thoughtsTokenCount for thinking models)
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertLlmUsageSchema = createInsertSchema(llmUsage).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertLlmUsage = z.infer<typeof insertLlmUsageSchema>;
+export type LlmUsage = typeof llmUsage.$inferSelect;
+
+// =============================================================================
+// STRUCTURED LLM OUTPUT SCHEMAS
+// =============================================================================
+/**
+ * These Zod schemas define the expected structure of LLM responses.
+ * The LLM must return output conforming to these schemas for proper
+ * processing by the RAG dispatcher.
+ */
+
+/**
+ * All available tool types for the LLM to use
+ */
+export const ToolTypes = {
+  // ==========================================================================
+  // V2 CORE PRIMITIVES (7 foundational tools)
+  // ==========================================================================
+  TERMINAL: "terminal",       // Non-interactive shell command
+  GET: "get",                 // Read file or URL
+  PUT: "put",                 // Write file
+  WRITE: "write",             // Output to chat window
+  LOG: "log",                 // Append to log file
+  SAY: "say",                 // HD voice output
+  // SSH: "ssh",              // TODO: persistent 2-way connection
+  
+  // ==========================================================================
+  // LEGACY NAMES (maintained for backward compatibility)
+  // ==========================================================================
+  // Core operations
+  API_CALL: "api_call",
+  FILE_INGEST: "file_ingest", 
+  FILE_UPLOAD: "file_upload",
+  SEARCH: "search",
+  WEB_SEARCH: "web_search",
+  GOOGLE_SEARCH: "google_search",
+  DUCKDUCKGO_SEARCH: "duckduckgo_search",
+  BROWSER_SCRAPE: "browser_scrape",
+  CUSTOM: "custom",
+  
+  // Gmail operations
+  GMAIL_LIST: "gmail_list",
+  GMAIL_READ: "gmail_read",
+  GMAIL_SEND: "gmail_send",
+  GMAIL_SEARCH: "gmail_search",
+  
+  // Google Drive operations
+  DRIVE_LIST: "drive_list",
+  DRIVE_READ: "drive_read",
+  DRIVE_CREATE: "drive_create",
+  DRIVE_UPDATE: "drive_update",
+  DRIVE_DELETE: "drive_delete",
+  DRIVE_SEARCH: "drive_search",
+  
+  // Google Calendar operations
+  CALENDAR_LIST: "calendar_list",
+  CALENDAR_EVENTS: "calendar_events",
+  CALENDAR_CREATE: "calendar_create",
+  CALENDAR_UPDATE: "calendar_update",
+  CALENDAR_DELETE: "calendar_delete",
+  
+  // Google Docs operations
+  DOCS_READ: "docs_read",
+  DOCS_CREATE: "docs_create",
+  DOCS_APPEND: "docs_append",
+  DOCS_REPLACE: "docs_replace",
+  
+  // Google Sheets operations
+  SHEETS_READ: "sheets_read",
+  SHEETS_WRITE: "sheets_write",
+  SHEETS_APPEND: "sheets_append",
+  SHEETS_CREATE: "sheets_create",
+  SHEETS_CLEAR: "sheets_clear",
+  
+  // Google Tasks operations
+  TASKS_LIST: "tasks_list",
+  TASKS_GET: "tasks_get",
+  TASKS_CREATE: "tasks_create",
+  TASKS_UPDATE: "tasks_update",
+  TASKS_COMPLETE: "tasks_complete",
+  TASKS_DELETE: "tasks_delete",
+  
+  // Terminal operations
+  TERMINAL_EXECUTE: "terminal_execute",
+  
+  // Tavily deep research
+  TAVILY_SEARCH: "tavily_search",
+  TAVILY_QNA: "tavily_qna",
+  TAVILY_RESEARCH: "tavily_research",
+  
+  // Perplexity AI search
+  PERPLEXITY_SEARCH: "perplexity_search",
+  PERPLEXITY_QUICK: "perplexity_quick",
+  PERPLEXITY_RESEARCH: "perplexity_research",
+  PERPLEXITY_NEWS: "perplexity_news",
+  
+  // Browserbase operations
+  BROWSERBASE_LOAD: "browserbase_load",
+  BROWSERBASE_SCREENSHOT: "browserbase_screenshot",
+  BROWSERBASE_ACTION: "browserbase_action",
+  
+  // GitHub operations
+  GITHUB_REPOS: "github_repos",
+  GITHUB_REPO_GET: "github_repo_get",
+  GITHUB_REPO_SEARCH: "github_repo_search",
+  GITHUB_CONTENTS: "github_contents",
+  GITHUB_FILE_READ: "github_file_read",
+  GITHUB_CODE_SEARCH: "github_code_search",
+  GITHUB_ISSUES: "github_issues",
+  GITHUB_ISSUE_GET: "github_issue_get",
+  GITHUB_ISSUE_CREATE: "github_issue_create",
+  GITHUB_ISSUE_UPDATE: "github_issue_update",
+  GITHUB_ISSUE_COMMENT: "github_issue_comment",
+  GITHUB_PULLS: "github_pulls",
+  GITHUB_PULL_GET: "github_pull_get",
+  GITHUB_COMMITS: "github_commits",
+  GITHUB_USER: "github_user",
+  
+  // Queue operations (AI batch processing)
+  QUEUE_CREATE: "queue_create",
+  QUEUE_BATCH: "queue_batch",
+  QUEUE_LIST: "queue_list",
+  QUEUE_START: "queue_start",
+  
+  // Debug operations
+  DEBUG_ECHO: "debug_echo",
+  
+  // Chat output - primary tool for sending content to chat window (non-terminating)
+  SEND_CHAT: "send_chat",
+  
+  // Turn control - terminates the interactive agentic loop (ONLY way to end turn)
+  END_TURN: "end_turn",
+  
+  // File operations
+  FILE_GET: "file_get",
+  FILE_PUT: "file_put",
+  
+  // Twilio SMS/Voice operations
+  SMS_SEND: "sms_send",
+  SMS_LIST: "sms_list",
+  CALL_MAKE: "call_make",
+  CALL_LIST: "call_list",
+  
+  // Arduino/Hardware IoT
+  ARDUINO_LIST_BOARDS: "arduino_list_boards",
+  ARDUINO_COMPILE: "arduino_compile",
+  ARDUINO_UPLOAD: "arduino_upload",
+  ARDUINO_CREATE_SKETCH: "arduino_create_sketch",
+  ARDUINO_INSTALL_LIBRARY: "arduino_install_library",
+  ARDUINO_SEARCH_LIBRARIES: "arduino_search_libraries",
+  
+  // Google Contacts operations
+  CONTACTS_LIST: "contacts_list",
+  CONTACTS_SEARCH: "contacts_search",
+  CONTACTS_GET: "contacts_get",
+  CONTACTS_CREATE: "contacts_create",
+  CONTACTS_UPDATE: "contacts_update",
+  CONTACTS_DELETE: "contacts_delete",
+} as const;
+
+export type ToolType = typeof ToolTypes[keyof typeof ToolTypes];
+
+/**
+ * Tool Call Schema
+ * Represents a single operation to be executed
+ */
+export const toolCallSchema = z.object({
+  id: z.string(),
+  type: z.enum([
+    // ==========================================================================
+    // V2 CORE PRIMITIVES (7 foundational tools)
+    // These short names are the preferred interface; legacy names below are aliases
+    // ==========================================================================
+    "terminal",  // Non-interactive shell command (alias: terminal_execute)
+    "get",       // Read file or URL (alias: file_get)
+    "put",       // Write file (alias: file_put)
+    "write",     // Output to chat window (alias: send_chat)
+    "log",       // Append to log file (alias: log_append)
+    "say",       // HD voice output (no alias needed)
+    // ssh: TODO - persistent 2-way connection
+    
+    // ==========================================================================
+    // LEGACY NAMES (maintained for backward compatibility)
+    // ==========================================================================
+    // Core
+    "api_call", "file_ingest", "search", "web_search", "custom",
+    // Chat output - primary tool for sending content to chat window
+    "send_chat",
+    // Turn control - terminates the agentic loop
+    "end_turn",
+    // Browser control - open URLs in new tabs
+    "open_url",
+    // File operations
+    "file_get", "file_put",
+    // Log operations
+    "log_append",
+    // Search & Scraping
+    "google_search", "duckduckgo_search", "browser_scrape",
+    // Gmail
+    "gmail_list", "gmail_read", "gmail_send", "gmail_search",
+    // Drive
+    "drive_list", "drive_read", "drive_create", "drive_update", "drive_delete", "drive_search",
+    // Calendar
+    "calendar_list", "calendar_events", "calendar_create", "calendar_update", "calendar_delete",
+    // Docs
+    "docs_read", "docs_create", "docs_append", "docs_replace",
+    // Sheets
+    "sheets_read", "sheets_write", "sheets_append", "sheets_create", "sheets_clear",
+    // Tasks
+    "tasks_list", "tasks_get", "tasks_create", "tasks_update", "tasks_complete", "tasks_delete",
+    // Terminal
+    "terminal_execute",
+    // Tavily deep research
+    "tavily_search", "tavily_qna", "tavily_research",
+    // Perplexity AI search
+    "perplexity_search", "perplexity_quick", "perplexity_research", "perplexity_news",
+    // Browserbase
+    "browserbase_load", "browserbase_screenshot", "browserbase_action",
+    // GitHub
+    "github_repos", "github_repo_get", "github_repo_search", "github_contents", 
+    "github_file_read", "github_code_search", "github_issues", "github_issue_get",
+    "github_issue_create", "github_issue_update", "github_issue_comment",
+    "github_pulls", "github_pull_get", "github_commits", "github_user",
+    // Queue (AI batch processing)
+    "queue_create", "queue_batch", "queue_list", "queue_start",
+    // Debug
+    "debug_echo",
+    // Contacts
+    "contacts_list", "contacts_search", "contacts_get", "contacts_create", "contacts_update", "contacts_delete",
+    // Twilio SMS/Voice
+    "sms_send", "sms_list", "call_make", "call_list",
+    // Arduino/Hardware IoT
+    "arduino_list_boards", "arduino_compile", "arduino_upload", 
+    "arduino_create_sketch", "arduino_install_library", "arduino_search_libraries",
+  ]),
+  operation: z.string(),
+  parameters: z.record(z.unknown()),
+  priority: z.number().optional().default(0),
+});
+export type ToolCall = z.infer<typeof toolCallSchema>;
+
+// =============================================================================
+// CHAT OUTPUT PARAMETER SCHEMA
+// =============================================================================
+
+/**
+ * Send Chat Parameters
+ * The primary tool for sending content to the chat window
+ * 
+ * IMPORTANT: This is NON-TERMINATING - calling this does not end your turn.
+ * You can call send_chat multiple times within a single turn to provide
+ * incremental updates as you work through multi-step operations.
+ * 
+ * Always explicitly call end_turn when you're ready to return control to the user.
+ */
+export const sendChatParamsSchema = z.object({
+  content: z.string().min(1, "Content cannot be empty"),
+});
+export type SendChatParams = z.infer<typeof sendChatParamsSchema>;
+
+// =============================================================================
+// BROWSER CONTROL PARAMETER SCHEMA
+// =============================================================================
+
+/**
+ * Open URL Parameters
+ * Tool for opening URLs in new browser tabs
+ * The frontend handles this by executing window.open()
+ */
+export const openUrlParamsSchema = z.object({
+  /** The URL to open in a new tab/window */
+  url: z.string().url("Must be a valid URL"),
+});
+export type OpenUrlParams = z.infer<typeof openUrlParamsSchema>;
+
+// =============================================================================
+// VOICE OUTPUT PARAMETER SCHEMA
+// =============================================================================
+
+/**
+ * Available voice options for expressive speech synthesis
+ * Each voice has unique characteristics suitable for different use cases
+ */
+export const SayVoiceIds = [
+  "Kore",    // Default female voice - warm and professional
+  "Puck",    // Energetic and playful
+  "Charon",  // Deep and authoritative
+  "Fenrir",  // Bold and dramatic
+  "Aoede",   // Melodic and soothing
+  "Leda",    // Clear and articulate
+  "Orus",    // Calm and measured
+  "Zephyr",  // Light and airy
+] as const;
+export type SayVoiceId = typeof SayVoiceIds[number];
+
+/**
+ * Speaking style options that affect how the text is delivered
+ * These modify the emotional tone and delivery of the speech
+ */
+export const SayStyles = [
+  "natural",              // Default conversational tone
+  "Say cheerfully",       // Upbeat and positive
+  "Say seriously",        // Formal and grave
+  "Say excitedly",        // High energy and enthusiastic
+  "Say calmly",           // Relaxed and soothing
+  "Say dramatically",     // Theatrical with emphasis
+  "Whisper",              // Soft and quiet
+  "Say like a news anchor", // Professional broadcast style
+  "Say warmly",           // Friendly and inviting
+  "Say professionally",   // Business-appropriate tone
+] as const;
+export type SayStyle = typeof SayStyles[number];
+
+/**
+ * Say Parameters
+ * Voice output tool with expressive speech synthesis
+ * Uses Gemini 2.5 Flash TTS for high-quality audio generation
+ * 
+ * IMPORTANT: This is NON-BLOCKING and NON-TERMINATING
+ * - Speech generation happens asynchronously/concurrently with other operations
+ * - Calling this does not end your turn
+ * - You can use say alongside other tool calls in the same response
+ * - Always explicitly call end_turn when ready to return control to user
+ */
+export const sayParamsSchema = z.object({
+  /** The text content to be spoken aloud */
+  utterance: z.string().min(1, "Utterance cannot be empty"),
+  
+  /** Voice to use for speech synthesis (default: "Kore") */
+  voice: z.enum(SayVoiceIds).optional().default("Kore"),
+  
+  /** Speaking style that affects emotional tone and delivery (default: "natural") */
+  style: z.enum(SayStyles).optional().default("natural"),
+  
+  /** Language/region code for pronunciation (default: "en-US") */
+  locale: z.string().optional().default("en-US"),
+  
+  /** Turn ID for tracking multi-turn voice conversations */
+  conversationalTurnId: z.string().optional(),
+});
+export type SayParams = z.infer<typeof sayParamsSchema>;
+
+/**
+ * File Get Parameters
+ * Read a file from filesystem or editor canvas
+ */
+export const fileGetParamsSchema = z.object({
+  path: z.string().min(1, "Path is required"),
+  encoding: z.enum(["utf8", "base64"]).optional().default("utf8"),
+});
+export type FileGetParams = z.infer<typeof fileGetParamsSchema>;
+
+/**
+ * File Put Parameters
+ * Write/create a file to filesystem or editor canvas
+ */
+export const filePutParamsSchema = z.object({
+  path: z.string().min(1, "Path is required"),
+  content: z.string(),
+  mimeType: z.string().optional(),
+  permissions: z.string().optional().default("644"),
+  summary: z.string().optional(),
+});
+export type FilePutParams = z.infer<typeof filePutParamsSchema>;
+
+// =============================================================================
+// GOOGLE WORKSPACE PARAMETER SCHEMAS
+// =============================================================================
+
+/** Gmail send parameters */
+export const gmailSendParamsSchema = z.object({
+  to: z.string().email(),
+  subject: z.string(),
+  body: z.string(),
+  cc: z.string().email().optional(),
+  bcc: z.string().email().optional(),
+});
+export type GmailSendParams = z.infer<typeof gmailSendParamsSchema>;
+
+/** Gmail search parameters */
+export const gmailSearchParamsSchema = z.object({
+  query: z.string(),
+  maxResults: z.number().optional().default(10),
+});
+export type GmailSearchParams = z.infer<typeof gmailSearchParamsSchema>;
+
+/** Drive file parameters */
+export const driveFileParamsSchema = z.object({
+  fileId: z.string().optional(),
+  name: z.string().optional(),
+  content: z.string().optional(),
+  mimeType: z.string().optional(),
+  folderId: z.string().optional(),
+});
+export type DriveFileParams = z.infer<typeof driveFileParamsSchema>;
+
+/** Drive search parameters */
+export const driveSearchParamsSchema = z.object({
+  query: z.string(),
+  maxResults: z.number().optional().default(10),
+});
+export type DriveSearchParams = z.infer<typeof driveSearchParamsSchema>;
+
+/** Calendar event parameters */
+export const calendarEventParamsSchema = z.object({
+  calendarId: z.string().optional().default("primary"),
+  eventId: z.string().optional(),
+  summary: z.string().optional(),
+  description: z.string().optional(),
+  start: z.string().optional(), // ISO datetime
+  end: z.string().optional(), // ISO datetime
+  attendees: z.array(z.string().email()).optional(),
+  location: z.string().optional(),
+});
+export type CalendarEventParams = z.infer<typeof calendarEventParamsSchema>;
+
+/** Docs operation parameters */
+export const docsParamsSchema = z.object({
+  documentId: z.string().optional(),
+  title: z.string().optional(),
+  text: z.string().optional(),
+  findText: z.string().optional(),
+  replaceText: z.string().optional(),
+});
+export type DocsParams = z.infer<typeof docsParamsSchema>;
+
+/** Sheets operation parameters */
+export const sheetsParamsSchema = z.object({
+  spreadsheetId: z.string().optional(),
+  title: z.string().optional(),
+  range: z.string().optional(),
+  values: z.array(z.array(z.unknown())).optional(),
+});
+export type SheetsParams = z.infer<typeof sheetsParamsSchema>;
+
+/** Tasks operation parameters */
+export const tasksParamsSchema = z.object({
+  taskListId: z.string().optional(),
+  taskId: z.string().optional(),
+  title: z.string().optional(),
+  notes: z.string().optional(),
+  due: z.string().optional(), // ISO date
+});
+export type TasksParams = z.infer<typeof tasksParamsSchema>;
+
+// =============================================================================
+// WEB SEARCH PARAMETER SCHEMA
+// =============================================================================
+
+/** Web search parameters using Google Custom Search API */
+export const webSearchParamsSchema = z.object({
+  query: z.string(),
+  maxTokens: z.number().optional().default(1024),
+  searchRecency: z.enum(["day", "week", "month", "year"]).optional(),
+  domains: z.array(z.string()).optional(),
+});
+export type WebSearchParams = z.infer<typeof webSearchParamsSchema>;
+
+/** Google Custom Search parameters (fast, requires API key) */
+export const googleSearchParamsSchema = z.object({
+  query: z.string(),
+  maxResults: z.number().optional().default(10),
+  searchRecency: z.enum(["day", "week", "month", "year"]).optional(),
+  domains: z.array(z.string()).optional(),
+});
+export type GoogleSearchParams = z.infer<typeof googleSearchParamsSchema>;
+
+/** DuckDuckGo search parameters (free, no API key needed) */
+export const duckduckgoSearchParamsSchema = z.object({
+  query: z.string(),
+  maxResults: z.number().optional().default(10),
+});
+export type DuckDuckGoSearchParams = z.infer<typeof duckduckgoSearchParamsSchema>;
+
+/** Browser scrape parameters (Playwright-based for JS-heavy sites) */
+export const browserScrapeParamsSchema = z.object({
+  url: z.string().url(),
+  timeout: z.number().optional().default(30000),
+});
+export type BrowserScrapeParams = z.infer<typeof browserScrapeParamsSchema>;
+
+/** HTTP GET parameters for direct web requests */
+export const httpGetParamsSchema = z.object({
+  url: z.string().url(),
+  headers: z.record(z.string()).optional(),
+  params: z.record(z.string()).optional(),
+  timeout: z.number().optional().default(30000),
+});
+export type HttpGetParams = z.infer<typeof httpGetParamsSchema>;
+
+/** HTTP POST parameters for direct web requests */
+export const httpPostParamsSchema = z.object({
+  url: z.string().url(),
+  headers: z.record(z.string()).optional(),
+  body: z.union([z.string(), z.record(z.unknown())]),
+  timeout: z.number().optional().default(30000),
+});
+export type HttpPostParams = z.infer<typeof httpPostParamsSchema>;
+
+/** HTTP PUT parameters for direct web requests */
+export const httpPutParamsSchema = z.object({
+  url: z.string().url(),
+  headers: z.record(z.string()).optional(),
+  body: z.union([z.string(), z.record(z.unknown())]),
+  timeout: z.number().optional().default(30000),
+});
+export type HttpPutParams = z.infer<typeof httpPutParamsSchema>;
+
+/**
+ * File Operation Schema
+ * Defines a file to be created, replaced, or appended
+ * 
+ * PROTOCOL:
+ * - mimeType: Indicates file type (e.g. "text/javascript", "text/plain")
+ * - path: File location; if starts with "editor:" → save to Monaco editor canvas
+ * - filename.ext: Full filename with extension
+ * - permissions: Unix-style permissions (octal string, e.g. "644")
+ * - summary: Short description of file purpose/changes
+ * - content: File content
+ * - encoding: How content is encoded (utf8 or base64)
+ */
+export const fileOperationSchema = z.object({
+  action: z.enum(["create", "replace", "append"]),
+  filename: z.string(),
+  path: z.string(),
+  mimeType: z.string().optional(),
+  permissions: z.string().optional().default("644"),
+  summary: z.string().optional(),
+  content: z.string(),
+  encoding: z.enum(["utf8", "base64"]).default("utf8"),
+});
+export type FileOperation = z.infer<typeof fileOperationSchema>;
+
+/**
+ * Binary File Operation Schema
+ * For creating binary files from base64 encoded content
+ * 
+ * PROTOCOL:
+ * - mimeType: Required for binary files (e.g. "image/png", "application/pdf")
+ * - path: File location; if starts with "editor:" → save to Monaco editor canvas
+ * - filename.ext: Full filename with extension
+ * - permissions: Unix-style permissions (octal string, e.g. "644")
+ * - summary: Short description of file purpose/changes
+ * - base64Content: Binary content as base64 string
+ */
+export const binaryFileOperationSchema = z.object({
+  action: z.enum(["create", "replace"]),
+  filename: z.string(),
+  path: z.string(),
+  mimeType: z.string(),
+  permissions: z.string().optional().default("644"),
+  summary: z.string().optional(),
+  base64Content: z.string(),
+});
+export type BinaryFileOperation = z.infer<typeof binaryFileOperationSchema>;
+
+/**
+ * Autoexec Script Schema
+ * Special file that can be executed with elevated permissions
+ */
+export const autoexecSchema = z.object({
+  filename: z.literal("autoexec.666"),
+  content: z.string(),
+  requiresSudo: z.boolean().default(false),
+  sshTarget: z.string().optional(),
+  timeout: z.number().optional().default(30000),
+});
+export type AutoexecScript = z.infer<typeof autoexecSchema>;
+
+/**
+ * Complete Structured LLM Response Schema
+ * LLM returns toolCalls array - all output goes through tools (send_chat, say, file_put, etc.)
+ */
+export const structuredLLMResponseSchema = z.object({
+  toolCalls: z.array(toolCallSchema).optional().default([]),
+  metadata: z.object({
+    processingTime: z.number().optional(),
+    modelUsed: z.string().optional(),
+    tokenCount: z.number().optional(),
+  }).optional(),
+});
+export type StructuredLLMResponse = z.infer<typeof structuredLLMResponseSchema>;
+
+// =============================================================================
+// DOCUMENT CHUNKS SYSTEM (RAG)
+// =============================================================================
+/**
+ * DOCUMENT CHUNKS TABLE
+ * ---------------------
+ * Stores chunked documents with their vector embeddings for semantic search.
+ * Used in the RAG (Retrieval Augmented Generation) pipeline.
+ * 
+ * When a document is uploaded:
+ * 1. It's split into semantic chunks (paragraphs, sections)
+ * 2. Each chunk is embedded using Gemini's embedding model
+ * 3. Chunks are stored with their embeddings for later retrieval
+ * 4. On query, relevant chunks are found via vector similarity search
+ */
+export const documentChunks = pgTable("document_chunks", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  documentId: varchar("document_id").notNull(),
+  attachmentId: varchar("attachment_id").references(() => attachments.id, { onDelete: "cascade" }),
+  chunkIndex: integer("chunk_index").notNull(),
+  content: text("content").notNull(),
+  embedding: jsonb("embedding"),
+  metadata: jsonb("metadata"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertDocumentChunkSchema = createInsertSchema(documentChunks).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertDocumentChunk = z.infer<typeof insertDocumentChunkSchema>;
+export type DocumentChunk = typeof documentChunks.$inferSelect;
+
+// =============================================================================
+// GOOGLE OAUTH TOKENS
+// =============================================================================
+/**
+ * GOOGLE OAUTH TOKENS TABLE
+ * -------------------------
+ * Stores Google OAuth2 tokens for persistent authentication.
+ * Uses a singleton pattern (id = 'default') for single-user app.
+ */
+export const googleOAuthTokens = pgTable("google_oauth_tokens", {
+  id: varchar("id").primaryKey().default("default"),
+  accessToken: text("access_token"),
+  refreshToken: text("refresh_token"),
+  expiryDate: bigint("expiry_date", { mode: "number" }),
+  tokenType: text("token_type"),
+  scope: text("scope"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertGoogleOAuthTokensSchema = createInsertSchema(googleOAuthTokens).omit({
+  createdAt: true,
+  updatedAt: true,
+});
+export type InsertGoogleOAuthTokens = z.infer<typeof insertGoogleOAuthTokensSchema>;
+export type GoogleOAuthTokens = typeof googleOAuthTokens.$inferSelect;
+
+/**
+ * Message role enum for type safety
+ */
+export const MessageRole = {
+  USER: "user",
+  AI: "ai",
+} as const;
+export type MessageRoleType = typeof MessageRole[keyof typeof MessageRole];
+
+/**
+ * Helper function to generate a chat filename with timestamp
+ */
+export function generateChatFilename(): string {
+  const now = new Date();
+  const timestamp = now.toISOString().replace(/[-:T.Z]/g, "").slice(0, 14);
+  return `Chat-${timestamp}.txt`;
+}
+
+// =============================================================================
+// RESPONSE PARSING HELPERS
+// =============================================================================
+
+/**
+ * Extract JSON from LLM response that may contain markdown code blocks
+ */
+export function extractJsonFromResponse(response: string): string | null {
+  // Try to find JSON in code blocks first
+  const jsonBlockMatch = response.match(/```(?:json)?\s*([\s\S]*?)```/);
+  if (jsonBlockMatch) {
+    return jsonBlockMatch[1].trim();
+  }
+  
+  // Try to find raw JSON object
+  const jsonMatch = response.match(/\{[\s\S]*\}/);
+  if (jsonMatch) {
+    return jsonMatch[0];
+  }
+  
+  return null;
+}
+
+/**
+ * Parse structured LLM response with fallback for plain text
+ */
+export function parseStructuredResponse(response: string): StructuredLLMResponse | null {
+  const jsonStr = extractJsonFromResponse(response);
+  if (!jsonStr) {
+    return null;
+  }
+  
+  try {
+    const parsed = JSON.parse(jsonStr);
+    const result = structuredLLMResponseSchema.safeParse(parsed);
+    if (result.success) {
+      return result.data;
+    }
+    console.error("Schema validation failed:", JSON.stringify(result.error.errors, null, 2));
+    
+    // Try to extract toolCalls even if full validation fails
+    if (Array.isArray(parsed?.toolCalls)) {
+      console.log("Extracting toolCalls from partially valid response");
+      return {
+        toolCalls: parsed.toolCalls,
+      };
+    }
+    
+    return null;
+  } catch (e) {
+    console.error("JSON parse error:", e);
+    return null;
+  }
+}
+
+/**
+ * Create a fallback structured response when LLM returns plain text
+ * Plain text is converted to a send_chat tool call
+ */
+export function createFallbackResponse(plainText: string): StructuredLLMResponse {
+  return {
+    toolCalls: [{
+      id: "fallback_chat",
+      type: "send_chat" as const,
+      operation: "respond",
+      parameters: { content: plainText },
+      priority: 0,
+    }],
+  };
+}
+
+/**
+ * Check if response appears to be structured JSON
+ */
+export function isStructuredResponse(response: string): boolean {
+  const trimmed = response.trim();
+  return (
+    trimmed.startsWith("{") ||
+    trimmed.startsWith("```json") ||
+    trimmed.includes('"toolCalls"')
+  );
+}
+
+// =============================================================================
+// LOG PARSER TABLES
+// =============================================================================
+
+export const conversationSources = pgTable("conversation_sources", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  sourceType: text("source_type").notNull(),
+  sourceId: text("source_id").notNull(),
+  title: text("title").notNull(),
+  participants: text("participants").array(),
+  messageCount: integer("message_count").default(0),
+  dateStart: timestamp("date_start"),
+  dateEnd: timestamp("date_end"),
+  status: text("status").default("pending").notNull(),
+  content: text("content"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertConversationSourceSchema = createInsertSchema(conversationSources).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export type InsertConversationSource = z.infer<typeof insertConversationSourceSchema>;
+export type ConversationSource = typeof conversationSources.$inferSelect;
+
+export const ingestionJobs = pgTable("ingestion_jobs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  sourceId: varchar("source_id").references(() => conversationSources.id, { onDelete: "cascade" }),
+  sourceName: text("source_name").notNull(),
+  status: text("status").default("pending").notNull(),
+  progress: integer("progress").default(0),
+  messagesProcessed: integer("messages_processed").default(0),
+  totalMessages: integer("total_messages").default(0),
+  error: text("error"),
+  startedAt: timestamp("started_at"),
+  completedAt: timestamp("completed_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertIngestionJobSchema = createInsertSchema(ingestionJobs).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertIngestionJob = z.infer<typeof insertIngestionJobSchema>;
+export type IngestionJob = typeof ingestionJobs.$inferSelect;
+
+export const extractedKnowledge = pgTable("extracted_knowledge", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  sourceId: varchar("source_id").references(() => conversationSources.id, { onDelete: "cascade" }),
+  jobId: varchar("job_id").references(() => ingestionJobs.id, { onDelete: "cascade" }),
+  bucket: text("bucket").notNull(),
+  section: text("section"),
+  content: text("content").notNull(),
+  confidence: integer("confidence").default(100),
+  metadata: jsonb("metadata"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertExtractedKnowledgeSchema = createInsertSchema(extractedKnowledge).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertExtractedKnowledge = z.infer<typeof insertExtractedKnowledgeSchema>;
+export type ExtractedKnowledge = typeof extractedKnowledge.$inferSelect;
+
+// =============================================================================
+// KNOWLEDGE PIPELINE TABLES (Multimodal Ingestion/Retrieval)
+// =============================================================================
+
+/**
+ * EVIDENCE TABLE
+ * Normalized multimodal input envelope - the common format for all ingested content
+ * Supports: text, images, audio, documents, emails, conversations
+ */
+export const evidence = pgTable("evidence", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  
+  // Source tracking
+  sourceType: text("source_type").notNull(), // gmail, drive, upload, screenshot, audio, chat
+  sourceId: text("source_id"), // External ID from source system
+  sourceUrl: text("source_url"), // Original URL/path if available
+  
+  // Content modality
+  modality: text("modality").notNull(), // text, image, audio, document, email, conversation
+  mimeType: text("mime_type"),
+  
+  // Normalized content
+  title: text("title"),
+  rawContent: text("raw_content"), // Original content (text or base64)
+  extractedText: text("extracted_text"), // Text extracted from any modality (OCR, ASR, etc.)
+  summary: text("summary"), // AI-generated summary
+  
+  // Metadata
+  author: text("author"),
+  participants: text("participants").array(),
+  language: text("language").default("en"),
+  wordCount: integer("word_count"),
+  
+  // User isolation - CRITICAL for data privacy
+  // Note: Uses ON DELETE SET NULL to preserve guest data when users are deleted
+  userId: varchar("user_id").references(() => users.id, { onDelete: "set null" }),
+  isGuest: boolean("is_guest").default(false).notNull(),
+  
+  // Temporal
+  contentDate: timestamp("content_date"), // When the content was originally created
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  
+  // Processing status
+  status: text("status").default("pending").notNull(), // pending, processing, indexed, failed
+  processingError: text("processing_error"),
+  
+  // Domain routing
+  bucket: text("bucket"), // PERSONAL_LIFE, CREATOR, PROJECTS
+  confidence: integer("confidence").default(0), // Routing confidence 0-100
+});
+
+export const insertEvidenceSchema = createInsertSchema(evidence).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export type InsertEvidence = z.infer<typeof insertEvidenceSchema>;
+export type Evidence = typeof evidence.$inferSelect;
+
+/**
+ * ENTITIES TABLE
+ * Recognized entities extracted from content (people, places, concepts, etc.)
+ */
+export const entities = pgTable("entities", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  
+  // Entity identification
+  name: text("name").notNull(), // Canonical name
+  type: text("type").notNull(), // person, place, organization, concept, project, technology
+  aliases: text("aliases").array(), // Alternative names/spellings
+  
+  // Description and context
+  description: text("description"),
+  
+  // Linking
+  externalIds: jsonb("external_ids"), // {linkedin: "...", github: "...", etc.}
+  
+  // Statistics
+  mentionCount: integer("mention_count").default(0),
+  lastMentioned: timestamp("last_mentioned"),
+  
+  // Metadata
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertEntitySchema = createInsertSchema(entities).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export type InsertEntity = z.infer<typeof insertEntitySchema>;
+export type Entity = typeof entities.$inferSelect;
+
+/**
+ * ENTITY_MENTIONS TABLE
+ * Links entities to the evidence/knowledge where they appear
+ */
+export const entityMentions = pgTable("entity_mentions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  
+  entityId: varchar("entity_id").references(() => entities.id, { onDelete: "cascade" }).notNull(),
+  evidenceId: varchar("evidence_id").references(() => evidence.id, { onDelete: "cascade" }),
+  knowledgeId: varchar("knowledge_id").references(() => extractedKnowledge.id, { onDelete: "cascade" }),
+  
+  // Context
+  mentionText: text("mention_text"), // The exact text that matched
+  context: text("context"), // Surrounding text for context
+  sentiment: text("sentiment"), // positive, negative, neutral
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertEntityMentionSchema = createInsertSchema(entityMentions).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertEntityMention = z.infer<typeof insertEntityMentionSchema>;
+export type EntityMention = typeof entityMentions.$inferSelect;
+
+/**
+ * KNOWLEDGE_EMBEDDINGS TABLE
+ * Vector embeddings for semantic search (pgvector compatible)
+ */
+export const knowledgeEmbeddings = pgTable("knowledge_embeddings", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  
+  // Link to source
+  evidenceId: varchar("evidence_id").references(() => evidence.id, { onDelete: "cascade" }),
+  knowledgeId: varchar("knowledge_id").references(() => extractedKnowledge.id, { onDelete: "cascade" }),
+  chunkId: varchar("chunk_id").references(() => documentChunks.id, { onDelete: "cascade" }),
+  
+  // The text that was embedded
+  content: text("content").notNull(),
+  
+  // Vector embedding stored as JSON array (can migrate to pgvector later)
+  embedding: jsonb("embedding"),
+  embeddingModel: text("embedding_model").default("text-embedding-004"),
+  dimensions: integer("dimensions").default(768),
+  
+  // Metadata for filtering
+  bucket: text("bucket"),
+  modality: text("modality"),
+  sourceType: text("source_type"),
+  
+  // User isolation - CRITICAL for data privacy
+  // Note: Uses ON DELETE SET NULL to preserve guest data when users are deleted
+  userId: varchar("user_id").references(() => users.id, { onDelete: "set null" }),
+  isGuest: boolean("is_guest").default(false).notNull(),
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertKnowledgeEmbeddingSchema = createInsertSchema(knowledgeEmbeddings).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertKnowledgeEmbedding = z.infer<typeof insertKnowledgeEmbeddingSchema>;
+export type KnowledgeEmbedding = typeof knowledgeEmbeddings.$inferSelect;
+
+/**
+ * CROSS_REFERENCES TABLE
+ * Links between related knowledge items across buckets
+ */
+export const crossReferences = pgTable("cross_references", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  
+  // Source and target
+  sourceType: text("source_type").notNull(), // evidence, knowledge, entity
+  sourceId: varchar("source_id").notNull(),
+  targetType: text("target_type").notNull(),
+  targetId: varchar("target_id").notNull(),
+  
+  // Relationship
+  relationshipType: text("relationship_type").notNull(), // related_to, derived_from, mentions, etc.
+  strength: integer("strength").default(50), // 0-100
+  
+  // Context
+  reason: text("reason"), // Why this link exists
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertCrossReferenceSchema = createInsertSchema(crossReferences).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertCrossReference = z.infer<typeof insertCrossReferenceSchema>;
+export type CrossReference = typeof crossReferences.$inferSelect;
+
+// =============================================================================
+// KERNEL SYSTEM (Self-Evolving AI Persistent Memory)
+// =============================================================================
+
+/**
+ * KERNELS TABLE
+ * -------------
+ * The Kernel is a version-controlled AI configuration that stores the model's
+ * personality, directives, and learned behaviors. This is the heart of the
+ * self-evolving AI system described in the vision documentation.
+ * 
+ * Key concept: "Self-awareness is achieved by saving the state of the stateless"
+ * 
+ * Each kernel version captures:
+ * - Core directives (what the AI should always do)
+ * - Personality traits (how the AI should communicate)
+ * - Learned behaviors (patterns discovered through interaction)
+ * - User preferences (remembered from past sessions)
+ * 
+ * The kernel is injected into the system prompt at the start of each session,
+ * allowing the AI to maintain continuity across conversations.
+ */
+export const kernels = pgTable("kernels", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  
+  // Versioning
+  version: text("version").notNull(), // Semantic version like "9.31"
+  parentId: varchar("parent_id"), // Previous kernel ID for evolution tracking (self-reference)
+  
+  // User association (each user can have their own kernel)
+  userId: varchar("user_id").references(() => users.id, { onDelete: "cascade" }),
+  
+  // Content sections (stored as markdown text)
+  coreDirectives: text("core_directives").notNull(), // The immutable core rules
+  personality: text("personality"), // Communication style and traits
+  learnedBehaviors: text("learned_behaviors"), // Patterns discovered through interaction
+  userPreferences: text("user_preferences"), // Remembered user preferences
+  
+  // Structured data (for programmatic access)
+  toolConfig: jsonb("tool_config"), // Which tools are enabled/disabled
+  bucketWeights: jsonb("bucket_weights"), // Priority weights for knowledge buckets
+  
+  // Status
+  status: text("status").default("active").notNull(), // active, archived, draft
+  
+  // Evolution tracking
+  evolutionReason: text("evolution_reason"), // Why this version was created
+  changeLog: text("change_log"), // Human-readable changes from parent
+  
+  // Timestamps
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertKernelSchema = createInsertSchema(kernels).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export type InsertKernel = z.infer<typeof insertKernelSchema>;
+export type Kernel = typeof kernels.$inferSelect;
+
+/**
+ * KERNEL_EVOLUTIONS TABLE
+ * -----------------------
+ * Tracks individual learning events that may lead to kernel updates.
+ * Each evolution represents a detected pattern or insight that the AI
+ * learned during a conversation.
+ * 
+ * Evolutions are queued and reviewed before being incorporated into
+ * the next kernel version, ensuring controlled evolution.
+ */
+export const kernelEvolutions = pgTable("kernel_evolutions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  
+  // Link to kernel and conversation
+  kernelId: varchar("kernel_id").references(() => kernels.id, { onDelete: "cascade" }).notNull(),
+  chatId: varchar("chat_id").references(() => chats.id, { onDelete: "cascade" }),
+  messageId: varchar("message_id").references(() => messages.id, { onDelete: "cascade" }),
+  
+  // Evolution details
+  evolutionType: text("evolution_type").notNull(), // preference, pattern, correction, insight
+  targetSection: text("target_section").notNull(), // coreDirectives, personality, learnedBehaviors, userPreferences
+  
+  // Content
+  observation: text("observation").notNull(), // What was observed
+  proposedChange: text("proposed_change").notNull(), // Suggested update to kernel
+  rationale: text("rationale"), // Why this change is beneficial
+  
+  // Review status
+  status: text("status").default("pending").notNull(), // pending, approved, rejected, applied
+  reviewedAt: timestamp("reviewed_at"),
+  appliedToVersion: varchar("applied_to_version"), // Which kernel version incorporated this
+  
+  // Confidence
+  confidence: integer("confidence").default(50), // 0-100
+  
+  // Timestamps
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertKernelEvolutionSchema = createInsertSchema(kernelEvolutions).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertKernelEvolution = z.infer<typeof insertKernelEvolutionSchema>;
+export type KernelEvolution = typeof kernelEvolutions.$inferSelect;
+
+// =============================================================================
+// TASK QUEUE SYSTEM - AI batch processing queue
+// =============================================================================
+/**
+ * QUEUED TASKS TABLE
+ * ------------------
+ * Stores tasks that the AI has prepared for batch execution.
+ * 
+ * When a user requests complex work (like "research topic X"), the AI
+ * generates a list of subtasks that get queued here for processing.
+ * 
+ * Task lifecycle: pending -> running -> completed/failed/cancelled
+ * 
+ * Tasks can have parent-child relationships for hierarchical execution.
+ */
+export const queuedTasks = pgTable("queued_tasks", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  
+  // Optional parent task for hierarchical task trees
+  parentId: varchar("parent_id").references((): any => queuedTasks.id, { onDelete: "cascade" }),
+  
+  // Link to chat where task was created
+  chatId: varchar("chat_id").references(() => chats.id, { onDelete: "cascade" }),
+  
+  // Task details
+  title: text("title").notNull(),
+  description: text("description"),
+  taskType: text("task_type").notNull(), // research, action, analysis, synthesis, etc.
+  
+  // Priority for queue ordering (higher = more urgent)
+  priority: integer("priority").default(0).notNull(),
+  
+  // Execution status
+  status: text("status").default("pending").notNull(), // pending, running, completed, failed, cancelled
+  
+  // Input/output data
+  input: jsonb("input"), // Task parameters and context
+  output: jsonb("output"), // Result after execution
+  error: text("error"), // Error message if failed
+  
+  // Execution mode and flow control
+  executionMode: text("execution_mode").default("sequential").notNull(), // sequential, parallel
+  condition: text("condition"), // Natural language condition for if/then logic
+  conditionResult: boolean("condition_result"), // Result of condition evaluation
+  dependencies: text("dependencies").array(), // Array of task IDs that must complete first
+  
+  // Operator interaction
+  waitingForInput: boolean("waiting_for_input").default(false).notNull(),
+  inputPrompt: text("input_prompt"), // What to ask the operator
+  operatorInput: text("operator_input"), // Response from operator
+  
+  // Workflow reference
+  workflowId: varchar("workflow_id"), // Links to a workflow definition
+  
+  // Metadata
+  estimatedDuration: integer("estimated_duration"), // Estimated seconds to complete
+  actualDuration: integer("actual_duration"), // Actual seconds taken
+  retryCount: integer("retry_count").default(0),
+  maxRetries: integer("max_retries").default(3),
+  
+  // Timestamps
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  startedAt: timestamp("started_at"),
+  completedAt: timestamp("completed_at"),
+});
+
+export const insertQueuedTaskSchema = createInsertSchema(queuedTasks).omit({
+  id: true,
+  createdAt: true,
+  startedAt: true,
+  completedAt: true,
+});
+export type InsertQueuedTask = z.infer<typeof insertQueuedTaskSchema>;
+export type QueuedTask = typeof queuedTasks.$inferSelect;
+
+/**
+ * Task type constants
+ */
+export const TaskTypes = {
+  RESEARCH: "research",      // Deep dive into a topic
+  ACTION: "action",          // Execute a specific action
+  ANALYSIS: "analysis",      // Analyze data or content
+  SYNTHESIS: "synthesis",    // Combine information into output
+  FETCH: "fetch",           // Retrieve data from a source
+  TRANSFORM: "transform",    // Convert data format
+  VALIDATE: "validate",      // Verify or check something
+  NOTIFY: "notify",          // Send notification or message
+} as const;
+
+export type TaskType = typeof TaskTypes[keyof typeof TaskTypes];
+
+/**
+ * Task status constants
+ */
+export const TaskStatuses = {
+  PENDING: "pending",
+  RUNNING: "running",
+  PAUSED: "paused",
+  WAITING_INPUT: "waiting_input",
+  WAITING_DEPENDENCY: "waiting_dependency",
+  COMPLETED: "completed",
+  FAILED: "failed",
+  CANCELLED: "cancelled",
+} as const;
+
+export type TaskStatus = typeof TaskStatuses[keyof typeof TaskStatuses];
+
+/**
+ * Execution mode constants
+ */
+export const ExecutionModes = {
+  SEQUENTIAL: "sequential",
+  PARALLEL: "parallel",
+} as const;
+
+export type ExecutionMode = typeof ExecutionModes[keyof typeof ExecutionModes];
+
+// ============================================================================
+// SCHEDULES - Cron jobs and scheduled task execution
+// ============================================================================
+
+export const schedules = pgTable("schedules", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  
+  // Schedule identity
+  name: text("name").notNull(),
+  description: text("description"),
+  
+  // Cron expression (e.g., "0 9 * * 1" = every Monday at 9am)
+  cronExpression: text("cron_expression").notNull(),
+  timezone: text("timezone").default("UTC").notNull(),
+  
+  // What to execute
+  taskTemplate: jsonb("task_template").notNull(), // Task definition to create when triggered
+  workflowId: varchar("workflow_id"), // Or link to a workflow
+  
+  // State
+  enabled: boolean("enabled").default(true).notNull(),
+  lastRunAt: timestamp("last_run_at"),
+  nextRunAt: timestamp("next_run_at"),
+  runCount: integer("run_count").default(0).notNull(),
+  
+  // Error handling
+  lastError: text("last_error"),
+  consecutiveFailures: integer("consecutive_failures").default(0),
+  maxConsecutiveFailures: integer("max_consecutive_failures").default(3),
+  
+  // Timestamps
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertScheduleSchema = createInsertSchema(schedules).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  lastRunAt: true,
+  nextRunAt: true,
+  runCount: true,
+  consecutiveFailures: true,
+  lastError: true,
+});
+export type InsertSchedule = z.infer<typeof insertScheduleSchema>;
+export type Schedule = typeof schedules.$inferSelect;
+
+// ============================================================================
+// TRIGGERS - Event-driven task execution
+// ============================================================================
+
+export const triggers = pgTable("triggers", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  
+  // Trigger identity
+  name: text("name").notNull(),
+  description: text("description"),
+  
+  // Trigger type and configuration
+  triggerType: text("trigger_type").notNull(), // email, sms, prompt_keyword, webhook, manual
+  
+  // Pattern matching (depends on trigger type)
+  pattern: text("pattern"), // Regex or keyword pattern
+  senderFilter: text("sender_filter"), // For email/SMS: filter by sender
+  subjectFilter: text("subject_filter"), // For email: filter by subject
+  
+  // What to execute
+  taskTemplate: jsonb("task_template"), // Task definition to create when triggered
+  workflowId: varchar("workflow_id"), // Or link to a workflow
+  priority: integer("priority").default(5).notNull(), // Priority for triggered tasks
+  
+  // Webhook-specific
+  webhookSecret: text("webhook_secret"), // For validating webhook calls
+  
+  // State
+  enabled: boolean("enabled").default(true).notNull(),
+  lastTriggeredAt: timestamp("last_triggered_at"),
+  triggerCount: integer("trigger_count").default(0).notNull(),
+  
+  // Timestamps
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertTriggerSchema = createInsertSchema(triggers).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  lastTriggeredAt: true,
+  triggerCount: true,
+});
+export type InsertTrigger = z.infer<typeof insertTriggerSchema>;
+export type Trigger = typeof triggers.$inferSelect;
+
+/**
+ * Trigger type constants
+ */
+export const TriggerTypes = {
+  EMAIL: "email",           // Triggered by incoming email
+  SMS: "sms",               // Triggered by incoming SMS (Twilio)
+  PROMPT_KEYWORD: "prompt_keyword", // Triggered by keyword in user prompt
+  WEBHOOK: "webhook",       // Triggered by external HTTP request
+  MANUAL: "manual",         // Triggered manually by user
+} as const;
+
+export type TriggerType = typeof TriggerTypes[keyof typeof TriggerTypes];
+
+// ============================================================================
+// WORKFLOWS - Reusable workflow definitions
+// ============================================================================
+
+export const workflows = pgTable("workflows", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  
+  // Workflow identity
+  name: text("name").notNull(),
+  description: text("description"),
+  
+  // Workflow definition
+  steps: jsonb("steps").notNull(), // Array of step definitions
+  
+  // Execution settings
+  defaultExecutionMode: text("default_execution_mode").default("sequential").notNull(),
+  maxParallelTasks: integer("max_parallel_tasks").default(3),
+  timeoutSeconds: integer("timeout_seconds").default(3600), // 1 hour default
+  
+  // State
+  enabled: boolean("enabled").default(true).notNull(),
+  version: integer("version").default(1).notNull(),
+  
+  // Timestamps
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertWorkflowSchema = createInsertSchema(workflows).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  version: true,
+});
+export type InsertWorkflow = z.infer<typeof insertWorkflowSchema>;
+export type Workflow = typeof workflows.$inferSelect;
+
+// ============================================================================
+// EXECUTOR STATE - Track executor status
+// ============================================================================
+
+export const executorState = pgTable("executor_state", {
+  id: varchar("id").primaryKey().default("singleton"), // Only one row
+  
+  // Executor status
+  status: text("status").default("stopped").notNull(), // running, stopped, paused
+  
+  // Current execution
+  currentTaskId: varchar("current_task_id"),
+  runningTaskIds: text("running_task_ids").array(), // For parallel execution
+  
+  // Statistics
+  tasksProcessed: integer("tasks_processed").default(0).notNull(),
+  tasksFailed: integer("tasks_failed").default(0).notNull(),
+  lastActivityAt: timestamp("last_activity_at"),
+  
+  // Settings
+  maxParallelTasks: integer("max_parallel_tasks").default(3),
+  pollIntervalMs: integer("poll_interval_ms").default(5000),
+  
+  // Timestamps
+  startedAt: timestamp("started_at"),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export type ExecutorState = typeof executorState.$inferSelect;
+
+// ============================================================================
+// COLLABORATIVE EDITING - Real-time collaborative sessions
+// ============================================================================
+
+/**
+ * COLLABORATIVE SESSIONS TABLE
+ * ----------------------------
+ * Stores active collaborative editing sessions where multiple participants
+ * (users and AI) can edit files together in real-time.
+ */
+export const collaborativeSessions = pgTable("collaborative_sessions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  
+  // Session identity
+  name: text("name").notNull(),
+  description: text("description"),
+  
+  // Owner/host of the session
+  hostUserId: varchar("host_user_id").references(() => users.id),
+  
+  // Files being edited in this session
+  files: jsonb("files").notNull().default([]), // Array of {path, content, language}
+  
+  // Session settings
+  isVoiceEnabled: boolean("is_voice_enabled").default(true).notNull(),
+  isPublic: boolean("is_public").default(false).notNull(),
+  maxParticipants: integer("max_participants").default(5),
+  
+  // State
+  status: text("status").default("active").notNull(), // active, paused, ended
+  
+  // Timestamps
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  endedAt: timestamp("ended_at"),
+});
+
+export const insertCollaborativeSessionSchema = createInsertSchema(collaborativeSessions).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  endedAt: true,
+});
+export type InsertCollaborativeSession = z.infer<typeof insertCollaborativeSessionSchema>;
+export type CollaborativeSession = typeof collaborativeSessions.$inferSelect;
+
+/**
+ * SESSION PARTICIPANTS TABLE
+ * --------------------------
+ * Tracks who is currently participating in a collaborative session.
+ */
+export const sessionParticipants = pgTable("session_participants", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  
+  // References
+  sessionId: varchar("session_id").references(() => collaborativeSessions.id, { onDelete: "cascade" }).notNull(),
+  userId: varchar("user_id").references(() => users.id),
+  
+  // Participant identity (for AI or anonymous users)
+  participantType: text("participant_type").default("user").notNull(), // user, ai, guest
+  displayName: text("display_name").notNull(),
+  avatarColor: text("avatar_color").default("#4285f4"),
+  
+  // Permissions
+  canEdit: boolean("can_edit").default(true).notNull(),
+  canVoice: boolean("can_voice").default(true).notNull(),
+  
+  // Current state
+  isActive: boolean("is_active").default(true).notNull(),
+  lastSeenAt: timestamp("last_seen_at").defaultNow().notNull(),
+  
+  // Timestamps
+  joinedAt: timestamp("joined_at").defaultNow().notNull(),
+  leftAt: timestamp("left_at"),
+});
+
+export const insertSessionParticipantSchema = createInsertSchema(sessionParticipants).omit({
+  id: true,
+  joinedAt: true,
+  leftAt: true,
+});
+export type InsertSessionParticipant = z.infer<typeof insertSessionParticipantSchema>;
+export type SessionParticipant = typeof sessionParticipants.$inferSelect;
+
+/**
+ * CURSOR POSITIONS TABLE
+ * ----------------------
+ * Stores real-time cursor positions for each participant in a session.
+ * Updated frequently via WebSocket, periodically persisted.
+ */
+export const cursorPositions = pgTable("cursor_positions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  
+  // References
+  sessionId: varchar("session_id").references(() => collaborativeSessions.id, { onDelete: "cascade" }).notNull(),
+  participantId: varchar("participant_id").references(() => sessionParticipants.id, { onDelete: "cascade" }).notNull(),
+  
+  // File context
+  filePath: text("file_path").notNull(),
+  
+  // Cursor position
+  line: integer("line").notNull(),
+  column: integer("column").notNull(),
+  
+  // Selection (if any)
+  selectionStartLine: integer("selection_start_line"),
+  selectionStartColumn: integer("selection_start_column"),
+  selectionEndLine: integer("selection_end_line"),
+  selectionEndColumn: integer("selection_end_column"),
+  
+  // Timestamps
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export type CursorPosition = typeof cursorPositions.$inferSelect;
+
+/**
+ * EDIT OPERATIONS TABLE
+ * ---------------------
+ * Stores edit operations for conflict resolution (OT/CRDT).
+ * Each operation represents a change to the document.
+ */
+export const editOperations = pgTable("edit_operations", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  
+  // References
+  sessionId: varchar("session_id").references(() => collaborativeSessions.id, { onDelete: "cascade" }).notNull(),
+  participantId: varchar("participant_id").references(() => sessionParticipants.id).notNull(),
+  
+  // File context
+  filePath: text("file_path").notNull(),
+  
+  // Operation details
+  operationType: text("operation_type").notNull(), // insert, delete, replace
+  position: integer("position").notNull(), // Character position in document
+  length: integer("length"), // For delete/replace: number of chars affected
+  text: text("text"), // For insert/replace: the text to insert
+  
+  // Versioning for OT
+  baseVersion: integer("base_version").notNull(),
+  resultVersion: integer("result_version").notNull(),
+  
+  // Timestamps
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_edit_ops_session").on(table.sessionId),
+  index("idx_edit_ops_version").on(table.sessionId, table.baseVersion),
+]);
+
+export type EditOperation = typeof editOperations.$inferSelect;
+
+// =============================================================================
+// JOB ORCHESTRATION TABLES
+// For multi-worker agent job processing with DAG dependencies
+// =============================================================================
+
+/**
+ * AGENT JOBS TABLE
+ * -----------------
+ * Tracks jobs submitted to the orchestration system.
+ * Supports DAG-based dependencies, priority queues, and parallel execution.
+ */
+export const agentJobs = pgTable("agent_jobs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  
+  // Job identification
+  name: text("name").notNull(),
+  type: text("type").notNull(), // 'prompt', 'tool', 'composite', 'workflow'
+  
+  // Priority (0 = highest, 10 = lowest)
+  priority: integer("priority").default(5).notNull(),
+  
+  // Parent job (for hierarchical/composite jobs)
+  parentJobId: varchar("parent_job_id").references((): any => agentJobs.id, { onDelete: "cascade" }),
+  
+  // Dependencies (array of job IDs that must complete before this job runs)
+  dependencies: text("dependencies").array().default([]),
+  
+  // Execution mode
+  executionMode: text("execution_mode").default("sequential").notNull(), // 'sequential', 'parallel', 'batch'
+  
+  // Job payload (prompt, tool args, etc.)
+  payload: jsonb("payload").notNull(),
+  
+  // Status tracking
+  status: text("status").default("pending").notNull(), // 'pending', 'queued', 'running', 'completed', 'failed', 'cancelled'
+  
+  // Assignment
+  workerId: varchar("worker_id"),
+  
+  // Retry configuration
+  maxRetries: integer("max_retries").default(3),
+  retryCount: integer("retry_count").default(0),
+  
+  // Timeout (milliseconds)
+  timeout: integer("timeout").default(300000), // 5 minutes default
+  
+  // Scheduling
+  scheduledFor: timestamp("scheduled_for"),
+  cronExpression: text("cron_expression"),
+  
+  // Timestamps
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  startedAt: timestamp("started_at"),
+  completedAt: timestamp("completed_at"),
+  
+  // User association
+  userId: varchar("user_id"),
+}, (table) => [
+  index("idx_agent_jobs_status").on(table.status),
+  index("idx_agent_jobs_priority").on(table.priority),
+  index("idx_agent_jobs_parent").on(table.parentJobId),
+  index("idx_agent_jobs_scheduled").on(table.scheduledFor),
+]);
+
+export const insertAgentJobSchema = createInsertSchema(agentJobs).omit({
+  id: true,
+  createdAt: true,
+  startedAt: true,
+  completedAt: true,
+});
+export type InsertAgentJob = z.infer<typeof insertAgentJobSchema>;
+export type AgentJob = typeof agentJobs.$inferSelect;
+
+/**
+ * JOB RESULTS TABLE
+ * ------------------
+ * Stores outputs from completed jobs.
+ * Supports structured results, streaming data, and aggregation.
+ */
+export const jobResults = pgTable("job_results", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  
+  // Job reference
+  jobId: varchar("job_id").references(() => agentJobs.id, { onDelete: "cascade" }).notNull().unique(),
+  
+  // Result data
+  success: boolean("success").notNull(),
+  output: jsonb("output"), // Structured result data
+  error: text("error"), // Error message if failed
+  
+  // Token usage tracking
+  inputTokens: integer("input_tokens"),
+  outputTokens: integer("output_tokens"),
+  
+  // Execution metrics
+  durationMs: integer("duration_ms"),
+  
+  // Timestamps
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_job_results_job").on(table.jobId),
+]);
+
+export const insertJobResultSchema = createInsertSchema(jobResults).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertJobResult = z.infer<typeof insertJobResultSchema>;
+export type JobResult = typeof jobResults.$inferSelect;
+
+/**
+ * AGENT WORKERS TABLE
+ * --------------------
+ * Tracks active workers in the pool.
+ * Used for health checks, load balancing, and auto-restart.
+ */
+export const agentWorkers = pgTable("agent_workers", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  
+  // Worker identification
+  name: text("name").notNull(),
+  type: text("type").default("gemini").notNull(), // 'gemini', 'custom'
+  
+  // Status
+  status: text("status").default("idle").notNull(), // 'idle', 'busy', 'offline', 'error'
+  
+  // Current job
+  currentJobId: varchar("current_job_id").references(() => agentJobs.id),
+  
+  // Capacity
+  maxConcurrency: integer("max_concurrency").default(1),
+  activeJobs: integer("active_jobs").default(0),
+  
+  // Health tracking
+  lastHeartbeat: timestamp("last_heartbeat").defaultNow().notNull(),
+  consecutiveFailures: integer("consecutive_failures").default(0),
+  
+  // Metrics
+  totalJobsProcessed: integer("total_jobs_processed").default(0),
+  totalTokensUsed: bigint("total_tokens_used", { mode: "number" }).default(0),
+  
+  // Timestamps
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_agent_workers_status").on(table.status),
+  index("idx_agent_workers_heartbeat").on(table.lastHeartbeat),
+]);
+
+export const insertAgentWorkerSchema = createInsertSchema(agentWorkers).omit({
+  id: true,
+  createdAt: true,
+  lastHeartbeat: true,
+});
+export type InsertAgentWorker = z.infer<typeof insertAgentWorkerSchema>;
+export type AgentWorker = typeof agentWorkers.$inferSelect;
+
+// =============================================================================
+// AGENT IDENTITY SYSTEM
+// For per-agent attribution of GitHub/Google Workspace actions
+// =============================================================================
+
+/**
+ * AGENT IDENTITIES TABLE
+ * ----------------------
+ * Stores distinct agent identities for attribution of automated actions.
+ * Each agent has its own identity that can be used to sign commits, PRs,
+ * issues, and other automated operations.
+ * 
+ * While actions are authenticated using the primary user's API key,
+ * the author/creator is attributed to the specific agent.
+ */
+export const agentIdentities = pgTable("agent_identities", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  
+  // Agent identification
+  name: text("name").notNull().unique(), // e.g., "Agentia Compiler"
+  email: text("email").notNull(), // Git commit email, e.g., "compiler@agentia.dev"
+  username: text("username"), // Optional GitHub username if dedicated account exists
+  
+  // Agent type and permissions
+  agentType: text("agent_type").notNull(), // 'compiler', 'guest', 'specialized'
+  permissionLevel: text("permission_level").default("full").notNull(), // 'full', 'limited', 'readonly'
+  
+  // Display information
+  displayName: text("display_name").notNull(), // Human-readable name
+  avatarUrl: text("avatar_url"), // Optional avatar image URL
+  description: text("description"), // Agent's purpose/role
+  
+  // Configuration
+  githubSignature: text("github_signature"), // Signature added to commits/PRs
+  enabled: boolean("enabled").default(true).notNull(),
+  
+  // Timestamps
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertAgentIdentitySchema = createInsertSchema(agentIdentities).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export type InsertAgentIdentity = z.infer<typeof insertAgentIdentitySchema>;
+export type AgentIdentity = typeof agentIdentities.$inferSelect;
+
+/**
+ * AGENT ACTIVITY LOG TABLE
+ * -------------------------
+ * Audit trail of all actions performed by agents.
+ * Tracks GitHub commits, PRs, issues, and Google Workspace operations.
+ */
+export const agentActivityLog = pgTable("agent_activity_log", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  
+  // Agent reference
+  agentId: varchar("agent_id").references(() => agentIdentities.id, { onDelete: "cascade" }).notNull(),
+  
+  // Activity details
+  activityType: text("activity_type").notNull(), // 'commit', 'pr', 'issue', 'email', 'doc_edit', etc.
+  platform: text("platform").notNull(), // 'github', 'gmail', 'drive', 'calendar', etc.
+  
+  // Resource identification
+  resourceType: text("resource_type"), // 'repository', 'issue', 'pull_request', 'email', 'document'
+  resourceId: text("resource_id"), // External ID (PR number, commit SHA, email ID, etc.)
+  resourceUrl: text("resource_url"), // Direct link to the resource
+  
+  // Action details
+  action: text("action").notNull(), // 'create', 'update', 'delete', 'comment'
+  title: text("title"), // Brief description of the action
+  metadata: jsonb("metadata"), // Additional context (commit message, PR body, etc.)
+  
+  // Result
+  success: boolean("success").default(true).notNull(),
+  errorMessage: text("error_message"),
+  
+  // Timestamps
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_agent_activity_agent").on(table.agentId),
+  index("idx_agent_activity_type").on(table.activityType),
+  index("idx_agent_activity_platform").on(table.platform),
+]);
+
+export const insertAgentActivityLogSchema = createInsertSchema(agentActivityLog).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertAgentActivityLog = z.infer<typeof insertAgentActivityLogSchema>;
+export type AgentActivityLog = typeof agentActivityLog.$inferSelect;
+
+/**
+ * Agent type constants
+ */
+export const AgentTypes = {
+  COMPILER: "compiler",     // Main AI agent with full permissions
+  GUEST: "guest",           // Guest user agent with limited permissions
+  SPECIALIZED: "specialized" // Specialized agents for specific tasks
+} as const;
+
+export type AgentType = typeof AgentTypes[keyof typeof AgentTypes];
+
+/**
+ * Permission level constants
+ */
+export const PermissionLevels = {
+  FULL: "full",       // Full access to all operations
+  LIMITED: "limited", // Limited access (read + basic write)
+  READONLY: "readonly" // Read-only access
+} as const;
+
+export type PermissionLevel = typeof PermissionLevels[keyof typeof PermissionLevels];
+
+// =============================================================================
+// SSH HOST MANAGEMENT
+// For AI-driven remote server connections
+// =============================================================================
+
+/**
+ * SSH HOSTS TABLE
+ * ---------------
+ * Stores SSH connection profiles for remote servers.
+ * The AI can generate keys, add hosts, and establish connections.
+ */
+export const sshHosts = pgTable("ssh_hosts", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  
+  // Connection details
+  alias: text("alias").notNull().unique(), // User-friendly name (e.g., "my-server")
+  hostname: text("hostname").notNull(), // IP or domain
+  port: integer("port").default(22).notNull(),
+  username: text("username").notNull(),
+  
+  // Authentication - references a Replit secret by name
+  keySecretName: text("key_secret_name"), // Name of secret storing private key
+  passwordSecretName: text("password_secret_name"), // Alternative: password auth
+  
+  // Connection state
+  lastConnected: timestamp("last_connected"),
+  lastError: text("last_error"),
+  
+  // Metadata
+  description: text("description"),
+  tags: text("tags").array(), // For categorization
+  
+  // Timestamps
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertSshHostSchema = createInsertSchema(sshHosts).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  lastConnected: true,
+  lastError: true,
+});
+export type InsertSshHost = z.infer<typeof insertSshHostSchema>;
+export type SshHost = typeof sshHosts.$inferSelect;
+
+/**
+ * SSH KEYS TABLE
+ * --------------
+ * Stores SSH key pair metadata (public keys only - private keys go to secrets).
+ */
+export const sshKeys = pgTable("ssh_keys", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  
+  name: text("name").notNull().unique(), // Key pair name
+  publicKey: text("public_key").notNull(), // The public key content
+  privateKeySecretName: text("private_key_secret_name").notNull(), // Reference to Replit secret
+  
+  keyType: text("key_type").default("ed25519").notNull(), // ed25519, rsa, etc.
+  fingerprint: text("fingerprint"), // SSH key fingerprint
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertSshKeySchema = createInsertSchema(sshKeys).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertSshKey = z.infer<typeof insertSshKeySchema>;
+export type SshKey = typeof sshKeys.$inferSelect;
+
+// ============================================================================
+// SMS MESSAGES - Twilio Inbound SMS Storage
+// ============================================================================
+
+/**
+ * SMS MESSAGES TABLE
+ * ------------------
+ * Stores inbound and outbound SMS messages from Twilio integration.
+ * Used for tracking conversations via SMS and enabling AI responses.
+ */
+export const smsMessages = pgTable("sms_messages", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  
+  // Twilio identifiers
+  messageSid: varchar("message_sid").unique().notNull(), // Twilio's unique message ID
+  accountSid: varchar("account_sid").notNull(), // Twilio account SID
+  
+  // Message content
+  from: varchar("from").notNull(), // Sender phone number
+  to: varchar("to").notNull(), // Recipient phone number
+  body: text("body").notNull(), // Message content
+  
+  // Message metadata - using varchar with specific constraints for type safety
+  direction: varchar("direction", { length: 20 }).notNull(), // "inbound" or "outbound"
+  status: varchar("status", { length: 50 }).notNull(), // Twilio message status (received, sent, failed, etc.)
+  numMedia: integer("num_media").default(0), // Number of media attachments
+  mediaUrls: jsonb("media_urls"), // Array of media URLs if present
+  
+  // Processing state
+  processed: boolean("processed").default(false).notNull(), // Whether AI has processed this message
+  chatId: varchar("chat_id").references(() => chats.id, { onDelete: "set null" }), // Link to chat if AI responded
+  responseMessageSid: varchar("response_message_sid"), // SID of the response message we sent
+  
+  // Error tracking
+  errorCode: integer("error_code"), // Twilio error code if any
+  errorMessage: text("error_message"), // Error details
+  
+  // Timestamps
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  processedAt: timestamp("processed_at"), // When AI processed the message
+});
+
+export const insertSmsMessageSchema = createInsertSchema(smsMessages).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertSmsMessage = z.infer<typeof insertSmsMessageSchema>;
+export type SmsMessage = typeof smsMessages.$inferSelect;
+// =============================================================================
+// TWILIO CONVERSATIONAL CALLING SYSTEM
+// =============================================================================
+
+/**
+ * CALL CONVERSATIONS TABLE
+ * -------------------------
+ * Stores metadata and state for Twilio voice call conversations.
+ * Enables multi-turn, AI-powered phone conversations with context preservation.
+ * 
+ * Each call conversation:
+ * - Tracks caller info and call SID
+ * - Maintains conversation state (active, completed, failed)
+ * - Links to associated chat for full conversation history
+ * - Records call duration and outcome
+ */
+export const callConversations = pgTable("call_conversations", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  
+  // Twilio call identification
+  callSid: text("call_sid").notNull().unique(), // Twilio call identifier
+  fromNumber: text("from_number").notNull(), // Caller's phone number
+  toNumber: text("to_number").notNull(), // Receiving number (our Twilio number)
+  
+  // Associated chat for conversation history
+  chatId: varchar("chat_id").references(() => chats.id, { onDelete: "cascade" }),
+  
+  // Call state
+  status: text("status").default("in_progress").notNull(), // in_progress, completed, failed, no_input
+  
+  // Conversation metadata
+  turnCount: integer("turn_count").default(0).notNull(), // Number of speech turns
+  currentContext: text("current_context"), // Last question asked or context
+  
+  // Recording and transcription
+  recordingUrl: text("recording_url"), // URL to the full call recording
+  recordingSid: text("recording_sid"), // Twilio recording identifier
+  transcription: text("transcription"), // Full call transcription
+  transcriptionStatus: text("transcription_status"), // pending, completed, failed
+  
+  // Timing
+  startedAt: timestamp("started_at").defaultNow().notNull(),
+  endedAt: timestamp("ended_at"),
+  duration: integer("duration"), // Call duration in seconds
+  
+  // Error tracking
+  errorMessage: text("error_message"),
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_call_conversations_sid").on(table.callSid),
+  index("idx_call_conversations_status").on(table.status),
+  index("idx_call_conversations_recording_sid").on(table.recordingSid),
+]);
+
+export const insertCallConversationSchema = createInsertSchema(callConversations).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  endedAt: true,
+});
+export type InsertCallConversation = z.infer<typeof insertCallConversationSchema>;
+export type CallConversation = typeof callConversations.$inferSelect;
+
+/**
+ * CALL TURNS TABLE
+ * ----------------
+ * Stores individual speech turns within a call conversation.
+ * Each turn represents one user speech input and the AI's response.
+ */
+export const callTurns = pgTable("call_turns", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  
+  // Link to parent conversation
+  conversationId: varchar("conversation_id").references(() => callConversations.id, { onDelete: "cascade" }).notNull(),
+  
+  // Turn sequence
+  turnNumber: integer("turn_number").notNull(), // Sequential turn number
+  
+  // User speech input
+  userSpeech: text("user_speech"), // Transcribed user speech from Twilio
+  speechConfidence: text("speech_confidence"), // Twilio confidence score (0.0-1.0) stored as text from webhook
+  
+  // AI response
+  aiResponse: text("ai_response").notNull(), // AI-generated response text
+  aiResponseAudio: text("ai_response_audio"), // TwiML or audio URL if custom TTS
+  
+  // Timing
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  duration: integer("duration"), // Turn duration in seconds
+}, (table) => [
+  index("idx_call_turns_conversation").on(table.conversationId),
+  index("idx_call_turns_number").on(table.conversationId, table.turnNumber),
+]);
+
+export const insertCallTurnSchema = createInsertSchema(callTurns).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertCallTurn = z.infer<typeof insertCallTurnSchema>;
+export type CallTurn = typeof callTurns.$inferSelect;
+
+/**
+ * VOICEMAILS TABLE
+ * ----------------
+ * Stores voicemail recordings and transcriptions from Twilio.
+ * Each voicemail represents a recorded message left by a caller.
+ */
+export const voicemails = pgTable("voicemails", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  
+  // Twilio identification
+  recordingSid: text("recording_sid").notNull().unique(), // Twilio recording identifier
+  callSid: text("call_sid"), // Associated call SID if available
+  
+  // Caller information
+  fromNumber: text("from_number").notNull(), // Caller's phone number
+  toNumber: text("to_number").notNull(), // Receiving number (our Twilio number)
+  
+  // Recording details
+  recordingUrl: text("recording_url").notNull(), // URL to access the recording
+  duration: integer("duration"), // Duration in seconds
+  
+  // Transcription
+  transcription: text("transcription"), // Transcribed voicemail text
+  transcriptionStatus: text("transcription_status"), // pending, completed, failed
+  
+  // Status
+  heard: boolean("heard").default(false).notNull(), // Whether voicemail has been listened to
+  heardAt: timestamp("heard_at"), // When it was marked as heard
+  
+  // Timestamps
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_voicemails_recording_sid").on(table.recordingSid),
+  index("idx_voicemails_from_number").on(table.fromNumber),
+  index("idx_voicemails_heard").on(table.heard),
+]);
+
+export const insertVoicemailSchema = createInsertSchema(voicemails).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export type InsertVoicemail = z.infer<typeof insertVoicemailSchema>;
+export type Voicemail = typeof voicemails.$inferSelect;
+
+// =============================================================================
+// RAG TRACEABILITY SYSTEM
+// =============================================================================
+/**
+ * RAG_TRACES TABLE
+ * ----------------
+ * Comprehensive tracing for RAG pipeline operations (ingestion and queries).
+ * Enables debugging, performance analysis, and audit trails.
+ */
+export const ragTraces = pgTable("rag_traces", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  
+  // Trace identification
+  traceId: varchar("trace_id", { length: 255 }).notNull(),
+  traceType: varchar("trace_type", { length: 50 }).notNull(), // 'ingestion' | 'query'
+  
+  // Timing
+  timestamp: timestamp("timestamp").notNull().defaultNow(),
+  durationMs: integer("duration_ms"),
+  
+  // Stage
+  stage: varchar("stage", { length: 50 }).notNull(),
+  
+  // Content references
+  documentId: varchar("document_id", { length: 255 }),
+  chunkIds: text("chunk_ids").array(),
+  messageId: varchar("message_id", { length: 255 }),
+  chatId: varchar("chat_id", { length: 255 }),
+  userId: varchar("user_id", { length: 255 }),
+  
+  // Query details
+  queryText: text("query_text"),
+  queryLength: integer("query_length"),
+  
+  // Ingestion details
+  filename: varchar("filename", { length: 500 }),
+  contentType: varchar("content_type", { length: 100 }),
+  contentLength: integer("content_length"),
+  
+  // Chunking details
+  chunksCreated: integer("chunks_created"),
+  chunksFiltered: integer("chunks_filtered"),
+  chunkingStrategy: varchar("chunking_strategy", { length: 50 }),
+  
+  // Embedding details
+  embeddingModel: varchar("embedding_model", { length: 100 }),
+  embeddingDimensions: integer("embedding_dimensions"),
+  
+  // Search/retrieval details
+  searchResults: integer("search_results"),
+  threshold: varchar("threshold", { length: 20 }), // Store as string to avoid float precision issues
+  topK: integer("top_k"),
+  scores: text("scores").array(), // Store as string array
+  
+  // Context injection
+  tokensUsed: integer("tokens_used"),
+  sourcesCount: integer("sources_count"),
+  contextLength: integer("context_length"),
+  
+  // Error tracking
+  errorMessage: text("error_message"),
+  errorStage: varchar("error_stage", { length: 50 }),
+  
+  // Metadata
+  metadata: jsonb("metadata"),
+  
+  // Timestamps
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (table) => [
+  index("idx_rag_traces_trace_id").on(table.traceId),
+  index("idx_rag_traces_timestamp").on(table.timestamp),
+  index("idx_rag_traces_type_stage").on(table.traceType, table.stage),
+]);
+
+export const insertRagTraceSchema = createInsertSchema(ragTraces).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertRagTrace = z.infer<typeof insertRagTraceSchema>;
+export type RagTrace = typeof ragTraces.$inferSelect;
+
+/**
+ * RAG_CHUNK_LINEAGE TABLE
+ * -----------------------
+ * Track chunk lifecycle from creation to retrieval.
+ * Enables understanding of chunk usage and quality metrics.
+ */
+export const ragChunkLineage = pgTable("rag_chunk_lineage", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  
+  // Chunk identification
+  chunkId: varchar("chunk_id", { length: 255 }).notNull().unique(),
+  documentId: varchar("document_id", { length: 255 }).notNull(),
+  
+  // Source tracking
+  sourceType: varchar("source_type", { length: 100 }).notNull(),
+  sourceId: varchar("source_id", { length: 255 }).notNull(),
+  filename: varchar("filename", { length: 500 }),
+  
+  // Ingestion metadata
+  ingestedAt: timestamp("ingested_at").notNull().defaultNow(),
+  ingestionTraceId: varchar("ingestion_trace_id", { length: 255 }),
+  
+  // Chunk details
+  contentPreview: text("content_preview"),
+  contentLength: integer("content_length"),
+  chunkIndex: integer("chunk_index"),
+  
+  // Vector metadata
+  embeddingModel: varchar("embedding_model", { length: 100 }),
+  vectorStore: varchar("vector_store", { length: 100 }),
+  
+  // Usage tracking
+  retrievalCount: integer("retrieval_count").default(0),
+  lastRetrievedAt: timestamp("last_retrieved_at"),
+  avgSimilarityScore: varchar("avg_similarity_score", { length: 20 }),
+  
+  // Quality metrics
+  importanceScore: varchar("importance_score", { length: 20 }),
+  isVerified: boolean("is_verified").default(false),
+  
+  // Metadata
+  tags: text("tags").array(),
+  metadata: jsonb("metadata"),
+  
+  // Timestamps
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+}, (table) => [
+  index("idx_chunk_lineage_document").on(table.documentId),
+  index("idx_chunk_lineage_source").on(table.sourceType, table.sourceId),
+]);
+
+export const insertRagChunkLineageSchema = createInsertSchema(ragChunkLineage).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export type InsertRagChunkLineage = z.infer<typeof insertRagChunkLineageSchema>;
+export type RagChunkLineage = typeof ragChunkLineage.$inferSelect;
+
+/**
+ * RAG_RETRIEVAL_RESULTS TABLE
+ * ---------------------------
+ * Detailed tracking of query results.
+ * Links queries to retrieved chunks with scores and feedback.
+ */
+export const ragRetrievalResults = pgTable("rag_retrieval_results", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  
+  // Query identification
+  traceId: varchar("trace_id", { length: 255 }).notNull(),
+  queryText: text("query_text").notNull(),
+  userId: varchar("user_id", { length: 255 }),
+  chatId: varchar("chat_id", { length: 255 }),
+  
+  // Result details
+  chunkId: varchar("chunk_id", { length: 255 }).notNull(),
+  similarityScore: varchar("similarity_score", { length: 20 }).notNull(),
+  rank: integer("rank").notNull(),
+  
+  // Context inclusion
+  includedInContext: boolean("included_in_context").default(false),
+  contextPosition: integer("context_position"),
+  
+  // Quality feedback
+  wasRelevant: boolean("was_relevant"),
+  feedbackSource: varchar("feedback_source", { length: 50 }),
+  
+  // Timestamps
+  retrievedAt: timestamp("retrieved_at").notNull().defaultNow(),
+}, (table) => [
+  index("idx_retrieval_trace").on(table.traceId),
+  index("idx_retrieval_chunk").on(table.chunkId),
+]);
+
+export const insertRagRetrievalResultSchema = createInsertSchema(ragRetrievalResults).omit({
+  id: true,
+  retrievedAt: true,
+});
+export type InsertRagRetrievalResult = z.infer<typeof insertRagRetrievalResultSchema>;
+export type RagRetrievalResult = typeof ragRetrievalResults.$inferSelect;
+
+/**
+ * RAG_METRICS_HOURLY TABLE
+ * ------------------------
+ * Pre-aggregated performance metrics for efficient analytics.
+ * Updated via scheduled job every hour.
+ */
+export const ragMetricsHourly = pgTable("rag_metrics_hourly", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  
+  // Time bucket
+  hourStart: timestamp("hour_start").notNull().unique(),
+  
+  // Ingestion metrics
+  documentsIngested: integer("documents_ingested").default(0),
+  chunksCreated: integer("chunks_created").default(0),
+  chunksFiltered: integer("chunks_filtered").default(0),
+  avgIngestionDurationMs: integer("avg_ingestion_duration_ms"),
+  
+  // Query metrics
+  queriesProcessed: integer("queries_processed").default(0),
+  avgQueryDurationMs: integer("avg_query_duration_ms"),
+  avgSearchResults: integer("avg_search_results"),
+  avgContextTokens: integer("avg_context_tokens"),
+  
+  // Quality metrics
+  avgSimilarityScore: varchar("avg_similarity_score", { length: 20 }),
+  emptyResultCount: integer("empty_result_count").default(0),
+  errorCount: integer("error_count").default(0),
+  
+  // Cost tracking
+  embeddingApiCalls: integer("embedding_api_calls").default(0),
+  vectorSearchOperations: integer("vector_search_operations").default(0),
+  
+  // Timestamps
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertRagMetricsHourlySchema = createInsertSchema(ragMetricsHourly).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertRagMetricsHourly = z.infer<typeof insertRagMetricsHourlySchema>;
+export type RagMetricsHourly = typeof ragMetricsHourly.$inferSelect;
+
+// =============================================================================
+// LLM INTERACTION CAPTURE TABLE
+// =============================================================================
+
+/**
+ * LLM_INTERACTIONS TABLE
+ * ----------------------
+ * Stores complete LLM input/output data for debugging and visualization.
+ * Captures all prompts, tool calls, results, and responses for analysis.
+ * 
+ * PURPOSE:
+ * - Debugging: Inspect what the LLM sees and generates
+ * - Visualization: Show agent thought process and tool usage
+ * - Analysis: Track patterns, errors, and performance
+ * - Audit: Historical record of all LLM interactions
+ * 
+ * DATA RETENTION:
+ * Consider implementing retention policies to manage database size:
+ * - Archive/delete interactions older than 30 days
+ * - Keep only error cases or flagged interactions long-term
+ * - Compress large payloads (systemPrompt, rawResponse) if needed
+ */
+export const llmInteractions = pgTable("llm_interactions", {
+  /**
+   * Primary key - Auto-generated UUID
+   */
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  
+  /**
+   * Reference to the chat this interaction belongs to
+   * Nullable because some LLM interactions may not be tied to a chat
+   */
+  chatId: varchar("chat_id").references(() => chats.id, { onDelete: "cascade" }),
+  
+  /**
+   * Reference to the specific message that triggered this interaction
+   * Links to the user message that initiated the LLM call
+   */
+  messageId: varchar("message_id").references(() => messages.id, { onDelete: "cascade" }),
+  
+  /**
+   * User ID - for data isolation and filtering
+   * NULL for guest users
+   */
+  userId: varchar("user_id").references(() => users.id, { onDelete: "cascade" }),
+  
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // INPUT DATA - What went into the LLM
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  
+  /**
+   * The complete system prompt/instruction sent to the LLM
+   * Includes core directives, personality, tools, and RAG context
+   */
+  systemPrompt: text("system_prompt"),
+  
+  /**
+   * The user's message/query
+   */
+  userMessage: text("user_message"),
+  
+  /**
+   * Conversation history sent as context
+   * Stored as JSONB for efficient querying and indexing
+   */
+  conversationHistory: jsonb("conversation_history").$type<Array<{ role: string; content: string }>>(),
+  
+  /**
+   * Attachments included with the message
+   * File metadata only (not full content to save space)
+   */
+  attachments: jsonb("attachments").$type<Array<{ type: string; filename?: string; mimeType?: string; size?: number }>>(),
+  
+  /**
+   * RAG context injected into the prompt
+   * Documents/chunks retrieved from vector store
+   */
+  ragContext: jsonb("rag_context").$type<Array<{ source: string; content: string; score?: number; metadata?: Record<string, unknown> }>>(),
+  
+  /**
+   * Files injected into the prompt
+   */
+  injectedFiles: jsonb("injected_files").$type<Array<{ filename: string; content: string; mimeType?: string }>>(),
+  
+  /**
+   * JSON data injected into the prompt
+   */
+  injectedJson: jsonb("injected_json").$type<Array<{ name: string; data: unknown }>>(),
+  
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // OUTPUT DATA - What the LLM generated
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  
+  /**
+   * Raw response from the LLM (includes function calls, thinking, etc.)
+   */
+  rawResponse: text("raw_response"),
+  
+  /**
+   * Clean content extracted from response (prose only, no tool JSON)
+   */
+  cleanContent: text("clean_content"),
+  
+  /**
+   * Parsed tool calls from the response
+   */
+  parsedToolCalls: jsonb("parsed_tool_calls").$type<unknown[]>(),
+  
+  /**
+   * Results from executing tool calls
+   */
+  toolResults: jsonb("tool_results").$type<Array<{ 
+    toolId: string; 
+    type: string; 
+    success: boolean; 
+    result?: unknown; 
+    error?: string 
+  }>>(),
+  
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // METADATA - Performance and model info
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  
+  /**
+   * Model used for this interaction (e.g., "gemini-2.0-flash", "gemini-2.5-pro")
+   */
+  model: varchar("model", { length: 100 }),
+  
+  /**
+   * Duration of the LLM call in milliseconds
+   */
+  durationMs: integer("duration_ms"),
+  
+  /**
+   * Token usage estimate or actual count
+   */
+  tokenEstimate: jsonb("token_estimate").$type<{
+    inputTokens: number;
+    outputTokens: number;
+  }>(),
+  
+  /**
+   * Error information if the interaction failed
+   */
+  error: text("error"),
+  
+  /**
+   * Status of the interaction
+   */
+  status: varchar("status", { length: 20 }).notNull().default("success"),
+  
+  /**
+   * Timestamp when this interaction occurred
+   */
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// Create insert schema for LLM interactions
+export const insertLlmInteractionSchema = createInsertSchema(llmInteractions).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertLlmInteraction = z.infer<typeof insertLlmInteractionSchema>;
+export type LlmInteraction = typeof llmInteractions.$inferSelect;
+
+// =============================================================================
+// TO-DO LIST SYSTEM
+// =============================================================================
+
+/**
+ * TODO_ITEMS TABLE
+ * ----------------
+ * Stores persistent to-do list items for users.
+ * This master to-do list is included in every prompt to inform the AI's
+ * decision-making and help it prioritize tasks.
+ * 
+ * The to-do list is:
+ * - Stored in the database for persistence across resets
+ * - Cached to logs/todo.md for introspection
+ * - Included in every system prompt as a header message
+ * 
+ * PRIORITY SYSTEM:
+ * - Higher numbers = higher priority
+ * - Used for sorting and AI decision-making
+ * 
+ * STATUS VALUES:
+ * - "pending": Not started
+ * - "in_progress": Currently being worked on
+ * - "completed": Finished
+ * - "blocked": Waiting on something
+ * - "cancelled": No longer relevant
+ */
+export const todoItems = pgTable("todo_items", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  
+  // User association
+  userId: varchar("user_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
+  
+  // Content
+  title: text("title").notNull(),
+  description: text("description"),
+  
+  // Status tracking
+  status: text("status").default("pending").notNull(), // pending, in_progress, completed, blocked, cancelled
+  
+  // Priority (higher = more important)
+  priority: integer("priority").default(0).notNull(),
+  
+  // Context & metadata
+  category: text("category"), // e.g., "bug", "feature", "research", "maintenance"
+  tags: text("tags").array(), // Flexible categorization
+  relatedChatId: varchar("related_chat_id").references(() => chats.id, { onDelete: "set null" }),
+  
+  // Timestamps
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  completedAt: timestamp("completed_at"),
+}, (table) => [
+  index("idx_todo_items_user").on(table.userId),
+  index("idx_todo_items_status").on(table.status),
+  index("idx_todo_items_priority").on(table.priority),
+]);
+
+export const insertTodoItemSchema = createInsertSchema(todoItems).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  completedAt: true,
+});
+export type InsertTodoItem = z.infer<typeof insertTodoItemSchema>;
+export type TodoItem = typeof todoItems.$inferSelect;
+
+
+--- FILE: server/db.ts ---
+/**
+ * =============================================================================
+ * DATABASE CONNECTION MODULE
+ * =============================================================================
+ * 
+ * Provides a shared Drizzle database connection for direct queries.
+ * This is used by the vector store adapters and other services that need
+ * raw database access.
+ * 
+ * TEACHING NOTES:
+ * ---------------
+ * This module creates a singleton database connection pool:
+ * - Pool manages multiple connections efficiently
+ * - Connections are reused rather than created for each query
+ * - Idle connections are closed after 30 seconds
+ * 
+ * For most operations, use the storage interface instead of direct db access.
+ * =============================================================================
+ */
+
+import { drizzle, NodePgDatabase } from "drizzle-orm/node-postgres";
+import { Pool } from "pg";
+
+let _db: NodePgDatabase | null = null;
+let _pool: Pool | null = null;
+
+/**
+ * Get the shared Drizzle database instance
+ * Creates the connection pool on first call (lazy initialization)
+ */
+export function getDb(): NodePgDatabase {
+  if (!_db) {
+    if (!process.env.DATABASE_URL) {
+      throw new Error("DATABASE_URL environment variable is not set");
+    }
+
+    _pool = new Pool({
+      connectionString: process.env.DATABASE_URL,
+      connectionTimeoutMillis: 10000,
+      idleTimeoutMillis: 30000,
+      max: 10,
+    });
+
+    _pool.on("error", (err) => {
+      console.error("[db] Unexpected pool error:", err.message);
+    });
+
+    _db = drizzle(_pool);
+    console.log("[db] Database connection pool created");
+  }
+
+  return _db;
+}
+
+/**
+ * Alias for getDb() - provides direct db access
+ * Named export for convenience in imports
+ */
+export const db = {
+  execute: async (query: any) => {
+    return getDb().execute(query);
+  },
+};
+
+/**
+ * Close the database connection pool
+ * Call this on graceful shutdown
+ */
+export async function closeDb(): Promise<void> {
+  if (_pool) {
+    await _pool.end();
+    _pool = null;
+    _db = null;
+    console.log("[db] Database connection pool closed");
+  }
+}
+
+
+--- FILE: drizzle.config.ts ---
+import { defineConfig } from "drizzle-kit";
+
+if (!process.env.DATABASE_URL) {
+  throw new Error("DATABASE_URL, ensure the database is provisioned");
+}
+
+export default defineConfig({
+  out: "./migrations",
+  schema: "./shared/schema.ts",
+  dialect: "postgresql",
+  dbCredentials: {
+    url: process.env.DATABASE_URL,
+  },
+});
+
+
+--- MIGRATIONS (SQL) ---
+
+-- Migration: 0000_lying_ultimo.sql --
+CREATE TABLE "agent_activity_log" (
+	"id" varchar PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"agent_id" varchar NOT NULL,
+	"activity_type" text NOT NULL,
+	"platform" text NOT NULL,
+	"resource_type" text,
+	"resource_id" text,
+	"resource_url" text,
+	"action" text NOT NULL,
+	"title" text,
+	"metadata" jsonb,
+	"success" boolean DEFAULT true NOT NULL,
+	"error_message" text,
+	"created_at" timestamp DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "agent_identities" (
+	"id" varchar PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"name" text NOT NULL,
+	"email" text NOT NULL,
+	"username" text,
+	"agent_type" text NOT NULL,
+	"permission_level" text DEFAULT 'full' NOT NULL,
+	"display_name" text NOT NULL,
+	"avatar_url" text,
+	"description" text,
+	"github_signature" text,
+	"enabled" boolean DEFAULT true NOT NULL,
+	"created_at" timestamp DEFAULT now() NOT NULL,
+	"updated_at" timestamp DEFAULT now() NOT NULL,
+	CONSTRAINT "agent_identities_name_unique" UNIQUE("name")
+);
+--> statement-breakpoint
+CREATE TABLE "agent_jobs" (
+	"id" varchar PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"name" text NOT NULL,
+	"type" text NOT NULL,
+	"priority" integer DEFAULT 5 NOT NULL,
+	"parent_job_id" varchar,
+	"dependencies" text[] DEFAULT '{}',
+	"execution_mode" text DEFAULT 'sequential' NOT NULL,
+	"payload" jsonb NOT NULL,
+	"status" text DEFAULT 'pending' NOT NULL,
+	"worker_id" varchar,
+	"max_retries" integer DEFAULT 3,
+	"retry_count" integer DEFAULT 0,
+	"timeout" integer DEFAULT 300000,
+	"scheduled_for" timestamp,
+	"cron_expression" text,
+	"created_at" timestamp DEFAULT now() NOT NULL,
+	"started_at" timestamp,
+	"completed_at" timestamp,
+	"user_id" varchar
+);
+--> statement-breakpoint
+CREATE TABLE "agent_workers" (
+	"id" varchar PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"name" text NOT NULL,
+	"type" text DEFAULT 'gemini' NOT NULL,
+	"status" text DEFAULT 'idle' NOT NULL,
+	"current_job_id" varchar,
+	"max_concurrency" integer DEFAULT 1,
+	"active_jobs" integer DEFAULT 0,
+	"last_heartbeat" timestamp DEFAULT now() NOT NULL,
+	"consecutive_failures" integer DEFAULT 0,
+	"total_jobs_processed" integer DEFAULT 0,
+	"total_tokens_used" bigint DEFAULT 0,
+	"created_at" timestamp DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "attachments" (
+	"id" varchar PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"message_id" varchar,
+	"draft_id" varchar,
+	"type" text NOT NULL,
+	"filename" text NOT NULL,
+	"mime_type" text,
+	"size" bigint,
+	"content" text,
+	"path" text,
+	"permissions" text,
+	"created_at" timestamp DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "call_conversations" (
+	"id" varchar PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"call_sid" text NOT NULL,
+	"from_number" text NOT NULL,
+	"to_number" text NOT NULL,
+	"chat_id" varchar,
+	"status" text DEFAULT 'in_progress' NOT NULL,
+	"turn_count" integer DEFAULT 0 NOT NULL,
+	"current_context" text,
+	"started_at" timestamp DEFAULT now() NOT NULL,
+	"ended_at" timestamp,
+	"duration" integer,
+	"error_message" text,
+	"created_at" timestamp DEFAULT now() NOT NULL,
+	"updated_at" timestamp DEFAULT now() NOT NULL,
+	CONSTRAINT "call_conversations_call_sid_unique" UNIQUE("call_sid")
+);
+--> statement-breakpoint
+CREATE TABLE "call_turns" (
+	"id" varchar PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"conversation_id" varchar NOT NULL,
+	"turn_number" integer NOT NULL,
+	"user_speech" text,
+	"speech_confidence" text,
+	"ai_response" text NOT NULL,
+	"ai_response_audio" text,
+	"created_at" timestamp DEFAULT now() NOT NULL,
+	"duration" integer
+);
+--> statement-breakpoint
+CREATE TABLE "chats" (
+	"id" varchar PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"title" text NOT NULL,
+	"user_id" varchar,
+	"is_guest" boolean DEFAULT false NOT NULL,
+	"created_at" timestamp DEFAULT now() NOT NULL,
+	"updated_at" timestamp DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "collaborative_sessions" (
+	"id" varchar PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"name" text NOT NULL,
+	"description" text,
+	"host_user_id" varchar,
+	"files" jsonb DEFAULT '[]'::jsonb NOT NULL,
+	"is_voice_enabled" boolean DEFAULT true NOT NULL,
+	"is_public" boolean DEFAULT false NOT NULL,
+	"max_participants" integer DEFAULT 5,
+	"status" text DEFAULT 'active' NOT NULL,
+	"created_at" timestamp DEFAULT now() NOT NULL,
+	"updated_at" timestamp DEFAULT now() NOT NULL,
+	"ended_at" timestamp
+);
+--> statement-breakpoint
+CREATE TABLE "conversation_sources" (
+	"id" varchar PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"source_type" text NOT NULL,
+	"source_id" text NOT NULL,
+	"title" text NOT NULL,
+	"participants" text[],
+	"message_count" integer DEFAULT 0,
+	"date_start" timestamp,
+	"date_end" timestamp,
+	"status" text DEFAULT 'pending' NOT NULL,
+	"content" text,
+	"created_at" timestamp DEFAULT now() NOT NULL,
+	"updated_at" timestamp DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "cross_references" (
+	"id" varchar PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"source_type" text NOT NULL,
+	"source_id" varchar NOT NULL,
+	"target_type" text NOT NULL,
+	"target_id" varchar NOT NULL,
+	"relationship_type" text NOT NULL,
+	"strength" integer DEFAULT 50,
+	"reason" text,
+	"created_at" timestamp DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "cursor_positions" (
+	"id" varchar PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"session_id" varchar NOT NULL,
+	"participant_id" varchar NOT NULL,
+	"file_path" text NOT NULL,
+	"line" integer NOT NULL,
+	"column" integer NOT NULL,
+	"selection_start_line" integer,
+	"selection_start_column" integer,
+	"selection_end_line" integer,
+	"selection_end_column" integer,
+	"updated_at" timestamp DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "document_chunks" (
+	"id" varchar PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"document_id" varchar NOT NULL,
+	"attachment_id" varchar,
+	"chunk_index" integer NOT NULL,
+	"content" text NOT NULL,
+	"embedding" jsonb,
+	"metadata" jsonb,
+	"created_at" timestamp DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "drafts" (
+	"id" varchar PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"chat_id" varchar NOT NULL,
+	"text_content" text DEFAULT '',
+	"voice_transcript" text DEFAULT '',
+	"status" text DEFAULT 'active' NOT NULL,
+	"created_at" timestamp DEFAULT now() NOT NULL,
+	"updated_at" timestamp DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "edit_operations" (
+	"id" varchar PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"session_id" varchar NOT NULL,
+	"participant_id" varchar NOT NULL,
+	"file_path" text NOT NULL,
+	"operation_type" text NOT NULL,
+	"position" integer NOT NULL,
+	"length" integer,
+	"text" text,
+	"base_version" integer NOT NULL,
+	"result_version" integer NOT NULL,
+	"created_at" timestamp DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "entities" (
+	"id" varchar PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"name" text NOT NULL,
+	"type" text NOT NULL,
+	"aliases" text[],
+	"description" text,
+	"external_ids" jsonb,
+	"mention_count" integer DEFAULT 0,
+	"last_mentioned" timestamp,
+	"created_at" timestamp DEFAULT now() NOT NULL,
+	"updated_at" timestamp DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "entity_mentions" (
+	"id" varchar PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"entity_id" varchar NOT NULL,
+	"evidence_id" varchar,
+	"knowledge_id" varchar,
+	"mention_text" text,
+	"context" text,
+	"sentiment" text,
+	"created_at" timestamp DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "evidence" (
+	"id" varchar PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"source_type" text NOT NULL,
+	"source_id" text,
+	"source_url" text,
+	"modality" text NOT NULL,
+	"mime_type" text,
+	"title" text,
+	"raw_content" text,
+	"extracted_text" text,
+	"summary" text,
+	"author" text,
+	"participants" text[],
+	"language" text DEFAULT 'en',
+	"word_count" integer,
+	"user_id" varchar,
+	"is_guest" boolean DEFAULT false NOT NULL,
+	"content_date" timestamp,
+	"created_at" timestamp DEFAULT now() NOT NULL,
+	"updated_at" timestamp DEFAULT now() NOT NULL,
+	"status" text DEFAULT 'pending' NOT NULL,
+	"processing_error" text,
+	"bucket" text,
+	"confidence" integer DEFAULT 0
+);
+--> statement-breakpoint
+CREATE TABLE "execution_logs" (
+	"id" varchar PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"task_id" varchar,
+	"action" text NOT NULL,
+	"input" jsonb,
+	"output" jsonb,
+	"exit_code" text,
+	"duration" text,
+	"created_at" timestamp DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "executor_state" (
+	"id" varchar PRIMARY KEY DEFAULT 'singleton' NOT NULL,
+	"status" text DEFAULT 'stopped' NOT NULL,
+	"current_task_id" varchar,
+	"running_task_ids" text[],
+	"tasks_processed" integer DEFAULT 0 NOT NULL,
+	"tasks_failed" integer DEFAULT 0 NOT NULL,
+	"last_activity_at" timestamp,
+	"max_parallel_tasks" integer DEFAULT 3,
+	"poll_interval_ms" integer DEFAULT 5000,
+	"started_at" timestamp,
+	"updated_at" timestamp DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "extracted_knowledge" (
+	"id" varchar PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"source_id" varchar,
+	"job_id" varchar,
+	"bucket" text NOT NULL,
+	"section" text,
+	"content" text NOT NULL,
+	"confidence" integer DEFAULT 100,
+	"metadata" jsonb,
+	"created_at" timestamp DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "feedback" (
+	"id" varchar PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"message_id" varchar,
+	"chat_id" varchar,
+	"rating" varchar(20),
+	"categories" jsonb,
+	"liked_aspects" text[],
+	"disliked_aspects" text[],
+	"freeform_text" text,
+	"prompt_snapshot" text,
+	"response_snapshot" text,
+	"kernel_id" varchar,
+	"created_at" timestamp DEFAULT now() NOT NULL,
+	"submitted_at" timestamp
+);
+--> statement-breakpoint
+CREATE TABLE "google_oauth_tokens" (
+	"id" varchar PRIMARY KEY DEFAULT 'default' NOT NULL,
+	"access_token" text,
+	"refresh_token" text,
+	"expiry_date" bigint,
+	"token_type" text,
+	"scope" text,
+	"created_at" timestamp DEFAULT now() NOT NULL,
+	"updated_at" timestamp DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "ingestion_jobs" (
+	"id" varchar PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"source_id" varchar,
+	"source_name" text NOT NULL,
+	"status" text DEFAULT 'pending' NOT NULL,
+	"progress" integer DEFAULT 0,
+	"messages_processed" integer DEFAULT 0,
+	"total_messages" integer DEFAULT 0,
+	"error" text,
+	"started_at" timestamp,
+	"completed_at" timestamp,
+	"created_at" timestamp DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "job_results" (
+	"id" varchar PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"job_id" varchar NOT NULL,
+	"success" boolean NOT NULL,
+	"output" jsonb,
+	"error" text,
+	"input_tokens" integer,
+	"output_tokens" integer,
+	"duration_ms" integer,
+	"created_at" timestamp DEFAULT now() NOT NULL,
+	CONSTRAINT "job_results_job_id_unique" UNIQUE("job_id")
+);
+--> statement-breakpoint
+CREATE TABLE "kernel_evolutions" (
+	"id" varchar PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"kernel_id" varchar NOT NULL,
+	"chat_id" varchar,
+	"message_id" varchar,
+	"evolution_type" text NOT NULL,
+	"target_section" text NOT NULL,
+	"observation" text NOT NULL,
+	"proposed_change" text NOT NULL,
+	"rationale" text,
+	"status" text DEFAULT 'pending' NOT NULL,
+	"reviewed_at" timestamp,
+	"applied_to_version" varchar,
+	"confidence" integer DEFAULT 50,
+	"created_at" timestamp DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "kernels" (
+	"id" varchar PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"version" text NOT NULL,
+	"parent_id" varchar,
+	"user_id" varchar,
+	"core_directives" text NOT NULL,
+	"personality" text,
+	"learned_behaviors" text,
+	"user_preferences" text,
+	"tool_config" jsonb,
+	"bucket_weights" jsonb,
+	"status" text DEFAULT 'active' NOT NULL,
+	"evolution_reason" text,
+	"change_log" text,
+	"created_at" timestamp DEFAULT now() NOT NULL,
+	"updated_at" timestamp DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "knowledge_embeddings" (
+	"id" varchar PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"evidence_id" varchar,
+	"knowledge_id" varchar,
+	"chunk_id" varchar,
+	"content" text NOT NULL,
+	"embedding" jsonb,
+	"embedding_model" text DEFAULT 'text-embedding-004',
+	"dimensions" integer DEFAULT 768,
+	"bucket" text,
+	"modality" text,
+	"source_type" text,
+	"user_id" varchar,
+	"is_guest" boolean DEFAULT false NOT NULL,
+	"created_at" timestamp DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "llm_interactions" (
+	"id" varchar PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"chat_id" varchar,
+	"message_id" varchar,
+	"user_id" varchar,
+	"system_prompt" text,
+	"user_message" text,
+	"conversation_history" jsonb,
+	"attachments" jsonb,
+	"rag_context" jsonb,
+	"injected_files" jsonb,
+	"injected_json" jsonb,
+	"raw_response" text,
+	"clean_content" text,
+	"parsed_tool_calls" jsonb,
+	"tool_results" jsonb,
+	"model" varchar(100),
+	"duration_ms" integer,
+	"token_estimate" jsonb,
+	"error" text,
+	"status" varchar(20) DEFAULT 'success' NOT NULL,
+	"created_at" timestamp DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "llm_usage" (
+	"id" varchar PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"chat_id" varchar,
+	"message_id" varchar,
+	"model" text NOT NULL,
+	"prompt_tokens" integer NOT NULL,
+	"completion_tokens" integer NOT NULL,
+	"total_tokens" integer NOT NULL,
+	"duration_ms" integer,
+	"metadata" jsonb,
+	"created_at" timestamp DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "messages" (
+	"id" varchar PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"chat_id" varchar NOT NULL,
+	"role" text NOT NULL,
+	"content" text NOT NULL,
+	"created_at" timestamp DEFAULT now() NOT NULL,
+	"metadata" jsonb,
+	"gemini_content" jsonb
+);
+--> statement-breakpoint
+CREATE TABLE "queued_tasks" (
+	"id" varchar PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"parent_id" varchar,
+	"chat_id" varchar,
+	"title" text NOT NULL,
+	"description" text,
+	"task_type" text NOT NULL,
+	"priority" integer DEFAULT 0 NOT NULL,
+	"status" text DEFAULT 'pending' NOT NULL,
+	"input" jsonb,
+	"output" jsonb,
+	"error" text,
+	"execution_mode" text DEFAULT 'sequential' NOT NULL,
+	"condition" text,
+	"condition_result" boolean,
+	"dependencies" text[],
+	"waiting_for_input" boolean DEFAULT false NOT NULL,
+	"input_prompt" text,
+	"operator_input" text,
+	"workflow_id" varchar,
+	"estimated_duration" integer,
+	"actual_duration" integer,
+	"retry_count" integer DEFAULT 0,
+	"max_retries" integer DEFAULT 3,
+	"created_at" timestamp DEFAULT now() NOT NULL,
+	"started_at" timestamp,
+	"completed_at" timestamp
+);
+--> statement-breakpoint
+CREATE TABLE "rag_chunk_lineage" (
+	"id" varchar PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"chunk_id" varchar(255) NOT NULL,
+	"document_id" varchar(255) NOT NULL,
+	"source_type" varchar(100) NOT NULL,
+	"source_id" varchar(255) NOT NULL,
+	"filename" varchar(500),
+	"ingested_at" timestamp DEFAULT now() NOT NULL,
+	"ingestion_trace_id" varchar(255),
+	"content_preview" text,
+	"content_length" integer,
+	"chunk_index" integer,
+	"embedding_model" varchar(100),
+	"vector_store" varchar(100),
+	"retrieval_count" integer DEFAULT 0,
+	"last_retrieved_at" timestamp,
+	"avg_similarity_score" varchar(20),
+	"importance_score" varchar(20),
+	"is_verified" boolean DEFAULT false,
+	"tags" text[],
+	"metadata" jsonb,
+	"created_at" timestamp DEFAULT now() NOT NULL,
+	"updated_at" timestamp DEFAULT now() NOT NULL,
+	CONSTRAINT "rag_chunk_lineage_chunk_id_unique" UNIQUE("chunk_id")
+);
+--> statement-breakpoint
+CREATE TABLE "rag_metrics_hourly" (
+	"id" varchar PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"hour_start" timestamp NOT NULL,
+	"documents_ingested" integer DEFAULT 0,
+	"chunks_created" integer DEFAULT 0,
+	"chunks_filtered" integer DEFAULT 0,
+	"avg_ingestion_duration_ms" integer,
+	"queries_processed" integer DEFAULT 0,
+	"avg_query_duration_ms" integer,
+	"avg_search_results" integer,
+	"avg_context_tokens" integer,
+	"avg_similarity_score" varchar(20),
+	"empty_result_count" integer DEFAULT 0,
+	"error_count" integer DEFAULT 0,
+	"embedding_api_calls" integer DEFAULT 0,
+	"vector_search_operations" integer DEFAULT 0,
+	"created_at" timestamp DEFAULT now() NOT NULL,
+	CONSTRAINT "rag_metrics_hourly_hour_start_unique" UNIQUE("hour_start")
+);
+--> statement-breakpoint
+CREATE TABLE "rag_retrieval_results" (
+	"id" varchar PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"trace_id" varchar(255) NOT NULL,
+	"query_text" text NOT NULL,
+	"user_id" varchar(255),
+	"chat_id" varchar(255),
+	"chunk_id" varchar(255) NOT NULL,
+	"similarity_score" varchar(20) NOT NULL,
+	"rank" integer NOT NULL,
+	"included_in_context" boolean DEFAULT false,
+	"context_position" integer,
+	"was_relevant" boolean,
+	"feedback_source" varchar(50),
+	"retrieved_at" timestamp DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "rag_traces" (
+	"id" varchar PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"trace_id" varchar(255) NOT NULL,
+	"trace_type" varchar(50) NOT NULL,
+	"timestamp" timestamp DEFAULT now() NOT NULL,
+	"duration_ms" integer,
+	"stage" varchar(50) NOT NULL,
+	"document_id" varchar(255),
+	"chunk_ids" text[],
+	"message_id" varchar(255),
+	"chat_id" varchar(255),
+	"user_id" varchar(255),
+	"query_text" text,
+	"query_length" integer,
+	"filename" varchar(500),
+	"content_type" varchar(100),
+	"content_length" integer,
+	"chunks_created" integer,
+	"chunks_filtered" integer,
+	"chunking_strategy" varchar(50),
+	"embedding_model" varchar(100),
+	"embedding_dimensions" integer,
+	"search_results" integer,
+	"threshold" varchar(20),
+	"top_k" integer,
+	"scores" text[],
+	"tokens_used" integer,
+	"sources_count" integer,
+	"context_length" integer,
+	"error_message" text,
+	"error_stage" varchar(50),
+	"metadata" jsonb,
+	"created_at" timestamp DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "schedules" (
+	"id" varchar PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"name" text NOT NULL,
+	"description" text,
+	"cron_expression" text NOT NULL,
+	"timezone" text DEFAULT 'UTC' NOT NULL,
+	"task_template" jsonb NOT NULL,
+	"workflow_id" varchar,
+	"enabled" boolean DEFAULT true NOT NULL,
+	"last_run_at" timestamp,
+	"next_run_at" timestamp,
+	"run_count" integer DEFAULT 0 NOT NULL,
+	"last_error" text,
+	"consecutive_failures" integer DEFAULT 0,
+	"max_consecutive_failures" integer DEFAULT 3,
+	"created_at" timestamp DEFAULT now() NOT NULL,
+	"updated_at" timestamp DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "session_participants" (
+	"id" varchar PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"session_id" varchar NOT NULL,
+	"user_id" varchar,
+	"participant_type" text DEFAULT 'user' NOT NULL,
+	"display_name" text NOT NULL,
+	"avatar_color" text DEFAULT '#4285f4',
+	"can_edit" boolean DEFAULT true NOT NULL,
+	"can_voice" boolean DEFAULT true NOT NULL,
+	"is_active" boolean DEFAULT true NOT NULL,
+	"last_seen_at" timestamp DEFAULT now() NOT NULL,
+	"joined_at" timestamp DEFAULT now() NOT NULL,
+	"left_at" timestamp
+);
+--> statement-breakpoint
+CREATE TABLE "sessions" (
+	"sid" varchar PRIMARY KEY NOT NULL,
+	"sess" jsonb NOT NULL,
+	"expire" timestamp NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "sms_messages" (
+	"id" varchar PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"message_sid" varchar NOT NULL,
+	"account_sid" varchar NOT NULL,
+	"from" varchar NOT NULL,
+	"to" varchar NOT NULL,
+	"body" text NOT NULL,
+	"direction" varchar(20) NOT NULL,
+	"status" varchar(50) NOT NULL,
+	"num_media" integer DEFAULT 0,
+	"media_urls" jsonb,
+	"processed" boolean DEFAULT false NOT NULL,
+	"chat_id" varchar,
+	"response_message_sid" varchar,
+	"error_code" integer,
+	"error_message" text,
+	"created_at" timestamp DEFAULT now() NOT NULL,
+	"processed_at" timestamp,
+	CONSTRAINT "sms_messages_message_sid_unique" UNIQUE("message_sid")
+);
+--> statement-breakpoint
+CREATE TABLE "ssh_hosts" (
+	"id" varchar PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"alias" text NOT NULL,
+	"hostname" text NOT NULL,
+	"port" integer DEFAULT 22 NOT NULL,
+	"username" text NOT NULL,
+	"key_secret_name" text,
+	"password_secret_name" text,
+	"last_connected" timestamp,
+	"last_error" text,
+	"description" text,
+	"tags" text[],
+	"created_at" timestamp DEFAULT now() NOT NULL,
+	"updated_at" timestamp DEFAULT now() NOT NULL,
+	CONSTRAINT "ssh_hosts_alias_unique" UNIQUE("alias")
+);
+--> statement-breakpoint
+CREATE TABLE "ssh_keys" (
+	"id" varchar PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"name" text NOT NULL,
+	"public_key" text NOT NULL,
+	"private_key_secret_name" text NOT NULL,
+	"key_type" text DEFAULT 'ed25519' NOT NULL,
+	"fingerprint" text,
+	"created_at" timestamp DEFAULT now() NOT NULL,
+	CONSTRAINT "ssh_keys_name_unique" UNIQUE("name")
+);
+--> statement-breakpoint
+CREATE TABLE "todo_items" (
+	"id" varchar PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"user_id" varchar NOT NULL,
+	"title" text NOT NULL,
+	"description" text,
+	"status" text DEFAULT 'pending' NOT NULL,
+	"priority" integer DEFAULT 0 NOT NULL,
+	"category" text,
+	"tags" text[],
+	"related_chat_id" varchar,
+	"created_at" timestamp DEFAULT now() NOT NULL,
+	"updated_at" timestamp DEFAULT now() NOT NULL,
+	"completed_at" timestamp
+);
+--> statement-breakpoint
+CREATE TABLE "tool_call_logs" (
+	"id" varchar PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"chat_id" varchar NOT NULL,
+	"message_id" varchar,
+	"tool_call_id" text NOT NULL,
+	"tool_type" text NOT NULL,
+	"status" text DEFAULT 'pending' NOT NULL,
+	"request" jsonb NOT NULL,
+	"response" jsonb,
+	"error_message" text,
+	"started_at" timestamp DEFAULT now() NOT NULL,
+	"completed_at" timestamp,
+	"duration" integer,
+	"created_at" timestamp DEFAULT now() NOT NULL,
+	"updated_at" timestamp DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "tool_tasks" (
+	"id" varchar PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"message_id" varchar NOT NULL,
+	"task_type" text NOT NULL,
+	"payload" jsonb NOT NULL,
+	"status" text DEFAULT 'pending' NOT NULL,
+	"result" jsonb,
+	"error" text,
+	"executed_at" timestamp,
+	"created_at" timestamp DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "triggers" (
+	"id" varchar PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"name" text NOT NULL,
+	"description" text,
+	"trigger_type" text NOT NULL,
+	"pattern" text,
+	"sender_filter" text,
+	"subject_filter" text,
+	"task_template" jsonb,
+	"workflow_id" varchar,
+	"priority" integer DEFAULT 5 NOT NULL,
+	"webhook_secret" text,
+	"enabled" boolean DEFAULT true NOT NULL,
+	"last_triggered_at" timestamp,
+	"trigger_count" integer DEFAULT 0 NOT NULL,
+	"created_at" timestamp DEFAULT now() NOT NULL,
+	"updated_at" timestamp DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "user_agents" (
+	"id" varchar PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"user_id" varchar NOT NULL,
+	"name" varchar NOT NULL,
+	"display_name" varchar NOT NULL,
+	"description" text,
+	"agent_type" varchar DEFAULT 'assistant' NOT NULL,
+	"avatar_url" text,
+	"brand_color" varchar DEFAULT '#4285f4',
+	"personality_prompt" text,
+	"system_prompt_overrides" text,
+	"github_signature" text,
+	"email_signature" text,
+	"is_default" boolean DEFAULT false NOT NULL,
+	"is_active" boolean DEFAULT true NOT NULL,
+	"canonical_domain" varchar,
+	"tags" text[],
+	"created_at" timestamp DEFAULT now() NOT NULL,
+	"updated_at" timestamp DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "user_branding" (
+	"id" varchar PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"user_id" varchar NOT NULL,
+	"agent_name" varchar DEFAULT 'Meowstik' NOT NULL,
+	"display_name" varchar DEFAULT 'Meowstik AI' NOT NULL,
+	"avatar_url" text,
+	"brand_color" varchar DEFAULT '#4285f4',
+	"github_signature" text,
+	"email_signature" text,
+	"canonical_domain" varchar,
+	"created_at" timestamp DEFAULT now() NOT NULL,
+	"updated_at" timestamp DEFAULT now() NOT NULL,
+	CONSTRAINT "user_branding_user_id_unique" UNIQUE("user_id")
+);
+--> statement-breakpoint
+CREATE TABLE "users" (
+	"id" varchar PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"email" varchar,
+	"first_name" varchar,
+	"last_name" varchar,
+	"profile_image_url" varchar,
+	"created_at" timestamp DEFAULT now(),
+	"updated_at" timestamp DEFAULT now(),
+	CONSTRAINT "users_email_unique" UNIQUE("email")
+);
+--> statement-breakpoint
+CREATE TABLE "workflows" (
+	"id" varchar PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"name" text NOT NULL,
+	"description" text,
+	"steps" jsonb NOT NULL,
+	"default_execution_mode" text DEFAULT 'sequential' NOT NULL,
+	"max_parallel_tasks" integer DEFAULT 3,
+	"timeout_seconds" integer DEFAULT 3600,
+	"enabled" boolean DEFAULT true NOT NULL,
+	"version" integer DEFAULT 1 NOT NULL,
+	"created_at" timestamp DEFAULT now() NOT NULL,
+	"updated_at" timestamp DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+ALTER TABLE "agent_activity_log" ADD CONSTRAINT "agent_activity_log_agent_id_agent_identities_id_fk" FOREIGN KEY ("agent_id") REFERENCES "public"."agent_identities"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "agent_jobs" ADD CONSTRAINT "agent_jobs_parent_job_id_agent_jobs_id_fk" FOREIGN KEY ("parent_job_id") REFERENCES "public"."agent_jobs"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "agent_workers" ADD CONSTRAINT "agent_workers_current_job_id_agent_jobs_id_fk" FOREIGN KEY ("current_job_id") REFERENCES "public"."agent_jobs"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "attachments" ADD CONSTRAINT "attachments_message_id_messages_id_fk" FOREIGN KEY ("message_id") REFERENCES "public"."messages"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "attachments" ADD CONSTRAINT "attachments_draft_id_drafts_id_fk" FOREIGN KEY ("draft_id") REFERENCES "public"."drafts"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "call_conversations" ADD CONSTRAINT "call_conversations_chat_id_chats_id_fk" FOREIGN KEY ("chat_id") REFERENCES "public"."chats"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "call_turns" ADD CONSTRAINT "call_turns_conversation_id_call_conversations_id_fk" FOREIGN KEY ("conversation_id") REFERENCES "public"."call_conversations"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "chats" ADD CONSTRAINT "chats_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "collaborative_sessions" ADD CONSTRAINT "collaborative_sessions_host_user_id_users_id_fk" FOREIGN KEY ("host_user_id") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "cursor_positions" ADD CONSTRAINT "cursor_positions_session_id_collaborative_sessions_id_fk" FOREIGN KEY ("session_id") REFERENCES "public"."collaborative_sessions"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "cursor_positions" ADD CONSTRAINT "cursor_positions_participant_id_session_participants_id_fk" FOREIGN KEY ("participant_id") REFERENCES "public"."session_participants"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "document_chunks" ADD CONSTRAINT "document_chunks_attachment_id_attachments_id_fk" FOREIGN KEY ("attachment_id") REFERENCES "public"."attachments"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "drafts" ADD CONSTRAINT "drafts_chat_id_chats_id_fk" FOREIGN KEY ("chat_id") REFERENCES "public"."chats"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "edit_operations" ADD CONSTRAINT "edit_operations_session_id_collaborative_sessions_id_fk" FOREIGN KEY ("session_id") REFERENCES "public"."collaborative_sessions"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "edit_operations" ADD CONSTRAINT "edit_operations_participant_id_session_participants_id_fk" FOREIGN KEY ("participant_id") REFERENCES "public"."session_participants"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "entity_mentions" ADD CONSTRAINT "entity_mentions_entity_id_entities_id_fk" FOREIGN KEY ("entity_id") REFERENCES "public"."entities"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "entity_mentions" ADD CONSTRAINT "entity_mentions_evidence_id_evidence_id_fk" FOREIGN KEY ("evidence_id") REFERENCES "public"."evidence"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "entity_mentions" ADD CONSTRAINT "entity_mentions_knowledge_id_extracted_knowledge_id_fk" FOREIGN KEY ("knowledge_id") REFERENCES "public"."extracted_knowledge"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "evidence" ADD CONSTRAINT "evidence_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "execution_logs" ADD CONSTRAINT "execution_logs_task_id_tool_tasks_id_fk" FOREIGN KEY ("task_id") REFERENCES "public"."tool_tasks"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "extracted_knowledge" ADD CONSTRAINT "extracted_knowledge_source_id_conversation_sources_id_fk" FOREIGN KEY ("source_id") REFERENCES "public"."conversation_sources"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "extracted_knowledge" ADD CONSTRAINT "extracted_knowledge_job_id_ingestion_jobs_id_fk" FOREIGN KEY ("job_id") REFERENCES "public"."ingestion_jobs"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "feedback" ADD CONSTRAINT "feedback_message_id_messages_id_fk" FOREIGN KEY ("message_id") REFERENCES "public"."messages"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "feedback" ADD CONSTRAINT "feedback_chat_id_chats_id_fk" FOREIGN KEY ("chat_id") REFERENCES "public"."chats"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "ingestion_jobs" ADD CONSTRAINT "ingestion_jobs_source_id_conversation_sources_id_fk" FOREIGN KEY ("source_id") REFERENCES "public"."conversation_sources"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "job_results" ADD CONSTRAINT "job_results_job_id_agent_jobs_id_fk" FOREIGN KEY ("job_id") REFERENCES "public"."agent_jobs"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "kernel_evolutions" ADD CONSTRAINT "kernel_evolutions_kernel_id_kernels_id_fk" FOREIGN KEY ("kernel_id") REFERENCES "public"."kernels"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "kernel_evolutions" ADD CONSTRAINT "kernel_evolutions_chat_id_chats_id_fk" FOREIGN KEY ("chat_id") REFERENCES "public"."chats"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "kernel_evolutions" ADD CONSTRAINT "kernel_evolutions_message_id_messages_id_fk" FOREIGN KEY ("message_id") REFERENCES "public"."messages"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "kernels" ADD CONSTRAINT "kernels_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "knowledge_embeddings" ADD CONSTRAINT "knowledge_embeddings_evidence_id_evidence_id_fk" FOREIGN KEY ("evidence_id") REFERENCES "public"."evidence"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "knowledge_embeddings" ADD CONSTRAINT "knowledge_embeddings_knowledge_id_extracted_knowledge_id_fk" FOREIGN KEY ("knowledge_id") REFERENCES "public"."extracted_knowledge"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "knowledge_embeddings" ADD CONSTRAINT "knowledge_embeddings_chunk_id_document_chunks_id_fk" FOREIGN KEY ("chunk_id") REFERENCES "public"."document_chunks"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "knowledge_embeddings" ADD CONSTRAINT "knowledge_embeddings_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "llm_interactions" ADD CONSTRAINT "llm_interactions_chat_id_chats_id_fk" FOREIGN KEY ("chat_id") REFERENCES "public"."chats"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "llm_interactions" ADD CONSTRAINT "llm_interactions_message_id_messages_id_fk" FOREIGN KEY ("message_id") REFERENCES "public"."messages"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "llm_interactions" ADD CONSTRAINT "llm_interactions_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "llm_usage" ADD CONSTRAINT "llm_usage_chat_id_chats_id_fk" FOREIGN KEY ("chat_id") REFERENCES "public"."chats"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "llm_usage" ADD CONSTRAINT "llm_usage_message_id_messages_id_fk" FOREIGN KEY ("message_id") REFERENCES "public"."messages"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "messages" ADD CONSTRAINT "messages_chat_id_chats_id_fk" FOREIGN KEY ("chat_id") REFERENCES "public"."chats"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "queued_tasks" ADD CONSTRAINT "queued_tasks_parent_id_queued_tasks_id_fk" FOREIGN KEY ("parent_id") REFERENCES "public"."queued_tasks"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "queued_tasks" ADD CONSTRAINT "queued_tasks_chat_id_chats_id_fk" FOREIGN KEY ("chat_id") REFERENCES "public"."chats"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "session_participants" ADD CONSTRAINT "session_participants_session_id_collaborative_sessions_id_fk" FOREIGN KEY ("session_id") REFERENCES "public"."collaborative_sessions"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "session_participants" ADD CONSTRAINT "session_participants_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "sms_messages" ADD CONSTRAINT "sms_messages_chat_id_chats_id_fk" FOREIGN KEY ("chat_id") REFERENCES "public"."chats"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "todo_items" ADD CONSTRAINT "todo_items_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "todo_items" ADD CONSTRAINT "todo_items_related_chat_id_chats_id_fk" FOREIGN KEY ("related_chat_id") REFERENCES "public"."chats"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "tool_call_logs" ADD CONSTRAINT "tool_call_logs_chat_id_chats_id_fk" FOREIGN KEY ("chat_id") REFERENCES "public"."chats"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "tool_call_logs" ADD CONSTRAINT "tool_call_logs_message_id_messages_id_fk" FOREIGN KEY ("message_id") REFERENCES "public"."messages"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "tool_tasks" ADD CONSTRAINT "tool_tasks_message_id_messages_id_fk" FOREIGN KEY ("message_id") REFERENCES "public"."messages"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "user_agents" ADD CONSTRAINT "user_agents_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "user_branding" ADD CONSTRAINT "user_branding_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+CREATE INDEX "idx_agent_activity_agent" ON "agent_activity_log" USING btree ("agent_id");--> statement-breakpoint
+CREATE INDEX "idx_agent_activity_type" ON "agent_activity_log" USING btree ("activity_type");--> statement-breakpoint
+CREATE INDEX "idx_agent_activity_platform" ON "agent_activity_log" USING btree ("platform");--> statement-breakpoint
+CREATE INDEX "idx_agent_jobs_status" ON "agent_jobs" USING btree ("status");--> statement-breakpoint
+CREATE INDEX "idx_agent_jobs_priority" ON "agent_jobs" USING btree ("priority");--> statement-breakpoint
+CREATE INDEX "idx_agent_jobs_parent" ON "agent_jobs" USING btree ("parent_job_id");--> statement-breakpoint
+CREATE INDEX "idx_agent_jobs_scheduled" ON "agent_jobs" USING btree ("scheduled_for");--> statement-breakpoint
+CREATE INDEX "idx_agent_workers_status" ON "agent_workers" USING btree ("status");--> statement-breakpoint
+CREATE INDEX "idx_agent_workers_heartbeat" ON "agent_workers" USING btree ("last_heartbeat");--> statement-breakpoint
+CREATE INDEX "idx_call_conversations_sid" ON "call_conversations" USING btree ("call_sid");--> statement-breakpoint
+CREATE INDEX "idx_call_conversations_status" ON "call_conversations" USING btree ("status");--> statement-breakpoint
+CREATE INDEX "idx_call_turns_conversation" ON "call_turns" USING btree ("conversation_id");--> statement-breakpoint
+CREATE INDEX "idx_call_turns_number" ON "call_turns" USING btree ("conversation_id","turn_number");--> statement-breakpoint
+CREATE INDEX "idx_edit_ops_session" ON "edit_operations" USING btree ("session_id");--> statement-breakpoint
+CREATE INDEX "idx_edit_ops_version" ON "edit_operations" USING btree ("session_id","base_version");--> statement-breakpoint
+CREATE INDEX "idx_job_results_job" ON "job_results" USING btree ("job_id");--> statement-breakpoint
+CREATE INDEX "idx_chunk_lineage_document" ON "rag_chunk_lineage" USING btree ("document_id");--> statement-breakpoint
+CREATE INDEX "idx_chunk_lineage_source" ON "rag_chunk_lineage" USING btree ("source_type","source_id");--> statement-breakpoint
+CREATE INDEX "idx_retrieval_trace" ON "rag_retrieval_results" USING btree ("trace_id");--> statement-breakpoint
+CREATE INDEX "idx_retrieval_chunk" ON "rag_retrieval_results" USING btree ("chunk_id");--> statement-breakpoint
+CREATE INDEX "idx_rag_traces_trace_id" ON "rag_traces" USING btree ("trace_id");--> statement-breakpoint
+CREATE INDEX "idx_rag_traces_timestamp" ON "rag_traces" USING btree ("timestamp");--> statement-breakpoint
+CREATE INDEX "idx_rag_traces_type_stage" ON "rag_traces" USING btree ("trace_type","stage");--> statement-breakpoint
+CREATE INDEX "IDX_session_expire" ON "sessions" USING btree ("expire");--> statement-breakpoint
+CREATE INDEX "idx_todo_items_user" ON "todo_items" USING btree ("user_id");--> statement-breakpoint
+CREATE INDEX "idx_todo_items_status" ON "todo_items" USING btree ("status");--> statement-breakpoint
+CREATE INDEX "idx_todo_items_priority" ON "todo_items" USING btree ("priority");--> statement-breakpoint
+CREATE INDEX "idx_tool_call_logs_chat" ON "tool_call_logs" USING btree ("chat_id");--> statement-breakpoint
+CREATE INDEX "idx_tool_call_logs_message" ON "tool_call_logs" USING btree ("message_id");--> statement-breakpoint
+CREATE INDEX "idx_tool_call_logs_status" ON "tool_call_logs" USING btree ("status");
+-- Migration: 0001_add_userid_to_knowledge_buckets.sql --
+-- Migration: Add userId columns to evidence and knowledgeEmbeddings tables for data isolation
+-- Date: 2026-01-15
+-- Purpose: Fix critical security vulnerability where knowledge buckets didn't filter by user
+-- Related Issue: RAG Knowledge Bucket Implementation Audit
+
+-- Add userId and isGuest columns to evidence table
+-- Note: userId can be NULL for guest users, foreign key uses ON DELETE SET NULL
+ALTER TABLE evidence 
+ADD COLUMN IF NOT EXISTS user_id VARCHAR REFERENCES users(id) ON DELETE SET NULL,
+ADD COLUMN IF NOT EXISTS is_guest BOOLEAN NOT NULL DEFAULT FALSE;
+
+-- Add userId and isGuest columns to knowledgeEmbeddings table  
+-- Note: userId can be NULL for guest users, foreign key uses ON DELETE SET NULL
+ALTER TABLE knowledge_embeddings
+ADD COLUMN IF NOT EXISTS user_id VARCHAR REFERENCES users(id) ON DELETE SET NULL,
+ADD COLUMN IF NOT EXISTS is_guest BOOLEAN NOT NULL DEFAULT FALSE;
+
+-- Create indexes for efficient filtering by userId
+CREATE INDEX IF NOT EXISTS idx_evidence_user_id ON evidence(user_id);
+CREATE INDEX IF NOT EXISTS idx_evidence_bucket_user ON evidence(bucket, user_id);
+CREATE INDEX IF NOT EXISTS idx_knowledge_embeddings_user_id ON knowledge_embeddings(user_id);
+CREATE INDEX IF NOT EXISTS idx_knowledge_embeddings_bucket_user ON knowledge_embeddings(bucket, user_id);
+
+-- For existing data without userId, set them as guest data
+-- This ensures backward compatibility
+UPDATE evidence SET is_guest = TRUE WHERE user_id IS NULL;
+UPDATE knowledge_embeddings SET is_guest = TRUE WHERE user_id IS NULL;
+
+-- Add comments to document the purpose of these columns
+COMMENT ON COLUMN evidence.user_id IS 'User ID for data isolation - NULL for guest users. Foreign key uses ON DELETE SET NULL to preserve guest data.';
+COMMENT ON COLUMN evidence.is_guest IS 'Flag indicating whether this is guest data (should be periodically cleaned)';
+COMMENT ON COLUMN knowledge_embeddings.user_id IS 'User ID for data isolation - NULL for guest users. Foreign key uses ON DELETE SET NULL to preserve guest data.';
+COMMENT ON COLUMN knowledge_embeddings.is_guest IS 'Flag indicating whether this is guest data (should be periodically cleaned)';
+
+-- Migration: 0002_create_todo_items_table.sql --
+-- Migration: Create todo_items table for persistent to-do list
+-- Author: GitHub Copilot
+-- Date: 2026-01-18
+
+-- Create todo_items table
+CREATE TABLE IF NOT EXISTS "todo_items" (
+  "id" varchar PRIMARY KEY DEFAULT gen_random_uuid(),
+  "user_id" varchar NOT NULL,
+  "title" text NOT NULL,
+  "description" text,
+  "status" text NOT NULL DEFAULT 'pending',
+  "priority" integer NOT NULL DEFAULT 0,
+  "category" text,
+  "tags" text[],
+  "related_chat_id" varchar,
+  "created_at" timestamp NOT NULL DEFAULT now(),
+  "updated_at" timestamp NOT NULL DEFAULT now(),
+  "completed_at" timestamp,
+  
+  -- Foreign key constraints
+  CONSTRAINT "todo_items_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE,
+  CONSTRAINT "todo_items_related_chat_id_chats_id_fk" FOREIGN KEY ("related_chat_id") REFERENCES "chats"("id") ON DELETE SET NULL
+);
+
+-- Create indexes for performance
+CREATE INDEX IF NOT EXISTS "idx_todo_items_user" ON "todo_items" ("user_id");
+CREATE INDEX IF NOT EXISTS "idx_todo_items_status" ON "todo_items" ("status");
+CREATE INDEX IF NOT EXISTS "idx_todo_items_priority" ON "todo_items" ("priority");
+
+-- Add comment to table
+COMMENT ON TABLE "todo_items" IS 'Persistent to-do list items for users. Included in every prompt to inform AI decision-making.';
+
+-- Migration: add_call_recording_transcription.sql --
+-- Add recording and transcription fields to call_conversations table
+-- Generated: 2026-01-31
+
+-- Add new columns for call recording and transcription
+ALTER TABLE call_conversations 
+  ADD COLUMN IF NOT EXISTS recording_url text,
+  ADD COLUMN IF NOT EXISTS recording_sid text,
+  ADD COLUMN IF NOT EXISTS transcription text,
+  ADD COLUMN IF NOT EXISTS transcription_status text;
+
+-- Create index for recording SID lookups
+CREATE INDEX IF NOT EXISTS idx_call_conversations_recording_sid ON call_conversations (recording_sid);
+
+-- Add comments for documentation
+COMMENT ON COLUMN call_conversations.recording_url IS 'URL to the full call recording from Twilio';
+COMMENT ON COLUMN call_conversations.recording_sid IS 'Twilio recording identifier for this call';
+COMMENT ON COLUMN call_conversations.transcription IS 'Full transcription of the call from Twilio';
+COMMENT ON COLUMN call_conversations.transcription_status IS 'Status of transcription: pending, completed, or failed';
+
+-- Migration: add_voicemails_table.sql --
+-- Add voicemails table for Twilio voicemail support
+-- Generated: 2026-01-31
+
+CREATE TABLE IF NOT EXISTS "voicemails" (
+  "id" varchar PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+  "recording_sid" text UNIQUE NOT NULL,
+  "call_sid" text,
+  "from_number" text NOT NULL,
+  "to_number" text NOT NULL,
+  "recording_url" text NOT NULL,
+  "duration" integer,
+  "transcription" text,
+  "transcription_status" text,
+  "heard" boolean DEFAULT false NOT NULL,
+  "heard_at" timestamp,
+  "created_at" timestamp DEFAULT now() NOT NULL,
+  "updated_at" timestamp DEFAULT now() NOT NULL
+);
+
+-- Create indexes for performance
+CREATE INDEX IF NOT EXISTS "idx_voicemails_recording_sid" ON "voicemails" ("recording_sid");
+CREATE INDEX IF NOT EXISTS "idx_voicemails_from_number" ON "voicemails" ("from_number");
+CREATE INDEX IF NOT EXISTS "idx_voicemails_heard" ON "voicemails" ("heard");

@@ -1,6 +1,6 @@
 /**
  * =============================================================================
- * NEBULA CHAT - DATABASE SCHEMA DEFINITIONS
+ * MEOWSTIC CHAT - DATABASE SCHEMA DEFINITIONS
  * =============================================================================
  * 
  * This file defines the complete data model for the Meowstik application.

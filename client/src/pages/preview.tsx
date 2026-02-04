@@ -106,7 +106,7 @@ const viewportSizes = {
  * allowing users to see their code rendered in real-time.
  * 
  * How It Works:
- * 1. Loads code from localStorage (key: "nebula-editor-code")
+ * 1. Loads code from localStorage (key: "meowstic-editor-code")
  * 2. Writes code to iframe using document.write()
  * 3. Allows viewport resizing to test responsive design
  * 4. Supports fullscreen mode for larger preview
@@ -163,7 +163,7 @@ export default function PreviewPage() {
    * it in state for rendering.
    */
   useEffect(() => {
-    const saved = localStorage.getItem("nebula-editor-code");
+    const saved = localStorage.getItem("meowstic-editor-code");
     if (saved) {
       setCode(saved);
     }
@@ -204,7 +204,7 @@ export default function PreviewPage() {
    * which triggers the useEffect to re-render the iframe.
    */
   const handleRefresh = () => {
-    const saved = localStorage.getItem("nebula-editor-code");
+    const saved = localStorage.getItem("meowstic-editor-code");
     if (saved) {
       setCode(saved);
     }

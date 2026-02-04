@@ -1,6 +1,6 @@
 /**
  * =============================================================================
- * NEBULA CHAT - EMBEDDING SERVICE
+ * MEOWSTIC CHAT - EMBEDDING SERVICE
  * =============================================================================
  * 
  * Generates vector embeddings for text using Google's Gemini embedding model.

@@ -1,6 +1,6 @@
 /**
  * =============================================================================
- * NEBULA CHAT - SERVER ENTRY POINT
+ * MEOWSTIC CHAT - SERVER ENTRY POINT
  * =============================================================================
  * 
  * This is the main entry point for the Meowstik backend server.
@@ -252,6 +252,15 @@ app.use((req, res, next) => {
    */
   const { setupLiveWebSocket } = await import("./websocket-live");
   setupLiveWebSocket(httpServer);
+
+  /**
+   * SETUP TWILIO MEDIA STREAM WEBSOCKET
+   * -----------------------------------
+   * Initialize WebSocket server for Twilio Phone integrations.
+   * Handles real-time audio streams from phone calls.
+   */
+  const { setupTwilioWebSocket } = await import("./websocket-twilio");
+  setupTwilioWebSocket(httpServer);
 
   /**
    * SETUP AGENT WEBSOCKET

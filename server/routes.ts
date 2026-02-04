@@ -1207,12 +1207,7 @@ The user has MUTE mode enabled. Minimize all output.
             })
             .join("\n");
           
-          // Add tool results as a "model" response followed by concise tool feedback
-          // Use function-call result format that LLMs understand better
-          agenticHistory.push({
-            role: "model",
-            parts: [{ text: `{"toolCalls": ${JSON.stringify(parsedResponse?.toolCalls || [])}}` }]
-          });
+          // Provide tool results to the model as a user message
           agenticHistory.push({
             role: "user", 
             parts: [{ text: `Tool results:\n${toolResultsText}\n\nContinue with more tools or call end_turn when ready.` }]

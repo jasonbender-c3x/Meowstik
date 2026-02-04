@@ -57,6 +57,11 @@
         "filter": ["**/*", "!node_modules/**"]
       },
       {
+        "from": "../desktop-agent",
+        "to": "desktop-agent",
+        "filter": ["**/*", "!node_modules/**"]
+      },
+      {
         "from": "../shared",
         "to": "shared",
         "filter": ["**/*"]

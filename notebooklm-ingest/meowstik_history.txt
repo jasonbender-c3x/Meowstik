@@ -1,0 +1,1732 @@
+MEOWSTIK PROJECT HISTORY (FULL)
+================================================================================
+Use this to understand project momentum, recent changes, and coding patterns.
+================================================================================
+
+9b971e8 - Jason Bender, 29 minutes ago : Fix Google Drive tool permissions, improve search logic, and update system overview
+ README.md                           | 739 +++++-------------------------------
+ prompts/core-directives.md          |   5 +
+ prompts/tools.md                    |   4 +
+ server/integrations/google-auth.ts  |   2 +-
+ server/integrations/google-drive.ts |  19 +-
+ 5 files changed, 115 insertions(+), 654 deletions(-)
+
+2e9da55 - Jason Bender, 56 minutes ago : Merge pull request #33 from jasonbender-c3x/copilot/update-secure-credential-protocol
+5216a0e - Jason Bender, 66 minutes ago : ok
+ .../ar_smart_glasses_with_holographic_display.png  |    Bin 0 -> 574793 bytes
+ .../generated_images/cute_cat_logo_icon.png        |    Bin 0 -> 476057 bytes
+ .../realistic_ar_router_identification_pov.png     |    Bin 0 -> 1363309 bytes
+ .../realistic_cable_nightmare_with_ar_trace.png    |    Bin 0 -> 1935839 bytes
+ .../realistic_rack_back_with_ar_overlay.png        |    Bin 0 -> 1652035 bytes
+ .../smartwatch_with_ai_chat_interface.png          |    Bin 0 -> 1015503 bytes
+ .../watch_and_laptop_collaborative_editing.png     |    Bin 0 -> 1100361 bytes
+ .../watch_hero_banner_with_ai_features.png         |    Bin 0 -> 1076256 bytes
+ .../watch_voice_command_interface.png              |    Bin 0 -> 1070570 bytes
+ docs/ISSUES_DISCOVERED.md                          |    266 -
+ files.txt                                          | 278993 ------------------
+ new_instructions.md                                |      4 -
+ server/integrations/google-auth.ts                 |     12 +-
+ 13 files changed, 7 insertions(+), 279268 deletions(-)
+
+bffb9d3 - Jason Bender, 14 hours ago : push
+ attached_assets/App_1768446601873.tsx              | 358 -----------------
+ ...t-clone-https-github-com-jaso_1767525627106.txt |   1 -
+ ...creenshot_2026-01-01_22.12.07_1767334402752.png | Bin 556579 -> 0 bytes
+ ...creenshot_2026-01-03_06.27.25_1767450528406.png | Bin 254626 -> 0 bytes
+ ...creenshot_2026-01-26_15.56.22_1769471802270.png | Bin 381164 -> 0 bytes
+ ...creenshot_2026-01-31_03.31.20_1769859100378.png | Bin 131583 -> 0 bytes
+ .../generated_images/abstract_ai_logo.png          | Bin 512779 -> 0 bytes
+ .../ar_cutting_through_cable_chaos_nightmare.png   | Bin 1612099 -> 0 bytes
+ .../ar_glasses_identifying_router_model.png        | Bin 1287272 -> 0 bytes
+ .../ar_glasses_scanning_server_rack_back.png       | Bin 1649777 -> 0 bytes
+ .../ar_smart_glasses_with_holographic_display.png  | Bin 1277685 -> 0 bytes
+ .../ar_tracing_cable_through_rats_nest.png         | Bin 1635483 -> 0 bytes
+ attached_assets/generated_images/cat_app_icon.png  | Bin 429493 -> 0 bytes
+ .../generated_images/cat_face_app_icon.png         | Bin 808234 -> 0 bytes
+ .../generated_images/cute_cat_logo_icon.png        | Bin 717949 -> 0 bytes
+ .../intellectual_cat_mascot_logo.png               | Bin 747516 -> 0 bytes
+ .../meowstik_app_preview_banner.png                | Bin 993792 -> 0 bytes
+ .../generated_images/meowstik_cat_mascot_logo.png  | Bin 661550 -> 0 bytes
+ .../realistic_ar_router_identification_pov.png     | Bin 1415123 -> 0 bytes
+ .../realistic_cable_nightmare_with_ar_trace.png    | Bin 1661262 -> 0 bytes
+ .../realistic_rack_back_with_ar_overlay.png        | Bin 1486651 -> 0 bytes
+ .../smartwatch_with_ai_chat_interface.png          | Bin 1122162 -> 0 bytes
+ .../watch_and_laptop_collaborative_editing.png     | Bin 1242977 -> 0 bytes
+ .../watch_hero_banner_with_ai_features.png         | Bin 1088769 -> 0 bytes
+ .../watch_voice_command_interface.png              | Bin 1137122 -> 0 bytes
+ check-memory.sh                                    |  44 ---
+ collaborative-test.md                              |   9 -
+ create_zip.py                                      |  13 -
+ docs/historical/exhibit/BEFORE_AFTER_COMPARISON.md | 433 ---------------------
+ docs/historical/exhibit/CREDENTIAL_FIX_SUMMARY.md  | 194 ---------
+ docs/historical/exhibit/CREDENTIAL_MANAGEMENT.md   | 322 ---------------
+ .../exhibit/EXHIBIT-LLM-Canvas-Integration.md      | 118 ------
+ docs/historical/exhibit/MEMORY_LOG_PROTECTION.md   | 368 -----------------
+ .../exhibit/MEMORY_PROTECTION_QUICK_START.md       | 225 -----------
+ .../exhibit/MEMORY_PROTECTION_SUMMARY.md           | 192 ---------
+ .../exhibit/MIGRATION_IMPLEMENTATION_SUMMARY.md    | 397 -------------------
+ docs/historical/exhibit/PROJECT_SUMMARY_CA_2.0.md  | 398 -------------------
+ docs/historical/exhibit/README.md                  |  31 --
+ .../exhibit/TTS_FIX_SUMMARY_FOR_JASON.md           | 146 -------
+ docs/historical/exhibit/TTS_IAM_PERMISSION_FIX.md  | 142 -------
+ docs/historical/exhibit/UPGRADES-2025-12-29.md     | 185 ---------
+ .../exhibit/VOICE_SYNTHESIS_FIX_SUMMARY.md         | 184 ---------
+ .../chimera/PROJECT_CHIMERA_PHASE1_REPORT.md       | 314 ---------------
+ docs/historical/exhibit/chimera/README.md          |  14 -
+ .../chimera/project_chimera_api_blueprint.md       |  74 ----
+ .../chimera/project_chimera_knowledge_base.md      |  54 ---
+ .../chimera/project_chimera_research_plan.md       |  48 ---
+ .../orchestration-implementation-summary.md        | 349 -----------------
+ knowledge/README.md                                |  25 --
+ meowstic.zip                                       |   1 -
+ meowstik.zip                                       |   1 -
+ package-lock.json                                  |  17 +
+ package.json                                       |   1 +
+ protect-memory.sh                                  |  61 ---
+ 54 files changed, 18 insertions(+), 4701 deletions(-)
+
+a4d5cab - Jason Bender, 20 hours ago : ok
+ .replit                                | 3 +++
+ client/src/pages/expressive-speech.tsx | 6 +++---
+ 2 files changed, 6 insertions(+), 3 deletions(-)
+
+d6433c1 - copilot-swe-agent[bot], 69 minutes ago : Add RAG debug endpoints for attachments and ingestion/retrieval logs
+ prompts/core-directives.md |  48 +++++---
+ server/routes/rag-debug.ts | 279 +++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 312 insertions(+), 15 deletions(-)
+
+fed7bc3 - copilot-swe-agent[bot], 79 minutes ago : Add PROACTIVE KNOWLEDGE INGESTION MANDATE - ingest codebases automatically
+ prompts/core-directives.md | 129 +++++++++++++++++++++++++++++++++++++++++++++
+ prompts/tools.md           |  90 +++++++++++++++++++++++++++++++
+ 2 files changed, 219 insertions(+)
+
+f2737ac - copilot-swe-agent[bot], 82 minutes ago : CRITICAL FIX: RAG IS FUNCTIONAL - Update docs to emphasize TWO RAG systems
+ prompts/core-directives.md | 160 +++++++++++++++++++++++++++------------------
+ prompts/tools.md           |  76 +++++++++++++++++----
+ 2 files changed, 163 insertions(+), 73 deletions(-)
+
+8a58a22 - copilot-swe-agent[bot], 85 minutes ago : Remove non-functional tools (grep/find/RAG) and focus on working alternatives
+ prompts/core-directives.md | 142 +++++++++++++++++++++++++++++-------------
+ prompts/tools.md           | 150 ++++++++++++++++++---------------------------
+ 2 files changed, 160 insertions(+), 132 deletions(-)
+
+2e160cc - copilot-swe-agent[bot], 89 minutes ago : Add iterative work loop, self-improvement mandate, and documentation-first protocols
+ prompts/core-directives.md | 269 +++++++++++++++++++++++++++++++++++++++++++++
+ prompts/tools.md           |  80 ++++++++++++++
+ 2 files changed, 349 insertions(+)
+
+c87e82f - copilot-swe-agent[bot], 2 hours ago : Add comprehensive documentation for secure credential implementation
+ SECURE_CREDENTIAL_IMPLEMENTATION.md | 154 ++++++++++++++++++++++++++++++++++++
+ 1 file changed, 154 insertions(+)
+
+a96f3c2 - copilot-swe-agent[bot], 2 hours ago : Add comprehensive credential redaction tests with safe test patterns
+ .../__tests__/credential-redaction.test.ts         | 455 +++++++++++++++++++++
+ 1 file changed, 455 insertions(+)
+
+9420347 - copilot-swe-agent[bot], 2 hours ago : Add secure credential storage protocol and log redaction
+ prompts/core-directives.md              |  76 ++++++++++++
+ server/services/io-logger.ts            | 202 ++++++++++++++++++++++++++++----
+ server/services/orchestration-logger.ts |  85 +++++++++++++-
+ 3 files changed, 336 insertions(+), 27 deletions(-)
+
+1df9f74 - copilot-swe-agent[bot], 2 hours ago : Initial plan
+f665f5f - Jason Bender, 2 hours ago : Merge pull request #32 from jasonbender-c3x/copilot/fix-path-handling-bug
+11fbb87 - copilot-swe-agent[bot], 2 hours ago : Add implementation summary and complete documentation
+ PATH_HANDLING_FIX_SUMMARY.md | 190 +++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 190 insertions(+)
+
+8c52c63 - copilot-swe-agent[bot], 2 hours ago : Add comprehensive security documentation
+ SECURITY_SUMMARY.md | 113 ++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 113 insertions(+)
+
+37bc5b7 - copilot-swe-agent[bot], 2 hours ago : Improve security checks with path.relative for better cross-platform support
+ server/services/__tests__/path-handling.test.ts |  3 ++-
+ server/services/rag-dispatcher.ts               | 18 ++++++++++++------
+ 2 files changed, 14 insertions(+), 7 deletions(-)
+
+83cb2c2 - copilot-swe-agent[bot], 2 hours ago : Address code review feedback: enhance security checks
+ server/services/__tests__/path-handling.test.ts |  3 ++-
+ server/services/rag-dispatcher.ts               | 26 +++++++++++++++++++++++--
+ 2 files changed, 26 insertions(+), 3 deletions(-)
+
+59d6e44 - copilot-swe-agent[bot], 2 hours ago : Add comprehensive tests for path handling fix
+ server/services/__tests__/path-handling.test.ts | 200 ++++++++++++++++++++++++
+ 1 file changed, 200 insertions(+)
+
+9bfaa1a - copilot-swe-agent[bot], 2 hours ago : Fix path sanitization to support absolute paths
+ server/services/rag-dispatcher.ts | 12 ++++++++----
+ 1 file changed, 8 insertions(+), 4 deletions(-)
+
+adb1980 - copilot-swe-agent[bot], 2 hours ago : Initial plan
+06ad2cc - Jason Bender, 19 hours ago : Remove 'logs' from excluded directories
+ scripts/prepare-notebooklm.ts | 1 -
+ 1 file changed, 1 deletion(-)
+
+2c99c47 - Jason Bender, 3 days ago : Add gemini-cli feature to devcontainer configuration
+ .devcontainer/devcontainer.json | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+2a804a2 - Jason Bender, 3 days ago : push
+ .pythonlibs/bin/flask                              |      2 +-
+ .pythonlibs/bin/normalizer                         |      2 +-
+ .replit                                            |      8 +-
+ ...creenshot_2026-01-31_03.31.20_1769859100378.png |    Bin 0 -> 131583 bytes
+ client/src/components/chat/sidebar.tsx             |     20 +-
+ client/src/pages/landing.tsx                       |      2 +-
+ files.txt                                          | 278993 ++++++++++++++++++
+ server/routes/twilio.ts                            |      2 +-
+ 8 files changed, 279019 insertions(+), 10 deletions(-)
+
+e93edf9 - Jason Bender, 3 days ago : Merge pull request #23 from jasonbender-c3x:copilot/clean-up-documentation-structure
+454c936 - Jason Bender, 3 days ago : Delete test
+ test | 1 -
+ 1 file changed, 1 deletion(-)
+
+f608955 - Jason Bender, 3 days ago : Merge pull request #26 from jasonbender-c3x:copilot/update-browserless-infrastructure
+3579d51 - copilot-swe-agent[bot], 3 days ago : Add proxy setup guide and implementation testing plan
+ IMPLEMENTATION_TESTING_PLAN.md   | 742 +++++++++++++++++++++++++++++++++++++++
+ RESIDENTIAL_PROXY_SETUP_GUIDE.md | 472 +++++++++++++++++++++++++
+ 2 files changed, 1214 insertions(+)
+
+b7160f9 - copilot-swe-agent[bot], 3 days ago : Add comprehensive README for browserless infrastructure
+ BROWSERLESS_README.md | 389 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 389 insertions(+)
+
+69ea98c - copilot-swe-agent[bot], 3 days ago : Add validation script and implementation summary
+ BROWSERLESS_IMPLEMENTATION_SUMMARY.md | 391 ++++++++++++++++++++++++++++++++++
+ package.json                          |   4 +-
+ scripts/validate-custom-browser.ts    |  64 ++++++
+ 3 files changed, 458 insertions(+), 1 deletion(-)
+
+1385da2 - copilot-swe-agent[bot], 3 days ago : Add self-hosted browserless infrastructure implementation
+ .env.example                               |  13 +
+ BROWSERLESS_DEPLOYMENT_GUIDE.md            | 343 +++++++++++++++++++
+ BROWSERLESS_IMPLEMENTATION_PROPOSAL.md     | 510 +++++++++++++++++++++++++++++
+ BROWSERLESS_QUICK_REFERENCE.md             | 332 +++++++++++++++++++
+ server/examples/custom-browser-examples.ts | 344 +++++++++++++++++++
+ server/integrations/custom-browser.ts      | 499 ++++++++++++++++++++++++++++
+ 6 files changed, 2041 insertions(+)
+
+41e6b08 - copilot-swe-agent[bot], 3 days ago : Initial plan
+8a8e41b - copilot-swe-agent[bot], 3 days ago : Add README files to document new folder structure
+ docs/forward-looking/README.md            | 30 ++++++++++++++++++++++++++++++
+ docs/historical/exhibit/README.md         | 31 +++++++++++++++++++++++++++++++
+ docs/historical/exhibit/chimera/README.md | 14 ++++++++++++++
+ 3 files changed, 75 insertions(+)
+
+862e57c - copilot-swe-agent[bot], 3 days ago : Fix documentation links to moved files
+ docs/ITEMS_LIST.md  | 27 ++++++++++++---------------
+ docs/QUICK_START.md |  4 ++--
+ 2 files changed, 14 insertions(+), 17 deletions(-)
+
+0d18ac0 - copilot-swe-agent[bot], 3 days ago : Reorganize documentation: move files to historical and forward-looking folders
+ .../research}/COMPREHENSIVE_VISION.md              |  0
+ .../research}/VISION_BLOG_POST.md                  |  0
+ .../roadmap}/COUNCIL-PRIORITIES.md                 |  0
+ .../roadmap}/GEMINI_LIVE_API_PROPOSAL.md           |  0
+ .../roadmap}/KERNEL_IMPLEMENTATION_PROPOSAL.md     |  0
+ .../roadmap}/KNOWLEDGE_INGESTION_ARCHITECTURE.md   |  0
+ .../roadmap}/MASTER-ROADMAP.md                     |  0
+ .../roadmap}/MULTI_USER_ARCHITECTURE.md            |  0
+ .../roadmap}/TODO-FEATURES.md                      |  0
+ .../roadmap}/VISIONS_OF_THE_FUTURE.md              |  0
+ .../roadmap}/WORKFLOW-PROTOCOL.md                  |  0
+ .../roadmap}/roadmap-platform-independence.md      |  0
+ .../exhibit}/BEFORE_AFTER_COMPARISON.md            |  0
+ .../exhibit}/CREDENTIAL_FIX_SUMMARY.md             |  0
+ .../exhibit}/CREDENTIAL_MANAGEMENT.md              |  0
+ .../exhibit}/EXHIBIT-LLM-Canvas-Integration.md     |  0
+ .../exhibit}/MEMORY_LOG_PROTECTION.md              |  0
+ .../exhibit}/MEMORY_PROTECTION_QUICK_START.md      |  0
+ .../exhibit}/MEMORY_PROTECTION_SUMMARY.md          |  0
+ .../exhibit}/MIGRATION_IMPLEMENTATION_SUMMARY.md   |  0
+ .../exhibit}/PROJECT_SUMMARY_CA_2.0.md             |  0
+ .../exhibit}/TTS_FIX_SUMMARY_FOR_JASON.md          |  0
+ .../exhibit}/TTS_IAM_PERMISSION_FIX.md             |  0
+ .../exhibit}/UPGRADES-2025-12-29.md                |  0
+ .../exhibit}/VOICE_SYNTHESIS_FIX_SUMMARY.md        |  0
+ .../chimera}/PROJECT_CHIMERA_PHASE1_REPORT.md      |  0
+ .../chimera}/project_chimera_api_blueprint.md      |  0
+ .../chimera}/project_chimera_knowledge_base.md     |  0
+ .../chimera}/project_chimera_research_plan.md      |  0
+ .../orchestration-implementation-summary.md        |  0
+ docs/tool_logging_standard.md                      | 33 ----------------------
+ 31 files changed, 33 deletions(-)
+
+681568b - copilot-swe-agent[bot], 3 days ago : Initial plan
+4bc0d6a - Jason Bender, 3 days ago : Merge pull request #21 from jasonbender-c3x/copilot/integrate-notebooklm-puppeteer
+fb95b14 - Jason Bender, 3 days ago : Merge branch 'main' into copilot/integrate-notebooklm-puppeteer
+3d76835 - Jason Bender, 3 days ago : Merge pull request #22 from jasonbender-c3x/copilot/fix-accidental-deletion
+9920681 - copilot-swe-agent[bot], 3 days ago : Initial plan for adding root route handler
+ package-lock.json | 37 +++++++++++++++++++++++++++++++++++++
+ 1 file changed, 37 insertions(+)
+
+933ea19 - Jason Bender, 3 days ago : Delete .ssh directory
+ .ssh/id_ed25519     | 3 ---
+ .ssh/id_ed25519.pub | 3 ---
+ 2 files changed, 6 deletions(-)
+
+563be4e - copilot-swe-agent[bot], 3 days ago : Initial plan
+64d572f - Jason Bender, 3 days ago : Create test
+ test | 1 +
+ 1 file changed, 1 insertion(+)
+
+6b85811 - Jason Bender, 3 days ago : Delete .local directory
+ .local/terminal-output.txt | 183 ---------------------------------------------
+ 1 file changed, 183 deletions(-)
+
+646b7e8 - Jason Bender, 3 days ago : Delete Meowstik directory
+ Meowstik/README.md | 1 -
+ 1 file changed, 1 deletion(-)
+
+0881e39 - copilot-swe-agent[bot], 3 days ago : Initialize lastError variable to prevent potential runtime error
+ server/integrations/notebooklm/utils.ts | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+9f14ad5 - copilot-swe-agent[bot], 3 days ago : Fix code review issues and add implementation summary
+ NOTEBOOKLM_IMPLEMENTATION_SUMMARY.md        | 374 ++++++++++++++++++++++++++++
+ server/integrations/notebooklm/selectors.ts |  12 +-
+ server/integrations/notebooklm/utils.ts     |   3 +-
+ 3 files changed, 382 insertions(+), 7 deletions(-)
+
+2f3350e - copilot-swe-agent[bot], 3 days ago : Add NotebookLM validation test and documentation
+ docs/NOTEBOOKLM_QUICKSTART.md  | 366 +++++++++++++++++++++++++++++++++++++++++
+ package-lock.json              |  37 +++++
+ package.json                   |   3 +-
+ scripts/validate-notebooklm.ts |  54 ++++++
+ 4 files changed, 459 insertions(+), 1 deletion(-)
+
+4e7dd0a - copilot-swe-agent[bot], 3 days ago : Add NotebookLM Puppeteer integration - core implementation
+ .gitignore                                        |   2 +
+ package.json                                      |   3 +-
+ server/examples/notebooklm-example.ts             | 136 ++++++++
+ server/integrations/notebooklm/README.md          | 339 ++++++++++++++++++++
+ server/integrations/notebooklm/auth-manager.ts    | 199 ++++++++++++
+ server/integrations/notebooklm/browser-manager.ts | 168 ++++++++++
+ server/integrations/notebooklm/index.ts           | 367 ++++++++++++++++++++++
+ server/integrations/notebooklm/selectors.ts       | 240 ++++++++++++++
+ server/integrations/notebooklm/types.ts           | 218 +++++++++++++
+ server/integrations/notebooklm/utils.ts           |  69 ++++
+ 10 files changed, 1740 insertions(+), 1 deletion(-)
+
+6c8e233 - copilot-swe-agent[bot], 3 days ago : Initial plan
+737fa72 - Jason Bender, 3 days ago : Merge pull request #12 from jasonbender-c3x/copilot/configure-twilio-sms-integration
+6defc60 - Jason Bender, 3 days ago : Merge branch 'main' into copilot/configure-twilio-sms-integration
+9184ab2 - Jason Bender, 4 days ago : Merge pull request #14 from jasonbender-c3x/copilot/resolve-twillio-implementation-issues
+4ef418a - Jason Bender, 4 days ago : Merge branch 'main' into copilot/resolve-twillio-implementation-issues
+9ea49d2 - Jason Bender, 4 days ago : Merge pull request #18 from jasonbender-c3x/dependabot/npm_and_yarn/multi-c94c3e2e52
+900c17f - dependabot[bot], 4 days ago : Bump on-headers and express-session
+ package-lock.json | 28 ++++++++++++++++------------
+ package.json      |  2 +-
+ 2 files changed, 17 insertions(+), 13 deletions(-)
+
+42c93c6 - Jason Bender, 4 days ago : Merge pull request #19 from jasonbender-c3x/dependabot/npm_and_yarn/multi-6d05d0e569
+4ee5014 - Jason Bender, 4 days ago : Merge branch 'main' into dependabot/npm_and_yarn/multi-6d05d0e569
+95fd2e7 - Jason Bender, 4 days ago : Merge pull request #16 from jasonbender-c3x/dependabot/npm_and_yarn/tar-7.5.7
+67a6518 - dependabot[bot], 4 days ago : Bump qs, body-parser and express
+ package-lock.json | 151 +++++++++++++++++++++++++++++++++++-------------------
+ package.json      |   2 +-
+ 2 files changed, 98 insertions(+), 55 deletions(-)
+
+fde732d - Jason Bender, 4 days ago : Merge branch 'main' into dependabot/npm_and_yarn/tar-7.5.7
+87daac1 - Jason Bender, 4 days ago : Merge pull request #15 from jasonbender-c3x/dependabot/npm_and_yarn/hono-4.11.7
+0564492 - Jason Bender, 4 days ago : Merge branch 'main' into dependabot/npm_and_yarn/hono-4.11.7
+583a727 - Jason Bender, 4 days ago : Merge pull request #17 from jasonbender-c3x/dependabot/npm_and_yarn/lodash-4.17.23
+a60f25c - Jason Bender, 4 days ago : Update user preferences with political alignment
+ memory/factual/user-prefs.md | 15 +--------------
+ 1 file changed, 1 insertion(+), 14 deletions(-)
+
+ca9034a - Jason Bender, 4 days ago : Delete memory/introspection/capabilities.md
+ memory/introspection/capabilities.md | 32 --------------------------------
+ 1 file changed, 32 deletions(-)
+
+a18f751 - Jason Bender, 4 days ago : Revise GitHub access methods and search patterns
+ memory/operational/patterns.md | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)
+
+a30fc08 - Jason Bender, 4 days ago : Revise path handling and web search recommendations
+ memory/operational/gotchas.md | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+440d69c - Jason Bender, 4 days ago : Delete w
+ w | 1 -
+ 1 file changed, 1 deletion(-)
+
+0523813 - Jason Bender, 4 days ago : Delete short-term-memory.md
+ short-term-memory.md | 20 --------------------
+ 1 file changed, 20 deletions(-)
+
+e965af0 - Jason Bender, 4 days ago : Delete BUGFIX_SUMMARY.md
+ BUGFIX_SUMMARY.md | 36 ------------------------------------
+ 1 file changed, 36 deletions(-)
+
+ffa8947 - copilot-swe-agent[bot], 4 days ago : Fix call recording implementation based on code review
+ CALL_RECORDING_IMPLEMENTATION.md | 54 +++++++++++++++++++++++++++-------------
+ prompts/core-directives.md       | 35 +++++++++-----------------
+ prompts/tools.md                 | 34 ++++++++++++++-----------
+ server/integrations/twilio.ts    | 32 +++++-------------------
+ server/routes/twilio.ts          | 37 ++++++++++++++++++---------
+ 5 files changed, 99 insertions(+), 93 deletions(-)
+
+bd7834e - Jason Bender, 4 days ago : Merge branch 'main' into copilot/resolve-twillio-implementation-issues
+8d3d106 - copilot-swe-agent[bot], 4 days ago : Add comprehensive call recording documentation
+ CALL_RECORDING_IMPLEMENTATION.md | 379 +++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 379 insertions(+)
+
+3a738e6 - dependabot[bot], 4 days ago : Bump lodash from 4.17.21 to 4.17.23
+ package-lock.json | 129 ++++++++++++++++++++++++++----------------------------
+ 1 file changed, 63 insertions(+), 66 deletions(-)
+
+4da376e - dependabot[bot], 4 days ago : Bump tar from 7.5.2 to 7.5.7
+ package-lock.json | 129 ++++++++++++++++++++++++++----------------------------
+ 1 file changed, 63 insertions(+), 66 deletions(-)
+
+460f217 - dependabot[bot], 4 days ago : Bump hono from 4.11.4 to 4.11.7
+ package-lock.json | 129 ++++++++++++++++++++++++++----------------------------
+ 1 file changed, 63 insertions(+), 66 deletions(-)
+
+db6a2c4 - copilot-swe-agent[bot], 4 days ago : Implement automatic call recording and transcription
+ migrations/add_call_recording_transcription.sql | 18 ++++++
+ prompts/core-directives.md                      | 53 +++++++++++++++--
+ prompts/tools.md                                | 24 +++++++-
+ server/integrations/twilio.ts                   | 32 ++++++++--
+ server/routes/twilio.ts                         | 78 +++++++++++++++++++++++++
+ server/storage.ts                               | 26 +++++++++
+ shared/schema.ts                                |  7 +++
+ 7 files changed, 226 insertions(+), 12 deletions(-)
+
+79466a9 - copilot-swe-agent[bot], 4 days ago : Add comprehensive backend implementation documentation
+ BACKEND_IMPLEMENTATION_SUMMARY.md | 381 ++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 381 insertions(+)
+
+8f3a21e - copilot-swe-agent[bot], 4 days ago : Fix code review issues: optimize imports and improve type safety
+ server/routes/communications.ts | 63 +++++++++++++++++++++++------------------
+ server/storage.ts               |  3 +-
+ 2 files changed, 37 insertions(+), 29 deletions(-)
+
+483e7ca - copilot-swe-agent[bot], 4 days ago : Implement complete backend for communications page
+ migrations/add_voicemails_table.sql |  23 +++++
+ server/routes/communications.ts     | 120 +++++++++++++++++++++++---
+ server/routes/twilio.ts             |  60 +++++++++++++
+ server/storage.ts                   | 164 ++++++++++++++++++++++++++++++++++++
+ shared/schema.ts                    |  46 ++++++++++
+ 5 files changed, 402 insertions(+), 11 deletions(-)
+
+1f9e038 - Jason Bender, 4 days ago : Merge pull request #11 from jasonbender-c3x/copilot/add-file-ingest-documentation
+a4cc70f - copilot-swe-agent[bot], 4 days ago : Add abbreviated file_ingest instructions to LLM system prompt
+ prompts/llm-instructions.md | 14 +++++++++++---
+ 1 file changed, 11 insertions(+), 3 deletions(-)
+
+fd8c454 - copilot-swe-agent[bot], 4 days ago : Add visual issue response summary with clear status indicators
+ ISSUE_RESPONSE_SUMMARY.md | 330 ++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 330 insertions(+)
+
+5867419 - copilot-swe-agent[bot], 4 days ago : Update status document with accurate communications page implementation details
+ TWILIO_VOICE_SMS_STATUS.md | 107 ++++++++++++++++++++++++++++++---------------
+ 1 file changed, 71 insertions(+), 36 deletions(-)
+
+0010b56 - copilot-swe-agent[bot], 4 days ago : Add comprehensive Twilio implementation status document
+ TWILIO_VOICE_SMS_STATUS.md | 275 +++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 275 insertions(+)
+
+528a5b5 - copilot-swe-agent[bot], 4 days ago : Fix issue reference in summary document
+ RAG_STACK_FIX_SUMMARY.md | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+e2b2f78 - copilot-swe-agent[bot], 4 days ago : Add comprehensive implementation summary document
+ RAG_STACK_FIX_SUMMARY.md | 494 +++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 494 insertions(+)
+
+fbd9519 - copilot-swe-agent[bot], 4 days ago : Add RAG Knowledge Base section to README
+ README.md | 61 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 60 insertions(+), 1 deletion(-)
+
+3975f04 - copilot-swe-agent[bot], 4 days ago : Initial plan
+d202d82 - copilot-swe-agent[bot], 4 days ago : Add validation test for file_ingest implementation
+ scripts/test-file-ingest.ts | 171 ++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 171 insertions(+)
+
+16acdd6 - copilot-swe-agent[bot], 4 days ago : Add psql example for finding user ID in .env.example
+ .env.example | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)
+
+299577e - copilot-swe-agent[bot], 4 days ago : Enhance .env.example and add local Twilio testing guide
+ .env.example              |  22 ++++-
+ docs/local-development.md | 225 ++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 246 insertions(+), 1 deletion(-)
+
+438c747 - copilot-swe-agent[bot], 4 days ago : Implement file_ingest tool and add comprehensive documentation
+ .env.example                      |  10 +
+ docs/FILE_INGEST_GUIDE.md         | 470 +++++++++++++++++++++++++++++++++++
+ docs/RAG_ARCHITECTURE.md          | 505 ++++++++++++++++++++++++++++++++++++++
+ prompts/tools.md                  |  57 +++++
+ server/services/rag-dispatcher.ts |  60 ++++-
+ 5 files changed, 1099 insertions(+), 3 deletions(-)
+
+1f3a142 - copilot-swe-agent[bot], 4 days ago : Initial plan
+bccc1e4 - copilot-swe-agent[bot], 4 days ago : Initial plan
+37e8b8b - Jason Bender, 4 days ago : Merge pull request #10 from jasonbender-c3x/copilot/fix-truncated-docs-content
+13a473c - copilot-swe-agent[bot], 4 days ago : Improve type safety in noTruncate flag check
+ server/routes.ts | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+604d8d4 - copilot-swe-agent[bot], 4 days ago : Fix: Respect noTruncate flag in agentic loop tool results
+ server/routes.ts | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)
+
+0420700 - copilot-swe-agent[bot], 4 days ago : Initial plan
+6bf2632 - Jason Bender, 4 days ago : Merge pull request #9 from jasonbender-c3x/copilot/setup-twilio-sms-integration
+ac58faa - Jason Bender, 4 days ago : Merge branch 'main' into copilot/setup-twilio-sms-integration
+5d5f488 - Jason Bender, 4 days ago : Merge pull request #8 from jasonbender-c3x/copilot/configure-twilio-sms-integration
+7a66d9d - copilot-swe-agent[bot], 4 days ago : Add comprehensive Twilio SMS deployment guide and update README
+ README.md                                          |  32 +-
+ .../02-integrations/TWILIO_DEPLOYMENT_GUIDE.md     | 373 +++++++++++++++++++++
+ docs/exhibit/02-integrations/TWILIO_SMS_WEBHOOK.md | 246 --------------
+ 3 files changed, 403 insertions(+), 248 deletions(-)
+
+de3e40b - copilot-swe-agent[bot], 4 days ago : Initial plan
+758fe0f - copilot-swe-agent[bot], 4 days ago : Add comprehensive startup guides (QUICK_START.md, COMMANDS.md, start.sh)
+ COMMANDS.md    | 322 +++++++++++++++++++++++++++++++++++
+ QUICK_START.md | 520 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ start.sh       | 141 ++++++++++++++++
+ 3 files changed, 983 insertions(+)
+
+55ada96 - copilot-swe-agent[bot], 4 days ago : Add comprehensive implementation summary documentation
+ docs/IMPLEMENTATION_SUMMARY.md | 575 +++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 575 insertions(+)
+
+d690e72 - copilot-swe-agent[bot], 4 days ago : Implement comprehensive communications system with Voice Lab, Sound Settings, and SMS/Calls integration
+ client/src/App.tsx                  |  17 +-
+ client/src/App.tsx.backup           | 368 +++++++++++++++++++++++++
+ client/src/pages/communications.tsx | 524 ++++++++++++++++++++++++++++++++++++
+ client/src/pages/sound-settings.tsx | 452 +++++++++++++++++++++++++++++++
+ client/src/pages/voice-lab.tsx      | 485 +++++++++++++++++++++++++++++++++
+ server/routes/communications.ts     | 236 ++++++++++++++++
+ server/routes/index.ts              |   2 +
+ 7 files changed, 2082 insertions(+), 2 deletions(-)
+
+f4d5125 - copilot-swe-agent[bot], 4 days ago : Add AI-powered conference calling system proposal
+ docs/proposals/AI_CONFERENCE_CALLING_PROPOSAL.md | 801 +++++++++++++++++++++++
+ 1 file changed, 801 insertions(+)
+
+cb07e5a - copilot-swe-agent[bot], 4 days ago : Add comprehensive cost computation documentation
+ docs/proposals/COST_COMPUTATION.md | 613 +++++++++++++++++++++++++++++++++++++
+ 1 file changed, 613 insertions(+)
+
+aa828cb - copilot-swe-agent[bot], 4 days ago : Update documentation with meowstik.com domain and add Communications page proposal
+ docs/TWILIO_SMS_SETUP.md                       |  26 +-
+ docs/proposals/COMMUNICATIONS_PAGE_PROPOSAL.md | 453 +++++++++++++++++++++++++
+ 2 files changed, 466 insertions(+), 13 deletions(-)
+
+50330f8 - copilot-swe-agent[bot], 4 days ago : Fix code review issues and run security scan
+ server/routes/twilio.ts | 20 ++++++++++++--------
+ 1 file changed, 12 insertions(+), 8 deletions(-)
+
+f1251a6 - copilot-swe-agent[bot], 4 days ago : Implement AI-powered SMS processing with Gemini
+ server/routes/twilio.ts | 293 ++++++++++++++++++++++++++++++++++++++++++++++--
+ 1 file changed, 285 insertions(+), 8 deletions(-)
+
+c3b3e0b - copilot-swe-agent[bot], 4 days ago : Fix documentation links and date references
+ docs/TWILIO_SMS_SETUP.md | 9 +++++++--
+ 1 file changed, 7 insertions(+), 2 deletions(-)
+
+a1e40c6 - copilot-swe-agent[bot], 4 days ago : Add comprehensive Twilio SMS integration documentation
+ .env.example             |  16 +-
+ README.md                |  35 +++-
+ docs/TWILIO_SMS_SETUP.md | 429 +++++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 475 insertions(+), 5 deletions(-)
+
+0b2e76a - copilot-swe-agent[bot], 4 days ago : Initial plan
+3f7d01b - Jason Bender, 5 days ago : Initial commit of workstation contents
+ .env.example                                       |    60 +
+ .gitattributes                                     |     7 +
+ .../rag-traceability-implementation.md             |   138 +
+ .gitignore                                         |    17 +
+ .local/terminal-output.txt                         |   183 +
+ .pythonlibs/bin/flask                              |     8 +
+ .pythonlibs/bin/normalizer                         |     8 +
+ .../blinker-1.9.0.dist-info/INSTALLER              |     1 +
+ .../blinker-1.9.0.dist-info/LICENSE.txt            |    20 +
+ .../site-packages/blinker-1.9.0.dist-info/METADATA |    60 +
+ .../site-packages/blinker-1.9.0.dist-info/RECORD   |    12 +
+ .../site-packages/blinker-1.9.0.dist-info/WHEEL    |     4 +
+ .../python3.11/site-packages/blinker/__init__.py   |    17 +
+ .../blinker/__pycache__/__init__.cpython-311.pyc   |   Bin 0 -> 613 bytes
+ .../blinker/__pycache__/_utilities.cpython-311.pyc |   Bin 0 -> 3098 bytes
+ .../blinker/__pycache__/base.cpython-311.pyc       |   Bin 0 -> 23630 bytes
+ .../python3.11/site-packages/blinker/_utilities.py |    64 +
+ .../lib/python3.11/site-packages/blinker/base.py   |   512 +
+ .../lib/python3.11/site-packages/blinker/py.typed  |     0
+ .../certifi-2026.1.4.dist-info/INSTALLER           |     1 +
+ .../certifi-2026.1.4.dist-info/METADATA            |    78 +
+ .../certifi-2026.1.4.dist-info/RECORD              |    14 +
+ .../site-packages/certifi-2026.1.4.dist-info/WHEEL |     5 +
+ .../certifi-2026.1.4.dist-info/licenses/LICENSE    |    20 +
+ .../certifi-2026.1.4.dist-info/top_level.txt       |     1 +
+ .../python3.11/site-packages/certifi/__init__.py   |     4 +
+ .../python3.11/site-packages/certifi/__main__.py   |    12 +
+ .../certifi/__pycache__/__init__.cpython-311.pyc   |   Bin 0 -> 334 bytes
+ .../certifi/__pycache__/__main__.cpython-311.pyc   |   Bin 0 -> 723 bytes
+ .../certifi/__pycache__/core.cpython-311.pyc       |   Bin 0 -> 2393 bytes
+ .../python3.11/site-packages/certifi/cacert.pem    |  4468 +++
+ .../lib/python3.11/site-packages/certifi/core.py   |    83 +
+ .../lib/python3.11/site-packages/certifi/py.typed  |     0
+ .../charset_normalizer-3.4.4.dist-info/INSTALLER   |     1 +
+ .../charset_normalizer-3.4.4.dist-info/METADATA    |   764 +
+ .../charset_normalizer-3.4.4.dist-info/RECORD      |    35 +
+ .../charset_normalizer-3.4.4.dist-info/WHEEL       |     7 +
+ .../entry_points.txt                               |     2 +
+ .../licenses/LICENSE                               |    21 +
+ .../top_level.txt                                  |     1 +
+ .../site-packages/charset_normalizer/__init__.py   |    48 +
+ .../site-packages/charset_normalizer/__main__.py   |     6 +
+ .../__pycache__/__init__.cpython-311.pyc           |   Bin 0 -> 1915 bytes
+ .../__pycache__/__main__.cpython-311.pyc           |   Bin 0 -> 406 bytes
+ .../__pycache__/api.cpython-311.pyc                |   Bin 0 -> 20797 bytes
+ .../__pycache__/cd.cpython-311.pyc                 |   Bin 0 -> 15880 bytes
+ .../__pycache__/constant.cpython-311.pyc           |   Bin 0 -> 45731 bytes
+ .../__pycache__/legacy.cpython-311.pyc             |   Bin 0 -> 3357 bytes
+ .../__pycache__/md.cpython-311.pyc                 |   Bin 0 -> 27551 bytes
+ .../__pycache__/models.cpython-311.pyc             |   Bin 0 -> 18570 bytes
+ .../__pycache__/utils.cpython-311.pyc              |   Bin 0 -> 15663 bytes
+ .../__pycache__/version.cpython-311.pyc            |   Bin 0 -> 412 bytes
+ .../site-packages/charset_normalizer/api.py        |   669 +
+ .../site-packages/charset_normalizer/cd.py         |   395 +
+ .../charset_normalizer/cli/__init__.py             |     8 +
+ .../charset_normalizer/cli/__main__.py             |   381 +
+ .../cli/__pycache__/__init__.cpython-311.pyc       |   Bin 0 -> 378 bytes
+ .../cli/__pycache__/__main__.cpython-311.pyc       |   Bin 0 -> 15996 bytes
+ .../site-packages/charset_normalizer/constant.py   |  2015 ++
+ .../site-packages/charset_normalizer/legacy.py     |    80 +
+ .../md.cpython-311-x86_64-linux-gnu.so             |   Bin 0 -> 15912 bytes
+ .../site-packages/charset_normalizer/md.py         |   635 +
+ .../md__mypyc.cpython-311-x86_64-linux-gnu.so      |   Bin 0 -> 282232 bytes
+ .../site-packages/charset_normalizer/models.py     |   360 +
+ .../site-packages/charset_normalizer/py.typed      |     0
+ .../site-packages/charset_normalizer/utils.py      |   414 +
+ .../site-packages/charset_normalizer/version.py    |     8 +
+ .../site-packages/click-8.3.1.dist-info/INSTALLER  |     1 +
+ .../site-packages/click-8.3.1.dist-info/METADATA   |    84 +
+ .../site-packages/click-8.3.1.dist-info/RECORD     |    40 +
+ .../site-packages/click-8.3.1.dist-info/WHEEL      |     4 +
+ .../click-8.3.1.dist-info/licenses/LICENSE.txt     |    28 +
+ .../lib/python3.11/site-packages/click/__init__.py |   123 +
+ .../click/__pycache__/__init__.cpython-311.pyc     |   Bin 0 -> 5236 bytes
+ .../click/__pycache__/_compat.cpython-311.pyc      |   Bin 0 -> 26143 bytes
+ .../click/__pycache__/_termui_impl.cpython-311.pyc |   Bin 0 -> 34606 bytes
+ .../click/__pycache__/_textwrap.cpython-311.pyc    |   Bin 0 -> 2649 bytes
+ .../click/__pycache__/_utils.cpython-311.pyc       |   Bin 0 -> 1249 bytes
+ .../click/__pycache__/_winconsole.cpython-311.pyc  |   Bin 0 -> 13654 bytes
+ .../click/__pycache__/core.cpython-311.pyc         |   Bin 0 -> 143417 bytes
+ .../click/__pycache__/decorators.cpython-311.pyc   |   Bin 0 -> 23765 bytes
+ .../click/__pycache__/exceptions.cpython-311.pyc   |   Bin 0 -> 16727 bytes
+ .../click/__pycache__/formatting.cpython-311.pyc   |   Bin 0 -> 15322 bytes
+ .../click/__pycache__/globals.cpython-311.pyc      |   Bin 0 -> 3271 bytes
+ .../click/__pycache__/parser.cpython-311.pyc       |   Bin 0 -> 22532 bytes
+ .../__pycache__/shell_completion.cpython-311.pyc   |   Bin 0 -> 25221 bytes
+ .../click/__pycache__/termui.cpython-311.pyc       |   Bin 0 -> 35747 bytes
+ .../click/__pycache__/testing.cpython-311.pyc      |   Bin 0 -> 29514 bytes
+ .../click/__pycache__/types.cpython-311.pyc        |   Bin 0 -> 55399 bytes
+ .../click/__pycache__/utils.cpython-311.pyc        |   Bin 0 -> 26875 bytes
+ .../lib/python3.11/site-packages/click/_compat.py  |   622 +
+ .../python3.11/site-packages/click/_termui_impl.py |   852 +
+ .../python3.11/site-packages/click/_textwrap.py    |    51 +
+ .../lib/python3.11/site-packages/click/_utils.py   |    36 +
+ .../python3.11/site-packages/click/_winconsole.py  |   296 +
+ .../lib/python3.11/site-packages/click/core.py     |  3415 +++
+ .../python3.11/site-packages/click/decorators.py   |   551 +
+ .../python3.11/site-packages/click/exceptions.py   |   308 +
+ .../python3.11/site-packages/click/formatting.py   |   301 +
+ .../lib/python3.11/site-packages/click/globals.py  |    67 +
+ .../lib/python3.11/site-packages/click/parser.py   |   532 +
+ .../lib/python3.11/site-packages/click/py.typed    |     0
+ .../site-packages/click/shell_completion.py        |   667 +
+ .../lib/python3.11/site-packages/click/termui.py   |   883 +
+ .../lib/python3.11/site-packages/click/testing.py  |   577 +
+ .../lib/python3.11/site-packages/click/types.py    |  1209 +
+ .../lib/python3.11/site-packages/click/utils.py    |   627 +
+ .../site-packages/flask-3.1.2.dist-info/INSTALLER  |     1 +
+ .../site-packages/flask-3.1.2.dist-info/METADATA   |    91 +
+ .../site-packages/flask-3.1.2.dist-info/RECORD     |    58 +
+ .../site-packages/flask-3.1.2.dist-info/REQUESTED  |     0
+ .../site-packages/flask-3.1.2.dist-info/WHEEL      |     4 +
+ .../flask-3.1.2.dist-info/entry_points.txt         |     3 +
+ .../flask-3.1.2.dist-info/licenses/LICENSE.txt     |    28 +
+ .../lib/python3.11/site-packages/flask/__init__.py |    61 +
+ .../lib/python3.11/site-packages/flask/__main__.py |     3 +
+ .../flask/__pycache__/__init__.cpython-311.pyc     |   Bin 0 -> 3229 bytes
+ .../flask/__pycache__/__main__.cpython-311.pyc     |   Bin 0 -> 265 bytes
+ .../flask/__pycache__/app.cpython-311.pyc          |   Bin 0 -> 65079 bytes
+ .../flask/__pycache__/blueprints.cpython-311.pyc   |   Bin 0 -> 5362 bytes
+ .../flask/__pycache__/cli.cpython-311.pyc          |   Bin 0 -> 48081 bytes
+ .../flask/__pycache__/config.cpython-311.pyc       |   Bin 0 -> 17223 bytes
+ .../flask/__pycache__/ctx.cpython-311.pyc          |   Bin 0 -> 20906 bytes
+ .../flask/__pycache__/debughelpers.cpython-311.pyc |   Bin 0 -> 10217 bytes
+ .../flask/__pycache__/globals.cpython-311.pyc      |   Bin 0 -> 2228 bytes
+ .../flask/__pycache__/helpers.cpython-311.pyc      |   Bin 0 -> 26761 bytes
+ .../flask/__pycache__/logging.cpython-311.pyc      |   Bin 0 -> 3458 bytes
+ .../flask/__pycache__/sessions.cpython-311.pyc     |   Bin 0 -> 18709 bytes
+ .../flask/__pycache__/signals.cpython-311.pyc      |   Bin 0 -> 1369 bytes
+ .../flask/__pycache__/templating.cpython-311.pyc   |   Bin 0 -> 10655 bytes
+ .../flask/__pycache__/testing.cpython-311.pyc      |   Bin 0 -> 14643 bytes
+ .../flask/__pycache__/typing.cpython-311.pyc       |   Bin 0 -> 3830 bytes
+ .../flask/__pycache__/views.cpython-311.pyc        |   Bin 0 -> 7465 bytes
+ .../flask/__pycache__/wrappers.cpython-311.pyc     |   Bin 0 -> 10856 bytes
+ .../lib/python3.11/site-packages/flask/app.py      |  1536 ++
+ .../python3.11/site-packages/flask/blueprints.py   |   128 +
+ .../lib/python3.11/site-packages/flask/cli.py      |  1135 +
+ .../lib/python3.11/site-packages/flask/config.py   |   367 +
+ .../lib/python3.11/site-packages/flask/ctx.py      |   449 +
+ .../python3.11/site-packages/flask/debughelpers.py |   178 +
+ .../lib/python3.11/site-packages/flask/globals.py  |    51 +
+ .../lib/python3.11/site-packages/flask/helpers.py  |   641 +
+ .../site-packages/flask/json/__init__.py           |   170 +
+ .../json/__pycache__/__init__.cpython-311.pyc      |   Bin 0 -> 6880 bytes
+ .../json/__pycache__/provider.cpython-311.pyc      |   Bin 0 -> 9995 bytes
+ .../flask/json/__pycache__/tag.cpython-311.pyc     |   Bin 0 -> 16588 bytes
+ .../site-packages/flask/json/provider.py           |   215 +
+ .../lib/python3.11/site-packages/flask/json/tag.py |   327 +
+ .../lib/python3.11/site-packages/flask/logging.py  |    79 +
+ .../lib/python3.11/site-packages/flask/py.typed    |     0
+ .../site-packages/flask/sansio/README.md           |     6 +
+ .../flask/sansio/__pycache__/app.cpython-311.pyc   |   Bin 0 -> 35446 bytes
+ .../sansio/__pycache__/blueprints.cpython-311.pyc  |   Bin 0 -> 32556 bytes
+ .../sansio/__pycache__/scaffold.cpython-311.pyc    |   Bin 0 -> 31435 bytes
+ .../python3.11/site-packages/flask/sansio/app.py   |   964 +
+ .../site-packages/flask/sansio/blueprints.py       |   632 +
+ .../site-packages/flask/sansio/scaffold.py         |   792 +
+ .../lib/python3.11/site-packages/flask/sessions.py |   399 +
+ .../lib/python3.11/site-packages/flask/signals.py  |    17 +
+ .../python3.11/site-packages/flask/templating.py   |   219 +
+ .../lib/python3.11/site-packages/flask/testing.py  |   298 +
+ .../lib/python3.11/site-packages/flask/typing.py   |    93 +
+ .../lib/python3.11/site-packages/flask/views.py    |   191 +
+ .../lib/python3.11/site-packages/flask/wrappers.py |   257 +
+ .../site-packages/idna-3.11.dist-info/INSTALLER    |     1 +
+ .../site-packages/idna-3.11.dist-info/METADATA     |   209 +
+ .../site-packages/idna-3.11.dist-info/RECORD       |    22 +
+ .../site-packages/idna-3.11.dist-info/WHEEL        |     4 +
+ .../idna-3.11.dist-info/licenses/LICENSE.md        |    31 +
+ .../lib/python3.11/site-packages/idna/__init__.py  |    45 +
+ .../idna/__pycache__/__init__.cpython-311.pyc      |   Bin 0 -> 1096 bytes
+ .../idna/__pycache__/codec.cpython-311.pyc         |   Bin 0 -> 5778 bytes
+ .../idna/__pycache__/compat.cpython-311.pyc        |   Bin 0 -> 1018 bytes
+ .../idna/__pycache__/core.cpython-311.pyc          |   Bin 0 -> 19297 bytes
+ .../idna/__pycache__/idnadata.cpython-311.pyc      |   Bin 0 -> 103012 bytes
+ .../idna/__pycache__/intranges.cpython-311.pyc     |   Bin 0 -> 2976 bytes
+ .../idna/__pycache__/package_data.cpython-311.pyc  |   Bin 0 -> 212 bytes
+ .../idna/__pycache__/uts46data.cpython-311.pyc     |   Bin 0 -> 166265 bytes
+ .../lib/python3.11/site-packages/idna/codec.py     |   122 +
+ .../lib/python3.11/site-packages/idna/compat.py    |    15 +
+ .../lib/python3.11/site-packages/idna/core.py      |   437 +
+ .../lib/python3.11/site-packages/idna/idnadata.py  |  4309 +++
+ .../lib/python3.11/site-packages/idna/intranges.py |    57 +
+ .../python3.11/site-packages/idna/package_data.py  |     1 +
+ .../lib/python3.11/site-packages/idna/py.typed     |     0
+ .../lib/python3.11/site-packages/idna/uts46data.py |  8841 ++++++
+ .../itsdangerous-2.2.0.dist-info/INSTALLER         |     1 +
+ .../itsdangerous-2.2.0.dist-info/LICENSE.txt       |    28 +
+ .../itsdangerous-2.2.0.dist-info/METADATA          |    60 +
+ .../itsdangerous-2.2.0.dist-info/RECORD            |    22 +
+ .../itsdangerous-2.2.0.dist-info/WHEEL             |     4 +
+ .../site-packages/itsdangerous/__init__.py         |    38 +
+ .../__pycache__/__init__.cpython-311.pyc           |   Bin 0 -> 1998 bytes
+ .../itsdangerous/__pycache__/_json.cpython-311.pyc |   Bin 0 -> 1375 bytes
+ .../__pycache__/encoding.cpython-311.pyc           |   Bin 0 -> 2954 bytes
+ .../itsdangerous/__pycache__/exc.cpython-311.pyc   |   Bin 0 -> 4825 bytes
+ .../__pycache__/serializer.cpython-311.pyc         |   Bin 0 -> 15731 bytes
+ .../__pycache__/signer.cpython-311.pyc             |   Bin 0 -> 12484 bytes
+ .../itsdangerous/__pycache__/timed.cpython-311.pyc |   Bin 0 -> 9751 bytes
+ .../__pycache__/url_safe.cpython-311.pyc           |   Bin 0 -> 4136 bytes
+ .../python3.11/site-packages/itsdangerous/_json.py |    18 +
+ .../site-packages/itsdangerous/encoding.py         |    54 +
+ .../python3.11/site-packages/itsdangerous/exc.py   |   106 +
+ .../python3.11/site-packages/itsdangerous/py.typed |     0
+ .../site-packages/itsdangerous/serializer.py       |   406 +
+ .../site-packages/itsdangerous/signer.py           |   266 +
+ .../python3.11/site-packages/itsdangerous/timed.py |   228 +
+ .../site-packages/itsdangerous/url_safe.py         |    83 +
+ .../site-packages/jinja2-3.1.6.dist-info/INSTALLER |     1 +
+ .../site-packages/jinja2-3.1.6.dist-info/METADATA  |    84 +
+ .../site-packages/jinja2-3.1.6.dist-info/RECORD    |    57 +
+ .../site-packages/jinja2-3.1.6.dist-info/WHEEL     |     4 +
+ .../jinja2-3.1.6.dist-info/entry_points.txt        |     3 +
+ .../jinja2-3.1.6.dist-info/licenses/LICENSE.txt    |    28 +
+ .../python3.11/site-packages/jinja2/__init__.py    |    38 +
+ .../jinja2/__pycache__/__init__.cpython-311.pyc    |   Bin 0 -> 2124 bytes
+ .../jinja2/__pycache__/_identifier.cpython-311.pyc |   Bin 0 -> 2140 bytes
+ .../jinja2/__pycache__/async_utils.cpython-311.pyc |   Bin 0 -> 5600 bytes
+ .../jinja2/__pycache__/bccache.cpython-311.pyc     |   Bin 0 -> 20922 bytes
+ .../jinja2/__pycache__/compiler.cpython-311.pyc    |   Bin 0 -> 112444 bytes
+ .../jinja2/__pycache__/constants.cpython-311.pyc   |   Bin 0 -> 1559 bytes
+ .../jinja2/__pycache__/debug.cpython-311.pyc       |   Bin 0 -> 6719 bytes
+ .../jinja2/__pycache__/defaults.cpython-311.pyc    |   Bin 0 -> 1725 bytes
+ .../jinja2/__pycache__/environment.cpython-311.pyc |   Bin 0 -> 80582 bytes
+ .../jinja2/__pycache__/exceptions.cpython-311.pyc  |   Bin 0 -> 8610 bytes
+ .../jinja2/__pycache__/ext.cpython-311.pyc         |   Bin 0 -> 43386 bytes
+ .../jinja2/__pycache__/filters.cpython-311.pyc     |   Bin 0 -> 77644 bytes
+ .../jinja2/__pycache__/idtracking.cpython-311.pyc  |   Bin 0 -> 19514 bytes
+ .../jinja2/__pycache__/lexer.cpython-311.pyc       |   Bin 0 -> 35667 bytes
+ .../jinja2/__pycache__/loaders.cpython-311.pyc     |   Bin 0 -> 34400 bytes
+ .../jinja2/__pycache__/meta.cpython-311.pyc        |   Bin 0 -> 5704 bytes
+ .../jinja2/__pycache__/nativetypes.cpython-311.pyc |   Bin 0 -> 7966 bytes
+ .../jinja2/__pycache__/nodes.cpython-311.pyc       |   Bin 0 -> 64485 bytes
+ .../jinja2/__pycache__/optimizer.cpython-311.pyc   |   Bin 0 -> 2855 bytes
+ .../jinja2/__pycache__/parser.cpython-311.pyc      |   Bin 0 -> 60031 bytes
+ .../jinja2/__pycache__/runtime.cpython-311.pyc     |   Bin 0 -> 51118 bytes
+ .../jinja2/__pycache__/sandbox.cpython-311.pyc     |   Bin 0 -> 19226 bytes
+ .../jinja2/__pycache__/tests.cpython-311.pyc       |   Bin 0 -> 9275 bytes
+ .../jinja2/__pycache__/utils.cpython-311.pyc       |   Bin 0 -> 37562 bytes
+ .../jinja2/__pycache__/visitor.cpython-311.pyc     |   Bin 0 -> 5703 bytes
+ .../python3.11/site-packages/jinja2/_identifier.py |     6 +
+ .../python3.11/site-packages/jinja2/async_utils.py |    99 +
+ .../lib/python3.11/site-packages/jinja2/bccache.py |   408 +
+ .../python3.11/site-packages/jinja2/compiler.py    |  1998 ++
+ .../python3.11/site-packages/jinja2/constants.py   |    20 +
+ .../lib/python3.11/site-packages/jinja2/debug.py   |   191 +
+ .../python3.11/site-packages/jinja2/defaults.py    |    48 +
+ .../python3.11/site-packages/jinja2/environment.py |  1672 ++
+ .../python3.11/site-packages/jinja2/exceptions.py  |   166 +
+ .../lib/python3.11/site-packages/jinja2/ext.py     |   870 +
+ .../lib/python3.11/site-packages/jinja2/filters.py |  1873 ++
+ .../python3.11/site-packages/jinja2/idtracking.py  |   318 +
+ .../lib/python3.11/site-packages/jinja2/lexer.py   |   868 +
+ .../lib/python3.11/site-packages/jinja2/loaders.py |   693 +
+ .../lib/python3.11/site-packages/jinja2/meta.py    |   112 +
+ .../python3.11/site-packages/jinja2/nativetypes.py |   130 +
+ .../lib/python3.11/site-packages/jinja2/nodes.py   |  1206 +
+ .../python3.11/site-packages/jinja2/optimizer.py   |    48 +
+ .../lib/python3.11/site-packages/jinja2/parser.py  |  1049 +
+ .../lib/python3.11/site-packages/jinja2/py.typed   |     0
+ .../lib/python3.11/site-packages/jinja2/runtime.py |  1062 +
+ .../lib/python3.11/site-packages/jinja2/sandbox.py |   436 +
+ .../lib/python3.11/site-packages/jinja2/tests.py   |   256 +
+ .../lib/python3.11/site-packages/jinja2/utils.py   |   766 +
+ .../lib/python3.11/site-packages/jinja2/visitor.py |    92 +
+ .../markupsafe-3.0.3.dist-info/INSTALLER           |     1 +
+ .../markupsafe-3.0.3.dist-info/METADATA            |    74 +
+ .../markupsafe-3.0.3.dist-info/RECORD              |    14 +
+ .../site-packages/markupsafe-3.0.3.dist-info/WHEEL |     7 +
+ .../licenses/LICENSE.txt                           |    28 +
+ .../markupsafe-3.0.3.dist-info/top_level.txt       |     1 +
+ .../site-packages/markupsafe/__init__.py           |   396 +
+ .../__pycache__/__init__.cpython-311.pyc           |   Bin 0 -> 25778 bytes
+ .../markupsafe/__pycache__/_native.cpython-311.pyc |   Bin 0 -> 692 bytes
+ .../python3.11/site-packages/markupsafe/_native.py |     8 +
+ .../site-packages/markupsafe/_speedups.c           |   200 +
+ .../_speedups.cpython-311-x86_64-linux-gnu.so      |   Bin 0 -> 43936 bytes
+ .../site-packages/markupsafe/_speedups.pyi         |     1 +
+ .../python3.11/site-packages/markupsafe/py.typed   |     0
+ .../requests-2.32.5.dist-info/INSTALLER            |     1 +
+ .../requests-2.32.5.dist-info/METADATA             |   133 +
+ .../site-packages/requests-2.32.5.dist-info/RECORD |    43 +
+ .../requests-2.32.5.dist-info/REQUESTED            |     0
+ .../site-packages/requests-2.32.5.dist-info/WHEEL  |     5 +
+ .../requests-2.32.5.dist-info/licenses/LICENSE     |   175 +
+ .../requests-2.32.5.dist-info/top_level.txt        |     1 +
+ .../python3.11/site-packages/requests/__init__.py  |   184 +
+ .../requests/__pycache__/__init__.cpython-311.pyc  |   Bin 0 -> 6377 bytes
+ .../__pycache__/__version__.cpython-311.pyc        |   Bin 0 -> 580 bytes
+ .../__pycache__/_internal_utils.cpython-311.pyc    |   Bin 0 -> 2144 bytes
+ .../requests/__pycache__/adapters.cpython-311.pyc  |   Bin 0 -> 30029 bytes
+ .../requests/__pycache__/api.cpython-311.pyc       |   Bin 0 -> 7497 bytes
+ .../requests/__pycache__/auth.cpython-311.pyc      |   Bin 0 -> 14624 bytes
+ .../requests/__pycache__/certs.cpython-311.pyc     |   Bin 0 -> 714 bytes
+ .../requests/__pycache__/compat.cpython-311.pyc    |   Bin 0 -> 2801 bytes
+ .../requests/__pycache__/cookies.cpython-311.pyc   |   Bin 0 -> 27134 bytes
+ .../__pycache__/exceptions.cpython-311.pyc         |   Bin 0 -> 9065 bytes
+ .../requests/__pycache__/help.cpython-311.pyc      |   Bin 0 -> 4531 bytes
+ .../requests/__pycache__/hooks.cpython-311.pyc     |   Bin 0 -> 1244 bytes
+ .../requests/__pycache__/models.cpython-311.pyc    |   Bin 0 -> 38826 bytes
+ .../requests/__pycache__/packages.cpython-311.pyc  |   Bin 0 -> 1167 bytes
+ .../requests/__pycache__/sessions.cpython-311.pyc  |   Bin 0 -> 29820 bytes
+ .../__pycache__/status_codes.cpython-311.pyc       |   Bin 0 -> 6303 bytes
+ .../__pycache__/structures.cpython-311.pyc         |   Bin 0 -> 6216 bytes
+ .../requests/__pycache__/utils.cpython-311.pyc     |   Bin 0 -> 40272 bytes
+ .../site-packages/requests/__version__.py          |    14 +
+ .../site-packages/requests/_internal_utils.py      |    50 +
+ .../python3.11/site-packages/requests/adapters.py  |   696 +
+ .../lib/python3.11/site-packages/requests/api.py   |   157 +
+ .../lib/python3.11/site-packages/requests/auth.py  |   314 +
+ .../lib/python3.11/site-packages/requests/certs.py |    17 +
+ .../python3.11/site-packages/requests/compat.py    |   106 +
+ .../python3.11/site-packages/requests/cookies.py   |   561 +
+ .../site-packages/requests/exceptions.py           |   151 +
+ .../lib/python3.11/site-packages/requests/help.py  |   134 +
+ .../lib/python3.11/site-packages/requests/hooks.py |    33 +
+ .../python3.11/site-packages/requests/models.py    |  1039 +
+ .../python3.11/site-packages/requests/packages.py  |    23 +
+ .../python3.11/site-packages/requests/sessions.py  |   831 +
+ .../site-packages/requests/status_codes.py         |   128 +
+ .../site-packages/requests/structures.py           |    99 +
+ .../lib/python3.11/site-packages/requests/utils.py |  1086 +
+ .../urllib3-2.6.3.dist-info/INSTALLER              |     1 +
+ .../site-packages/urllib3-2.6.3.dist-info/METADATA |   164 +
+ .../site-packages/urllib3-2.6.3.dist-info/RECORD   |    79 +
+ .../site-packages/urllib3-2.6.3.dist-info/WHEEL    |     4 +
+ .../urllib3-2.6.3.dist-info/licenses/LICENSE.txt   |    21 +
+ .../python3.11/site-packages/urllib3/__init__.py   |   211 +
+ .../urllib3/__pycache__/__init__.cpython-311.pyc   |   Bin 0 -> 7675 bytes
+ .../__pycache__/_base_connection.cpython-311.pyc   |   Bin 0 -> 7109 bytes
+ .../__pycache__/_collections.cpython-311.pyc       |   Bin 0 -> 26518 bytes
+ .../__pycache__/_request_methods.cpython-311.pyc   |   Bin 0 -> 10722 bytes
+ .../urllib3/__pycache__/_version.cpython-311.pyc   |   Bin 0 -> 893 bytes
+ .../urllib3/__pycache__/connection.cpython-311.pyc |   Bin 0 -> 41035 bytes
+ .../__pycache__/connectionpool.cpython-311.pyc     |   Bin 0 -> 41274 bytes
+ .../urllib3/__pycache__/exceptions.cpython-311.pyc |   Bin 0 -> 20101 bytes
+ .../urllib3/__pycache__/fields.cpython-311.pyc     |   Bin 0 -> 12719 bytes
+ .../urllib3/__pycache__/filepost.cpython-311.pyc   |   Bin 0 -> 3878 bytes
+ .../__pycache__/poolmanager.cpython-311.pyc        |   Bin 0 -> 25818 bytes
+ .../urllib3/__pycache__/response.cpython-311.pyc   |   Bin 0 -> 61633 bytes
+ .../site-packages/urllib3/_base_connection.py      |   165 +
+ .../site-packages/urllib3/_collections.py          |   487 +
+ .../site-packages/urllib3/_request_methods.py      |   278 +
+ .../python3.11/site-packages/urllib3/_version.py   |    34 +
+ .../python3.11/site-packages/urllib3/connection.py |  1099 +
+ .../site-packages/urllib3/connectionpool.py        |  1178 +
+ .../site-packages/urllib3/contrib/__init__.py      |     0
+ .../contrib/__pycache__/__init__.cpython-311.pyc   |   Bin 0 -> 200 bytes
+ .../contrib/__pycache__/pyopenssl.cpython-311.pyc  |   Bin 0 -> 29504 bytes
+ .../contrib/__pycache__/socks.cpython-311.pyc      |   Bin 0 -> 8737 bytes
+ .../urllib3/contrib/emscripten/__init__.py         |    17 +
+ .../__pycache__/__init__.cpython-311.pyc           |   Bin 0 -> 1082 bytes
+ .../__pycache__/connection.cpython-311.pyc         |   Bin 0 -> 10759 bytes
+ .../emscripten/__pycache__/fetch.cpython-311.pyc   |   Bin 0 -> 31298 bytes
+ .../emscripten/__pycache__/request.cpython-311.pyc |   Bin 0 -> 1658 bytes
+ .../__pycache__/response.cpython-311.pyc           |   Bin 0 -> 12980 bytes
+ .../urllib3/contrib/emscripten/connection.py       |   260 +
+ .../contrib/emscripten/emscripten_fetch_worker.js  |   110 +
+ .../urllib3/contrib/emscripten/fetch.py            |   726 +
+ .../urllib3/contrib/emscripten/request.py          |    22 +
+ .../urllib3/contrib/emscripten/response.py         |   277 +
+ .../site-packages/urllib3/contrib/pyopenssl.py     |   564 +
+ .../site-packages/urllib3/contrib/socks.py         |   228 +
+ .../python3.11/site-packages/urllib3/exceptions.py |   335 +
+ .../lib/python3.11/site-packages/urllib3/fields.py |   341 +
+ .../python3.11/site-packages/urllib3/filepost.py   |    89 +
+ .../site-packages/urllib3/http2/__init__.py        |    53 +
+ .../http2/__pycache__/__init__.cpython-311.pyc     |   Bin 0 -> 2025 bytes
+ .../http2/__pycache__/connection.cpython-311.pyc   |   Bin 0 -> 19046 bytes
+ .../http2/__pycache__/probe.cpython-311.pyc        |   Bin 0 -> 4345 bytes
+ .../site-packages/urllib3/http2/connection.py      |   356 +
+ .../site-packages/urllib3/http2/probe.py           |    87 +
+ .../site-packages/urllib3/poolmanager.py           |   651 +
+ .../lib/python3.11/site-packages/urllib3/py.typed  |     2 +
+ .../python3.11/site-packages/urllib3/response.py   |  1480 +
+ .../site-packages/urllib3/util/__init__.py         |    42 +
+ .../util/__pycache__/__init__.cpython-311.pyc      |   Bin 0 -> 1233 bytes
+ .../util/__pycache__/connection.cpython-311.pyc    |   Bin 0 -> 5056 bytes
+ .../urllib3/util/__pycache__/proxy.cpython-311.pyc |   Bin 0 -> 1291 bytes
+ .../util/__pycache__/request.cpython-311.pyc       |   Bin 0 -> 9230 bytes
+ .../util/__pycache__/response.cpython-311.pyc      |   Bin 0 -> 3365 bytes
+ .../urllib3/util/__pycache__/retry.cpython-311.pyc |   Bin 0 -> 21684 bytes
+ .../urllib3/util/__pycache__/ssl_.cpython-311.pyc  |   Bin 0 -> 18236 bytes
+ .../__pycache__/ssl_match_hostname.cpython-311.pyc |   Bin 0 -> 6260 bytes
+ .../util/__pycache__/ssltransport.cpython-311.pyc  |   Bin 0 -> 14324 bytes
+ .../util/__pycache__/timeout.cpython-311.pyc       |   Bin 0 -> 12078 bytes
+ .../urllib3/util/__pycache__/url.cpython-311.pyc   |   Bin 0 -> 17777 bytes
+ .../urllib3/util/__pycache__/util.cpython-311.pyc  |   Bin 0 -> 2181 bytes
+ .../urllib3/util/__pycache__/wait.cpython-311.pyc  |   Bin 0 -> 3752 bytes
+ .../site-packages/urllib3/util/connection.py       |   137 +
+ .../python3.11/site-packages/urllib3/util/proxy.py |    43 +
+ .../site-packages/urllib3/util/request.py          |   263 +
+ .../site-packages/urllib3/util/response.py         |   101 +
+ .../python3.11/site-packages/urllib3/util/retry.py |   549 +
+ .../python3.11/site-packages/urllib3/util/ssl_.py  |   527 +
+ .../urllib3/util/ssl_match_hostname.py             |   159 +
+ .../site-packages/urllib3/util/ssltransport.py     |   271 +
+ .../site-packages/urllib3/util/timeout.py          |   275 +
+ .../python3.11/site-packages/urllib3/util/url.py   |   469 +
+ .../python3.11/site-packages/urllib3/util/util.py  |    42 +
+ .../python3.11/site-packages/urllib3/util/wait.py  |   124 +
+ .../werkzeug-3.1.5.dist-info/INSTALLER             |     1 +
+ .../werkzeug-3.1.5.dist-info/METADATA              |   109 +
+ .../site-packages/werkzeug-3.1.5.dist-info/RECORD  |   116 +
+ .../site-packages/werkzeug-3.1.5.dist-info/WHEEL   |     4 +
+ .../werkzeug-3.1.5.dist-info/licenses/LICENSE.txt  |    28 +
+ .../python3.11/site-packages/werkzeug/__init__.py  |     4 +
+ .../werkzeug/__pycache__/__init__.cpython-311.pyc  |   Bin 0 -> 403 bytes
+ .../werkzeug/__pycache__/_internal.cpython-311.pyc |   Bin 0 -> 10682 bytes
+ .../werkzeug/__pycache__/_reloader.cpython-311.pyc |   Bin 0 -> 23359 bytes
+ .../__pycache__/exceptions.cpython-311.pyc         |   Bin 0 -> 37618 bytes
+ .../__pycache__/formparser.cpython-311.pyc         |   Bin 0 -> 18003 bytes
+ .../werkzeug/__pycache__/http.cpython-311.pyc      |   Bin 0 -> 54759 bytes
+ .../werkzeug/__pycache__/local.cpython-311.pyc     |   Bin 0 -> 31339 bytes
+ .../werkzeug/__pycache__/security.cpython-311.pyc  |   Bin 0 -> 8803 bytes
+ .../werkzeug/__pycache__/serving.cpython-311.pyc   |   Bin 0 -> 50417 bytes
+ .../werkzeug/__pycache__/test.cpython-311.pyc      |   Bin 0 -> 64255 bytes
+ .../werkzeug/__pycache__/testapp.cpython-311.pyc   |   Bin 0 -> 9547 bytes
+ .../werkzeug/__pycache__/urls.cpython-311.pyc      |   Bin 0 -> 9036 bytes
+ .../__pycache__/user_agent.cpython-311.pyc         |   Bin 0 -> 2327 bytes
+ .../werkzeug/__pycache__/utils.cpython-311.pyc     |   Bin 0 -> 29774 bytes
+ .../werkzeug/__pycache__/wsgi.cpython-311.pyc      |   Bin 0 -> 26887 bytes
+ .../python3.11/site-packages/werkzeug/_internal.py |   211 +
+ .../python3.11/site-packages/werkzeug/_reloader.py |   465 +
+ .../werkzeug/datastructures/__init__.py            |    64 +
+ .../__pycache__/__init__.cpython-311.pyc           |   Bin 0 -> 3060 bytes
+ .../__pycache__/accept.cpython-311.pyc             |   Bin 0 -> 18305 bytes
+ .../__pycache__/auth.cpython-311.pyc               |   Bin 0 -> 15615 bytes
+ .../__pycache__/cache_control.cpython-311.pyc      |   Bin 0 -> 13415 bytes
+ .../datastructures/__pycache__/csp.cpython-311.pyc |   Bin 0 -> 7216 bytes
+ .../__pycache__/etag.cpython-311.pyc               |   Bin 0 -> 6106 bytes
+ .../__pycache__/file_storage.cpython-311.pyc       |   Bin 0 -> 9719 bytes
+ .../__pycache__/headers.cpython-311.pyc            |   Bin 0 -> 33787 bytes
+ .../__pycache__/mixins.cpython-311.pyc             |   Bin 0 -> 19205 bytes
+ .../__pycache__/range.cpython-311.pyc              |   Bin 0 -> 10858 bytes
+ .../__pycache__/structures.cpython-311.pyc         |   Bin 0 -> 66523 bytes
+ .../werkzeug/datastructures/accept.py              |   350 +
+ .../site-packages/werkzeug/datastructures/auth.py  |   317 +
+ .../werkzeug/datastructures/cache_control.py       |   273 +
+ .../site-packages/werkzeug/datastructures/csp.py   |   100 +
+ .../site-packages/werkzeug/datastructures/etag.py  |   106 +
+ .../werkzeug/datastructures/file_storage.py        |   209 +
+ .../werkzeug/datastructures/headers.py             |   662 +
+ .../werkzeug/datastructures/mixins.py              |   317 +
+ .../site-packages/werkzeug/datastructures/range.py |   214 +
+ .../werkzeug/datastructures/structures.py          |  1239 +
+ .../site-packages/werkzeug/debug/__init__.py       |   574 +
+ .../debug/__pycache__/__init__.cpython-311.pyc     |   Bin 0 -> 26193 bytes
+ .../debug/__pycache__/console.cpython-311.pyc      |   Bin 0 -> 13463 bytes
+ .../debug/__pycache__/repr.cpython-311.pyc         |   Bin 0 -> 16141 bytes
+ .../debug/__pycache__/tbtools.cpython-311.pyc      |   Bin 0 -> 18248 bytes
+ .../site-packages/werkzeug/debug/console.py        |   219 +
+ .../site-packages/werkzeug/debug/repr.py           |   282 +
+ .../werkzeug/debug/shared/ICON_LICENSE.md          |     6 +
+ .../werkzeug/debug/shared/console.png              |   Bin 0 -> 507 bytes
+ .../werkzeug/debug/shared/debugger.js              |   344 +
+ .../site-packages/werkzeug/debug/shared/less.png   |   Bin 0 -> 191 bytes
+ .../site-packages/werkzeug/debug/shared/more.png   |   Bin 0 -> 200 bytes
+ .../site-packages/werkzeug/debug/shared/style.css  |   150 +
+ .../site-packages/werkzeug/debug/tbtools.py        |   449 +
+ .../site-packages/werkzeug/exceptions.py           |   905 +
+ .../site-packages/werkzeug/formparser.py           |   430 +
+ .../lib/python3.11/site-packages/werkzeug/http.py  |  1405 +
+ .../lib/python3.11/site-packages/werkzeug/local.py |   653 +
+ .../site-packages/werkzeug/middleware/__init__.py  |     0
+ .../__pycache__/__init__.cpython-311.pyc           |   Bin 0 -> 204 bytes
+ .../__pycache__/dispatcher.cpython-311.pyc         |   Bin 0 -> 3488 bytes
+ .../__pycache__/http_proxy.cpython-311.pyc         |   Bin 0 -> 10973 bytes
+ .../middleware/__pycache__/lint.cpython-311.pyc    |   Bin 0 -> 20934 bytes
+ .../__pycache__/profiler.cpython-311.pyc           |   Bin 0 -> 7610 bytes
+ .../__pycache__/proxy_fix.cpython-311.pyc          |   Bin 0 -> 7677 bytes
+ .../__pycache__/shared_data.cpython-311.pyc        |   Bin 0 -> 13913 bytes
+ .../werkzeug/middleware/dispatcher.py              |    81 +
+ .../werkzeug/middleware/http_proxy.py              |   236 +
+ .../site-packages/werkzeug/middleware/lint.py      |   439 +
+ .../site-packages/werkzeug/middleware/profiler.py  |   155 +
+ .../site-packages/werkzeug/middleware/proxy_fix.py |   183 +
+ .../werkzeug/middleware/shared_data.py             |   283 +
+ .../lib/python3.11/site-packages/werkzeug/py.typed |     0
+ .../site-packages/werkzeug/routing/__init__.py     |   134 +
+ .../routing/__pycache__/__init__.cpython-311.pyc   |   Bin 0 -> 5069 bytes
+ .../routing/__pycache__/converters.cpython-311.pyc |   Bin 0 -> 12448 bytes
+ .../routing/__pycache__/exceptions.cpython-311.pyc |   Bin 0 -> 8952 bytes
+ .../routing/__pycache__/map.cpython-311.pyc        |   Bin 0 -> 41749 bytes
+ .../routing/__pycache__/matcher.cpython-311.pyc    |   Bin 0 -> 9098 bytes
+ .../routing/__pycache__/rules.cpython-311.pyc      |   Bin 0 -> 42178 bytes
+ .../site-packages/werkzeug/routing/converters.py   |   261 +
+ .../site-packages/werkzeug/routing/exceptions.py   |   152 +
+ .../site-packages/werkzeug/routing/map.py          |   951 +
+ .../site-packages/werkzeug/routing/matcher.py      |   202 +
+ .../site-packages/werkzeug/routing/rules.py        |   928 +
+ .../site-packages/werkzeug/sansio/__init__.py      |     0
+ .../sansio/__pycache__/__init__.cpython-311.pyc    |   Bin 0 -> 200 bytes
+ .../sansio/__pycache__/http.cpython-311.pyc        |   Bin 0 -> 6116 bytes
+ .../sansio/__pycache__/multipart.cpython-311.pyc   |   Bin 0 -> 15521 bytes
+ .../sansio/__pycache__/request.cpython-311.pyc     |   Bin 0 -> 23449 bytes
+ .../sansio/__pycache__/response.cpython-311.pyc    |   Bin 0 -> 34133 bytes
+ .../sansio/__pycache__/utils.cpython-311.pyc       |   Bin 0 -> 6870 bytes
+ .../site-packages/werkzeug/sansio/http.py          |   170 +
+ .../site-packages/werkzeug/sansio/multipart.py     |   329 +
+ .../site-packages/werkzeug/sansio/request.py       |   534 +
+ .../site-packages/werkzeug/sansio/response.py      |   763 +
+ .../site-packages/werkzeug/sansio/utils.py         |   167 +
+ .../python3.11/site-packages/werkzeug/security.py  |   188 +
+ .../python3.11/site-packages/werkzeug/serving.py   |  1125 +
+ .../lib/python3.11/site-packages/werkzeug/test.py  |  1464 +
+ .../python3.11/site-packages/werkzeug/testapp.py   |   194 +
+ .../lib/python3.11/site-packages/werkzeug/urls.py  |   203 +
+ .../site-packages/werkzeug/user_agent.py           |    47 +
+ .../lib/python3.11/site-packages/werkzeug/utils.py |   684 +
+ .../site-packages/werkzeug/wrappers/__init__.py    |     3 +
+ .../wrappers/__pycache__/__init__.cpython-311.pyc  |   Bin 0 -> 365 bytes
+ .../wrappers/__pycache__/request.cpython-311.pyc   |   Bin 0 -> 27588 bytes
+ .../wrappers/__pycache__/response.cpython-311.pyc  |   Bin 0 -> 37012 bytes
+ .../site-packages/werkzeug/wrappers/request.py     |   650 +
+ .../site-packages/werkzeug/wrappers/response.py    |   831 +
+ .../lib/python3.11/site-packages/werkzeug/wsgi.py  |   595 +
+ .replit                                            |    60 +
+ .ssh/id_ed25519                                    |     3 +
+ .ssh/id_ed25519.pub                                |     3 +
+ .vscode/extensions.json                            |     9 +
+ BUGFIX_SUMMARY.md                                  |    36 +
+ CHIMERA_PHASE1_COMPLETE.md                         |   175 +
+ FILE_PICKER_QUICKSTART.md                          |   156 +
+ HARDWARE_IMPLEMENTATION_SUMMARY.md                 |   445 +
+ IMPLEMENTATION_LLM_CAPTURE.md                      |   284 +
+ IMPLEMENTATION_SUMMARY.md                          |   192 +
+ IMPLEMENTATION_SUMMARY_ENVIRONMENT_METADATA.md     |   184 +
+ IMPLEMENTATION_SUMMARY_HYBRID_SEARCH.md            |   392 +
+ IMPLEMENTATION_TOKENLESS_LOCALHOST.md              |   216 +
+ ISSUE_TEMPLATE_EXTENSION_DEV.md                    |   260 +
+ Icon_Generator.ipynb                               |    91 +
+ Meowstik/README.md                                 |     1 +
+ PR_SUMMARY.md                                      |    78 +
+ README.md                                          |   553 +
+ README_EXTENSION_DEV_SETUP.md                      |   388 +
+ TOKENLESS_USAGE_EXAMPLES.md                        |   171 +
+ TWILIO_IMPLEMENTATION_SUMMARY.md                   |   288 +
+ app.py                                             |    56 +
+ attached_assets/App_1768446601873.tsx              |   358 +
+ ...t-clone-https-github-com-jaso_1767525627106.txt |     1 +
+ ...creenshot_2026-01-01_22.12.07_1767334402752.png |   Bin 0 -> 556579 bytes
+ ...creenshot_2026-01-03_06.27.25_1767450528406.png |   Bin 0 -> 254626 bytes
+ ...creenshot_2026-01-26_15.56.22_1769471802270.png |   Bin 0 -> 381164 bytes
+ .../generated_images/abstract_ai_logo.png          |   Bin 0 -> 512779 bytes
+ .../ar_cutting_through_cable_chaos_nightmare.png   |   Bin 0 -> 1612099 bytes
+ .../ar_glasses_identifying_router_model.png        |   Bin 0 -> 1287272 bytes
+ .../ar_glasses_scanning_server_rack_back.png       |   Bin 0 -> 1649777 bytes
+ .../ar_smart_glasses_with_holographic_display.png  |   Bin 0 -> 1277685 bytes
+ .../ar_tracing_cable_through_rats_nest.png         |   Bin 0 -> 1635483 bytes
+ attached_assets/generated_images/cat_app_icon.png  |   Bin 0 -> 429493 bytes
+ .../generated_images/cat_face_app_icon.png         |   Bin 0 -> 808234 bytes
+ .../generated_images/cute_cat_logo_icon.png        |   Bin 0 -> 717949 bytes
+ .../intellectual_cat_mascot_logo.png               |   Bin 0 -> 747516 bytes
+ .../meowstik_app_preview_banner.png                |   Bin 0 -> 993792 bytes
+ .../generated_images/meowstik_cat_mascot_logo.png  |   Bin 0 -> 661550 bytes
+ .../realistic_ar_router_identification_pov.png     |   Bin 0 -> 1415123 bytes
+ .../realistic_cable_nightmare_with_ar_trace.png    |   Bin 0 -> 1661262 bytes
+ .../realistic_rack_back_with_ar_overlay.png        |   Bin 0 -> 1486651 bytes
+ .../smartwatch_with_ai_chat_interface.png          |   Bin 0 -> 1122162 bytes
+ .../watch_and_laptop_collaborative_editing.png     |   Bin 0 -> 1242977 bytes
+ .../watch_hero_banner_with_ai_features.png         |   Bin 0 -> 1088769 bytes
+ .../watch_voice_command_interface.png              |   Bin 0 -> 1137122 bytes
+ browser-extension/README.md                        |   104 +
+ browser-extension/background/service-worker.js     |   527 +
+ browser-extension/content/content-script.js        |   596 +
+ browser-extension/content/content-style.css        |    77 +
+ browser-extension/icons/icon128.png                |   Bin 0 -> 737 bytes
+ browser-extension/icons/icon16.png                 |   Bin 0 -> 131 bytes
+ browser-extension/icons/icon16.svg                 |     4 +
+ browser-extension/icons/icon32.png                 |   Bin 0 -> 203 bytes
+ browser-extension/icons/icon48.png                 |   Bin 0 -> 268 bytes
+ browser-extension/manifest.json                    |    77 +
+ browser-extension/popup/audio-processor.js         |    60 +
+ browser-extension/popup/popup.css                  |   432 +
+ browser-extension/popup/popup.html                 |   141 +
+ browser-extension/popup/popup.js                   |   483 +
+ check-memory.sh                                    |    44 +
+ client/index.html                                  |    32 +
+ client/public/audio-processor.js                   |    46 +
+ client/public/favicon.png                          |   Bin 0 -> 808234 bytes
+ client/public/manifest.json                        |    26 +
+ client/public/og-image.png                         |   Bin 0 -> 429493 bytes
+ client/public/opengraph.jpg                        |   Bin 0 -> 6158 bytes
+ client/public/sw.js                                |    48 +
+ client/src/App.tsx                                 |   368 +
+ client/src/components/chat/input-area.tsx          |  1131 +
+ client/src/components/chat/message.tsx             |   716 +
+ client/src/components/chat/sidebar.tsx             |  1030 +
+ client/src/components/connectors-gate.tsx          |   222 +
+ client/src/components/protected-route.tsx          |    27 +
+ client/src/components/rag/MetricsDashboard.tsx     |   231 +
+ client/src/components/rag/SourceCitation.tsx       |   192 +
+ client/src/components/rag/TraceList.tsx            |   231 +
+ client/src/components/rag/index.ts                 |     9 +
+ client/src/components/ui/accordion.tsx             |    55 +
+ client/src/components/ui/alert-dialog.tsx          |   139 +
+ client/src/components/ui/alert.tsx                 |    59 +
+ client/src/components/ui/aspect-ratio.tsx          |     5 +
+ client/src/components/ui/avatar.tsx                |    50 +
+ client/src/components/ui/badge.tsx                 |    43 +
+ client/src/components/ui/breadcrumb.tsx            |   115 +
+ client/src/components/ui/button-group.tsx          |    83 +
+ client/src/components/ui/button.tsx                |    65 +
+ client/src/components/ui/calendar.tsx              |   213 +
+ client/src/components/ui/card.tsx                  |    76 +
+ client/src/components/ui/carousel.tsx              |   260 +
+ client/src/components/ui/chart.tsx                 |   367 +
+ client/src/components/ui/checkbox.tsx              |    28 +
+ client/src/components/ui/collapsible.tsx           |    11 +
+ client/src/components/ui/command.tsx               |   153 +
+ client/src/components/ui/context-menu.tsx          |   198 +
+ client/src/components/ui/dialog.tsx                |   121 +
+ client/src/components/ui/drawer.tsx                |   116 +
+ client/src/components/ui/dropdown-menu.tsx         |   201 +
+ client/src/components/ui/empty.tsx                 |   104 +
+ client/src/components/ui/enhanced-markdown.tsx     |   601 +
+ client/src/components/ui/feedback-panel.tsx        |   445 +
+ client/src/components/ui/field.tsx                 |   244 +
+ client/src/components/ui/form.tsx                  |   176 +
+ client/src/components/ui/hover-card.tsx            |    27 +
+ client/src/components/ui/input-group.tsx           |   168 +
+ client/src/components/ui/input-otp.tsx             |    69 +
+ client/src/components/ui/input.tsx                 |    22 +
+ client/src/components/ui/item.tsx                  |   193 +
+ client/src/components/ui/kbd.tsx                   |    28 +
+ client/src/components/ui/label.tsx                 |    26 +
+ client/src/components/ui/local-drive-button.tsx    |   137 +
+ client/src/components/ui/menubar.tsx               |   254 +
+ client/src/components/ui/navigation-menu.tsx       |   128 +
+ client/src/components/ui/pagination.tsx            |   117 +
+ client/src/components/ui/popover.tsx               |    31 +
+ client/src/components/ui/progress.tsx              |    28 +
+ client/src/components/ui/radio-group.tsx           |    42 +
+ client/src/components/ui/resizable.tsx             |    45 +
+ client/src/components/ui/scroll-area.tsx           |    46 +
+ client/src/components/ui/select.tsx                |   159 +
+ client/src/components/ui/separator.tsx             |    29 +
+ client/src/components/ui/sheet.tsx                 |   140 +
+ client/src/components/ui/sidebar.tsx               |   727 +
+ client/src/components/ui/skeleton.tsx              |    15 +
+ client/src/components/ui/slider.tsx                |    26 +
+ client/src/components/ui/sonner.tsx                |    31 +
+ client/src/components/ui/spinner.tsx               |    16 +
+ client/src/components/ui/switch.tsx                |    27 +
+ client/src/components/ui/table.tsx                 |   120 +
+ client/src/components/ui/tabs.tsx                  |    53 +
+ client/src/components/ui/textarea.tsx              |    22 +
+ client/src/components/ui/toast.tsx                 |   127 +
+ client/src/components/ui/toaster.tsx               |    33 +
+ client/src/components/ui/toggle-group.tsx          |    61 +
+ client/src/components/ui/toggle.tsx                |    43 +
+ client/src/components/ui/tooltip.tsx               |    32 +
+ client/src/components/ui/verbosity-slider.tsx      |    94 +
+ client/src/contexts/AuthContext.tsx                |    29 +
+ client/src/contexts/ChatContext.tsx                |    42 +
+ client/src/contexts/LocalDriveContext.tsx          |   164 +
+ client/src/contexts/SocketContext.tsx              |    56 +
+ client/src/contexts/ThemeContext.tsx               |    65 +
+ client/src/contexts/tts-context.tsx                |   335 +
+ client/src/hooks/use-app-session.ts                |    89 +
+ client/src/hooks/use-collaborative-editing.ts      |   666 +
+ client/src/hooks/use-mobile.tsx                    |   123 +
+ client/src/hooks/use-silence-detection.ts          |   179 +
+ client/src/hooks/use-speech-recognition.ts         |   197 +
+ client/src/hooks/use-toast.ts                      |   428 +
+ client/src/hooks/use-voice-activity-detection.ts   |   207 +
+ client/src/hooks/use-voice-recording.ts            |    89 +
+ client/src/hooks/use-voice.ts                      |   454 +
+ client/src/hooks/useAuth.ts                        |    19 +
+ client/src/index.css                               |   127 +
+ client/src/lib/authUtils.ts                        |     3 +
+ client/src/lib/file-picker.ts                      |   600 +
+ client/src/lib/local-drive-store.ts                |   118 +
+ client/src/lib/queryClient.ts                      |   222 +
+ client/src/lib/utils.ts                            |   115 +
+ client/src/main.tsx                                |    99 +
+ client/src/pages/LoginPage.tsx                     |    27 +
+ client/src/pages/MainLayout.tsx                    |    80 +
+ client/src/pages/agent-settings.tsx                |   473 +
+ client/src/pages/audio-settings.tsx                |   222 +
+ client/src/pages/browser.tsx                       |   419 +
+ client/src/pages/collaborate.tsx                   |   859 +
+ client/src/pages/database-explorer.tsx             |  1308 +
+ client/src/pages/debug.tsx                         |   831 +
+ client/src/pages/docs.tsx                          |   280 +
+ client/src/pages/editor.tsx                        |   683 +
+ client/src/pages/evolution.tsx                     |   392 +
+ client/src/pages/expressive-speech.tsx             |   590 +
+ client/src/pages/glasses.tsx                       |   243 +
+ client/src/pages/google-services.tsx               |  1241 +
+ client/src/pages/help.tsx                          |   179 +
+ client/src/pages/home.tsx                          |  1490 +
+ client/src/pages/image-generation.tsx              |   782 +
+ client/src/pages/install.tsx                       |   335 +
+ client/src/pages/knowledge-ingestion.tsx           |   323 +
+ client/src/pages/landing.tsx                       |   347 +
+ client/src/pages/live.tsx                          |   788 +
+ client/src/pages/login.tsx                         |   104 +
+ client/src/pages/markdown-playground.tsx           |   445 +
+ client/src/pages/music-generation.tsx              |   416 +
+ client/src/pages/not-found.tsx                     |    69 +
+ client/src/pages/playwright-testing.tsx            |   375 +
+ client/src/pages/preview.tsx                       |   345 +
+ .../src/pages/proposal-desktop-collaboration.tsx   |   362 +
+ client/src/pages/python-sandbox.tsx                |   255 +
+ client/src/pages/rag-debug.tsx                     |   487 +
+ client/src/pages/schedules.tsx                     |   959 +
+ client/src/pages/settings.tsx                      |   713 +
+ client/src/pages/task-queue.tsx                    |   848 +
+ client/src/pages/terminal.tsx                      |   519 +
+ client/src/pages/vision.tsx                        |   218 +
+ client/src/pages/watch.tsx                         |   290 +
+ client/src/pages/web-search.tsx                    |   412 +
+ client/src/pages/workspace.tsx                     |   568 +
+ collaborative-test.md                              |     9 +
+ components.json                                    |    21 +
+ create_zip.py                                      |    13 +
+ desktop-agent/package.json                         |    30 +
+ desktop-agent/src/index.ts                         |   306 +
+ desktop-app/README.md                              |   288 +
+ desktop-app/assets/icon.svg                        |    27 +
+ desktop-app/export-secrets.sh                      |   107 +
+ desktop-app/package.json                           |    66 +
+ desktop-app/secrets.json.example                   |     8 +
+ desktop-app/src/install.sh                         |   254 +
+ desktop-app/src/main.js                            |   800 +
+ desktop-app/src/preload.js                         |    36 +
+ docs/AGENT_ATTRIBUTION.md                          |   388 +
+ docs/BEFORE_AFTER_COMPARISON.md                    |   433 +
+ docs/BRANDING_GUIDE.md                             |   314 +
+ docs/CATPILOT_SETUP.md                             |   167 +
+ docs/CODING_ABILITY_IMPACT.md                      |   269 +
+ docs/DATABASE_IMPLEMENTATION_GUIDE.md              |   473 +
+ docs/EXHIBIT-LLM-Canvas-Integration.md             |   118 +
+ docs/FEATURES.md                                   |   442 +
+ docs/HOME_DEV_IMPLEMENTATION.md                    |   379 +
+ docs/HOME_DEV_MODE.md                              |   149 +
+ docs/INTERACTIVE_MERGE_HELPER.md                   |   214 +
+ docs/ISSUES_DISCOVERED.md                          |   266 +
+ docs/ITEMS_LIST.md                                 |   239 +
+ docs/MERGE_CONFLICT_IMPLEMENTATION_SUMMARY.md      |   324 +
+ docs/MERGE_CONFLICT_QUICK_REF.md                   |   332 +
+ docs/MERGE_CONFLICT_RESOLUTION.md                  |   464 +
+ docs/MULTI_DATABASE_SUPPORT.md                     |   298 +
+ docs/PROJECT_CHIMERA_PHASE1_REPORT.md              |   314 +
+ docs/PROJECT_SUMMARY_CA_2.0.md                     |   398 +
+ docs/QUICK_START.md                                |   209 +
+ docs/RAG_HYBRID_SEARCH_ENHANCEMENT.md              |   497 +
+ docs/RAG_HYBRID_SEARCH_VISUAL.md                   |   470 +
+ docs/README.md                                     |   266 +
+ docs/REPLIT_GIT_WORKFLOW.md                        |   483 +
+ docs/THREE_FILE_PROBLEM.md                         |   402 +
+ docs/TODO_SYSTEM.md                                |   368 +
+ docs/UPGRADES-2025-12-29.md                        |   185 +
+ docs/agent-enhancement-roadmap.md                  |   109 +
+ docs/copilot/AUTODOC_INSTRUCTIONS.md               |   355 +
+ docs/copilot/index.md                              |    38 +
+ docs/copilot/recommended-moves.md                  |   212 +
+ docs/core/FEATURES.md                              |   442 +
+ docs/core/GITHUB_DEV_REPLIT_SETUP.md               |   368 +
+ docs/core/QUICK_START.md                           |   209 +
+ docs/core/README.md                                |   195 +
+ docs/documentation-site-generators/00-OVERVIEW.md  |   100 +
+ .../01-DOCUSAURUS-PROPOSAL.md                      |   447 +
+ .../02-VITEPRESS-PROPOSAL.md                       |   564 +
+ .../03-NEXTRA-PROPOSAL.md                          |   609 +
+ .../04-COMPARISON-MATRIX.md                        |   306 +
+ .../05-IMPLEMENTATION-ROADMAP.md                   |   673 +
+ .../06-MIGRATION-STRATEGY.md                       |   630 +
+ .../07-INTEGRATION-ARCHITECTURE.md                 |   722 +
+ .../EXECUTIVE-SUMMARY.md                           |   262 +
+ .../IMPLEMENTATION-ISSUE-TEMPLATE.md               |   202 +
+ docs/documentation-site-generators/README.md       |   166 +
+ docs/exhibit/00-genesis/01-database-schemas.md     |   499 +
+ docs/exhibit/00-genesis/02-ui-architecture.md      |   365 +
+ docs/exhibit/00-genesis/03-prompt-lifecycle.md     |   538 +
+ docs/exhibit/00-genesis/SYSTEM_OVERVIEW.md         |   462 +
+ .../01-core-features/05-tool-call-schema.md        |   317 +
+ .../01-core-features/LLM_API_BEST_PRACTICES.md     |   240 +
+ .../01-core-features/MARKDOWN_EMBEDDING_GUIDE.md   |   324 +
+ .../authentication-and-session-isolation.md        |   406 +
+ .../02-integrations/CREDENTIAL_FIX_SUMMARY.md      |   194 +
+ .../02-integrations/CREDENTIAL_MANAGEMENT.md       |   322 +
+ .../EXPRESSIVENESS_IN_SPEECH_SYNTHESIS.md          |   513 +
+ .../02-integrations/GITHUB_BOT_IDENTITY_SETUP.md   |   286 +
+ docs/exhibit/02-integrations/HARDWARE_IOT_GUIDE.md |   509 +
+ .../TWILIO_CONVERSATIONAL_CALLING.md               |   413 +
+ .../TWILIO_IMPLEMENTATION_SUMMARY.md               |   350 +
+ docs/exhibit/02-integrations/TWILIO_SMS_WEBHOOK.md |   246 +
+ .../02-integrations/VOICE_SYNTHESIS_FIX_SUMMARY.md |   184 +
+ .../02-integrations/VOICE_SYNTHESIS_SETUP.md       |   278 +
+ docs/exhibit/02-integrations/twilio-sms-webhook.md |   295 +
+ .../02-integrations/twilio_voice_features.md       |    48 +
+ .../03-advanced-ai/COGNITIVE_ARCHITECTURE_2.0.md   |   543 +
+ .../03-advanced-ai/LLM_ORCHESTRATION_GUIDE.md      |   770 +
+ .../03-advanced-ai/MEMORY_LOG_PROTECTION.md        |   368 +
+ .../MEMORY_PROTECTION_QUICK_START.md               |   225 +
+ .../03-advanced-ai/MEMORY_PROTECTION_SUMMARY.md    |   192 +
+ docs/exhibit/03-advanced-ai/PROTOCOL_ANALYSIS.md   |  1222 +
+ docs/exhibit/03-advanced-ai/RAG_PIPELINE.md        |   546 +
+ .../RAG_TRACEABILITY_COLLABORATION_GUIDE.md        |   259 +
+ .../RAG_TRACEABILITY_IMPLEMENTATION.md             |  1259 +
+ .../03-advanced-ai/RAG_TRACEABILITY_PROPOSAL.md    |   418 +
+ .../03-advanced-ai/RAG_TRACEABILITY_UI_GUIDE.md    |   176 +
+ docs/exhibit/03-advanced-ai/llm-io-capture.md      |   262 +
+ .../llm-output-processing-pipeline.md              |   547 +
+ .../BROWSER_EXTENSION_DEV_IMPLEMENTATION.md        |  2210 ++
+ .../BROWSER_EXTENSION_DEV_PROPOSAL.md              |  1077 +
+ .../04-automation/BROWSER_EXTENSION_DEV_SUMMARY.md |   271 +
+ .../04-automation/SSH_DEPLOYMENT_ANALYSIS.md       |  1020 +
+ .../04-automation/desktop-agent-localhost-dev.md   |   416 +
+ docs/exhibit/04-automation/http-client-tools.md    |   340 +
+ .../orchestration-implementation-summary.md        |   349 +
+ docs/exhibit/04-automation/orchestration-layer.md  |   605 +
+ .../ragent/CHAIN_OF_THOUGHT_PROPOSAL.md            |  1356 +
+ docs/exhibit/04-automation/ragent/INDEX.md         |    88 +
+ docs/exhibit/04-automation/ragent/RAG-ANALYSIS.md  |   556 +
+ .../04-automation/ragent/TROUBLESHOOTING-MANUAL.md |   961 +
+ .../04-automation/ragent/agent-configuration.md    |   304 +
+ .../04-automation/ragent/browser-computer-use.md   |   449 +
+ .../04-automation/ragent/collaborative-editing.md  |   269 +
+ docs/exhibit/04-automation/ragent/docs-site.md     |   284 +
+ .../ragent/install-browser-extension.md            |   194 +
+ .../04-automation/ragent/install-desktop-agent.md  |   266 +
+ .../04-automation/ragent/job-orchestration.md      |   560 +
+ docs/exhibit/04-automation/ragent/scheduler.md     |   309 +
+ docs/exhibit/04-automation/ssh-gateway-guide.md    |   493 +
+ .../05-refinements/DATABASE_MIGRATION_GUIDE.md     |   461 +
+ .../05-refinements/FIX_SUMMARY_EXTENSION_AGENT.md  |   273 +
+ .../exhibit/05-refinements/LIVE_MODE_EVALUATION.md |    56 +
+ docs/exhibit/05-refinements/LIVE_MODE_GUIDE.md     |   381 +
+ .../LIVE_MODE_IMPLEMENTATION_SUMMARY.md            |   249 +
+ .../05-refinements/MICROPHONE_STALE_TEXT_FIX.md    |   160 +
+ .../05-refinements/MICROPHONE_STATE_FLOW.md        |   124 +
+ .../MIGRATION_IMPLEMENTATION_SUMMARY.md            |   397 +
+ .../05-refinements/SESSION_SUMMARY_2026-01-19.md   |   598 +
+ .../SYSTEM_PROMPT_EXCLUSION_FIX_REPORT.md          |   363 +
+ .../05-refinements/TESTING_EXTENSION_AGENT.md      |   290 +
+ .../05-refinements/TTS_FIX_SUMMARY_FOR_JASON.md    |   146 +
+ .../05-refinements/TTS_IAM_PERMISSION_FIX.md       |   142 +
+ .../05-refinements/VERBOSITY_BEFORE_AFTER.md       |   271 +
+ .../VERBOSITY_IMPLEMENTATION_SUMMARY.md            |   308 +
+ docs/exhibit/05-refinements/VERBOSITY_MODES.md     |   161 +
+ docs/exhibit/05-refinements/VERBOSITY_TESTING.md   |   359 +
+ docs/exhibit/05-refinements/VERBOSITY_UI_MOCKUP.md |   411 +
+ .../bugfixes/SUMMARY_chat_messages_fix.md          |   197 +
+ .../bugfixes/VERIFICATION_send_chat_fix.md         |   198 +
+ .../send_chat_content_disappearance_fix.md         |   155 +
+ .../05-refinements/database-migration-guide.md     |   438 +
+ docs/exhibit/06-proposals/EXTERNAL-DOCS-HOSTING.md |   159 +
+ docs/exhibit/06-proposals/Roadmap_to_Friday.md     |    36 +
+ ...POSAL-001-memory-persistence-and-docs-portal.md |   754 +
+ .../PROPOSAL-002-github-autodoc-workflow.md        |  1036 +
+ ...REPORT-001-codebase-understanding-automation.md |   768 +
+ .../06-proposals/roadmap-platform-independence.md  |    41 +
+ .../06-proposals/v2-roadmap/COUNCIL-PRIORITIES.md  |    80 +
+ .../v2-roadmap/GEMINI_LIVE_API_PROPOSAL.md         |   494 +
+ .../v2-roadmap/KERNEL_IMPLEMENTATION_PROPOSAL.md   |   443 +
+ .../v2-roadmap/KNOWLEDGE_INGESTION_ARCHITECTURE.md |   452 +
+ .../06-proposals/v2-roadmap/MASTER-ROADMAP.md      |   262 +
+ .../v2-roadmap/MULTI_USER_ARCHITECTURE.md          |   295 +
+ .../06-proposals/v2-roadmap/TODO-FEATURES.md       |   376 +
+ .../v2-roadmap/VISIONS_OF_THE_FUTURE.md            |   370 +
+ .../06-proposals/v2-roadmap/WORKFLOW-PROTOCOL.md   |   297 +
+ docs/exhibit/README.md                             |   223 +
+ docs/features/environment-metadata-example.md      |   114 +
+ docs/features/environment-metadata.md              |   182 +
+ docs/features/file-picker-ui-guide.md              |   308 +
+ docs/features/file-picker.md                       |   224 +
+ docs/features/open_url_feature.md                  |   295 +
+ docs/idea-extraction/COMPREHENSIVE_VISION.md       |   164 +
+ docs/idea-extraction/VISION_BLOG_POST.md           |    48 +
+ docs/implementation-plan.md                        |   306 +
+ docs/local-development.md                          |   786 +
+ docs/project_chimera_api_blueprint.md              |    74 +
+ docs/project_chimera_knowledge_base.md             |    54 +
+ docs/project_chimera_research_plan.md              |    48 +
+ docs/proposed-upgrades.md                          |   399 +
+ docs/refactor/DEBUG_PAGE_OVERHAUL.md               |   347 +
+ docs/refactor/DEBUG_UI_COMPARISON.md               |   280 +
+ docs/refactor/README.md                            |   275 +
+ docs/refactor/educational_glossary.md              |  1049 +
+ docs/refactor/incomplete_features_audit.md         |  1499 +
+ docs/refactor/project_cliff_notes.md               |   670 +
+ docs/refactor/rag_implementation_summary.md        |   462 +
+ docs/refactor/rag_knowledge_bucket_audit.md        |   738 +
+ docs/refactor/rag_theory_vs_reality.md             |   499 +
+ docs/refactor/theory_vs_reality_diff.md            |   629 +
+ docs/tool_logging_standard.md                      |    33 +
+ docs/v2-vision/01-core-philosophy.md               |   256 +
+ docs/v2-vision/02-prompt-lifecycle.md              |   471 +
+ docs/v2-vision/03-hypervisor-tiers.md              |   397 +
+ docs/v2-vision/04-tool-taxonomy.md                 |   416 +
+ docs/v2-vision/05-device-mesh.md                   |   596 +
+ docs/v2-vision/06-implementation-plan.md           |   386 +
+ drizzle.config.ts                                  |    14 +
+ duplicate_issues_report.md                         |    34 +
+ extension-src/background.ts                        |     1 +
+ extension-src/background/index.ts                  |     7 +
+ extension-src/content.ts                           |     1 +
+ extension-src/content/index.ts                     |     1 +
+ extension-src/icons/icon128.png                    |   Bin 0 -> 737 bytes
+ extension-src/icons/icon16.png                     |   Bin 0 -> 131 bytes
+ extension-src/icons/icon16.svg                     |     4 +
+ extension-src/icons/icon32.png                     |   Bin 0 -> 203 bytes
+ extension-src/icons/icon48.png                     |   Bin 0 -> 268 bytes
+ extension-src/manifest.ts                          |    32 +
+ extension-src/popup.html                           |    11 +
+ extension-src/popup.ts                             |     1 +
+ extension-src/popup/popup.html                     |    11 +
+ extension-src/popup/popup.ts                       |     1 +
+ extension/background.js                            |   312 +
+ extension/content.js                               |   253 +
+ extension/devtools-panel.html                      |   119 +
+ extension/devtools-panel.js                        |   142 +
+ extension/devtools.html                            |     9 +
+ extension/devtools.js                              |    17 +
+ extension/icons/icon128.png                        |   Bin 0 -> 737 bytes
+ extension/icons/icon16.png                         |   Bin 0 -> 131 bytes
+ extension/icons/icon16.svg                         |     4 +
+ extension/icons/icon32.png                         |   Bin 0 -> 203 bytes
+ extension/icons/icon48.png                         |   Bin 0 -> 268 bytes
+ extension/injected.js                              |    88 +
+ extension/manifest.json                            |    49 +
+ extension/popup.css                                |   290 +
+ extension/popup.html                               |    89 +
+ extension/popup.js                                 |   294 +
+ full_issue_analysis.md                             |   130 +
+ irrelevant_issues_report.md                        |    43 +
+ knowledge/README.md                                |    25 +
+ local-agent/README.md                              |    90 +
+ local-agent/package.json                           |    25 +
+ local-agent/src/agent-controller.js                |   611 +
+ local-agent/src/extension-bridge.js                |   172 +
+ local-agent/src/index.js                           |   267 +
+ memory/factual/user-prefs.md                       |    23 +
+ memory/introspection/capabilities.md               |    32 +
+ memory/introspection/mistakes.md                   |    26 +
+ memory/operational/gotchas.md                      |    28 +
+ memory/operational/patterns.md                     |    24 +
+ memory/procedural/github-workflow.md               |    31 +
+ memory/procedural/search-pattern.md                |    41 +
+ meowstic.zip                                       |     1 +
+ meowstik.zip                                       |     1 +
+ migrations/0000_lying_ultimo.sql                   |   875 +
+ .../0001_add_userid_to_knowledge_buckets.sql       |    33 +
+ migrations/0002_create_todo_items_table.sql        |    31 +
+ migrations/README.md                               |    91 +
+ migrations/meta/0000_snapshot.json                 |  5970 ++++
+ migrations/meta/_journal.json                      |    13 +
+ new_instructions.md                                |     4 +
+ package-lock.json                                  | 27026 +++++++++++++++++++
+ package.json                                       |   147 +
+ packages/extension/README.md                       |   196 +
+ packages/extension/background.js                   |    99 +
+ packages/extension/content.css                     |    28 +
+ packages/extension/content.js                      |   128 +
+ packages/extension/icons/icon128.png               |   Bin 0 -> 13226 bytes
+ packages/extension/icons/icon16.png                |   Bin 0 -> 1261 bytes
+ packages/extension/icons/icon48.png                |   Bin 0 -> 2966 bytes
+ packages/extension/manifest.json                   |    47 +
+ packages/extension/popup.css                       |   266 +
+ packages/extension/popup.html                      |    67 +
+ packages/extension/popup.js                        |   217 +
+ packages/extension/sidebar.html                    |   210 +
+ packages/meowstik-agent/README.md                  |   138 +
+ packages/meowstik-agent/package-lock.json          |  1468 +
+ packages/meowstik-agent/package.json               |    40 +
+ packages/meowstik-agent/src/agent.ts               |   191 +
+ packages/meowstik-agent/src/cli.ts                 |    80 +
+ packages/meowstik-agent/src/index.ts               |     3 +
+ packages/meowstik-agent/src/input-handler.ts       |   130 +
+ packages/meowstik-agent/src/screen-capture.ts      |    77 +
+ packages/meowstik-agent/tsconfig.json              |    15 +
+ packages/playwright-mcp-server/.gitignore          |     4 +
+ packages/playwright-mcp-server/README.md           |   222 +
+ packages/playwright-mcp-server/package.json        |    26 +
+ packages/playwright-mcp-server/setup.sh            |    47 +
+ packages/playwright-mcp-server/src/index.ts        |   707 +
+ packages/playwright-mcp-server/tsconfig.json       |    19 +
+ postcss.config.js                                  |     6 +
+ prompts/README.md                                  |   101 +
+ prompts/core-directives.md                         |   296 +
+ prompts/database-instructions.md                   |   111 +
+ prompts/llm-instructions.md                        |    76 +
+ prompts/personality.md                             |   139 +
+ prompts/proposed-prompt.md                         |    21 +
+ prompts/tools.md                                   |   366 +
+ protect-memory.sh                                  |    61 +
+ public/icons/icon128.png                           |   Bin 0 -> 737 bytes
+ public/icons/icon16.png                            |   Bin 0 -> 131 bytes
+ public/icons/icon16.svg                            |     4 +
+ public/icons/icon32.png                            |   Bin 0 -> 203 bytes
+ public/icons/icon48.png                            |   Bin 0 -> 268 bytes
+ replit.md                                          |    61 +
+ requirements.txt                                   |     2 +
+ script/build.ts                                    |    67 +
+ scripts/README-MIGRATION.md                        |   214 +
+ scripts/README.md                                  |   129 +
+ scripts/analyze_logs.py                            |    67 +
+ scripts/auto-backup-and-accept-remote.sh           |   197 +
+ scripts/check-merge-conflicts.sh                   |   111 +
+ scripts/cleanup-branches.ts                        |    57 +
+ scripts/db-adapter-examples.ts                     |   196 +
+ scripts/db-export.ts                               |   397 +
+ scripts/db-import.ts                               |   270 +
+ scripts/db-migrate.ts                              |   426 +
+ scripts/demo-agent-attribution.ts                  |   294 +
+ scripts/demo-cognitive-arch.ts                     |   233 +
+ scripts/demo-environment-metadata.ts               |    62 +
+ scripts/diagnose-tts-iam.cjs                       |   236 +
+ scripts/docs-reorganize.sh                         |   144 +
+ scripts/export-dev-data.ts                         |    44 +
+ scripts/extract-ideas.ts                           |   213 +
+ scripts/generate-icons.py                          |   102 +
+ scripts/generate-vision-page.ts                    |   155 +
+ scripts/prepare-notebooklm.ts                      |   260 +
+ scripts/replit-merge-helper.sh                     |   626 +
+ scripts/seed-agents.ts                             |   182 +
+ scripts/setup-memory-protection.sh                 |    45 +
+ scripts/test-environment-metadata.ts               |    60 +
+ scripts/test-home-dev-mode.ts                      |   103 +
+ scripts/test-hybrid-search.ts                      |   141 +
+ scripts/test-llm-capture.ts                        |   114 +
+ scripts/test-prompt-composer.ts                    |   112 +
+ scripts/test-prompt-integration.ts                 |    68 +
+ scripts/test-tts-auth.cjs                          |   105 +
+ scripts/test-twilio-webhook.ts                     |   145 +
+ scripts/validate-cognitive-arch.js                 |   186 +
+ scripts/validate-hardware.cjs                      |   264 +
+ scripts/validate-migration-tools.cjs               |   138 +
+ server/database/README.md                          |   336 +
+ server/database/adapters/postgresql.ts             |   289 +
+ server/database/csv-adapter.ts                     |   308 +
+ server/database/database-adapter.ts                |   282 +
+ server/database/factory.ts                         |   177 +
+ server/database/json-adapter.ts                    |   352 +
+ server/database/mysql-adapter.ts                   |   107 +
+ server/database/postgresql-adapter.ts              |   397 +
+ server/database/sqlite-adapter.ts                  |   108 +
+ server/database/types.ts                           |   118 +
+ server/database/xml-adapter.ts                     |   430 +
+ server/db.ts                                       |    76 +
+ server/examples/README.md                          |    30 +
+ server/examples/orchestration-examples.ts          |    85 +
+ server/gemini-tools-guest.ts                       |   193 +
+ server/gemini-tools.ts                             |  1011 +
+ server/homeDevAuth.ts                              |   112 +
+ server/index.ts                                    |   386 +
+ server/integrations/adb.ts                         |   456 +
+ server/integrations/arduino.ts                     |   314 +
+ server/integrations/browser-scraper.ts             |   243 +
+ server/integrations/browserbase.ts                 |   295 +
+ server/integrations/elevenlabs-tts.ts              |   334 +
+ server/integrations/expressive-tts.ts              |   236 +
+ server/integrations/gemini-live.ts                 |   449 +
+ server/integrations/github.ts                      |  1492 +
+ server/integrations/gmail.ts                       |   449 +
+ server/integrations/google-auth.ts                 |   229 +
+ server/integrations/google-calendar.ts             |   410 +
+ server/integrations/google-contacts.ts             |   238 +
+ server/integrations/google-docs.ts                 |   400 +
+ server/integrations/google-drive.ts                |   413 +
+ server/integrations/google-sheets.ts               |   443 +
+ server/integrations/google-tasks.ts                |   565 +
+ server/integrations/http-client.ts                 |   331 +
+ server/integrations/image-generation.ts            |   175 +
+ server/integrations/kicad.ts                       |   448 +
+ server/integrations/lyria.ts                       |   225 +
+ server/integrations/perplexity.ts                  |   209 +
+ server/integrations/petoi.ts                       |   389 +
+ server/integrations/printer3d.ts                   |   479 +
+ server/integrations/tavily.ts                      |   173 +
+ server/integrations/twilio.ts                      |   285 +
+ server/integrations/web-scraper.ts                 |   409 +
+ server/integrations/web-search.ts                  |   196 +
+ server/replitAuth.ts                               |   174 +
+ server/routes.ts                                   |  2234 ++
+ server/routes/agent.ts                             |   322 +
+ server/routes/agents.ts                            |   197 +
+ server/routes/auth.ts                              |    49 +
+ server/routes/branding.ts                          |   124 +
+ server/routes/calendar.ts                          |    94 +
+ server/routes/collab.ts                            |   153 +
+ server/routes/computer-use.ts                      |   501 +
+ server/routes/database-admin.ts                    |   323 +
+ server/routes/desktop.ts                           |   118 +
+ server/routes/docs.ts                              |    74 +
+ server/routes/drive.ts                             |    85 +
+ server/routes/evolution.ts                         |   285 +
+ server/routes/extension.ts                         |   913 +
+ server/routes/feedback.ts                          |    71 +
+ server/routes/gmail.ts                             |    62 +
+ server/routes/hardware.ts                          |   428 +
+ server/routes/image.ts                             |    92 +
+ server/routes/index.ts                             |    85 +
+ server/routes/jobs.ts                              |   224 +
+ server/routes/knowledge-ingestion.ts               |   592 +
+ server/routes/live.ts                              |    62 +
+ server/routes/middleware.ts                        |   211 +
+ server/routes/music.ts                             |    70 +
+ server/routes/orchestration.ts                     |   422 +
+ server/routes/orchestrator.ts                      |   333 +
+ server/routes/playwright.ts                        |   389 +
+ server/routes/python.ts                            |   132 +
+ server/routes/queue.ts                             |   204 +
+ server/routes/rag-debug.ts                         |   383 +
+ server/routes/sheets.ts                            |    88 +
+ server/routes/speech.ts                            |    87 +
+ server/routes/status.ts                            |   120 +
+ server/routes/tasks.ts                             |   122 +
+ server/routes/terminal.ts                          |   136 +
+ server/routes/todo.ts                              |   401 +
+ server/routes/twilio.ts                            |   186 +
+ server/routes/user-agents.ts                       |   241 +
+ server/routes/web-scraper.ts                       |    69 +
+ .../__tests__/hardware-integration.test.ts         |   226 +
+ server/services/__tests__/ssh-service.test.ts      |   116 +
+ server/services/agent-attribution-examples.ts      |   362 +
+ server/services/agent-registry.ts                  |   401 +
+ server/services/agent-worker.ts                    |   283 +
+ server/services/chunking-service.ts                |   420 +
+ server/services/client-router.ts                   |   226 +
+ server/services/cloud-sql-provisioner.ts           |   366 +
+ server/services/codebase-analyzer.ts               |  1792 ++
+ server/services/collab-integration.ts              |   307 +
+ server/services/computer-use.ts                    |   750 +
+ server/services/context-synthesis.ts               |   515 +
+ server/services/cron-scheduler.ts                  |   377 +
+ server/services/dependency-resolver.ts             |   252 +
+ server/services/desktop-relay-service.ts           |   357 +
+ server/services/embedding-service.ts               |   139 +
+ server/services/evolution-engine.ts                |   692 +
+ server/services/family-recognition.ts              |   165 +
+ server/services/file-queue.ts                      |   434 +
+ server/services/hybrid-search.ts                   |   366 +
+ server/services/ingestion-pipeline.ts              |   485 +
+ server/services/io-logger.ts                       |   321 +
+ server/services/jit-tool-protocol.ts               |   398 +
+ server/services/job-dispatcher.ts                  |   219 +
+ server/services/job-queue.ts                       |   512 +
+ server/services/llm-debug-buffer.ts                |   224 +
+ server/services/llm-error-buffer.ts                |   151 +
+ server/services/log-buffer.ts                      |    56 +
+ server/services/orchestration-logger.ts            |   485 +
+ server/services/orchestrator.ts                    |   712 +
+ server/services/prompt-composer.ts                 |   687 +
+ server/services/rag-debug-buffer.ts                |   534 +
+ server/services/rag-dispatcher.ts                  |  3554 +++
+ server/services/rag-evaluator.ts                   |   437 +
+ server/services/rag-service.ts                     |   820 +
+ server/services/reranker.ts                        |   458 +
+ server/services/retrieval-orchestrator.ts          |   375 +
+ server/services/speech.ts                          |   211 +
+ server/services/ssh-service.ts                     |   499 +
+ server/services/state-manager.ts                   |   469 +
+ server/services/trigger-service.ts                 |   263 +
+ server/services/vector-store/README.md             |   276 +
+ server/services/vector-store/config.ts             |   189 +
+ server/services/vector-store/index.ts              |   208 +
+ server/services/vector-store/memory-adapter.ts     |   258 +
+ server/services/vector-store/pgvector-adapter.ts   |   305 +
+ server/services/vector-store/types.ts              |   196 +
+ server/services/vector-store/vertex-adapter.ts     |   396 +
+ server/services/worker-pool.ts                     |   224 +
+ server/services/workflow-executor.ts               |   391 +
+ server/static.ts                                   |    27 +
+ server/storage.ts                                  |  1890 ++
+ server/utils/__tests__/llm-call-validator.test.ts  |   240 +
+ server/utils/environment-metadata.ts               |    96 +
+ server/utils/llm-call-validator.ts                 |   228 +
+ server/utils/test-validator-runtime.ts             |   113 +
+ server/vite.ts                                     |    58 +
+ server/websocket-collab.ts                         |   655 +
+ server/websocket-desktop.ts                        |   214 +
+ server/websocket-live.ts                           |   309 +
+ server/websocket-terminal.ts                       |   417 +
+ setup_windows.bat                                  |    64 +
+ shared/schema.ts                                   |  3154 +++
+ short-term-memory.md                               |    20 +
+ ssh-examples.ts                                    |   324 +
+ tsconfig.extension.json                            |    23 +
+ tsconfig.json                                      |    23 +
+ twilio_voice_handler.xml                           |     4 +
+ twilio_voicemail.xml                               |     5 +
+ vite-plugin-meta-images.ts                         |    78 +
+ vite.config.extension.ts                           |    32 +
+ vite.config.ts                                     |    51 +
+ w                                                  |     1 +
+ www/index.html                                     |   410 +
+ 1191 files changed, 319741 insertions(+)

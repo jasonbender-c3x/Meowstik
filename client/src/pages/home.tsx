@@ -73,7 +73,7 @@ import { useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 
 /**
- * Nebula Logo - Custom generated AI-themed logo
+ * Meowstic Logo - Custom generated AI-themed logo
  */
 import logo from "@assets/generated_images/cute_cat_logo_icon.png";
 

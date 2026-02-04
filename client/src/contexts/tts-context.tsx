@@ -41,7 +41,7 @@ interface TTSContextValue {
 
 const TTSContext = createContext<TTSContextValue | undefined>(undefined);
 
-const TTS_STORAGE_KEY = "nebula-tts-muted";
+const TTS_STORAGE_KEY = "meowstic-tts-muted";
 const VERBOSITY_STORAGE_KEY = "meowstik-verbosity-mode";
 
 export function TTSProvider({ children }: { children: ReactNode }) {

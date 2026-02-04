@@ -393,10 +393,21 @@ export async function deleteDriveFile(fileId: string) {
  */
 export async function searchDriveFiles(searchTerm: string) {
   try {
-    // Build query using Drive query syntax
-    // 'name contains' searches file names
-    // 'fullText contains' searches file content
-    const query = `name contains '${searchTerm}' or fullText contains '${searchTerm}'`;
+    // Heuristic: Check if the term looks like a raw query (contains operators)
+    // Common operators: =, !=, <, <=, >, >=, contains, and, or, not, has
+    // If it looks like a query, pass it raw. If simple text, treat as keyword search.
+    const isRawQuery = /\b(=|!=|<|>|<=|>=|contains|and|or|not|has)\b/i.test(searchTerm);
+    
+    let query;
+    if (isRawQuery) {
+        // Use raw query provided by AI
+        query = searchTerm;
+    } else {
+        // Sanitize single quotes to prevent syntax errors
+        const sanitizedTerm = searchTerm.replace(/'/g, "\\'");
+        // Build keyword search query
+        query = `name contains '${sanitizedTerm}' or fullText contains '${sanitizedTerm}'`;
+    }
     
     // Delegate to listDriveFiles with the constructed query
     return listDriveFiles(query);

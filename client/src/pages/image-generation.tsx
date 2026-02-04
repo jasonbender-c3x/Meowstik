@@ -418,7 +418,7 @@ export default function ImageGenerationPage() {
     if (!canvas) return;
 
     const link = document.createElement("a");
-    link.download = `nebula-image-${Date.now()}.png`;
+    link.download = `meowstic-image-${Date.now()}.png`;
     link.href = canvas.toDataURL("image/png");
     link.click();
   }, []);

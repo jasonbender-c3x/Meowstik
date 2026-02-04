@@ -1,6 +1,6 @@
 /**
  * =============================================================================
- * NEBULA CHAT - RAG DISPATCHER SERVICE
+ * MEOWSTIC CHAT - RAG DISPATCHER SERVICE
  * =============================================================================
  * 
  * Handles the dispatch and execution of structured LLM outputs.
@@ -72,6 +72,7 @@ import * as petoi from "../integrations/petoi";
 import * as printer3d from "../integrations/printer3d";
 import * as kicad from "../integrations/kicad";
 import { ragService } from "./rag-service";
+import { retrievalOrchestrator } from "./retrieval-orchestrator";
 import { chunkingService } from "./chunking-service";
 import { clientRouter } from "./client-router";
 import type { CodeEntity } from "./codebase-analyzer";
@@ -451,7 +452,7 @@ export class RAGDispatcher {
           result = await this.executeApiCall(toolCall);
           break;
         case "search":
-          result = await this.executeSearch(toolCall);
+          result = await this.executeSearch(toolCall, messageId);
           break;
         case "web_search":
           result = await this.executeWebSearch(toolCall);
@@ -1147,7 +1148,7 @@ export class RAGDispatcher {
   /**
    * Execute a search operation with validated parameters
    */
-  private async executeSearch(toolCall: ToolCall): Promise<unknown> {
+  private async executeSearch(toolCall: ToolCall, messageId: string): Promise<unknown> {
     const parseResult = searchParamsSchema.safeParse(toolCall.parameters);
     
     if (!parseResult.success) {
@@ -1155,7 +1156,62 @@ export class RAGDispatcher {
     }
 
     const { query, scope } = parseResult.data;
-    return { message: `Search executed for: ${query}`, scope };
+
+    // Get userId for data isolation (same pattern as file_ingest)
+    const message = await storage.getMessageById(messageId);
+    let userId: string | null = null;
+    
+    if (message?.chatId) {
+      const chat = await storage.getChatById(message.chatId);
+      userId = chat?.userId || null;
+    }
+
+    // Map scope to specific buckets if applicable
+    // Supported scopes: personal, creator, projects
+    let buckets: any[] | undefined = undefined;
+    if (scope) {
+      const s = scope.toLowerCase();
+      if (s.includes('personal')) buckets = ['PERSONAL_LIFE'];
+      else if (s.includes('creator') || s.includes('content')) buckets = ['CREATOR'];
+      else if (s.includes('project') || s.includes('code')) buckets = ['PROJECTS'];
+    }
+
+    console.log(`[RAGDispatcher] Executing search: "${query}" (User: ${userId}, Scope: ${scope || 'all'})`);
+
+    try {
+      const results = await retrievalOrchestrator.retrieve({
+        query,
+        userId,
+        buckets,
+        topK: 10,
+        useHybridSearch: true,
+        useReranking: true
+      });
+
+      if (results.items.length === 0) {
+        return { 
+          message: `No relevant information found for "${query}" in the knowledge base.`,
+          query,
+          results: []
+        };
+      }
+
+      // Format results for the agent
+      const formattedResults = results.items.map(item => ({
+        source: item.type === 'evidence' ? 'Knowledge Base' : 'Related Entity',
+        relevance: Math.round(item.score * 100) + '%',
+        content: item.content
+      }));
+
+      return {
+        query,
+        count: results.items.length,
+        results: formattedResults
+      };
+    } catch (error) {
+      console.error("[RAGDispatcher] Search execution failed:", error);
+      throw new Error(`Search failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
   }
 
   /**
@@ -1519,7 +1575,7 @@ export class RAGDispatcher {
     }
 
     try {
-      const scriptPath = path.join(this.workspaceDir, ".nebula", "autoexec.666");
+      const scriptPath = path.join(this.workspaceDir, ".meowstic", "autoexec.666");
       await fs.mkdir(path.dirname(scriptPath), { recursive: true });
       await fs.writeFile(scriptPath, autoexec.content, "utf8");
       await fs.chmod(scriptPath, 0o700);

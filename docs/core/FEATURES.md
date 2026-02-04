@@ -410,7 +410,7 @@ Execute commands directly from the chat interface.
 
 ---
 
-## Quick Reference: What You Can Ask Nebula
+## Quick Reference: What You Can Ask Meowstic
 
 ### Productivity
 - "Show my recent emails"

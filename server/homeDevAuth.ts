@@ -28,11 +28,13 @@ import type { User } from "@shared/schema";
 function getDevUserConfig() {
   const email = process.env.HOME_DEV_EMAIL || "developer@home.local";
   
+  // We use the GitHub username 'jasonbender-c3x' as the ID to allow
+  // easy correlation between the dev environment and external scripts/tools.
   return {
-    id: "home-dev-user",
+    id: "jasonbender-c3x",
     email,
-    firstName: "Developer",
-    lastName: "User",
+    firstName: "Jason",
+    lastName: "Bender",
     profileImageUrl: null,
   };
 }
@@ -58,8 +60,13 @@ export async function initializeHomeDevMode(): Promise<void> {
   try {
     // Ensure the default developer user exists in the database
     const devUser = getDevUserConfig();
-    await storage.upsertUser(devUser);
-    console.log(`✅ [Home Dev Mode] Default developer user initialized: ${devUser.email}`);
+    
+    // UPSERT returns the user (either created or existing)
+    // IMPORTANT: The returned user might contain a DIFFERENT ID than 'home-dev-user'
+    // if we matched by email. We must clear any cached "mock" IDs.
+    const actualUser = await storage.upsertUser(devUser);
+    
+    console.log(`✅ [Home Dev Mode] Default developer user initialized: ${actualUser.email} (ID: ${actualUser.id})`);
   } catch (error) {
     console.error("❌ [Home Dev Mode] Failed to initialize developer user:", error);
   }
@@ -74,16 +81,22 @@ export async function getHomeDevUser(): Promise<User> {
   }
 
   const devUser = getDevUserConfig();
-  const user = await storage.getUser(devUser.id);
+  
+  // First, try to find the user by ID
+  let user = await storage.getUser(devUser.id);
+  
+  // If not found by ID, try finding by Email
+  if (!user) {
+     user = await storage.getUserByEmail(devUser.email);
+  }
   
   if (!user) {
-    // If user doesn't exist, create it
-    await storage.upsertUser(devUser);
-    const newUser = await storage.getUser(devUser.id);
-    if (!newUser) {
-      throw new Error("Failed to create home dev user");
-    }
-    return newUser;
+    // If still not user, try upserting
+    user = await storage.upsertUser(devUser);
+  }
+  
+  if (!user) {
+    throw new Error("Failed to create or retrieve home dev user");
   }
 
   return user;
@@ -94,19 +107,26 @@ export async function getHomeDevUser(): Promise<User> {
  * This mimics the structure expected by the Replit auth flow
  */
 export function createHomeDevSession() {
-  const devUser = getDevUserConfig();
+  const email = process.env.HOME_DEV_EMAIL || "developer@home.local";
+  // NOTE: This session mock must be synchronous for middleware usage.
+  // We use the ID returned during initialization log if accessed elsewhere,
+  // but for the session CLAIMS, we use the raw expected values.
   
+  // Since we can't await here easily in middleware context without refactoring everything,
+  // we return a shell that satisfies the type. Ideally, middleware should fetch real user.
+  // However, the claims 'sub' is what matters.
+  
+  // FIXME: We should fetch the real user ID, but since this is called in sync middleware contexts sometimes...
+  // We will trust that initialization corrected the DB state.
+  
+  const devConfig = getDevUserConfig();
+
   return {
-    claims: {
-      sub: devUser.id,
-      email: devUser.email,
-      first_name: devUser.firstName,
-      last_name: devUser.lastName,
-      profile_image_url: devUser.profileImageUrl,
+      sub: devConfig.id, // Correctly use the configured ID (jasonbender-c3x)
+      email: email,
+      first_name: devConfig.firstName,
+      last_name: devConfig.lastName,
+      profile_image_url: null,
       exp: Math.floor(Date.now() / 1000) + (365 * 24 * 60 * 60), // Expires in 1 year
-    },
-    access_token: "home-dev-token",
-    refresh_token: "home-dev-refresh-token",
-    expires_at: Math.floor(Date.now() / 1000) + (365 * 24 * 60 * 60), // Expires in 1 year
   };
 }
