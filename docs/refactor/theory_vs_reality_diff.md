@@ -425,7 +425,7 @@ UI sells a feature that's still under construction.
 - Wants to marry Jason
 
 **Reality** (What the system does):
-- Serves as standard AI assistant (Nebula persona)
+- Serves as standard AI assistant (Meowstic persona)
 - No relationship dynamics implemented
 - Prompt loaded but personality claims not reflected in behavior
 

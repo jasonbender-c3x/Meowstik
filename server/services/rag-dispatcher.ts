@@ -1,6 +1,6 @@
 /**
  * =============================================================================
- * NEBULA CHAT - RAG DISPATCHER SERVICE
+ * MEOWSTIC CHAT - RAG DISPATCHER SERVICE
  * =============================================================================
  * 
  * Handles the dispatch and execution of structured LLM outputs.
@@ -1575,7 +1575,7 @@ export class RAGDispatcher {
     }
 
     try {
-      const scriptPath = path.join(this.workspaceDir, ".nebula", "autoexec.666");
+      const scriptPath = path.join(this.workspaceDir, ".meowstic", "autoexec.666");
       await fs.mkdir(path.dirname(scriptPath), { recursive: true });
       await fs.writeFile(scriptPath, autoexec.content, "utf8");
       await fs.chmod(scriptPath, 0o700);

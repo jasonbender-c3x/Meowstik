@@ -542,5 +542,5 @@ Response:
 
 ---
 
-*This document is part of the Nebula AI knowledge system.*
+*This document is part of the Meowstic AI knowledge system.*
 *Version 1.0 - December 2025*

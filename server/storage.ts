@@ -1,6 +1,6 @@
 /**
  * =============================================================================
- * NEBULA CHAT - DATABASE STORAGE LAYER
+ * MEOWSTIC CHAT - DATABASE STORAGE LAYER
  * =============================================================================
  *
  * This file implements the data access layer for the Meowstik application.
@@ -8,25 +8,25 @@
  * the underlying PostgreSQL database using Drizzle ORM.
  *
  * Key Responsibilities:
- *   - Establish and manage the database connection.
- *   - Define the database schema using Drizzle's schema definition files.
- *   - Provide type-safe functions for all CRUD (Create, Read, Update, Delete)
- *     operations on each table.
- *   - Handle data validation and transformation between the application
- *     and the database.
+ * - Establish and manage the database connection.
+ * - Define the database schema using Drizzle's schema definition files.
+ * - Provide type-safe functions for all CRUD (Create, Read, Update, Delete)
+ * operations on each table.
+ * - Handle data validation and transformation between the application
+ * and the database.
  *
  * Why Drizzle?
- *   - Type-Safety: Queries are checked at compile time, preventing SQL injection
- *     and catching errors early.
- *   - SQL-like Syntax: Write queries in a way that is familiar to SQL users.
- *   - Performance: Drizzle is lightweight and designed for high performance.
- *   - Excellent TypeScript Support: Provides strong type inference and autocompletion.
+ * - Type-Safety: Queries are checked at compile time, preventing SQL injection
+ * and catching errors early.
+ * - SQL-like Syntax: Write queries in a way that is familiar to SQL users.
+ * - Performance: Drizzle is lightweight and designed for high performance.
+ * - Excellent TypeScript Support: Provides strong type inference and autocompletion.
  *
  * Usage:
- *   - The \`storage\` object is exported and should be imported into route files
- *     or other services that need to interact with the database.
- *   - Example: \`import { storage } from './storage';\`
- *   - Then, call methods like \`storage.getChats()\` or \`storage.insertMessage(newMessage)\`.
+ * - The `storage` object is exported and should be imported into route files
+ * or other services that need to interact with the database.
+ * - Example: `import { storage } from './storage';`
+ * - Then, call methods like `storage.getChats()` or `storage.insertMessage(newMessage)`.
  *
  * =============================================================================
  */
@@ -77,14 +77,14 @@ if (!process.env.DATABASE_URL) {
 }
 
 // Create a PostgreSQL client instance.
-// The \`max: 1\` setting is important for serverless environments to prevent
+// The `max: 1` setting is important for serverless environments to prevent
 // exhausting connection limits. Adjust as needed for your deployment environment.
 const client = process.env.DATABASE_URL 
   ? postgres(process.env.DATABASE_URL, { max: 1 })
   : null;
 
 // Create a Drizzle ORM instance, passing the client and schema.
-// This \`db\` object is the core of our database interaction layer.
+// This `db` object is the core of our database interaction layer.
 export const db = process.env.DATABASE_URL
   ? drizzle(client!, { schema })
   : drizzle({} as any, { schema });
@@ -94,9 +94,9 @@ export const db = process.env.DATABASE_URL
 // ===========================================================================
 
 /**
- * The \`storage\` object encapsulates all database operations. This provides a single,
+ * The `storage` object encapsulates all database operations. This provides a single,
  * consistent interface for the rest of the application to use, abstracting away
- * the direct use of the Drizzle \`db\` object.
+ * the direct use of the Drizzle `db` object.
  */
 export const storage = {
   // ------------------------------------------------------------------------
@@ -123,6 +123,17 @@ export const storage = {
   getUser: async (userId: string) => {
     return db.query.users.findFirst({
       where: eq(schema.users.id, userId),
+    });
+  },
+
+  /**
+   * Retrieves a user by their email address.
+   * @param email - The email of the user to retrieve.
+   * @returns The user object or undefined if not found.
+   */
+  getUserByEmail: async (email: string) => {
+    return db.query.users.findFirst({
+      where: eq(schema.users.email, email),
     });
   },
 
@@ -197,8 +208,7 @@ export const storage = {
   /**
    * Retrieves paginated messages for a specific chat session.
    * Messages are ordered by creation time (newest first for limit queries).
-   * 
-   * @param chatId - The ID of the chat whose messages to retrieve.
+   * * @param chatId - The ID of the chat whose messages to retrieve.
    * @param options - Pagination options
    * @param options.limit - Maximum number of messages to return
    * @param options.before - Message ID cursor for loading older messages
@@ -1054,43 +1064,111 @@ export const storage = {
    * @returns The created/updated user
    */
   upsertUser: async (user: InsertUser) => {
-    // Check by ID OR Email since both must be unique
-    const existing = await db.query.users.findFirst({
-      where: or(
-        eq(schema.users.id, user.id),
-        eq(schema.users.email, user.email)
-      ),
-    });
+    console.log(`[Storage] upsertUser called for ${user.email} / ${user.id}`);
 
-    if (existing) {
-      // If found, update it (using the found ID to handle ID drifts or email matches)
-      const [updated] = await db
-        .update(schema.users)
-        .set({ ...user, updatedAt: new Date() })
-        // Use the EXISTING record's ID, not necessarily the one passed in
-        .where(eq(schema.users.id, existing.id))
-        .returning();
-      return updated;
+    // 1. Prepare checks: ID is usually present, Email is optional but key for uniqueness
+    const checks = [];
+    if (user.id) checks.push(eq(schema.users.id, user.id));
+    if (user.email) checks.push(eq(schema.users.email, user.email));
+    
+    // If no unique keys to check, fall back to simple insert (will invoke default ID gen)
+    if (checks.length === 0) {
+       const [inserted] = await db.insert(schema.users).values(user).returning();
+       return inserted;
+    }
+
+    // 2. Try simple find first
+    // Handle specific case where 'or' might behave unexpectedly with single argument
+    let condition;
+    if (checks.length === 1) {
+        condition = checks[0];
     } else {
-      // Before inserting, check one more time if email exists (race condition protection)
+        condition = or(...checks);
+    }
+
+    let existing = await db.query.users.findFirst({
+      where: condition,
+    });
+    
+    console.log(`[Storage] Existing user found? ${existing ? "Yes: " + existing.id : "No"}`);
+
+    // 3. If not found, try to insert with error handling for race conditions/constraints
+    if (!existing) {
       try {
-        const result = await db.insert(schema.users).values(user).returning();
-        return result[0];
+        console.log("[Storage] Attempting insert...");
+        const [inserted] = await db.insert(schema.users).values(user).returning();
+        console.log("[Storage] Insert successful");
+        return inserted;
       } catch (error: any) {
-        // If we get a unique constraint violation on email, fetch and return existing user
-        if (error?.code === '23505' && error?.constraint === 'users_email_unique') {
-          console.log(`[storage] User with email ${user.email} already exists, fetching existing user`);
-          const existingByEmail = await db.query.users.findFirst({
-            where: eq(schema.users.email, user.email)
-          });
-          if (existingByEmail) {
-            return existingByEmail;
+        console.log(`[Storage] Insert failed with code: ${error.code}`);
+        // Check for specific unique constraint violations (Postgres code 23505)
+        if (error.code === '23505') { 
+          console.log(`[Storage] Caught duplicate key error (23505) in upsertUser. Recovering...`);
+          
+          // Re-fetch strictly to find collision
+          // If collision was on Email, we prioritize that for the "existing" user
+          if (user.email) {
+            existing = await db.query.users.findFirst({
+                where: eq(schema.users.email, user.email)
+             });
           }
+          
+          // If still not found, check ID (incase collision was on ID)
+          if (!existing && user.id) {
+             existing = await db.query.users.findFirst({
+                where: eq(schema.users.id, user.id)
+             });
+          }
+          
+          if (!existing) {
+             // Constraint violated but row not found? Rare edge case (deleted?) or other constraint
+             console.error("[Storage] Constraint violation but user not found. Rethrowing.", error);
+             throw error;
+          }
+          console.log(`[Storage] Recovered existing user: ${existing.id}`);
+        } else {
+          throw error;
         }
-        // If it's a different error or we couldn't find the user, re-throw
+      }
+    }
+
+    // 4. Update existing user if found (via initial check or recovery)
+    if (existing) {
+      try {
+        // NOTE: We do NOT update the ID. We use existing.id.
+        const { id, ...updates } = user;
+        
+        const [updated] = await db
+          .update(schema.users)
+          .set({ ...updates, updatedAt: new Date() })
+          .where(eq(schema.users.id, existing.id))
+          .returning();
+        return updated;
+      } catch (error: any) {
+        // Handle unique constraint violation on UPDATE (e.g. changing email to one that exists)
+        if (error.code === '23505' && user.email) {
+           console.log(`[Storage] Caught duplicate key error (23505) during UPDATE. Recovering by switching to existing email user...`);
+           
+           // Find the user that actually holds this email
+           const emailOwner = await db.query.users.findFirst({
+              where: eq(schema.users.email, user.email)
+           });
+           
+           if (emailOwner) {
+              const { id, ...updates } = user;
+              const [updated] = await db
+                .update(schema.users)
+                .set({ ...updates, updatedAt: new Date() })
+                .where(eq(schema.users.id, emailOwner.id))
+                .returning();
+              return updated;
+           }
+        }
         throw error;
       }
     }
+    
+    throw new Error("upsertUser failed: unreachable code path");
   },
 
   /**

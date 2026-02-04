@@ -65,7 +65,7 @@ Meowstik uses PostgreSQL with Drizzle ORM for data persistence. The schema is de
 
 ## 1. Chats Table
 
-**Purpose**: Stores metadata for chat conversations between the user and Nebula AI.
+**Purpose**: Stores metadata for chat conversations between the user and Meowstic AI.
 
 ### Schema Definition
 
