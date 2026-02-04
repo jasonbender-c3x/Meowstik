@@ -1,4 +1,4 @@
-/**
+npm /**
  * Audio Transcoding Utilities
  * 
  * Handles conversion between PCM and G.711 Mu-Law (PCMU).
