@@ -74,6 +74,12 @@ export async function setupAuth(app: Express) {
   app.use(passport.initialize());
   app.use(passport.session());
 
+  // Check if REPL_ID is set before attempting OIDC discovery
+  if (!process.env.REPL_ID) {
+    console.warn("⚠️ [Replit Auth] REPL_ID not set. Skipping OIDC discovery and Replit strategy setup.");
+    return;
+  }
+
   const config = await getOidcConfig();
 
   const verify: VerifyFunction = async (

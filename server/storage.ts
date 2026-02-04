@@ -1054,20 +1054,77 @@ export const storage = {
    * @returns The created/updated user
    */
   upsertUser: async (user: InsertUser) => {
-    // Check for existing user by ID OR Email to prevent duplicate email errors
-    const existing = await db.query.users.findFirst({
-      where: or(
-        eq(schema.users.id, user.id),
-        eq(schema.users.email, user.email)
-      ),
-    });
+    console.log(`[Storage] upsertUser called for ${user.email} / ${user.id}`);
 
+    // 1. Prepare checks: ID is usually present, Email is optional but key for uniqueness
+    const checks = [];
+    if (user.id) checks.push(eq(schema.users.id, user.id));
+    if (user.email) checks.push(eq(schema.users.email, user.email));
+    
+    // If no unique keys to check, fall back to simple insert (will invoke default ID gen)
+    if (checks.length === 0) {
+       const [inserted] = await db.insert(schema.users).values(user).returning();
+       return inserted;
+    }
+
+    // 2. Try simple find first
+    // Handle specific case where 'or' might behave unexpectedly with single argument
+    let condition;
+    if (checks.length === 1) {
+        condition = checks[0];
+    } else {
+        condition = or(...checks);
+    }
+
+    let existing = await db.query.users.findFirst({
+      where: condition,
+    });
+    
+    console.log(`[Storage] Existing user found? ${existing ? "Yes: " + existing.id : "No"}`);
+
+    // 3. If not found, try to insert with error handling for race conditions/constraints
+    if (!existing) {
+      try {
+        console.log("[Storage] Attempting insert...");
+        const [inserted] = await db.insert(schema.users).values(user).returning();
+        console.log("[Storage] Insert successful");
+        return inserted;
+      } catch (error: any) {
+        console.log(`[Storage] Insert failed with code: ${error.code}`);
+        // Check for specific unique constraint violations (Postgres code 23505)
+        if (error.code === '23505') { 
+          console.log(`[Storage] Caught duplicate key error (23505) in upsertUser. Recovering...`);
+          
+          // Re-fetch strictly to find collision
+          // If collision was on Email, we prioritize that for the "existing" user
+          if (user.email) {
+            existing = await db.query.users.findFirst({
+                where: eq(schema.users.email, user.email)
+             });
+          }
+          
+          // If still not found, check ID (incase collision was on ID)
+          if (!existing && user.id) {
+             existing = await db.query.users.findFirst({
+                where: eq(schema.users.id, user.id)
+             });
+          }
+          
+          if (!existing) {
+             // Constraint violated but row not found? Rare edge case (deleted?) or other constraint
+             console.error("[Storage] Constraint violation but user not found. Rethrowing.", error);
+             throw error;
+          }
+          console.log(`[Storage] Recovered existing user: ${existing.id}`);
+        } else {
+          throw error;
+        }
+      }
+    }
+
+    // 4. Update existing user if found (via initial check or recovery)
     if (existing) {
-      // If we found a user, update them.
-      // NOTE: We do NOT update the ID to match the passed 'user.id' if they differ.
-      // Changing a Primary Key is risky/often fails due to foreign keys.
-      // We just update the fields, keeping their existing ID.
-      // We exclude 'id' from the update payload.
+      // NOTE: We do NOT update the ID. We use existing.id.
       const { id, ...updates } = user;
       
       const [updated] = await db
@@ -1076,11 +1133,9 @@ export const storage = {
         .where(eq(schema.users.id, existing.id))
         .returning();
       return updated;
-    } else {
-      // No ID match, no Email match -> Safe to insert
-      const result = await db.insert(schema.users).values(user).returning();
-      return result[0];
     }
+    
+    throw new Error("upsertUser failed: unreachable code path");
   },
 
   /**
