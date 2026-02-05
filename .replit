@@ -4,7 +4,7 @@ hidden = [".config", ".git", "generated-icon.png", "node_modules", "dist"]
 
 [nix]
 channel = "stable-25_05"
-packages = ["ffmpeg", "chromium", "playwright-driver", "openssh", "python3", "killall", "gash-utils"]
+packages = ["ffmpeg", "chromium", "playwright-driver", "openssh", "python3", "killall", ]
 
 [deployment]
 deploymentTarget = "autoscale"
@@ -53,7 +53,7 @@ externalPort = 3000
 [userenv.shared]
 GOOGLE_REDIRECT_URI = "https://meowstik.com/api/auth/google/callback"
 GOOGLE_CLOUD_PROJECT = "ai-stack-e2a5f"
-HOME_DEV_MODE = "FALSE"
+HOME_DEV_MODE = "TRUE"
 
 [userenv.development]
 
