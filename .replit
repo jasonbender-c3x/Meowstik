@@ -4,7 +4,7 @@ hidden = [".config", ".git", "generated-icon.png", "node_modules", "dist"]
 
 [nix]
 channel = "stable-25_05"
-packages = ["ffmpeg", "chromium", "playwright-driver", "openssh", "python3", "killall", ]
+packages = ["ffmpeg", "chromium", "playwright-driver", "openssh", "python3"]
 
 [deployment]
 deploymentTarget = "autoscale"

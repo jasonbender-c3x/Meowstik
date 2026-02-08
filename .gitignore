@@ -8,12 +8,10 @@ google-credentials.json
 attached_assets/*.json
 logs/
 repos/
-/icons/
 .env
 notebooklm-output/
 test-ssh-*.ts
 test-ssh-*.mjs
 test-tokenless-connection.ts
 client/src/pages/debug-old.tsx
-.notebooklm-cookies.json
-notebooklm-screenshot.png
+
