@@ -19,10 +19,13 @@
   },
   "dependencies": {
     "@google/genai": "^1.0.0",
-    "express": "^4.18.2",
+    "@types/uuid": "^10.0.0",
     "cors": "^2.8.5",
     "dotenv": "^16.3.1",
-    "electron-store": "^8.1.0"
+    "electron-store": "^8.1.0",
+    "express": "^4.18.2",
+    "server": "^1.0.42",
+    "uuid": "^13.0.0"
   },
   "build": {
     "appId": "com.meowstik.desktop",
@@ -54,17 +57,25 @@
       {
         "from": "../server",
         "to": "server",
-        "filter": ["**/*", "!node_modules/**"]
+        "filter": [
+          "**/*",
+          "!node_modules/**"
+        ]
       },
       {
         "from": "../desktop-agent",
         "to": "desktop-agent",
-        "filter": ["**/*", "!node_modules/**"]
+        "filter": [
+          "**/*",
+          "!node_modules/**"
+        ]
       },
       {
         "from": "../shared",
         "to": "shared",
-        "filter": ["**/*"]
+        "filter": [
+          "**/*"
+        ]
       }
     ]
   }
