@@ -712,7 +712,7 @@ export async function registerRoutes(
 ## VERBOSITY MODE: LOW (Concise Text & Speech)
 The user has LOW verbosity mode enabled. Keep both text and speech responses concise.
 - Keep responses brief and focused - aim for 1-3 sentences maximum
-- Use the \\`say\\` tool to provide concise spoken summaries
+- Use the \`say\` tool to provide concise spoken summaries
 - Provide only essential information without elaboration
 - Example: User asks "What's the weather?" → Response: "It's 72°F and sunny in your area."
 `;
@@ -722,8 +722,8 @@ The user has LOW verbosity mode enabled. Keep both text and speech responses con
             voiceInstruction = `
 ## VERBOSITY MODE: NORMAL (Verbose Text & Speech)
 The user has NORMAL verbosity mode enabled. Provide comprehensive, detailed responses in both text and speech.
-- Use the \\`say\\` tool to speak your complete responses
-- All text sent via \\`send_chat\\` (except code blocks) should also be spoken
+- Use the \`say\` tool to speak your complete responses
+- All text sent via \`send_chat\` (except code blocks) should also be spoken
 - Provide thorough explanations with context and details
 - Example: {"toolCalls": [{"type": "say", "id": "s1", "parameters": {"utterance": "Let me provide a comprehensive answer..."}}, {"type": "send_chat", "id": "c1", "parameters": {"content": "Let me provide a comprehensive answer..."}}]}
 `;
@@ -734,7 +734,7 @@ The user has NORMAL verbosity mode enabled. Provide comprehensive, detailed resp
 ## VERBOSITY MODE: EXPERIMENTAL (Dual-Voice Discussion)
 The user has EXPERIMENTAL mode enabled - generate a two-voice discussion format.
 - Structure your response as a dialogue between two AI personas discussing the topic
-- Use the \\`say\\` tool to present this discussion format
+- Use the \`say\` tool to present this discussion format
 - Continue the discussion until the user interrupts (barge-in)
 - Make the conversation natural, with back-and-forth exchanges
 - Example format:
