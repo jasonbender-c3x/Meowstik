@@ -136,7 +136,13 @@ export function TTSProvider({ children }: { children: ReactNode }) {
         bytes[i] = binaryStr.charCodeAt(i);
       }
       
-      const audioBuffer = await ctx.decodeAudioData(bytes.buffer.slice(0));
+      let audioBuffer: AudioBuffer;
+      try {
+        audioBuffer = await ctx.decodeAudioData(bytes.buffer.slice(0));
+      } catch (decodeErr) {
+        console.error("[TTS] Failed to decode audio data:", decodeErr);
+        return false;
+      }
       
       if (activeSourceRef.current) {
         try { activeSourceRef.current.stop(); } catch {}
@@ -150,15 +156,24 @@ export function TTSProvider({ children }: { children: ReactNode }) {
       
       setIsSpeaking(true);
       
-      source.onended = () => {
-        console.log("[TTS] AudioContext playback ended");
-        activeSourceRef.current = null;
-        setIsSpeaking(false);
-      };
-      
-      source.start(0);
-      console.log("[TTS] AudioContext playback started, duration:", audioBuffer.duration.toFixed(1) + "s");
-      return true;
+      return new Promise<boolean>((resolve) => {
+        source.onended = () => {
+          console.log("[TTS] AudioContext playback ended");
+          activeSourceRef.current = null;
+          setIsSpeaking(false);
+          resolve(true);
+        };
+        
+        try {
+          source.start(0);
+          console.log("[TTS] AudioContext playback started, duration:", audioBuffer.duration.toFixed(1) + "s");
+        } catch (startErr) {
+          console.error("[TTS] Failed to start audio source:", startErr);
+          activeSourceRef.current = null;
+          setIsSpeaking(false);
+          resolve(false);
+        }
+      });
     } catch (err) {
       console.error("[TTS] AudioContext playback failed:", err);
       return false;
