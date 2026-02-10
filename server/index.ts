@@ -199,7 +199,8 @@ app.use((req, res, next) => {
     if (path.startsWith("/api") && path !== "/api/status") {
       let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
       
-      if (capturedJsonResponse && !path.startsWith("/api/debug") && !path.startsWith("/api/speech")) {
+      const skipBody = path.startsWith("/api/debug") || path.startsWith("/api/speech") || path.match(/\/api\/chats\/[^/]+$/);
+      if (capturedJsonResponse && !skipBody) {
         logLine += ` :: ${JSON.stringify(capturedJsonResponse).slice(0, 2000)}`;
       }
 
