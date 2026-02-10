@@ -330,7 +330,7 @@ Bucket definitions:
         evidenceId,
         content: textToEmbed,
         embedding: embeddingResult.embedding,
-        embeddingModel: 'text-embedding-004',
+        embeddingModel: 'gemini-embedding-001',
         dimensions: 768,
         bucket: evidenceItem.bucket,
         modality: evidenceItem.modality,

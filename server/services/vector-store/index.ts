@@ -85,7 +85,7 @@ export function getDefaultConfig(): VectorStoreConfig {
 
   const config: VectorStoreConfig = {
     backend,
-    dimension: 768, // Gemini text-embedding-004
+    dimension: 768, // Gemini gemini-embedding-001
     metric: "cosine",
   };
 
