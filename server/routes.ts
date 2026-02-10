@@ -1329,18 +1329,24 @@ The user has MUTE mode enabled. Minimize all output.
         parts: [{ text: fullResponse }],
       };
 
-      // Include tool results in message metadata if any tools were executed
-      const messageMetadata =
-        toolResults.length > 0 ? { toolResults } : undefined;
+      // Include tool results and token usage in message metadata
+      const tokenUsage = usageMetadata ? {
+        promptTokens: usageMetadata.promptTokenCount || 0,
+        completionTokens: usageMetadata.candidatesTokenCount || 0,
+        totalTokens: usageMetadata.totalTokenCount || 0,
+      } : undefined;
+      const messageMetadata: Record<string, unknown> = {};
+      if (toolResults.length > 0) messageMetadata.toolResults = toolResults;
+      if (tokenUsage) messageMetadata.tokenUsage = tokenUsage;
 
       const endTime = Date.now();
 
       const savedAiMessage = await storage.addMessage({
         chatId: req.params.id,
         role: "ai",
-        content: finalContent, // Store clean prose content (no tool JSON)
+        content: finalContent,
         geminiContent: geminiContentToStore,
-        metadata: messageMetadata,
+        metadata: Object.keys(messageMetadata).length > 0 ? messageMetadata : undefined,
       });
 
       // Ingest AI response for RAG recall (async, don't block)

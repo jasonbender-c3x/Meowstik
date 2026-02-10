@@ -131,6 +131,12 @@ interface AutoexecResult {
 /**
  * Structured message metadata
  */
+interface TokenUsage {
+  promptTokens: number;
+  completionTokens: number;
+  totalTokens: number;
+}
+
 interface MessageMetadata {
   toolResults?: ToolResult[];
   filesCreated?: string[];
@@ -138,6 +144,7 @@ interface MessageMetadata {
   errors?: string[];
   processingTime?: number;
   autoexecResult?: AutoexecResult;
+  tokenUsage?: TokenUsage;
 }
 
 /**
@@ -705,6 +712,7 @@ export function ChatMessage({ role, content, isThinking, metadata, createdAt, id
                   chatId={chatId}
                   promptSnapshot={promptSnapshot}
                   responseSnapshot={content}
+                  tokenUsage={metadata?.tokenUsage}
                 />
               )}
             </div>

@@ -39,6 +39,12 @@ export interface FeedbackData {
   responseSnapshot?: string;
 }
 
+interface TokenUsage {
+  promptTokens: number;
+  completionTokens: number;
+  totalTokens: number;
+}
+
 interface FeedbackPanelProps {
   messageId: string;
   chatId?: string;
@@ -46,6 +52,7 @@ interface FeedbackPanelProps {
   responseSnapshot?: string;
   onSubmit?: (feedback: FeedbackData) => void;
   className?: string;
+  tokenUsage?: TokenUsage;
 }
 
 // ============================================================================
@@ -172,7 +179,13 @@ function CategorySlider({ label, value, onChange }: CategorySliderProps) {
 // MAIN FEEDBACK PANEL
 // ============================================================================
 
-export function FeedbackPanel({ messageId, chatId, promptSnapshot, responseSnapshot, onSubmit, className }: FeedbackPanelProps) {
+function formatTokenCount(count: number): string {
+  if (count >= 1000000) return `${(count / 1000000).toFixed(1)}M`;
+  if (count >= 1000) return `${(count / 1000).toFixed(1)}k`;
+  return count.toString();
+}
+
+export function FeedbackPanel({ messageId, chatId, promptSnapshot, responseSnapshot, onSubmit, className, tokenUsage }: FeedbackPanelProps) {
   const [rating, setRating] = useState<"positive" | "negative" | null>(null);
   const [isExpanded, setIsExpanded] = useState(false);
   const [categories, setCategories] = useState({
@@ -307,6 +320,16 @@ export function FeedbackPanel({ messageId, chatId, promptSnapshot, responseSnaps
               <ChevronDown className="h-3 w-3" />
             </motion.div>
           </button>
+        )}
+
+        {tokenUsage && (
+          <span
+            className="ml-auto text-xs text-muted-foreground tabular-nums"
+            data-testid="text-token-usage"
+            title={`In: ${tokenUsage.promptTokens.toLocaleString()} / Out: ${tokenUsage.completionTokens.toLocaleString()} / Total: ${tokenUsage.totalTokens.toLocaleString()}`}
+          >
+            {formatTokenCount(tokenUsage.promptTokens)} in · {formatTokenCount(tokenUsage.completionTokens)} out
+          </span>
         )}
       </div>
 
