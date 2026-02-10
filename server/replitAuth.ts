@@ -29,7 +29,7 @@ export function getSession() {
     tableName: "sessions",
   });
   
-  const isProduction = process.env.NODE_ENV === "production" || process.env.REPL_ID;
+  const isProduction = process.env.NODE_ENV === "production";
   
   return session({
     secret: process.env.SESSION_SECRET!,
@@ -42,7 +42,6 @@ export function getSession() {
       sameSite: "lax",
       maxAge: sessionTtl,
     },
-    // This is necessary for the cookie to be sent back from the browser
     proxy: isProduction,
   });
 }
