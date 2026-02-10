@@ -207,7 +207,7 @@ export default function Home() {
     isMuted, toggleMuted, speak, isSpeaking, stopSpeaking, 
     isSupported: isTTSSupported, isUsingBrowserTTS,
     shouldPlayHDAudio, shouldPlayBrowserTTS, unlockAudio, isAudioUnlocked, playTestTone,
-    registerHDAudio, verbosityMode
+    registerHDAudio, verbosityMode, playAudioBase64
   } = useTTS();
 
   /**
@@ -668,67 +668,35 @@ export default function Home() {
                   });
                   
                   if (shouldPlayHDAudio() && speechData.audioGenerated && speechData.audioBase64) {
-                    hdAudioPlayed = true; // Mark that HD audio will be played (suppress browser TTS)
-                    console.log('[TTS] Playing HD audio, base64 length:', speechData.audioBase64.length);
+                    hdAudioPlayed = true;
+                    console.log('[TTS] Playing HD audio via AudioContext, base64 length:', speechData.audioBase64.length);
                     
-                    // Unlock audio first (for browser autoplay policy)
-                    try {
-                      await unlockAudio();
-                    } catch (e) {
-                      console.warn('[TTS] Audio unlock failed:', e);
-                    }
+                    const played = await playAudioBase64(
+                      speechData.audioBase64,
+                      speechData.mimeType || 'audio/mpeg'
+                    );
                     
-                    // Create and play audio from base64 data
-                    try {
-                      const audioBlob = new Blob(
-                        [Uint8Array.from(atob(speechData.audioBase64), c => c.charCodeAt(0))],
-                        { type: speechData.mimeType || 'audio/mpeg' }
-                      );
-                      console.log('[TTS] Audio blob created, size:', audioBlob.size);
-                      const audioUrl = URL.createObjectURL(audioBlob);
-                      const audio = new Audio(audioUrl);
-                      audio.volume = 1.0;
-                      
-                      // Register with TTS context so stopSpeaking can halt it
-                      registerHDAudio(audio);
-                      
-                      audio.onended = () => {
-                        console.log('[TTS] Audio playback ended');
-                        URL.revokeObjectURL(audioUrl);
-                        registerHDAudio(null); // Unregister when done
-                      };
-                      audio.onerror = (e) => {
-                        console.error('[TTS] Audio element error:', e);
-                        registerHDAudio(null); // Unregister on error
-                      };
-                      audio.oncanplaythrough = () => {
-                        console.log('[TTS] Audio can play through');
-                      };
-                      audio.onloadeddata = () => {
-                        console.log('[TTS] Audio data loaded, duration:', audio.duration);
-                      };
-                      
-                      // Try to play with user gesture simulation
-                      const playPromise = audio.play();
-                      if (playPromise !== undefined) {
-                        playPromise
-                          .then(() => {
-                            console.log('[TTS] Audio play() promise resolved successfully');
-                          })
-                          .catch(err => {
-                            console.error('[TTS] Audio playback failed:', err.name, err.message);
-                            registerHDAudio(null); // Unregister on failure
-                            // Fall back to browser TTS only if verbose mode
-                            if (shouldPlayBrowserTTS()) {
-                              console.log('[TTS] Falling back to browser TTS');
-                              speak(speechData.utterance);
-                            }
-                          });
-                      }
-                    } catch (err) {
-                      console.error('[TTS] Error creating audio:', err);
-                      if (shouldPlayBrowserTTS()) {
-                        speak(speechData.utterance);
+                    if (!played) {
+                      console.warn('[TTS] AudioContext playback failed, trying HTML Audio fallback');
+                      try {
+                        const audioBlob = new Blob(
+                          [Uint8Array.from(atob(speechData.audioBase64), c => c.charCodeAt(0))],
+                          { type: speechData.mimeType || 'audio/mpeg' }
+                        );
+                        const audioUrl = URL.createObjectURL(audioBlob);
+                        const audio = new Audio(audioUrl);
+                        audio.volume = 1.0;
+                        registerHDAudio(audio);
+                        audio.onended = () => { URL.revokeObjectURL(audioUrl); registerHDAudio(null); };
+                        audio.onerror = () => { registerHDAudio(null); };
+                        await audio.play();
+                        console.log('[TTS] HTML Audio fallback succeeded');
+                      } catch (fallbackErr) {
+                        console.error('[TTS] All audio playback methods failed:', fallbackErr);
+                        if (shouldPlayBrowserTTS()) {
+                          console.log('[TTS] Falling back to browser TTS');
+                          speak(speechData.utterance);
+                        }
                       }
                     }
                   } else if (shouldPlayBrowserTTS()) {

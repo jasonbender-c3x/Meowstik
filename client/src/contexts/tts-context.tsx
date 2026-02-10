@@ -37,6 +37,7 @@ interface TTSContextValue {
   isAudioUnlocked: boolean;
   playTestTone: () => Promise<boolean>;
   registerHDAudio: (audio: HTMLAudioElement | null) => void;
+  playAudioBase64: (base64: string, mimeType?: string) => Promise<boolean>;
 }
 
 const TTSContext = createContext<TTSContextValue | undefined>(undefined);
@@ -73,61 +74,114 @@ export function TTSProvider({ children }: { children: ReactNode }) {
   const [isUsingBrowserTTS, setIsUsingBrowserTTS] = useState(false);
   const [isAudioUnlocked, setIsAudioUnlocked] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const activeSourceRef = useRef<AudioBufferSourceNode | null>(null);
   
   const isSupported = true;
 
-  // Unlock audio context (required for browser autoplay policy)
+  const getOrCreateAudioContext = useCallback(() => {
+    if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
+      return audioContextRef.current;
+    }
+    const AC = window.AudioContext || (window as any).webkitAudioContext;
+    if (!AC) return null;
+    const ctx = new AC();
+    audioContextRef.current = ctx;
+    console.log("[TTS] AudioContext created, state:", ctx.state);
+    return ctx;
+  }, []);
+
   const unlockAudio = useCallback(async () => {
     if (isAudioUnlocked) return;
     
     try {
-      // Create a silent audio context and play it
-      const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
-      if (AudioContext) {
-        const ctx = new AudioContext();
+      const ctx = getOrCreateAudioContext();
+      if (ctx) {
+        if (ctx.state === 'suspended') {
+          await ctx.resume();
+        }
         const buffer = ctx.createBuffer(1, 1, 22050);
         const source = ctx.createBufferSource();
         source.buffer = buffer;
         source.connect(ctx.destination);
         source.start();
-        await ctx.resume();
-        console.log("[TTS] Audio context unlocked");
+        console.log("[TTS] AudioContext resumed, state:", ctx.state);
       }
-      
-      // Also try playing a silent Audio element
-      const silentAudio = new Audio("data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA");
-      silentAudio.volume = 0.01;
-      await silentAudio.play().catch(() => {});
-      silentAudio.pause();
       
       setIsAudioUnlocked(true);
       console.log("[TTS] Audio unlocked successfully");
     } catch (err) {
       console.warn("[TTS] Failed to unlock audio:", err);
     }
-  }, [isAudioUnlocked]);
+  }, [isAudioUnlocked, getOrCreateAudioContext]);
 
-  // Play a test tone to verify audio works
+  const playAudioBase64 = useCallback(async (base64: string, mimeType?: string): Promise<boolean> => {
+    try {
+      const ctx = getOrCreateAudioContext();
+      if (!ctx) {
+        console.warn("[TTS] No AudioContext available");
+        return false;
+      }
+      if (ctx.state === 'suspended') {
+        try { await ctx.resume(); } catch {}
+      }
+      if (ctx.state !== 'running') {
+        console.warn("[TTS] AudioContext not running, state:", ctx.state);
+        return false;
+      }
+      
+      const binaryStr = atob(base64);
+      const bytes = new Uint8Array(binaryStr.length);
+      for (let i = 0; i < binaryStr.length; i++) {
+        bytes[i] = binaryStr.charCodeAt(i);
+      }
+      
+      const audioBuffer = await ctx.decodeAudioData(bytes.buffer.slice(0));
+      
+      if (activeSourceRef.current) {
+        try { activeSourceRef.current.stop(); } catch {}
+        activeSourceRef.current = null;
+      }
+      
+      const source = ctx.createBufferSource();
+      source.buffer = audioBuffer;
+      source.connect(ctx.destination);
+      activeSourceRef.current = source;
+      
+      setIsSpeaking(true);
+      
+      source.onended = () => {
+        console.log("[TTS] AudioContext playback ended");
+        activeSourceRef.current = null;
+        setIsSpeaking(false);
+      };
+      
+      source.start(0);
+      console.log("[TTS] AudioContext playback started, duration:", audioBuffer.duration.toFixed(1) + "s");
+      return true;
+    } catch (err) {
+      console.error("[TTS] AudioContext playback failed:", err);
+      return false;
+    }
+  }, [getOrCreateAudioContext]);
+
   const playTestTone = useCallback(async (): Promise<boolean> => {
     try {
-      // First unlock audio
       await unlockAudio();
       
-      // Create a simple beep using Web Audio API
-      const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
-      if (!AudioContext) {
+      const ctx = getOrCreateAudioContext();
+      if (!ctx) {
         console.warn("[TTS] AudioContext not supported");
         return false;
       }
       
-      const ctx = new AudioContext();
       const oscillator = ctx.createOscillator();
       const gainNode = ctx.createGain();
       
       oscillator.connect(gainNode);
       gainNode.connect(ctx.destination);
       
-      oscillator.frequency.value = 440; // A4 note
+      oscillator.frequency.value = 440;
       gainNode.gain.value = 0.3;
       
       oscillator.start();
@@ -140,7 +194,7 @@ export function TTSProvider({ children }: { children: ReactNode }) {
       console.error("[TTS] Failed to play test tone:", err);
       return false;
     }
-  }, [unlockAudio]);
+  }, [unlockAudio, getOrCreateAudioContext]);
 
   useEffect(() => {
     localStorage.setItem(TTS_STORAGE_KEY, String(isMuted));
@@ -179,13 +233,15 @@ export function TTSProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const stopSpeaking = useCallback(() => {
-    // Stop HD audio element playback
     if (audioRef.current) {
       audioRef.current.pause();
       audioRef.current.currentTime = 0;
       audioRef.current = null;
     }
-    // Stop browser TTS if active
+    if (activeSourceRef.current) {
+      try { activeSourceRef.current.stop(); } catch {}
+      activeSourceRef.current = null;
+    }
     if ("speechSynthesis" in window) {
       window.speechSynthesis.cancel();
     }
@@ -318,7 +374,8 @@ export function TTSProvider({ children }: { children: ReactNode }) {
         unlockAudio,
         isAudioUnlocked,
         playTestTone,
-        registerHDAudio
+        registerHDAudio,
+        playAudioBase64
       }}
     >
       {children}

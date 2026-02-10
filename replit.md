@@ -29,14 +29,15 @@ Meowstik is an AI chat interface powered by Google's Generative AI, integrating 
     - **Knowledge Ingestion:** Multimodal pipeline (text, images, audio, documents, PDF/file upload) for domain-specific knowledge buckets.
     - **Retrieval Orchestrator:** Hybrid search (vector + keyword), entity recognition, context window management, prompt injection.
     - **Conversation Memory (RAG):** User and AI messages are chunked, embedded, and stored for semantic retrieval.
-    - **Embedding Service:** Google Gemini `text-embedding-004`.
+    - **Embedding Service:** Google Gemini `gemini-embedding-001` (3072-dim vectors).
     - **Modular Vector Store:** Pluggable storage with adapters for `pgvector`, Vertex AI, and in-memory.
     - **Workflow Orchestration Engine:** Hierarchical task management with sequential/parallel execution, AI-evaluated conditional logic, cron scheduling, and event triggers.
     - **Codebase Analysis Agent:** Crawls repositories, extracts code entities from 20+ languages, ingests them into RAG, and generates documentation.
     - **JIT Tool Protocol:** Uses Gemini 2.0 Flash Lite to predict and inject relevant tool examples.
 - **Core Tooling (V2 Primitives):** `terminal`, `get`, `put`, `write`, `log`, `say`, `ssh`. Additional tools include `sms_send/sms_list`, `call_make/call_list`, `end_turn`.
 - **Memory System:** AI maintains context using `Short_Term_Memory.md`, `cache.md`, `STM_APPEND.md`, and `execution.md` files.
-- **Verbosity Slider:** 4-mode voice output control (Mute, Quiet, Verbose, Experimental).
+- **Verbosity Slider:** 4-mode voice output control (Mute, Low, Normal, Experimental).
+    - **Audio Playback:** Uses persistent Web Audio API AudioContext for iframe-compatible playback; falls back to HTML Audio and browser TTS.
 
 ### Advanced AI Features
 - **AI Desktop Collaboration:** TeamViewer-style AI hub with headless browser or full desktop modes, a cloud relay, and a standalone `meowstik-agent` for screen/audio capture and input injection.
