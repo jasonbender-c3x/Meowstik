@@ -65,5 +65,3 @@ HOME_DEV_EMAIL = "jason@oceanshorestech.com"
 
 [userenv.production]
 NODE_ENV = ""
-HOME_DEV_MODE = "FALSE"
-HOME_DEV_EMAIL = ""
