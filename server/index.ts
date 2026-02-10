@@ -196,12 +196,9 @@ app.use((req, res, next) => {
   res.on("finish", () => {
     const duration = Date.now() - start;
     
-    // Only log API requests (not static file requests)
-    if (path.startsWith("/api")) {
+    if (path.startsWith("/api") && path !== "/api/status") {
       let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
       
-      // Append response body if available (for debugging)
-      // Skip for debug endpoints to avoid nested JSON escaping
       if (capturedJsonResponse && !path.startsWith("/api/debug")) {
         logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
       }

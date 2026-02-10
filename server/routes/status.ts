@@ -8,10 +8,18 @@ const router = Router();
 let uiRevision = 0;
 const BUILD_REVISION = process.env.REPL_SLUG ? Date.now().toString(36).slice(-4) : "dev";
 
+const connectorCache = new Map<string, { result: { connected: boolean; error?: string }; timestamp: number }>();
+const CONNECTOR_CACHE_TTL = 5 * 60 * 1000;
+
 async function checkConnectorHealth(connectorName: string): Promise<{
   connected: boolean;
   error?: string;
 }> {
+  const cached = connectorCache.get(connectorName);
+  if (cached && Date.now() - cached.timestamp < CONNECTOR_CACHE_TTL) {
+    return cached.result;
+  }
+
   const hostname = process.env.REPLIT_CONNECTORS_HOSTNAME;
   const xReplitToken = process.env.REPL_IDENTITY 
     ? 'repl ' + process.env.REPL_IDENTITY 
@@ -20,7 +28,9 @@ async function checkConnectorHealth(connectorName: string): Promise<{
     : null;
 
   if (!hostname || !xReplitToken) {
-    return { connected: false, error: "Connector environment not configured" };
+    const result = { connected: false, error: "Connector environment not configured" };
+    connectorCache.set(connectorName, { result, timestamp: Date.now() });
+    return result;
   }
 
   try {
@@ -38,15 +48,21 @@ async function checkConnectorHealth(connectorName: string): Promise<{
     const connection = data.items?.[0];
     
     if (connection && connection.settings) {
-      return { connected: true };
+      const result = { connected: true };
+      connectorCache.set(connectorName, { result, timestamp: Date.now() });
+      return result;
     }
     
-    return { connected: false, error: "Not authorized" };
+    const result = { connected: false, error: "Not authorized" };
+    connectorCache.set(connectorName, { result, timestamp: Date.now() });
+    return result;
   } catch (error) {
-    return { 
+    const result = { 
       connected: false, 
       error: error instanceof Error ? error.message : "Connection check failed" 
     };
+    connectorCache.set(connectorName, { result, timestamp: Date.now() });
+    return result;
   }
 }
 
