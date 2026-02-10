@@ -199,8 +199,8 @@ app.use((req, res, next) => {
     if (path.startsWith("/api") && path !== "/api/status") {
       let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
       
-      if (capturedJsonResponse && !path.startsWith("/api/debug")) {
-        logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
+      if (capturedJsonResponse && !path.startsWith("/api/debug") && !path.startsWith("/api/speech")) {
+        logLine += ` :: ${JSON.stringify(capturedJsonResponse).slice(0, 2000)}`;
       }
 
       log(logLine);
