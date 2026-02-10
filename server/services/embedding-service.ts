@@ -47,6 +47,7 @@ export class EmbeddingService {
       const result = await client.models.embedContent({
         model: EMBEDDING_MODEL,
         contents: [{ role: "user", parts: [{ text }] }],
+        outputDimensionality: EMBEDDING_DIMENSION,
       });
 
       if (!result.embeddings || result.embeddings.length === 0) {
