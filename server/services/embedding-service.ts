@@ -15,8 +15,8 @@
 
 import { GoogleGenAI } from "@google/genai";
 
-const EMBEDDING_MODEL = "text-embedding-004";
-const EMBEDDING_DIMENSION = 768;
+const EMBEDDING_MODEL = "gemini-embedding-001";
+const EMBEDDING_DIMENSION = 3072;
 
 export interface EmbeddingResult {
   embedding: number[];

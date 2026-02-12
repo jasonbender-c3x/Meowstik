@@ -15,7 +15,7 @@ This server acts as a bridge between AI models and web browsers, allowing AI to:
 ## Installation
 
 ```bash
-cd packages/playwright-mcp-server
+cd workspace/playwright-mcp-server
 npm install
 
 # Install Playwright browsers
@@ -46,7 +46,7 @@ Add to your Claude Desktop config file:
   "mcpServers": {
     "playwright": {
       "command": "node",
-      "args": ["/absolute/path/to/Meowstik/packages/playwright-mcp-server/build/index.js"]
+      "args": ["/absolute/path/to/Meowstik/workspace/playwright-mcp-server/build/index.js"]
     }
   }
 }

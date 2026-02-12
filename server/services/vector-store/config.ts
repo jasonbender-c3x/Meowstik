@@ -46,7 +46,7 @@ export function loadConfigFromEnv(): VectorStoreConfig {
 
   return {
     backend,
-    dimension: parseInt(process.env.VECTOR_DIMENSION || "768", 10),
+    dimension: parseInt(process.env.VECTOR_DIMENSION || "3072", 10),
     metric: (process.env.VECTOR_METRIC || "cosine") as VectorStoreConfig["metric"],
 
     // PostgreSQL/pgvector
@@ -154,14 +154,14 @@ export const EXAMPLE_CONFIGS = {
   // Replit deployment
   replit: {
     backend: "pgvector" as const,
-    dimension: 768,
+    dimension: 3072,
     metric: "cosine" as const,
   },
 
   // Google Cloud deployment
   googleCloud: {
     backend: "vertex" as const,
-    dimension: 768,
+    dimension: 3072,
     metric: "cosine" as const,
     vertexLocation: "us-central1",
   },
@@ -169,21 +169,21 @@ export const EXAMPLE_CONFIGS = {
   // Local development
   local: {
     backend: "memory" as const,
-    dimension: 768,
+    dimension: 3072,
     metric: "cosine" as const,
   },
 
   // Colab notebook
   colab: {
     backend: "memory" as const,
-    dimension: 768,
+    dimension: 3072,
     metric: "cosine" as const,
   },
 
   // Production with Pinecone
   pinecone: {
     backend: "pinecone" as const,
-    dimension: 768,
+    dimension: 3072,
     metric: "cosine" as const,
   },
 };

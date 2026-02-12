@@ -113,13 +113,13 @@ async function main() {
   const filesMapPath = path.join(OUTPUT_DIR, 'files.txt');
   try {
     const fileList = generateFileList(process.cwd());
-    fs.writeFileSync(filesMapPath, fileList.join('\\n'));
+    fs.writeFileSync(filesMapPath, fileList.join('\n'));
     console.log('✅ Generated files.txt');
   } catch (err) {
     console.error('❌ Failed to generate files.txt', err);
   }
 
-  console.log('\\n🎉 DONE! Upload these 4 files to NotebookLM:');
+  console.log('\n🎉 DONE! Upload these 4 files to NotebookLM:');
   console.log(`   1. ${path.relative(process.cwd(), codePath)}`);
   console.log(`   2. ${path.relative(process.cwd(), docsPath)}`);
   console.log(`   3. ${path.relative(process.cwd(), logsPath)}`);
@@ -216,20 +216,20 @@ function isInDirectory(filePath: string, dirNames: Set<string>): boolean {
 }
 
 function writeHeader(stream: fs.WriteStream, title: string) {
-  stream.write(`################################################################################\\n`);
-  stream.write(`# ${title}\\n`);
-  stream.write(`# Generated: ${new Date().toISOString()}\\n`);
-  stream.write(`################################################################################\\n\\n`);
+  stream.write(`################################################################################\n`);
+  stream.write(`# ${title}\n`);
+  stream.write(`# Generated: ${new Date().toISOString()}\n`);
+  stream.write(`################################################################################\n\n`);
 }
 
 function appendFileToStream(filePath: string, relPath: string, stream: fs.WriteStream) {
   try {
     const content = fs.readFileSync(filePath, 'utf8');
-    stream.write(`\\n================================================================================\\n`);
-    stream.write(`FILE PATH: ${relPath}\\n`);
-    stream.write(`================================================================================\\n\\n`);
+    stream.write(`\n================================================================================\n`);
+    stream.write(`FILE PATH: ${relPath}\n`);
+    stream.write(`================================================================================\n\n`);
     stream.write(content);
-    stream.write(`\\n\\n`);
+    stream.write(`\n\n`);
   } catch (err) {
     console.warn(`Could not read file ${relPath}:`, err);
   }

@@ -62,7 +62,7 @@ export class VertexAdapter implements VectorStoreAdapter {
 
   constructor(config: VectorStoreConfig) {
     this.config = {
-      dimension: 768,
+      dimension: 3072,
       metric: 'cosine',
       vertexLocation: 'us-central1',
       ...config,

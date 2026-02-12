@@ -147,7 +147,7 @@ wss://meowstik.replit.app/ws/desktop/agent/{sessionId}?token={token}
 ### Browser Extension
 
 **Location:** Chrome/Firefox
-**Package:** `packages/extension/`
+**Package:** `workspace/extension/`
 **Capabilities:**
 - Current page content
 - Screenshot capture
