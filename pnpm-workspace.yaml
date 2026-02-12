@@ -1,0 +1,12 @@
+onlyBuiltDependencies:
+  - '@firebase/util'
+  - '@playwright/browser-chromium'
+  - '@playwright/browser-webkit'
+  - cpu-features
+  - es5-ext
+  - esbuild
+  - keytar
+  - node-pty
+  - protobufjs
+  - ssh2
+  - tree-sitter-bash
