@@ -181,7 +181,7 @@ project/
 │   └── schema.ts           # Drizzle ORM schema
 ├── docs/                   # Documentation
 │   └── ragent/             # AI knowledge docs
-├── packages/               # Monorepo packages
+├── workspace/               # Monorepo packages
 │   ├── extension/          # Browser extension
 │   └── meowstik-agent/     # Desktop agent
 ├── /tmp/logs/              # Runtime logs (ephemeral)

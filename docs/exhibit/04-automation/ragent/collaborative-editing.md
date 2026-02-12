@@ -120,8 +120,8 @@ Collaborative Editing enables **hands-free, continuous interaction** between use
 
 **Key Files:**
 - [`server/routes/browser.ts`](/docs/02-ui-architecture) — Screenshot + navigation
-- [`packages/meowstik-agent/`](/docs/SYSTEM_OVERVIEW) — Desktop agent package
-- [`packages/extension/`](/docs/SYSTEM_OVERVIEW) — Chrome extension
+- [`workspace/meowstik-agent/`](/docs/SYSTEM_OVERVIEW) — Desktop agent package
+- [`workspace/extension/`](/docs/SYSTEM_OVERVIEW) — Chrome extension
 
 **Accessibility Focus:** This mode is designed to be **fully hands-free**, enabling users with disabilities to control their computer entirely through voice.
 

@@ -16,7 +16,7 @@ This guide provides step-by-step instructions for testing the browser extension 
 2. **Install Dependencies**
    ```bash
    npm install
-   cd packages/meowstik-agent
+   cd workspace/meowstik-agent
    npm install --omit=optional  # Skip robotjs for testing
    npm run build
    cd ../..
@@ -46,7 +46,7 @@ Desktop WebSocket ready at ws://localhost:5000/ws/desktop
 In a new terminal:
 
 ```bash
-cd packages/meowstik-agent
+cd workspace/meowstik-agent
 node dist/cli.js --relay ws://localhost:5000
 ```
 
@@ -110,14 +110,14 @@ Registered: your-hostname (linux/x64)
 1. Navigate to `chrome://extensions` (or `edge://extensions`)
 2. Enable **Developer mode** (top-right toggle)
 3. Click **Load unpacked**
-4. Select: `/home/runner/work/Meowstik/Meowstik/packages/extension`
+4. Select: `/home/runner/work/Meowstik/Meowstik/workspace/extension`
 5. Extension icon (🐱) should appear in toolbar
 
 #### Firefox
 
 1. Navigate to `about:debugging#/runtime/this-firefox`
 2. Click **Load Temporary Add-on**
-3. Select: `/home/runner/work/Meowstik/Meowstik/packages/extension/manifest.json`
+3. Select: `/home/runner/work/Meowstik/Meowstik/workspace/extension/manifest.json`
 
 ### Step 2: Test Extension Connection
 

@@ -471,7 +471,7 @@ Current RAG Stack:
 Extract RAG services into standalone API:
 
 ```typescript
-// packages/rag-api/src/server.ts
+// workspace/rag-api/src/server.ts
 import express from 'express';
 import { createIngestionRouter } from './routes/ingestion';
 import { createQueryRouter } from './routes/query';
@@ -519,7 +519,7 @@ GET /api/v1/admin/stats
 #### Phase 2: Multi-Tenancy (2 weeks)
 
 ```typescript
-// packages/rag-api/src/tenancy/tenant-manager.ts
+// workspace/rag-api/src/tenancy/tenant-manager.ts
 interface Tenant {
   id: string;
   tier: 'free' | 'pro' | 'enterprise';
@@ -616,7 +616,7 @@ spec:
 For enterprise tier, leverage Vertex AI's managed RAG:
 
 ```typescript
-// packages/rag-api/src/adapters/vertex-agent-builder.ts
+// workspace/rag-api/src/adapters/vertex-agent-builder.ts
 import { VertexAI } from '@google-cloud/vertexai';
 
 class VertexAgentBuilderAdapter implements RAGAdapter {

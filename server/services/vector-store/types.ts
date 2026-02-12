@@ -43,7 +43,7 @@ export interface VectorStoreConfig {
   /** Pinecone index name (for pinecone backend) */
   pineconeIndex?: string;
   
-  /** Embedding dimension (default: 768 for Gemini) */
+  /** Embedding dimension (default: 3072 for gemini-embedding-001) */
   dimension?: number;
   
   /** Similarity metric: 'cosine' | 'euclidean' | 'dot' */

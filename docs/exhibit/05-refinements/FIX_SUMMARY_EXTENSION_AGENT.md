@@ -6,7 +6,7 @@ This document summarizes the fixes applied to resolve the issue where neither th
 
 ## Issues Identified and Fixed
 
-### Desktop Agent (`packages/meowstik-agent/`)
+### Desktop Agent (`workspace/meowstik-agent/`)
 
 #### Issue 1: robotjs Compilation Failure ✅ FIXED
 **Problem:** The `robotjs` package requires native system libraries (X11 development headers) which are not always available, causing compilation to fail completely.
@@ -74,13 +74,13 @@ This matches the server's expected URL patterns in `websocket-desktop.ts`.
 - Added `@ts-ignore` comments above dynamic imports
 - This allows compilation to succeed while maintaining runtime error handling
 
-### Browser Extension (`packages/extension/`)
+### Browser Extension (`workspace/extension/`)
 
 #### Issue 1: Missing sidebar.html ✅ FIXED
 **Problem:** `manifest.json` referenced `sidebar.html` in `web_accessible_resources` but file didn't exist.
 
 **Solution:**
-Created `packages/extension/sidebar.html` with:
+Created `workspace/extension/sidebar.html` with:
 - Page title and URL display
 - Action buttons for analyzing pages
 - Screenshot capture functionality
@@ -90,7 +90,7 @@ Created `packages/extension/sidebar.html` with:
 **Problem:** No installation or usage instructions for the extension.
 
 **Solution:**
-Created comprehensive `packages/extension/README.md` covering:
+Created comprehensive `workspace/extension/README.md` covering:
 - Installation for Chrome, Edge, Firefox
 - Usage instructions
 - Feature descriptions
@@ -145,14 +145,14 @@ Server has all required routes in `server/routes/extension.ts`:
 ## Documentation Added
 
 ### Desktop Agent
-1. Updated `packages/meowstik-agent/README.md`:
+1. Updated `workspace/meowstik-agent/README.md`:
    - Documented tokenless localhost mode
    - Added all CLI options with examples
    - Made robotjs installation optional
    - Added troubleshooting section
 
 ### Browser Extension
-1. Created `packages/extension/README.md`:
+1. Created `workspace/extension/README.md`:
    - Complete installation guide
    - Feature descriptions
    - Usage instructions
@@ -169,16 +169,16 @@ Created `docs/TESTING_EXTENSION_AGENT.md`:
 ## Changes Made
 
 ### Modified Files
-1. `packages/meowstik-agent/package.json` - Made robotjs optional
-2. `packages/meowstik-agent/src/cli.ts` - Added flag aliases and localhost detection
-3. `packages/meowstik-agent/src/agent.ts` - Fixed WebSocket URL construction
-4. `packages/meowstik-agent/src/input-handler.ts` - Added @ts-ignore for robotjs
-5. `packages/meowstik-agent/src/screen-capture.ts` - Added @ts-ignore for screenshot-desktop
-6. `packages/meowstik-agent/README.md` - Comprehensive documentation update
+1. `workspace/meowstik-agent/package.json` - Made robotjs optional
+2. `workspace/meowstik-agent/src/cli.ts` - Added flag aliases and localhost detection
+3. `workspace/meowstik-agent/src/agent.ts` - Fixed WebSocket URL construction
+4. `workspace/meowstik-agent/src/input-handler.ts` - Added @ts-ignore for robotjs
+5. `workspace/meowstik-agent/src/screen-capture.ts` - Added @ts-ignore for screenshot-desktop
+6. `workspace/meowstik-agent/README.md` - Comprehensive documentation update
 
 ### Created Files
-1. `packages/extension/sidebar.html` - Extension sidebar UI
-2. `packages/extension/README.md` - Extension documentation
+1. `workspace/extension/sidebar.html` - Extension sidebar UI
+2. `workspace/extension/README.md` - Extension documentation
 3. `docs/TESTING_EXTENSION_AGENT.md` - Testing guide
 
 ## Testing Status
@@ -208,13 +208,13 @@ npm install
 npm run db:push
 
 # Test Desktop Agent
-cd packages/meowstik-agent
+cd workspace/meowstik-agent
 npm install --omit=optional
 npm run build
 node dist/cli.js --relay ws://localhost:5000  # In separate terminal after server starts
 
 # Test Extension
-# Load packages/extension in Chrome at chrome://extensions
+# Load workspace/extension in Chrome at chrome://extensions
 # Enable Developer Mode → Load Unpacked
 ```
 

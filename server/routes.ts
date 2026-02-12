@@ -99,6 +99,7 @@ import { type ToolCall } from "@shared/schema";
 import { recognizeFamilyMember } from "./services/family-recognition";
 
 import { createApiRouter } from "./routes/index";
+import diagRouter from "./routes/diag";
 
 // ═══════════════════════════════════════════════════════════════════════════
 // SECTION: AI CLIENT INITIALIZATION
@@ -560,7 +561,7 @@ export async function registerRoutes(
 
         // Sanitize content to remove null bytes that PostgreSQL text columns can't store
         // Null bytes (0x00) cause "invalid byte sequence for encoding UTF8" errors
-        const sanitizedContent = content.replace(/\x00/g, "");
+        const sanitizedContent = content.replace(/\\x00/g, "");
 
         // Save attachment to database
         let savedAttachment;
@@ -918,6 +919,64 @@ The user has MUTE mode enabled. Minimize all output.
       const collectedFunctionCalls: FunctionCall[] = [];
       let parsedResponse: { toolCalls?: ToolCall[] } | null = null;
       
+      // Streaming TTS: accumulate text into sentences, generate TTS per sentence
+      let ttsSentenceBuffer = "";
+      let streamingSpeechCount = 0;
+      const streamTTSSentence = async (sentence: string) => {
+        if (!useVoice || !sentence.trim()) return;
+        try {
+          const { generateSingleSpeakerAudio, DEFAULT_TTS_VOICE } = await import("./integrations/expressive-tts");
+          const ttsResult = await generateSingleSpeakerAudio(sentence.trim(), DEFAULT_TTS_VOICE, 1);
+          if (ttsResult.audioBase64) {
+            streamingSpeechCount++;
+            console.log(`[Routes][StreamTTS] ✓ Sentence ${streamingSpeechCount} audio generated, length: ${ttsResult.audioBase64.length}`);
+            res.write(
+              `data: ${JSON.stringify({
+                speech: {
+                  utterance: sentence.trim(),
+                  audioGenerated: true,
+                  audioBase64: ttsResult.audioBase64,
+                  mimeType: ttsResult.mimeType || "audio/mpeg",
+                  duration: ttsResult.duration,
+                  streaming: true,
+                  index: streamingSpeechCount,
+                },
+              })}\n\n`,
+            );
+          }
+        } catch (err) {
+          console.error(`[Routes][StreamTTS] Failed to generate sentence audio:`, err);
+        }
+      };
+      
+      // Extract complete sentences from buffer, return remaining incomplete text
+      const extractSentences = (buffer: string): { sentences: string[]; remainder: string } => {
+        const sentences: string[] = [];
+        // Split on sentence-ending punctuation followed by optional whitespace or end
+        const parts = buffer.split(/([.!?]+[\s\n]*)/);
+        let accumulated = "";
+        for (let i = 0; i < parts.length - 1; i += 2) {
+          accumulated += parts[i] + (parts[i + 1] || "");
+          const trimmed = accumulated.trim();
+          if (trimmed.length > 3) {
+            sentences.push(trimmed);
+            accumulated = "";
+          }
+        }
+        // Last part (no terminator yet) is the remainder
+        const remainder = accumulated + (parts.length % 2 === 1 ? parts[parts.length - 1] : "");
+        // Also split on double newlines in remainder
+        if (remainder.includes('\n\n')) {
+          const paraParts = remainder.split('\n\n');
+          for (let i = 0; i < paraParts.length - 1; i++) {
+            const part = paraParts[i].trim();
+            if (part.length > 3) sentences.push(part);
+          }
+          return { sentences, remainder: paraParts[paraParts.length - 1] };
+        }
+        return { sentences, remainder };
+      };
+      
       for await (const chunk of result) {
         // FIX: Explicitly capture "Thinking" content from Gemini 2.0 Flash Thinking
         // Check for thought parts in the chunk candidates
@@ -949,6 +1008,16 @@ The user has MUTE mode enabled. Minimize all output.
           cleanContentForStorage += text;
           // Stream text to client if any
           res.write(`data: ${JSON.stringify({ text })}\n\n`);
+          
+          // Streaming TTS: accumulate and send sentences
+          if (useVoice) {
+            ttsSentenceBuffer += text;
+            const { sentences, remainder } = extractSentences(ttsSentenceBuffer);
+            ttsSentenceBuffer = remainder;
+            for (const sentence of sentences) {
+              await streamTTSSentence(sentence);
+            }
+          }
         }
 
         // Capture function calls from the response
@@ -961,6 +1030,11 @@ The user has MUTE mode enabled. Minimize all output.
         if (chunk.usageMetadata) {
           usageMetadata = chunk.usageMetadata;
         }
+      }
+      
+      // Flush remaining TTS buffer after stream ends
+      if (useVoice && ttsSentenceBuffer.trim().length > 3) {
+        await streamTTSSentence(ttsSentenceBuffer.trim());
       }
       
       // Convert Gemini FunctionCall objects to our ToolCall format
@@ -1328,18 +1402,24 @@ The user has MUTE mode enabled. Minimize all output.
         parts: [{ text: fullResponse }],
       };
 
-      // Include tool results in message metadata if any tools were executed
-      const messageMetadata =
-        toolResults.length > 0 ? { toolResults } : undefined;
+      // Include tool results and token usage in message metadata
+      const tokenUsage = usageMetadata ? {
+        promptTokens: usageMetadata.promptTokenCount || 0,
+        completionTokens: usageMetadata.candidatesTokenCount || 0,
+        totalTokens: usageMetadata.totalTokenCount || 0,
+      } : undefined;
+      const messageMetadata: Record<string, unknown> = {};
+      if (toolResults.length > 0) messageMetadata.toolResults = toolResults;
+      if (tokenUsage) messageMetadata.tokenUsage = tokenUsage;
 
       const endTime = Date.now();
 
       const savedAiMessage = await storage.addMessage({
         chatId: req.params.id,
         role: "ai",
-        content: finalContent, // Store clean prose content (no tool JSON)
+        content: finalContent,
         geminiContent: geminiContentToStore,
-        metadata: messageMetadata,
+        metadata: Object.keys(messageMetadata).length > 0 ? messageMetadata : undefined,
       });
 
       // Ingest AI response for RAG recall (async, don't block)
@@ -1464,19 +1544,16 @@ The user has MUTE mode enabled. Minimize all output.
       }
 
       // ─────────────────────────────────────────────────────────────────────
-      // FALLBACK TTS: Generate speech if voice mode enabled but no say tool called
+      // FALLBACK TTS: Only if zero streaming sentences AND zero say-tool calls
       // ─────────────────────────────────────────────────────────────────────
       const sayToolCalled = toolResults.some(r => r.type === "say" && r.success);
-      if (useVoice && !sayToolCalled && finalContent && finalContent.trim().length > 0) {
-        console.log(`[Routes][TTS-Fallback] Voice mode enabled but no say tool called, generating fallback TTS`);
+      if (useVoice && !sayToolCalled && streamingSpeechCount === 0 && finalContent && finalContent.trim().length > 0) {
+        console.log(`[Routes][TTS-Fallback] No streaming TTS or say tool, generating single fallback`);
         try {
-          const { generateSingleSpeakerAudio } = await import("./integrations/expressive-tts");
-          // Truncate long content for TTS (max ~500 chars for reasonable audio length)
+          const { generateSingleSpeakerAudio, DEFAULT_TTS_VOICE } = await import("./integrations/expressive-tts");
           const ttsText = finalContent.length > 500 
             ? finalContent.substring(0, 500) + "..."
             : finalContent;
-          
-          const { DEFAULT_TTS_VOICE } = await import("./integrations/expressive-tts");
           const ttsResult = await generateSingleSpeakerAudio(ttsText, DEFAULT_TTS_VOICE);
           if (ttsResult.audioBase64) {
             console.log(`[Routes][TTS-Fallback] ✓ Generated fallback audio, length: ${ttsResult.audioBase64.length}`);
@@ -1492,12 +1569,12 @@ The user has MUTE mode enabled. Minimize all output.
                 },
               })}\n\n`,
             );
-          } else {
-            console.log(`[Routes][TTS-Fallback] ✗ No audio generated`);
           }
         } catch (ttsError) {
-          console.error(`[Routes][TTS-Fallback] Failed to generate fallback TTS:`, ttsError);
+          console.error(`[Routes][TTS-Fallback] Failed:`, ttsError);
         }
+      } else if (useVoice) {
+        console.log(`[Routes][TTS] Speech already delivered: ${streamingSpeechCount} streaming chunks, sayToolCalled: ${sayToolCalled}`);
       }
 
       // Send completion event with tool results summary and close the stream
@@ -2225,6 +2302,7 @@ ${summary}`,
   // ═════════════════════════════════════════════════════════════════════════
 
   app.use("/api", createApiRouter());
+  app.use("/api/diag", diagRouter);
 
   // ═════════════════════════════════════════════════════════════════════════
   // Return the HTTP server instance

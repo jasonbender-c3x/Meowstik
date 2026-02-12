@@ -1073,7 +1073,7 @@ export const storage = {
       conditions.push(eq(schema.users.email, user.email));
     }
     
-    const existing = await db.query.users.findFirst({
+    let existing = await db.query.users.findFirst({
       where: conditions.length > 1 ? or(...conditions) : conditions[0],
     });
     

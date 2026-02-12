@@ -24,13 +24,12 @@ export function getSession() {
   const pgStore = connectPg(session);
   const sessionStore = new pgStore({
     conString: process.env.DATABASE_URL,
-    createTableIfMissing: false,
+    createTableIfMissing: true,
     ttl: sessionTtl,
     tableName: "sessions",
   });
-  // In production (Replit), always use secure cookies
-  // The app is served over HTTPS via replit.dev
-  const isProduction = process.env.NODE_ENV === 'production' || process.env.REPL_ID;
+  
+  const isProduction = process.env.NODE_ENV === "production";
   
   return session({
     secret: process.env.SESSION_SECRET!,
@@ -39,10 +38,11 @@ export function getSession() {
     saveUninitialized: false,
     cookie: {
       httpOnly: true,
-      secure: isProduction ? true : false,
+      secure: isProduction,
       sameSite: "lax",
       maxAge: sessionTtl,
     },
+    proxy: isProduction,
   });
 }
 
@@ -69,35 +69,25 @@ async function upsertUser(
 }
 
 export async function setupAuth(app: Express) {
-  // In HOME_DEV_MODE, skip Replit OAuth setup entirely
-  if (isHomeDevMode()) {
-    console.log("🏠 [Auth] Skipping Replit OAuth setup in HOME_DEV_MODE");
-    app.set("trust proxy", 1);
-    app.use(getSession());
-    app.use(passport.initialize());
-    app.use(passport.session());
-    return;
-  }
-
   app.set("trust proxy", 1);
   app.use(getSession());
   
-  // Register serialization functions BEFORE initializing passport middleware
-  // This ensures the Authenticator instance has them ready
   console.log("[Auth Setup] Registering passport serializers...");
   passport.serializeUser((user: Express.User, cb) => {
-      // console.log("[Auth] Serializing user:", user);
       cb(null, user);
   });
   passport.deserializeUser((user: Express.User, cb) => {
-      // console.log("[Auth] Deserializing user:", user);
       cb(null, user);
   });
 
   app.use(passport.initialize());
   app.use(passport.session());
 
-  // Check if REPL_ID is set before attempting OIDC discovery
+  if (isHomeDevMode()) {
+    console.log("🏠 [Auth] Skipping Replit OAuth setup in HOME_DEV_MODE");
+    return;
+  }
+
   if (!process.env.REPL_ID) {
     console.warn("⚠️ [Replit Auth] REPL_ID not set. Skipping OIDC discovery and Replit strategy setup.");
     return;
@@ -152,13 +142,35 @@ export async function setupAuth(app: Express) {
     });
 
     app.get("/api/logout", (req, res) => {
-      req.logout(() => {
-        res.redirect(
-          client.buildEndSessionUrl(config, {
+      console.log("[LOGOUT] Received /api/logout request. User:", req.user ? (req.user as any).claims.sub : "No user");
+      const sessionId = req.session.id;
+      console.log(`[LOGOUT] Session ID to be destroyed: ${sessionId}`);
+
+      req.logout((logoutErr: any) => {
+        if (logoutErr) {
+          console.error("[LOGOUT] Error during req.logout():", logoutErr);
+        } else {
+          console.log("[LOGOUT] req.logout() completed successfully.");
+        }
+
+        console.log("[LOGOUT] Attempting to destroy session...");
+        req.session.destroy((destroyErr: any) => {
+          if (destroyErr) {
+            console.error("[LOGOUT] FATAL: Error destroying session:", destroyErr);
+            return res.status(500).json({ message: "Failed to destroy session.", error: destroyErr.message });
+          }
+          
+          console.log("[LOGOUT] Session destroyed successfully.");
+          console.log("[LOGOUT] Redirecting to Replit end session URL.");
+          
+          const endSessionUrl = client.buildEndSessionUrl(config, {
             client_id: process.env.REPL_ID!,
             post_logout_redirect_uri: `${req.protocol}://${req.hostname}`,
-          }).href
-        );
+          }).href;
+          
+          console.log(`[LOGOUT] End Session URL: ${endSessionUrl}`);
+          res.redirect(endSessionUrl);
+        });
       });
     });
   } catch (error: any) {
@@ -169,15 +181,8 @@ export async function setupAuth(app: Express) {
 }
 
 export const isAuthenticated: RequestHandler = async (req, res, next) => {
-  // In home dev mode, bypass authentication checks
   if (isHomeDevMode()) {
     if (!req.user) {
-      // NOTE: We need to properly simulate the Passport.js user structure
-      // which expects the session data clearly available. 
-      // AND we must ensure this ID matches what's in the DB.
-      // Since createHomeDevSession is a bit hacky now, we let's ensure we get the REAL user
-      // for the claims 'sub' field.
-      
       try {
           const user = await getHomeDevUser();
           req.user = {
@@ -195,7 +200,6 @@ export const isAuthenticated: RequestHandler = async (req, res, next) => {
           };
       } catch (e) {
           console.error("Critical Auth Error: Could not fetch Home Dev User", e);
-           // Fallback structure if DB fail
            req.user = {
               claims: createHomeDevSession(),
               access_token: "mock",
@@ -209,7 +213,7 @@ export const isAuthenticated: RequestHandler = async (req, res, next) => {
 
   const user = req.user as any;
 
-  if (!req.isAuthenticated() || !user.expires_at) {
+  if (!req.isAuthenticated() || !user || !user.expires_at) {
     return res.status(401).json({ message: "Unauthorized" });
   }
 
@@ -234,4 +238,3 @@ export const isAuthenticated: RequestHandler = async (req, res, next) => {
     return;
   }
 };
-

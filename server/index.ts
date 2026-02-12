@@ -196,14 +196,12 @@ app.use((req, res, next) => {
   res.on("finish", () => {
     const duration = Date.now() - start;
     
-    // Only log API requests (not static file requests)
-    if (path.startsWith("/api")) {
+    if (path.startsWith("/api") && path !== "/api/status") {
       let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
       
-      // Append response body if available (for debugging)
-      // Skip for debug endpoints to avoid nested JSON escaping
-      if (capturedJsonResponse && !path.startsWith("/api/debug")) {
-        logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
+      const skipBody = path.startsWith("/api/debug") || path.startsWith("/api/speech") || path.match(/\/api\/chats\/[^/]+$/);
+      if (capturedJsonResponse && !skipBody) {
+        logLine += ` :: ${JSON.stringify(capturedJsonResponse).slice(0, 2000)}`;
       }
 
       log(logLine);
