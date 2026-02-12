@@ -389,14 +389,21 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
   const { name, arguments: args } = request.params;
 
+  if (!args) {
+    throw new Error(`Arguments are required for tool: ${name}`);
+  }
+
+  // Cast to any to handle the many dynamic property accesses in the switch
+  const toolArgs = args as any;
+
   try {
     switch (name) {
       case "browser_navigate": {
-        const page = args.pageId ? getPage(args.pageId) : await ensureBrowser();
-        if (!page) throw new Error(`Page not found: ${args.pageId}`);
+        const page = toolArgs.pageId ? getPage(toolArgs.pageId) : await ensureBrowser();
+        if (!page) throw new Error(`Page not found: ${toolArgs.pageId}`);
         
-        await page.goto(args.url, { 
-          waitUntil: (args.waitUntil as any) || "load",
+        await page.goto(toolArgs.url, { 
+          waitUntil: (toolArgs.waitUntil as any) || "load",
           timeout: 30000 
         });
         
@@ -412,17 +419,17 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       case "browser_screenshot": {
-        const page = args.pageId ? getPage(args.pageId) : await ensureBrowser();
-        if (!page) throw new Error(`Page not found: ${args.pageId}`);
+        const page = toolArgs.pageId ? getPage(toolArgs.pageId) : await ensureBrowser();
+        if (!page) throw new Error(`Page not found: ${toolArgs.pageId}`);
         
         let screenshot: Buffer;
-        if (args.selector) {
-          const element = await page.$(args.selector);
-          if (!element) throw new Error(`Element not found: ${args.selector}`);
+        if (toolArgs.selector) {
+          const element = await page.$(toolArgs.selector);
+          if (!element) throw new Error(`Element not found: ${toolArgs.selector}`);
           screenshot = await element.screenshot();
         } else {
           screenshot = await page.screenshot({ 
-            fullPage: args.fullPage || false 
+            fullPage: toolArgs.fullPage || false 
           });
         }
         
@@ -436,58 +443,58 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       case "browser_click": {
-        const page = args.pageId ? getPage(args.pageId) : await ensureBrowser();
-        if (!page) throw new Error(`Page not found: ${args.pageId}`);
+        const page = toolArgs.pageId ? getPage(toolArgs.pageId) : await ensureBrowser();
+        if (!page) throw new Error(`Page not found: ${toolArgs.pageId}`);
         
-        await page.click(args.selector, {
-          button: (args.button as any) || "left",
-          clickCount: args.clickCount || 1,
+        await page.click(toolArgs.selector, {
+          button: (toolArgs.button as any) || "left",
+          clickCount: toolArgs.clickCount || 1,
         });
         
         return {
           content: [{
             type: "text",
-            text: `Clicked element: ${args.selector}`,
+            text: `Clicked element: ${toolArgs.selector}`,
           }],
         };
       }
 
       case "browser_fill": {
-        const page = args.pageId ? getPage(args.pageId) : await ensureBrowser();
-        if (!page) throw new Error(`Page not found: ${args.pageId}`);
+        const page = toolArgs.pageId ? getPage(toolArgs.pageId) : await ensureBrowser();
+        if (!page) throw new Error(`Page not found: ${toolArgs.pageId}`);
         
-        await page.fill(args.selector, args.value);
+        await page.fill(toolArgs.selector, toolArgs.value);
         
         return {
           content: [{
             type: "text",
-            text: `Filled ${args.selector} with: ${args.value}`,
+            text: `Filled ${toolArgs.selector} with: ${toolArgs.value}`,
           }],
         };
       }
 
       case "browser_select": {
-        const page = args.pageId ? getPage(args.pageId) : await ensureBrowser();
-        if (!page) throw new Error(`Page not found: ${args.pageId}`);
+        const page = toolArgs.pageId ? getPage(toolArgs.pageId) : await ensureBrowser();
+        if (!page) throw new Error(`Page not found: ${toolArgs.pageId}`);
         
-        await page.selectOption(args.selector, args.value);
+        await page.selectOption(toolArgs.selector, toolArgs.value);
         
         return {
           content: [{
             type: "text",
-            text: `Selected ${args.value} in ${args.selector}`,
+            text: `Selected ${toolArgs.value} in ${toolArgs.selector}`,
           }],
         };
       }
 
       case "browser_extract_text": {
-        const page = args.pageId ? getPage(args.pageId) : await ensureBrowser();
-        if (!page) throw new Error(`Page not found: ${args.pageId}`);
+        const page = toolArgs.pageId ? getPage(toolArgs.pageId) : await ensureBrowser();
+        if (!page) throw new Error(`Page not found: ${toolArgs.pageId}`);
         
-        const selector = args.selector || "body";
+        const selector = toolArgs.selector || "body";
         let text: string;
         
-        if (args.all) {
+        if (toolArgs.all) {
           const elements = await page.$$(selector);
           const texts = await Promise.all(
             elements.map(el => el.textContent())
@@ -506,10 +513,10 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       case "browser_evaluate": {
-        const page = args.pageId ? getPage(args.pageId) : await ensureBrowser();
-        if (!page) throw new Error(`Page not found: ${args.pageId}`);
+        const page = toolArgs.pageId ? getPage(toolArgs.pageId) : await ensureBrowser();
+        if (!page) throw new Error(`Page not found: ${toolArgs.pageId}`);
         
-        const result = await page.evaluate(args.script);
+        const result = await page.evaluate(toolArgs.script);
         
         return {
           content: [{
@@ -520,29 +527,29 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       case "browser_wait_for_selector": {
-        const page = args.pageId ? getPage(args.pageId) : await ensureBrowser();
-        if (!page) throw new Error(`Page not found: ${args.pageId}`);
+        const page = toolArgs.pageId ? getPage(toolArgs.pageId) : await ensureBrowser();
+        if (!page) throw new Error(`Page not found: ${toolArgs.pageId}`);
         
-        await page.waitForSelector(args.selector, {
-          timeout: args.timeout || 30000,
-          state: (args.state as any) || "visible",
+        await page.waitForSelector(toolArgs.selector, {
+          timeout: toolArgs.timeout || 30000,
+          state: (toolArgs.state as any) || "visible",
         });
         
         return {
           content: [{
             type: "text",
-            text: `Element appeared: ${args.selector}`,
+            text: `Element appeared: ${toolArgs.selector}`,
           }],
         };
       }
 
       case "browser_get_html": {
-        const page = args.pageId ? getPage(args.pageId) : await ensureBrowser();
-        if (!page) throw new Error(`Page not found: ${args.pageId}`);
+        const page = toolArgs.pageId ? getPage(toolArgs.pageId) : await ensureBrowser();
+        if (!page) throw new Error(`Page not found: ${toolArgs.pageId}`);
         
         let html: string;
-        if (args.selector) {
-          html = await page.innerHTML(args.selector);
+        if (toolArgs.selector) {
+          html = await page.innerHTML(toolArgs.selector);
         } else {
           html = await page.content();
         }
@@ -563,29 +570,29 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const pageId = `page_${Date.now()}`;
         pages.set(pageId, newPage);
         
-        if (args.url) {
-          await newPage.goto(args.url);
+        if (toolArgs.url) {
+          await newPage.goto(toolArgs.url);
         }
         
         return {
           content: [{
             type: "text",
-            text: `Created new page: ${pageId}${args.url ? `\nNavigated to: ${args.url}` : ''}`,
+            text: `Created new page: ${pageId}${toolArgs.url ? `\nNavigated to: ${toolArgs.url}` : ''}`,
           }],
         };
       }
 
       case "browser_close_page": {
-        const page = pages.get(args.pageId);
-        if (!page) throw new Error(`Page not found: ${args.pageId}`);
+        const page = pages.get(toolArgs.pageId);
+        if (!page) throw new Error(`Page not found: ${toolArgs.pageId}`);
         
         await page.close();
-        pages.delete(args.pageId);
+        pages.delete(toolArgs.pageId);
         
         return {
           content: [{
             type: "text",
-            text: `Closed page: ${args.pageId}`,
+            text: `Closed page: ${toolArgs.pageId}`,
           }],
         };
       }
@@ -612,8 +619,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       case "browser_get_cookies": {
-        const page = args.pageId ? getPage(args.pageId) : await ensureBrowser();
-        if (!page) throw new Error(`Page not found: ${args.pageId}`);
+        const page = toolArgs.pageId ? getPage(toolArgs.pageId) : await ensureBrowser();
+        if (!page) throw new Error(`Page not found: ${toolArgs.pageId}`);
         
         const context = page.context();
         const cookies = await context.cookies();
@@ -627,22 +634,22 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       case "browser_set_cookie": {
-        const page = args.pageId ? getPage(args.pageId) : await ensureBrowser();
-        if (!page) throw new Error(`Page not found: ${args.pageId}`);
+        const page = toolArgs.pageId ? getPage(toolArgs.pageId) : await ensureBrowser();
+        if (!page) throw new Error(`Page not found: ${toolArgs.pageId}`);
         
         const context = page.context();
         await context.addCookies([{
-          name: args.name,
-          value: args.value,
-          domain: args.domain,
-          path: args.path || "/",
+          name: toolArgs.name,
+          value: toolArgs.value,
+          domain: toolArgs.domain,
+          path: toolArgs.path || "/",
           url: page.url(),
         }]);
         
         return {
           content: [{
             type: "text",
-            text: `Set cookie: ${args.name}=${args.value}`,
+            text: `Set cookie: ${toolArgs.name}=${toolArgs.value}`,
           }],
         };
       }

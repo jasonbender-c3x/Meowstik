@@ -69,15 +69,6 @@ async function upsertUser(
 }
 
 export async function setupAuth(app: Express) {
-  if (isHomeDevMode()) {
-    console.log("🏠 [Auth] Skipping Replit OAuth setup in HOME_DEV_MODE");
-    app.set("trust proxy", 1);
-    app.use(getSession());
-    app.use(passport.initialize());
-    app.use(passport.session());
-    return;
-  }
-
   app.set("trust proxy", 1);
   app.use(getSession());
   
@@ -91,6 +82,11 @@ export async function setupAuth(app: Express) {
 
   app.use(passport.initialize());
   app.use(passport.session());
+
+  if (isHomeDevMode()) {
+    console.log("🏠 [Auth] Skipping Replit OAuth setup in HOME_DEV_MODE");
+    return;
+  }
 
   if (!process.env.REPL_ID) {
     console.warn("⚠️ [Replit Auth] REPL_ID not set. Skipping OIDC discovery and Replit strategy setup.");

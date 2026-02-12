@@ -1,3 +1,10 @@
+packages:
+  - "browser-extension"
+  - "desktop-agent"
+  - "desktop-app"
+  - "local-agent"
+  - "workspace/*"
+
 onlyBuiltDependencies:
   - '@firebase/util'
   - '@playwright/browser-chromium'

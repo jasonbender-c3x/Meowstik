@@ -93,14 +93,14 @@ The agent works without `robotjs`, but input injection will be disabled. To enab
 **Windows:**
 ```bash
 npm install --global windows-build-tools
-cd packages/meowstik-agent
+cd workspace/meowstik-agent
 npm install robotjs
 ```
 
 **macOS:**
 ```bash
 xcode-select --install
-cd packages/meowstik-agent
+cd workspace/meowstik-agent
 npm install robotjs
 ```
 
@@ -109,7 +109,7 @@ npm install robotjs
 # For Debian/Ubuntu-based systems
 sudo apt-get install -y build-essential libxtst-dev libpng-dev
 sudo apt-get install libxtst-dev libpng++-dev
-cd packages/meowstik-agent
+cd workspace/meowstik-agent
 npm install robotjs
 ```
 

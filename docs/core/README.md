@@ -156,7 +156,7 @@ When you make changes to the system:
 
 - **[Exhibit Documentation](../exhibit/)** - Historical docs showing evolution
 - **[Main README](../../README.md)** - Project overview
-- **[Package README](../../packages/)** - Individual package docs
+- **[Package README](../../workspace/)** - Individual package docs
 - **[GitHub Issues](https://github.com/jasonbender-c3x/Meowstik/issues)** - Bug reports and feature requests
 
 ---

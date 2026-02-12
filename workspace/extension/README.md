@@ -24,7 +24,7 @@ Browser extension for Meowstik AI Assistant - provides page analysis, screenshot
 
 3. Click **Load unpacked**
 
-4. Navigate to and select: `packages/extension/`
+4. Navigate to and select: `workspace/extension/`
 
 5. The extension icon (🐱) should appear in your toolbar
 
@@ -34,7 +34,7 @@ Browser extension for Meowstik AI Assistant - provides page analysis, screenshot
 
 2. Click **Load Temporary Add-on**
 
-3. Navigate to `packages/extension/` and select `manifest.json`
+3. Navigate to `workspace/extension/` and select `manifest.json`
 
 4. The extension is now loaded temporarily (until Firefox restart)
 
@@ -77,7 +77,7 @@ Right-click on:
 ### Project Structure
 
 ```
-packages/extension/
+workspace/extension/
 ├── manifest.json       # Extension manifest (Manifest V3)
 ├── background.js       # Service worker for background tasks
 ├── content.js          # Content script injected into pages
@@ -140,7 +140,7 @@ The extension requires these permissions:
 ## Troubleshooting
 
 ### Extension won't load
-- Make sure you selected the correct folder (`packages/extension/`)
+- Make sure you selected the correct folder (`workspace/extension/`)
 - Check that `manifest.json` exists and is valid JSON
 - Check browser console for errors
 
@@ -169,7 +169,7 @@ Currently, the extension is meant for development use. To prepare for production
 3. Optimize images
 4. Create a ZIP package:
    ```bash
-   cd packages/extension
+   cd workspace/extension
    zip -r meowstik-extension.zip . -x "*.git*" "node_modules/*"
    ```
 5. Upload to Chrome Web Store or Firefox Add-ons

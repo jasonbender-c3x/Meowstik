@@ -87,7 +87,7 @@ meowstik-agent --token TOKEN --relay wss://remote.com/ws/desktop
 
 #### Updated Files
 - `docs/ragent/install-desktop-agent.md` - Added localhost instructions
-- `packages/meowstik-agent/README.md` - Added development mode section
+- `workspace/meowstik-agent/README.md` - Added development mode section
 
 ## Security Analysis
 
@@ -192,7 +192,7 @@ No migration needed. Existing token-based connections work unchanged.
 | `server/websocket-desktop.ts` | Tokenless auth logic | ~30 |
 | `docs/desktop-agent-localhost-dev.md` | New documentation | ~400 |
 | `docs/ragent/install-desktop-agent.md` | Updated with localhost info | ~20 |
-| `packages/meowstik-agent/README.md` | Development mode docs | ~15 |
+| `workspace/meowstik-agent/README.md` | Development mode docs | ~15 |
 
 Total: **6 files changed, 540+ lines added**
 

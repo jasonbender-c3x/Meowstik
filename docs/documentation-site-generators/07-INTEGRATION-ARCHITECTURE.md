@@ -39,7 +39,7 @@ Meowstik/
 {
   "name": "meowstik-monorepo",
   "private": true,
-  "workspaces": [
+  "workspace": [
     "client",
     "server",
     "shared",
@@ -101,7 +101,7 @@ Create a shared component library:
 
 ```
 Meowstik/
-├── packages/
+├── workspace/
 │   └── ui/                  # NEW: Shared UI components
 │       ├── src/
 │       │   ├── Button.tsx
@@ -115,7 +115,7 @@ Meowstik/
 ```
 
 ```json
-// packages/ui/package.json
+// workspace/ui/package.json
 {
   "name": "@meowstik/ui",
   "version": "1.0.0",
