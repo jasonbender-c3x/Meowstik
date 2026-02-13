@@ -160,9 +160,9 @@ class DesktopAgent {
               console.log(`  Mouse clicked: ${event.button || 'left'}`);
             } else if (event.action === 'scroll' && event.delta !== undefined) {
               if (event.delta > 0) {
-                await mouse.scrollDown(Math.abs(event.delta));
-              } else {
                 await mouse.scrollUp(Math.abs(event.delta));
+              } else {
+                await mouse.scrollDown(Math.abs(event.delta));
               }
               console.log(`  Mouse scrolled: ${event.delta}`);
             }
