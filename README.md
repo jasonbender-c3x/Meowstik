@@ -53,7 +53,7 @@ These are independent applications that connect to the Server to receive instruc
 
 *   **`desktop-agent/`** *(Node.js)*:
     *   **Role**: Full OS control.
-    *   **Capabilities**: Screen recording, mouse injection (`robotjs`), global keyboard shortcuts.
+    *   **Capabilities**: Screen recording, mouse/keyboard injection (`@nut-tree-fork/nut-js`), global keyboard shortcuts.
     *   **Use Case**: "Watch me fix this bug in VS Code" or "Click that button for me."
 *   **`browser-extension/`** *(Chrome Extension)*:
     *   **Role**: Context-aware browser companion.
