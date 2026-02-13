@@ -14,6 +14,7 @@
 
 import { WebSocket, RawData } from 'ws';
 import * as os from 'os';
+import { mouse, keyboard, Button, Key, Point, straightTo } from '@nut-tree-fork/nut-js';
 
 interface AgentConfig {
   relayUrl: string;
@@ -138,34 +139,76 @@ class DesktopAgent {
   private handleInputEvent(event: InputEvent): void {
     console.log(`🎮 Input event: ${event.type} - ${event.action}`);
     
-    // NOTE: robotjs integration would go here for actual input injection
-    // This is a placeholder for the actual implementation
-    switch (event.type) {
-      case 'mouse':
-        if (event.action === 'move' && event.x !== undefined && event.y !== undefined) {
-          // robot.moveMouse(event.x, event.y);
-          console.log(`  Mouse move to (${event.x}, ${event.y})`);
-        } else if (event.action === 'click') {
-          // robot.mouseClick(event.button || 'left');
-          console.log(`  Mouse click: ${event.button || 'left'}`);
-        } else if (event.action === 'scroll' && event.delta !== undefined) {
-          // robot.scrollMouse(0, event.delta);
-          console.log(`  Mouse scroll: ${event.delta}`);
+    // Using nut.js for actual input injection
+    (async () => {
+      try {
+        switch (event.type) {
+          case 'mouse':
+            if (event.action === 'move' && event.x !== undefined && event.y !== undefined) {
+              await mouse.move(straightTo(new Point(event.x, event.y)));
+              console.log(`  Mouse moved to (${event.x}, ${event.y})`);
+            } else if (event.action === 'click') {
+              if (event.x !== undefined && event.y !== undefined) {
+                await mouse.move(straightTo(new Point(event.x, event.y)));
+              }
+              const buttonMap = {
+                'left': Button.LEFT,
+                'right': Button.RIGHT,
+                'middle': Button.MIDDLE,
+              };
+              await mouse.click(buttonMap[event.button || 'left']);
+              console.log(`  Mouse clicked: ${event.button || 'left'}`);
+            } else if (event.action === 'scroll' && event.delta !== undefined) {
+              if (event.delta > 0) {
+                await mouse.scrollDown(Math.abs(event.delta));
+              } else {
+                await mouse.scrollUp(Math.abs(event.delta));
+              }
+              console.log(`  Mouse scrolled: ${event.delta}`);
+            }
+            break;
+          case 'keyboard':
+            if (event.action === 'type' && event.text) {
+              await keyboard.type(event.text);
+              console.log(`  Typed: "${event.text}"`);
+            } else if (event.action === 'keydown' && event.key) {
+              await keyboard.pressKey(this.mapKey(event.key));
+              console.log(`  Key pressed: ${event.key}`);
+            } else if (event.action === 'keyup' && event.key) {
+              await keyboard.releaseKey(this.mapKey(event.key));
+              console.log(`  Key released: ${event.key}`);
+            }
+            break;
         }
-        break;
-      case 'keyboard':
-        if (event.action === 'type' && event.text) {
-          // robot.typeString(event.text);
-          console.log(`  Type: "${event.text}"`);
-        } else if (event.action === 'keydown' && event.key) {
-          // robot.keyToggle(event.key, 'down');
-          console.log(`  Key down: ${event.key}`);
-        } else if (event.action === 'keyup' && event.key) {
-          // robot.keyToggle(event.key, 'up');
-          console.log(`  Key up: ${event.key}`);
-        }
-        break;
-    }
+      } catch (error) {
+        console.error(`  Input injection error:`, error);
+      }
+    })();
+  }
+
+  private mapKey(key: string): Key {
+    const keyMap: Record<string, Key> = {
+      'Enter': Key.Enter,
+      'Escape': Key.Escape,
+      'Backspace': Key.Backspace,
+      'Tab': Key.Tab,
+      'Space': Key.Space,
+      'ArrowUp': Key.Up,
+      'ArrowDown': Key.Down,
+      'ArrowLeft': Key.Left,
+      'ArrowRight': Key.Right,
+      'Control': Key.LeftControl,
+      'Alt': Key.LeftAlt,
+      'Shift': Key.LeftShift,
+      'Meta': Key.LeftSuper,
+      'Delete': Key.Delete,
+      'Home': Key.Home,
+      'End': Key.End,
+      'PageUp': Key.PageUp,
+      'PageDown': Key.PageDown,
+    };
+
+    return keyMap[key] || key.toLowerCase() as unknown as Key;
   }
 
   private startScreenCapture(): void {
