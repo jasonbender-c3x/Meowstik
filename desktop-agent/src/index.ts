@@ -14,6 +14,7 @@
 
 import { WebSocket, RawData } from 'ws';
 import * as os from 'os';
+import { mouse, keyboard, Button, Key, Point, straightTo } from '@nut-tree-fork/nut-js';
 
 interface AgentConfig {
   relayUrl: string;
@@ -56,6 +57,11 @@ class DesktopAgent {
   private reconnectTimeout: NodeJS.Timeout | null = null;
   private isConnected = false;
   private frameCount = 0;
+  private readonly buttonMap = {
+    'left': Button.LEFT,
+    'right': Button.RIGHT,
+    'middle': Button.MIDDLE,
+  };
 
   constructor(config: AgentConfig) {
     this.config = config;
@@ -138,34 +144,98 @@ class DesktopAgent {
   private handleInputEvent(event: InputEvent): void {
     console.log(`🎮 Input event: ${event.type} - ${event.action}`);
     
-    // NOTE: robotjs integration would go here for actual input injection
-    // This is a placeholder for the actual implementation
-    switch (event.type) {
-      case 'mouse':
-        if (event.action === 'move' && event.x !== undefined && event.y !== undefined) {
-          // robot.moveMouse(event.x, event.y);
-          console.log(`  Mouse move to (${event.x}, ${event.y})`);
-        } else if (event.action === 'click') {
-          // robot.mouseClick(event.button || 'left');
-          console.log(`  Mouse click: ${event.button || 'left'}`);
-        } else if (event.action === 'scroll' && event.delta !== undefined) {
-          // robot.scrollMouse(0, event.delta);
-          console.log(`  Mouse scroll: ${event.delta}`);
+    // Using nut.js for actual input injection
+    (async () => {
+      try {
+        switch (event.type) {
+          case 'mouse':
+            if (event.action === 'move' && event.x !== undefined && event.y !== undefined) {
+              await mouse.move(straightTo(new Point(event.x, event.y)));
+              console.log(`  Mouse moved to (${event.x}, ${event.y})`);
+            } else if (event.action === 'click') {
+              if (event.x !== undefined && event.y !== undefined) {
+                await mouse.move(straightTo(new Point(event.x, event.y)));
+              }
+              await mouse.click(this.buttonMap[event.button || 'left']);
+              console.log(`  Mouse clicked: ${event.button || 'left'}`);
+            } else if (event.action === 'scroll' && event.delta !== undefined) {
+              // Positive delta: scroll up (content moves up); negative delta: scroll down
+              if (event.delta > 0) {
+                await mouse.scrollUp(Math.abs(event.delta));
+              } else {
+                await mouse.scrollDown(Math.abs(event.delta));
+              }
+              console.log(`  Mouse scrolled: ${event.delta}`);
+            }
+            break;
+          case 'keyboard':
+            if (event.action === 'type' && event.text) {
+              await keyboard.type(event.text);
+              console.log(`  Typed: "${event.text}"`);
+            } else if (event.action === 'keydown' && event.key) {
+              await keyboard.pressKey(this.mapKey(event.key));
+              console.log(`  Key pressed: ${event.key}`);
+            } else if (event.action === 'keyup' && event.key) {
+              await keyboard.releaseKey(this.mapKey(event.key));
+              console.log(`  Key released: ${event.key}`);
+            }
+            break;
         }
-        break;
-      case 'keyboard':
-        if (event.action === 'type' && event.text) {
-          // robot.typeString(event.text);
-          console.log(`  Type: "${event.text}"`);
-        } else if (event.action === 'keydown' && event.key) {
-          // robot.keyToggle(event.key, 'down');
-          console.log(`  Key down: ${event.key}`);
-        } else if (event.action === 'keyup' && event.key) {
-          // robot.keyToggle(event.key, 'up');
-          console.log(`  Key up: ${event.key}`);
-        }
-        break;
+      } catch (error) {
+        console.error(`  Input injection error:`, error);
+      }
+    })();
+  }
+
+  private mapKey(key: string): Key {
+    const keyMap: Record<string, Key> = {
+      'Enter': Key.Enter,
+      'Escape': Key.Escape,
+      'Backspace': Key.Backspace,
+      'Tab': Key.Tab,
+      'Space': Key.Space,
+      'ArrowUp': Key.Up,
+      'ArrowDown': Key.Down,
+      'ArrowLeft': Key.Left,
+      'ArrowRight': Key.Right,
+      'Control': Key.LeftControl,
+      'Alt': Key.LeftAlt,
+      'Shift': Key.LeftShift,
+      'Meta': Key.LeftSuper,
+      'Delete': Key.Delete,
+      'Home': Key.Home,
+      'End': Key.End,
+      'PageUp': Key.PageUp,
+      'PageDown': Key.PageDown,
+      // Number keys
+      '0': Key.Num0, '1': Key.Num1, '2': Key.Num2, '3': Key.Num3, '4': Key.Num4,
+      '5': Key.Num5, '6': Key.Num6, '7': Key.Num7, '8': Key.Num8, '9': Key.Num9,
+      // Function keys
+      'F1': Key.F1, 'F2': Key.F2, 'F3': Key.F3, 'F4': Key.F4, 'F5': Key.F5, 'F6': Key.F6,
+      'F7': Key.F7, 'F8': Key.F8, 'F9': Key.F9, 'F10': Key.F10, 'F11': Key.F11, 'F12': Key.F12,
+    };
+
+    // Return mapped key or handle single character
+    if (keyMap[key]) {
+      return keyMap[key];
     }
+    
+    // For single lowercase letters a-z, nut.js has Key.A through Key.Z
+    if (key.length === 1) {
+      const upperKey = key.toUpperCase();
+      // Check if it's a valid letter key
+      if (upperKey >= 'A' && upperKey <= 'Z') {
+        // nut.js uses Key.A, Key.B, etc.
+        return Key[upperKey as keyof typeof Key] as Key;
+      }
+    }
+    
+    // Log warning for unmapped keys to help with debugging
+    console.warn(`[Desktop Agent] Unmapped key: "${key}". This may cause nut.js to throw an error.`);
+    
+    // Fallback: return the original key as-is (nut.js may handle some special keys)
+    // If invalid, nut.js will throw an error which is caught by the caller
+    return key as unknown as Key;
   }
 
   private startScreenCapture(): void {

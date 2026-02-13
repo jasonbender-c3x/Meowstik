@@ -303,7 +303,7 @@ export default function InstallPage() {
                         <p className="text-sm font-medium">Requirements:</p>
                         <ul className="text-sm text-muted-foreground space-y-1">
                           <li>• Node.js 18 or higher</li>
-                          <li>• Build tools for robotjs (see docs)</li>
+                          <li>• Build tools for nut.js (see docs)</li>
                           <li>• Screen recording permission (macOS)</li>
                           <li>• Accessibility permission (macOS)</li>
                         </ul>

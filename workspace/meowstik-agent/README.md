@@ -84,36 +84,34 @@ meowstik-agent --token abc123 --server wss://myapp.com --no-input
 ## Requirements
 
 - Node.js 18+
-- **Optional:** Native build tools for robotjs (input injection)
+- Native build tools for nut.js (input injection)
 
-### Installing robotjs (Optional)
+### Installing nut.js Dependencies
 
-The agent works without `robotjs`, but input injection will be disabled. To enable input control:
+The agent uses `@nut-tree-fork/nut-js` for input injection, which requires native compilation. Installation requirements by platform:
 
 **Windows:**
 ```bash
-npm install --global windows-build-tools
-cd workspace/meowstik-agent
-npm install robotjs
+# Install Visual C++ Build Tools
+# Download and install from: https://visualstudio.microsoft.com/downloads/
+# Then install dependencies:
+pnpm install
 ```
 
 **macOS:**
 ```bash
 xcode-select --install
-cd workspace/meowstik-agent
-npm install robotjs
+pnpm install
 ```
 
 **Linux:**
 ```bash
 # For Debian/Ubuntu-based systems
 sudo apt-get install -y build-essential libxtst-dev libpng-dev
-sudo apt-get install libxtst-dev libpng++-dev
-cd workspace/meowstik-agent
-npm install robotjs
+pnpm install
 ```
 
-**Note:** If `robotjs` fails to install, the agent will still work but input injection features will be unavailable.
+**Note:** The nut.js library is a modern, actively maintained alternative to robotjs with better cross-platform support and no optional dependency issues.
 
 ## Security
 
