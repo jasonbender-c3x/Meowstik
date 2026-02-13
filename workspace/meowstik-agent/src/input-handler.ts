@@ -14,6 +14,11 @@ export interface InputEvent {
 
 export class InputHandler {
   private isEnabled = true;
+  private readonly buttonMap = {
+    left: Button.LEFT,
+    right: Button.RIGHT,
+    middle: Button.MIDDLE,
+  };
 
   constructor() {
     console.log("Input handler initialized with nut.js");
@@ -55,12 +60,7 @@ export class InputHandler {
         if (event.x !== undefined && event.y !== undefined) {
           await mouse.move(straightTo(new Point(event.x, event.y)));
         }
-        const buttonMap = {
-          left: Button.LEFT,
-          right: Button.RIGHT,
-          middle: Button.MIDDLE,
-        };
-        const button = buttonMap[event.button || "left"];
+        const button = this.buttonMap[event.button || "left"];
         await mouse.click(button);
         break;
 
@@ -121,13 +121,23 @@ export class InputHandler {
       PageDown: Key.PageDown,
     };
 
-    // Return mapped key or try to convert single character
+    // Return mapped key or handle single character
     if (keyMap[key]) {
       return keyMap[key];
     }
     
-    // For single characters, nut.js expects the Key enum value
-    // Return the character as-is and let nut.js handle it
-    return key.toLowerCase() as unknown as Key;
+    // For single lowercase letters a-z, nut.js has Key.A through Key.Z
+    if (key.length === 1) {
+      const upperKey = key.toUpperCase();
+      // Check if it's a valid letter key
+      if (upperKey >= 'A' && upperKey <= 'Z') {
+        // nut.js uses Key.A, Key.B, etc.
+        return Key[upperKey as keyof typeof Key] as Key;
+      }
+    }
+    
+    // Fallback: return the original key as-is (nut.js may handle some special keys)
+    // If invalid, nut.js will throw an error which is caught by the caller
+    return key as unknown as Key;
   }
 }

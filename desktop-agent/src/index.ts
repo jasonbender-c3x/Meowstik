@@ -57,6 +57,11 @@ class DesktopAgent {
   private reconnectTimeout: NodeJS.Timeout | null = null;
   private isConnected = false;
   private frameCount = 0;
+  private readonly buttonMap = {
+    'left': Button.LEFT,
+    'right': Button.RIGHT,
+    'middle': Button.MIDDLE,
+  };
 
   constructor(config: AgentConfig) {
     this.config = config;
@@ -151,12 +156,7 @@ class DesktopAgent {
               if (event.x !== undefined && event.y !== undefined) {
                 await mouse.move(straightTo(new Point(event.x, event.y)));
               }
-              const buttonMap = {
-                'left': Button.LEFT,
-                'right': Button.RIGHT,
-                'middle': Button.MIDDLE,
-              };
-              await mouse.click(buttonMap[event.button || 'left']);
+              await mouse.click(this.buttonMap[event.button || 'left']);
               console.log(`  Mouse clicked: ${event.button || 'left'}`);
             } else if (event.action === 'scroll' && event.delta !== undefined) {
               if (event.delta > 0) {
@@ -208,7 +208,24 @@ class DesktopAgent {
       'PageDown': Key.PageDown,
     };
 
-    return keyMap[key] || key.toLowerCase() as unknown as Key;
+    // Return mapped key or handle single character
+    if (keyMap[key]) {
+      return keyMap[key];
+    }
+    
+    // For single lowercase letters a-z, nut.js has Key.A through Key.Z
+    if (key.length === 1) {
+      const upperKey = key.toUpperCase();
+      // Check if it's a valid letter key
+      if (upperKey >= 'A' && upperKey <= 'Z') {
+        // nut.js uses Key.A, Key.B, etc.
+        return Key[upperKey as keyof typeof Key] as Key;
+      }
+    }
+    
+    // Fallback: return the original key as-is (nut.js may handle some special keys)
+    // If invalid, nut.js will throw an error which is caught by the caller
+    return key as unknown as Key;
   }
 
   private startScreenCapture(): void {
