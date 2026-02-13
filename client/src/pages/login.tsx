@@ -89,9 +89,9 @@ export default function LoginPage() {
             size="lg" 
             className="w-full max-w-xs"
             onClick={() => window.location.href = "/api/login"}
-            data-testid="button-login-replit"
+            data-testid="button-login-google"
           >
-            Sign in with Replit
+            Sign in with Google
           </Button>
           
           <p className="text-xs text-muted-foreground text-center mt-8">

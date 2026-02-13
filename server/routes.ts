@@ -144,10 +144,10 @@ export async function registerRoutes(
   app: Express,
 ): Promise<Server> {
   // ══════════════════════════════════════════════════════════════════════════
-  // REPLIT AUTH SETUP
-  // Sets up session management and OAuth flow with Replit as the identity provider
+  // GOOGLE AUTH SETUP
+  // Sets up session management and OAuth flow with Google as the identity provider
   // ═════════════════════════════════════════════════════════════════════════
-  const { setupAuth, isAuthenticated } = await import("./replitAuth");
+  const { setupAuth, isAuthenticated } = await import("./googleAuth");
   await setupAuth(app);
   
   // Import authentication status middleware
