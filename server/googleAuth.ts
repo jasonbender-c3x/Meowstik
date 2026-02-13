@@ -11,17 +11,26 @@ import connectPg from "connect-pg-simple";
 import { storage } from "./storage";
 import { isHomeDevMode, getHomeDevUser } from "./homeDevAuth";
 
+// Session duration: 1 week (in milliseconds)
+const SESSION_TTL = 7 * 24 * 60 * 60 * 1000;
+// Session duration: 1 week (in seconds, for JWT exp claims)
+const SESSION_TTL_SECONDS = 7 * 24 * 60 * 60;
+
 export function getSession() {
-  const sessionTtl = 7 * 24 * 60 * 60 * 1000; // 1 week
   const pgStore = connectPg(session);
   const sessionStore = new pgStore({
     conString: process.env.DATABASE_URL,
     createTableIfMissing: true,
-    ttl: sessionTtl,
+    ttl: SESSION_TTL,
     tableName: "sessions",
   });
   
   const isProduction = process.env.NODE_ENV === "production";
+  
+  // Require SESSION_SECRET in production
+  if (isProduction && !process.env.SESSION_SECRET) {
+    throw new Error("SESSION_SECRET environment variable must be set in production");
+  }
   
   return session({
     secret: process.env.SESSION_SECRET || "meowstik-dev-secret-change-in-production",
@@ -32,7 +41,7 @@ export function getSession() {
       httpOnly: true,
       secure: isProduction,
       sameSite: "lax",
-      maxAge: sessionTtl,
+      maxAge: SESSION_TTL,
     },
     proxy: isProduction,
   });
@@ -50,10 +59,28 @@ interface GoogleUser {
   provider: string;
 }
 
+/**
+ * Parse first and last name from Google profile
+ */
+function parseUserName(profile: GoogleUser): { firstName: string; lastName: string } {
+  if (profile.name?.givenName) {
+    return {
+      firstName: profile.name.givenName,
+      lastName: profile.name.familyName || "",
+    };
+  }
+  
+  // Fallback: parse displayName
+  const parts = profile.displayName.split(" ");
+  return {
+    firstName: parts[0] || "",
+    lastName: parts.slice(1).join(" ") || "",
+  };
+}
+
 async function upsertUser(profile: GoogleUser) {
   const email = profile.emails?.[0]?.value || "";
-  const firstName = profile.name?.givenName || profile.displayName.split(" ")[0] || "";
-  const lastName = profile.name?.familyName || profile.displayName.split(" ").slice(1).join(" ") || "";
+  const { firstName, lastName } = parseUserName(profile);
   const profileImageUrl = profile.photos?.[0]?.value || "";
 
   await storage.upsertUser({
@@ -122,11 +149,11 @@ export async function setupAuth(app: Express) {
                 first_name: profile.name?.givenName || "",
                 last_name: profile.name?.familyName || "",
                 profile_image_url: profile.photos?.[0]?.value || "",
-                exp: Math.floor(Date.now() / 1000) + (7 * 24 * 60 * 60), // 1 week
+                exp: Math.floor(Date.now() / 1000) + SESSION_TTL_SECONDS,
               },
               access_token: accessToken,
               refresh_token: refreshToken,
-              expires_at: Math.floor(Date.now() / 1000) + (7 * 24 * 60 * 60),
+              expires_at: Math.floor(Date.now() / 1000) + SESSION_TTL_SECONDS,
             };
             
             done(null, user);
@@ -159,9 +186,9 @@ export async function setupAuth(app: Express) {
 
     // Logout route
     app.get("/api/logout", (req, res) => {
-      console.log("[LOGOUT] Received /api/logout request. User:", req.user ? (req.user as any).claims?.sub : "No user");
+      console.log("[LOGOUT] Logout request received");
       const sessionId = req.session.id;
-      console.log(`[LOGOUT] Session ID to be destroyed: ${sessionId}`);
+      console.log(`[LOGOUT] Destroying session: ${sessionId}`);
 
       req.logout((logoutErr: any) => {
         if (logoutErr) {
@@ -205,11 +232,11 @@ export const isAuthenticated: RequestHandler = async (req, res, next) => {
             first_name: user.firstName,
             last_name: user.lastName,
             profile_image_url: user.profileImageUrl,
-            exp: Math.floor(Date.now() / 1000) + (365 * 24 * 60 * 60)
+            exp: Math.floor(Date.now() / 1000) + SESSION_TTL_SECONDS
           },
           access_token: "home-dev-token",
           refresh_token: "home-dev-refresh-token",
-          expires_at: Math.floor(Date.now() / 1000) + (365 * 24 * 60 * 60)
+          expires_at: Math.floor(Date.now() / 1000) + SESSION_TTL_SECONDS
         };
       } catch (e) {
         console.error("Critical Auth Error: Could not fetch Home Dev User", e);
