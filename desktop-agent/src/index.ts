@@ -159,6 +159,7 @@ class DesktopAgent {
               await mouse.click(this.buttonMap[event.button || 'left']);
               console.log(`  Mouse clicked: ${event.button || 'left'}`);
             } else if (event.action === 'scroll' && event.delta !== undefined) {
+              // Positive delta: scroll up (content moves up); negative delta: scroll down
               if (event.delta > 0) {
                 await mouse.scrollUp(Math.abs(event.delta));
               } else {
@@ -206,6 +207,12 @@ class DesktopAgent {
       'End': Key.End,
       'PageUp': Key.PageUp,
       'PageDown': Key.PageDown,
+      // Number keys
+      '0': Key.Num0, '1': Key.Num1, '2': Key.Num2, '3': Key.Num3, '4': Key.Num4,
+      '5': Key.Num5, '6': Key.Num6, '7': Key.Num7, '8': Key.Num8, '9': Key.Num9,
+      // Function keys
+      'F1': Key.F1, 'F2': Key.F2, 'F3': Key.F3, 'F4': Key.F4, 'F5': Key.F5, 'F6': Key.F6,
+      'F7': Key.F7, 'F8': Key.F8, 'F9': Key.F9, 'F10': Key.F10, 'F11': Key.F11, 'F12': Key.F12,
     };
 
     // Return mapped key or handle single character
@@ -222,6 +229,9 @@ class DesktopAgent {
         return Key[upperKey as keyof typeof Key] as Key;
       }
     }
+    
+    // Log warning for unmapped keys to help with debugging
+    console.warn(`[Desktop Agent] Unmapped key: "${key}". This may cause nut.js to throw an error.`);
     
     // Fallback: return the original key as-is (nut.js may handle some special keys)
     // If invalid, nut.js will throw an error which is caught by the caller
