@@ -45,7 +45,7 @@ The repository includes a `.vscode/mcp.json` file that configures the GitHub MCP
 
 ### 2. Create a GitHub Personal Access Token
 
-1. Go to [GitHub Settings > Personal Access Tokens](https://github.com/settings/personal-access-tokens/new)
+1. Go to [GitHub Settings > Personal Access Tokens > Tokens (classic)](https://github.com/settings/tokens/new)
 2. Click "Generate new token (classic)"
 3. Give it a descriptive name (e.g., "MCP Server for Copilot")
 4. Select the following scopes:
