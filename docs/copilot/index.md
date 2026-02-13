@@ -33,6 +33,7 @@ docs/copilot/
 
 ## Quick Links
 
+- [GitHub MCP Server Setup](./GITHUB_MCP_SETUP.md) - Configure GitHub Copilot to access GitHub MCP server
 - [Recommended Document Moves](./recommended-moves.md)
 - [AutoDoc Workflow Proposal](../proposals/PROPOSAL-002-github-autodoc-workflow.md)
 - [State of the Art Report](../proposals/REPORT-001-codebase-understanding-automation.md)

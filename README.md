@@ -112,6 +112,7 @@ Since there are many moving parts, the standard dev loop focuses on the Core:
 *   **Browserless System**: [BROWSERLESS_README.md](BROWSERLESS_README.md)
 *   **SSH / Operating System**: [CHIMERA_PHASE1_COMPLETE.md](CHIMERA_PHASE1_COMPLETE.md)
 *   **Desktop Hardware**: [HARDWARE_IMPLEMENTATION_SUMMARY.md](HARDWARE_IMPLEMENTATION_SUMMARY.md)
+*   **GitHub Copilot MCP Setup**: [docs/copilot/GITHUB_MCP_SETUP.md](docs/copilot/GITHUB_MCP_SETUP.md)
 
 ---
 
