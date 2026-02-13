@@ -10,11 +10,24 @@ import type { Express, RequestHandler } from "express";
 import connectPg from "connect-pg-simple";
 import { storage } from "./storage";
 import { isHomeDevMode, getHomeDevUser } from "./homeDevAuth";
+import csurf from "csurf";
 
 // Session duration: 1 week (in milliseconds)
 const SESSION_TTL = 7 * 24 * 60 * 60 * 1000;
 // Session duration: 1 week (in seconds, for JWT exp claims)
 const SESSION_TTL_SECONDS = 7 * 24 * 60 * 60;
+
+/**
+ * CSRF protection middleware configured to work with the session above.
+ *
+ * Usage (in your Express app setup, after getSession()):
+ *   app.use(getSession());
+ *   app.use(getCsrfProtection());
+ */
+export function getCsrfProtection() {
+  // Using session-based tokens (no separate CSRF cookie) to complement express-session.
+  return csurf({ cookie: false });
+}
 
 export function getSession() {
   const pgStore = connectPg(session);
