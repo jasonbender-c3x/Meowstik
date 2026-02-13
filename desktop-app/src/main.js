@@ -633,7 +633,7 @@ ipcMain.handle('start-local-agent', async () => {
     return { success: true, message: 'Local agent already running' };
   }
 
-  // NOTE: Switched from 'local-agent' (browser only) to 'desktop-agent' (system/robotjs)
+  // NOTE: Switched from 'local-agent' (browser only) to 'desktop-agent' (system/nut.js)
   const agentPath = getResourcePath('desktop-agent');
   
   try {

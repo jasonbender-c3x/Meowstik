@@ -10,13 +10,13 @@ const LoginPage: React.FC = () => {
         </p>
         <div className="flex flex-col space-y-4">
           <button
-            onClick={() => window.location.href = '/login/replit'}
+            onClick={() => window.location.href = '/api/login'}
             className="w-full px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
           >
-            Sign in with Replit (temp)
+            Sign in with Google
           </button>
           <p className="text-xs text-center text-gray-500">
-            (This will be replaced with our own auth system)
+            Secure authentication powered by Google OAuth
           </p>
         </div>
       </div>
