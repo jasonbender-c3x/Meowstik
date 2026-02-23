@@ -8,11 +8,11 @@
   },
   "scripts": {
     "dev": "tsx server/index.ts",
-    "build": "vite build && tsx scripts/build-extension.js",
+    "build": "vite build",
     "db:push": "tsx node_modules/drizzle-kit/index.js push",
     "db:studio": "tsx node_modules/drizzle-kit/index.js studio"
   },
-    "dependencies": {
+  "dependencies": {
     "@browserbasehq/sdk": "^2.6.0",
     "@elevenlabs/elevenlabs-js": "^2.31.0",
     "@genkit-ai/google-genai": "^1.27.0",
@@ -135,6 +135,7 @@
     "autoprefixer": "^10.4.20",
     "drizzle-kit": "^0.30.4",
     "postcss": "^8.4.49",
+    "postcss-import": "^16.1.1",
     "tailwindcss": "^3.4.16",
     "tsx": "^4.19.2",
     "typescript": "^5.7.3",

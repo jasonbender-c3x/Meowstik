@@ -1,0 +1,28 @@
+
+> meowstik-core@1.0.0 dev /workspaces/Meowstik
+> tsx server/index.ts
+
+✅ [Env] .env file loaded and variables overridden.
+🚀 [Env] GOOGLE_CLIENT_ID: 188476922299-qmfibap676nuuqs2hbj5q97j2etdfupu.apps.googleusercontent.com
+🚀 [Env] GOOGLE_REDIRECT_URI: https://humble-broccoli-5gp7459v5jvj2pg5j-5000.app.github.dev/api/auth/google/callback
+⏳ [Boot] Setting up Auth...
+🌐 [Auth] Initializing Google Strategy with Callback: https://humble-broccoli-5gp7459v5jvj2pg5j-5000.app.github.dev/api/auth/google/callback
+⏳ [Boot] Creating HTTP Server...
+⏳ [Boot] Registering API Routes...
+🌐 [Auth] Initializing Google Strategy with Callback: https://humble-broccoli-5gp7459v5jvj2pg5j-5000.app.github.dev/api/auth/google/callback
+🧠 [System] Routes Registered Successfully.
+✅ [Boot] API Routes Registered.
+⏳ [Boot] Starting Vite Middleware (This can take 5-10 seconds)...
+✅ [Boot] Vite Middleware Online.
+🔥 [SONAR FATAL] Uncaught Exception: Error: listen EADDRINUSE: address already in use 0.0.0.0:5000
+    at Server.setupListenHandle [as _listen2] (node:net:1939:16)
+    at listenInCluster (node:net:1996:12)
+    at node:net:2205:7
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21) {
+  code: 'EADDRINUSE',
+  errno: -98,
+  syscall: 'listen',
+  address: '0.0.0.0',
+  port: 5000
+}
+Killed
