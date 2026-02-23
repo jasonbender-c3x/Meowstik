@@ -1,92 +1,32 @@
-/**
- * =============================================================================
- * DATABASE CONNECTION MODULE
- * =============================================================================
- * 
- * Provides a shared Drizzle database connection for direct queries.
- * This is used by the vector store adapters and other services that need
- * raw database access.
- * 
- * TEACHING NOTES:
- * ---------------
- * This module creates a singleton database connection pool:
- * - Pool manages multiple connections efficiently
- * - Connections are reused rather than created for each query
- * - Idle connections are closed after 30 seconds
- * 
- * For most operations, use the storage interface instead of direct db access.
- * =============================================================================
- */
+import 'dotenv/config'; 
+import { Pool, neonConfig } from '@neondatabase/serverless';
+import { drizzle } from 'drizzle-orm/neon-serverless';
+import ws from "ws";
+import * as schema from "@shared/schema";
 
-import { drizzle, NodePgDatabase } from "drizzle-orm/node-postgres";
-import { Pool } from "pg";
+// Configure Neon to use WebSocket
+neonConfig.webSocketConstructor = ws;
 
-let _db: NodePgDatabase | null = null;
-let _pool: Pool | null = null;
-
-/**
- * Get the shared Drizzle database instance
- * Creates the connection pool on first call (lazy initialization)
- */
-export function getDb(): NodePgDatabase {
-  if (!_db) {
-    if (!process.env.DATABASE_URL) {
-      console.warn("⚠️ DATABASE_URL not set. Switching to In-Memory DB (pg-mem) for local preview.");
-      try {
-        const { newDb } = require('pg-mem');
-        const mem = newDb();
-        // Create a mock pool to satisfy the interface if needed, or just drizzle adapter
-        const { Pool } = mem.adapters.createPg();
-        _pool = new Pool();
-        _db = drizzle(_pool);
-        
-        // Initialize schema manually for pg-mem since it starts empty
-        // In a real app we'd run migrations, but here we might need a quick hack or accept empty DB
-        console.log("[db] In-Memory Database initialized (Empty Schema)");
-        return _db;
-      } catch (e) {
-         console.error("Failed to init pg-mem:", e);
-         throw new Error("DATABASE_URL not set and pg-mem failed.");
-      }
-    }
-
-    _pool = new Pool({
-      connectionString: process.env.DATABASE_URL,
-      connectionTimeoutMillis: 10000,
-      idleTimeoutMillis: 30000,
-      max: 10,
-    });
-
-    _pool.on("error", (err) => {
-      console.error("[db] Unexpected pool error:", err.message);
-    });
-
-    _db = drizzle(_pool);
-    console.log("[db] Database connection pool created");
-  }
-
-  return _db;
+if (!process.env.DATABASE_URL) {
+  throw new Error("DATABASE_URL must be set in your .env file.");
 }
 
-/**
- * Alias for getDb() - provides direct db access
- * Named export for convenience in imports
- */
-export const db = {
-  execute: async (query: any) => {
-    return getDb().execute(query);
-  },
-};
+// [💭 Analysis] 
+// Hardened Pool Configuration for Neon Serverless
+// - ssl: true is mandatory for Neon
+// - connectionTimeoutMillis: fail fast if we can't connect
+// - idleTimeoutMillis: keep connections alive a bit longer to prevent thrashing
+export const pool = new Pool({ 
+  connectionString: process.env.DATABASE_URL,
+  ssl: true,
+  max: 20, 
+  idleTimeoutMillis: 30000, 
+  connectionTimeoutMillis: 5000, 
+});
 
-/**
- * Close the database connection pool
- * Call this on graceful shutdown
- */
-export async function closeDb(): Promise<void> {
-  if (_pool) {
-    await _pool.end();
-    _pool = null;
-    _db = null;
-    console.log("[db] Database connection pool closed");
-  }
-}
+// Prevent unhandled errors on idle clients from crashing the process
+pool.on('error', (err, client) => {
+  console.error('❌ Unexpected error on idle database client', err.message);
+});
+
+export const db = drizzle(pool, { schema });

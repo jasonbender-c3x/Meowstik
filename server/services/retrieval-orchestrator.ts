@@ -1,5 +1,4 @@
 import { storage } from '../storage';
-import { evidence, entities, entityMentions, knowledgeEmbeddings, crossReferences, Evidence, Entity, GUEST_USER_ID } from '@shared/schema';
 import { eq, sql, ilike, desc, or, and, isNull } from 'drizzle-orm';
 import { ingestionPipeline, KnowledgeBucket } from './ingestion-pipeline';
 import { EmbeddingService } from './embedding-service';

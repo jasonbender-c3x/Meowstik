@@ -1,49 +1,34 @@
+import { Router } from "express";
+import passport from "passport";
+import { setupAuth as setupPassport, isAuthenticated } from "../homeDevAuth.js";
+
 /**
- * Google OAuth2 Authentication Routes
+ * [💭 Analysis]
+ * Identity Router - Revision 3.6.1
+ * PATH: server/routes/auth.ts
+ * * FIX: Exporting setupAuth for server/index.ts to resolve TypeError.
  */
 
-import { Router, Request, Response } from 'express';
-import { getAuthUrl, handleCallback, isAuthenticated, revokeAccess, getTokens, initializeFromDatabase } from '../integrations/google-auth';
+export const authRouter = Router();
 
-const router = Router();
+export function setupAuth(app: any) {
+  setupPassport(app);
+}
 
-router.get('/google', (req: Request, res: Response) => {
-  try {
-    const authUrl = getAuthUrl();
-    res.redirect(authUrl);
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
-  }
+authRouter.get("/user", (req, res) => {
+  if (req.isAuthenticated()) return res.json(req.user);
+  res.status(401).json({ message: "Not authenticated" });
 });
 
-router.get('/google/callback', async (req: Request, res: Response) => {
-  const code = req.query.code as string;
-  
-  if (!code) {
-    return res.status(400).json({ error: 'No authorization code provided' });
-  }
-  
-  try {
-    await handleCallback(code);
-    res.redirect('/?auth=success');
-  } catch (error: any) {
-    console.error('OAuth callback error:', error);
-    res.redirect('/?auth=error');
-  }
+authRouter.post("/dev-login", passport.authenticate("sovereign-dev"), (req, res) => {
+    res.json(req.user);
 });
 
-router.get('/google/status', async (req: Request, res: Response) => {
-  const authenticated = await isAuthenticated();
-  const tokens = await getTokens();
-  res.json({ 
-    authenticated,
-    hasTokens: tokens !== null
+authRouter.post("/logout", (req, res, next) => {
+  req.logout((err) => {
+    if (err) return next(err);
+    res.json({ message: "Logged out" });
   });
 });
 
-router.post('/google/revoke', async (req: Request, res: Response) => {
-  await revokeAccess();
-  res.json({ success: true });
-});
-
-export default router;
+export default authRouter;
