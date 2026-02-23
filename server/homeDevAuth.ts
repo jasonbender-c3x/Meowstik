@@ -11,6 +11,30 @@ import { Request, Response, NextFunction } from "express";
  * * FIX: Added aggressive username fallback to prevent DB constraint errors.
  */
 
+export function isHomeDevMode() {
+  return process.env.HOME_DEV_MODE === "true" || !process.env.GOOGLE_CLIENT_ID;
+}
+
+export async function createHomeDevSession() {
+  const email = process.env.HOME_DEV_EMAIL || "jason@meowstik.local";
+  const user = await storage.getUserByEmail(email);
+  if (!user) return null;
+  
+  return {
+    claims: {
+      sub: user.id.toString(),
+      email: user.email,
+      first_name: user.displayName || "Developer",
+      last_name: "",
+      profile_image_url: "",
+      exp: Math.floor(Date.now() / 1000) + (7 * 24 * 60 * 60)
+    },
+    access_token: "dev-token",
+    refresh_token: "dev-refresh-token",
+    expires_at: Math.floor(Date.now() / 1000) + (7 * 24 * 60 * 60)
+  };
+}
+
 export function isAuthenticated(req: Request, res: Response, next: NextFunction) {
   if (req.isAuthenticated()) return next();
   
