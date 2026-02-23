@@ -1,5 +1,4 @@
 import { storage } from '../storage';
-import { evidence, entities, entityMentions, knowledgeEmbeddings, Evidence, Entity, GUEST_USER_ID } from '@shared/schema';
 import { eq, sql, and, ilike, or, isNull } from 'drizzle-orm';
 import { GoogleGenAI } from '@google/genai';
 import { EmbeddingService } from './embedding-service';
@@ -46,7 +45,6 @@ export class IngestionPipeline {
   async ingestText(envelope: EvidenceEnvelope): Promise<Evidence> {
     const wordCount = envelope.extractedText?.split(/\s+/).length || 0;
     const userId = envelope.userId || null;
-    const isGuest = !userId || userId === GUEST_USER_ID; // Handle both null and GUEST_USER_ID
     
     const [result] = await getDb().insert(evidence).values({
       sourceType: envelope.sourceType,

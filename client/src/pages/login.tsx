@@ -1,104 +1,87 @@
-import { useAuth } from "@/hooks/useAuth";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Redirect } from "wouter";
-import logo from "@assets/generated_images/cute_cat_logo_icon.png";
-import { useEffect, useState } from "react";
-import { MessageSquare } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Cat, ShieldCheck, Zap, Loader2 } from "lucide-react";
 
-export default function LoginPage() {
-  const { isAuthenticated, isLoading } = useAuth();
-  const [isHomeDevMode, setIsHomeDevMode] = useState(false);
+/**
+ * [💭 Analysis] 
+ * Sovereign Login Page - System Revision 3.5.8
+ * PATH: client/src/pages/login.tsx
+ * FIX: Removed react-icons import that was crashing Vite.
+ * FIX: Replaced Replit button with Sovereign Google/Dev buttons.
+ */
 
-  // Check if HOME_DEV_MODE is enabled via the status endpoint
-  useEffect(() => {
-    const checkHomeDevMode = async () => {
-      try {
-        const response = await fetch("/api/status");
-        if (response.ok) {
-          const data = await response.json();
-          if (data.homeDevMode === true) {
-            setIsHomeDevMode(true);
-          }
-        }
-      } catch (error) {
-        // Normal behavior - not in home dev mode
-        setIsHomeDevMode(false);
-      }
-    };
+// Custom Google Icon SVG for dependency-free rendering
+const GoogleIcon = () => (
+  <svg className="mr-3 h-5 w-5" aria-hidden="true" focusable="false" data-prefix="fab" data-icon="google" role="img" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 488 512">
+    <path fill="currentColor" d="M488 261.8C488 403.3 391.1 504 248 504 110.8 504 0 393.2 0 256S110.8 8 248 8c66.8 0 123 24.5 166.3 64.9l-67.5 64.9C258.5 52.6 94.3 116.6 94.3 256c0 86.5 69.1 156.6 153.7 156.6 98.2 0 135-70.4 140.8-106.9H248v-85.3h236.1c2.3 12.7 3.9 24.9 3.9 41.4z"></path>
+  </svg>
+);
 
-    if (!isAuthenticated && !isLoading) {
-      checkHomeDevMode();
+export default function AuthPage() {
+  const [loading, setLoading] = useState(false);
+
+  const handleDevLogin = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch("/api/auth/dev-login", { method: "POST" });
+      if (res.ok) window.location.href = "/";
+    } catch (e) {
+      console.error("Login failed", e);
+    } finally {
+      setLoading(false);
     }
-  }, [isAuthenticated, isLoading]);
+  };
 
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="flex flex-col items-center gap-4">
-          <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
-          <p className="text-muted-foreground">Loading...</p>
-        </div>
-      </div>
-    );
-  }
-
-  // In home dev mode, redirect immediately to home
-  if (isAuthenticated || isHomeDevMode) {
-    return <Redirect to="/" />;
-  }
+  const handleGoogleLogin = () => {
+    window.location.href = "/api/auth/google";
+  };
 
   return (
-    <div className="min-h-screen bg-background flex flex-col" data-testid="login-page">
-      {/* Header */}
-      <header className="border-b bg-card px-4 py-3 flex-shrink-0">
-        <div className="flex items-center gap-4">
-          <div className="flex-1">
-            <h1 className="text-xl font-semibold flex items-center gap-2">
-              <MessageSquare className="h-5 w-5 text-primary" />
-              Meowstik
-            </h1>
-            <p className="text-sm text-muted-foreground">
-              AI-powered assistant for productivity and creativity
-            </p>
+    <div className="min-h-screen flex items-center justify-center bg-indigo-950 p-4 font-sans">
+      <Card className="w-full max-w-[400px] border-indigo-500 bg-slate-900 text-white shadow-[0_0_50px_rgba(79,70,229,0.4)]">
+        <CardHeader className="text-center space-y-1">
+          <div className="flex justify-center mb-4">
+            <div className="p-3 bg-indigo-500/20 rounded-full animate-pulse">
+              <Cat className="h-10 w-10 text-indigo-400" />
+            </div>
           </div>
-        </div>
-      </header>
-
-      {/* Content */}
-      <div className="flex-1 flex flex-col items-center justify-center p-8">
-        <div className="max-w-md w-full flex flex-col items-center">
-          <div className="mb-8 relative">
-            <div className="absolute inset-0 bg-primary/20 blur-3xl rounded-full"></div>
-            <img 
-              src={logo} 
-              alt="Meowstik Logo" 
-              className="w-24 h-24 rounded-2xl relative z-10 shadow-2xl shadow-primary/20" 
-              data-testid="img-login-logo" 
-            />
+          <CardTitle className="text-3xl font-bold tracking-tight">Meowstik</CardTitle>
+          <div className="flex items-center justify-center gap-2 text-[10px] font-mono text-indigo-400 uppercase tracking-widest">
+             <Zap className="h-3 w-3" />
+             <span>SOVEREIGN V3.5.8</span>
           </div>
-          
-          <h2 className="text-4xl font-display font-bold text-center mb-2" data-testid="text-login-title">
-            Welcome to Meowstik
-          </h2>
-          
-          <p className="text-muted-foreground text-center mb-8" data-testid="text-login-subtitle">
-            Your AI-powered assistant for productivity and creativity
-          </p>
-          
+        </CardHeader>
+        <CardContent className="space-y-6">
           <Button 
-            size="lg" 
-            className="w-full max-w-xs"
-            onClick={() => window.location.href = "/api/login"}
-            data-testid="button-login-google"
+            className="w-full h-12 text-lg font-medium bg-white text-black hover:bg-indigo-100" 
+            onClick={handleGoogleLogin}
+            disabled={loading}
           >
+            <GoogleIcon />
             Sign in with Google
           </Button>
+
+          <div className="relative">
+             <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-slate-800" /></div>
+             <div className="relative flex justify-center text-[10px] uppercase"><span className="bg-slate-900 px-2 text-slate-500 font-mono">Creator Access</span></div>
+          </div>
+
+          <Button 
+            className="w-full h-12 text-lg border-indigo-800 hover:bg-indigo-900 text-indigo-300"
+            variant="outline"
+            onClick={handleDevLogin}
+            disabled={loading}
+          >
+            {loading ? <Loader2 className="mr-3 h-5 w-5 animate-spin" /> : <ShieldCheck className="mr-3 h-5 w-5" />}
+            {loading ? "Igniting..." : "Enter as Creator"}
+          </Button>
           
-          <p className="text-xs text-muted-foreground text-center mt-8">
-            By signing in, you agree to our Terms of Service and Privacy Policy
+          <p className="text-center text-[9px] text-slate-600 font-mono uppercase tracking-widest">
+            Sovereign Identity Layer // Replit Purged
           </p>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

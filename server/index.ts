@@ -1,393 +1,127 @@
-/**
- * =============================================================================
- * MEOWSTIC CHAT - SERVER ENTRY POINT
- * =============================================================================
- * 
- * This is the main entry point for the Meowstik backend server.
- * It initializes and configures the Express.js application, sets up
- * middleware, registers API routes, and starts the HTTP server.
- * 
- * SERVER ARCHITECTURE:
- * --------------------
- * The server serves dual purposes:
- * 1. API Server: Handles all /api/* requests for chat operations
- * 2. Static Server: Serves the React frontend (in production mode)
- * 
- * REQUEST FLOW:
- * -------------
- *   Client Request
- *         │
- *         ▼
- *   ┌─────────────────────┐
- *   │   Express Server    │
- *   │   (Port 5000)       │
- *   └─────────────────────┘
- *         │
- *         ├──── /api/* ─────► API Routes (routes.ts)
- *         │                         │
- *         │                         ▼
- *         │                   Storage Layer
- *         │                   (PostgreSQL)
- *         │
- *         └──── /* ─────────► Static Files (React App)
- *                             or Vite Dev Server
- * 
- * ENVIRONMENT MODES:
- * ------------------
- * - Development: Uses Vite dev server with hot module replacement (HMR)
- * - Production: Serves pre-built static files from dist/public
- * 
- * MIDDLEWARE STACK:
- * -----------------
- * 1. JSON body parser (with raw body preservation for webhooks)
- * 2. URL-encoded body parser
- * 3. Request logging middleware (for API requests)
- * 4. API route handlers
- * 5. Error handler
- * 6. Static file server (production) or Vite middleware (development)
- * =============================================================================
- */
-
-// Load environment variables from .env file (for local development)
-import { config } from "dotenv";
-config();
-
+import 'dotenv/config'; 
 import express, { type Request, Response, NextFunction } from "express";
-import { registerRoutes } from "./routes";
-import { serveStatic } from "./static";
+import session from "express-session";
+import { registerRoutes } from "./routes.js"; 
+import { setupVite, serveStatic } from "./vite.js";
 import { createServer } from "http";
-import { initializeFromDatabase } from "./integrations/google-auth";
-import { logBuffer } from "./services/log-buffer";
-import fs from "fs";
-import path from "path";
+import { storage } from "./storage.js";
+import { pool } from "./db.js";
+import authRouter, { setupAuth } from "./routes/auth.js";
+import googleAuthRouter from "./routes/google-auth.js";
+import { WebSocketServer } from "ws";
 
-/**
- * CREATE EXPRESS APPLICATION
- * --------------------------
- * Initialize the Express application instance.
- * This is the core of our server, handling all HTTP requests.
- */
+// --- SONAR: GLOBAL ERROR CATCHERS ---
+process.on('uncaughtException', (err) => {
+  console.error('🔥 [SONAR FATAL] Uncaught Exception:', err);
+});
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('🔥 [SONAR FATAL] Unhandled Rejection:', reason);
+});
+
 const app = express();
 
-/**
- * CREATE HTTP SERVER
- * ------------------
- * Wrap the Express app in a Node.js HTTP server.
- * This allows for more flexibility (e.g., WebSocket upgrades in the future).
- */
-const httpServer = createServer(app);
-
-/**
- * TYPE AUGMENTATION FOR RAW BODY ACCESS
- * --------------------------------------
- * Extends the Node.js IncomingMessage type to include a rawBody property.
- * This is needed for certain integrations (like Stripe webhooks) that
- * require access to the raw, unparsed request body for signature verification.
- */
-declare module "http" {
-  interface IncomingMessage {
-    /**
-     * The raw, unparsed request body buffer
-     * Useful for webhook signature verification
-     */
-    rawBody: unknown;
-  }
-}
-
-/**
- * JSON BODY PARSER MIDDLEWARE
- * ---------------------------
- * Parses incoming JSON request bodies and makes them available on req.body.
- * 
- * The 'verify' callback saves the raw buffer before parsing, which is
- * necessary for webhook signature verification where the exact bytes matter.
- * 
- * SECURITY NOTE: This processes all JSON bodies; size limits are applied
- * by Express's default configuration (100kb limit).
- */
-app.use(
-  express.json({
-    limit: "50mb",
-    verify: (req, _res, buf) => {
-      // Store the raw buffer for later use (e.g., webhook verification)
-      req.rawBody = buf;
-    },
-  }),
-);
-
-/**
- * URL-ENCODED BODY PARSER
- * -----------------------
- * Parses URL-encoded form data (like HTML form submissions).
- * The 'extended: false' option uses the simpler querystring library
- * instead of the qs library, which is sufficient for simple forms.
- */
-app.use(express.urlencoded({ extended: false }));
-
-/**
- * LOGGING UTILITY FUNCTION
- * ------------------------
- * Provides consistent, formatted logging throughout the application.
- * Includes timestamp and source identification for easy debugging.
- * 
- * @param message - The message to log
- * @param source - The component generating the log (default: "express")
- * 
- * OUTPUT FORMAT:
- * HH:MM:SS AM/PM [source] message
- * 
- * @example
- * log("Server started");                    // "10:30:45 AM [express] Server started"
- * log("Query executed", "database");        // "10:30:45 AM [database] Query executed"
- */
-export function log(message: string, source = "express", level: "info" | "warn" | "error" | "debug" = "info") {
-  // Format the current time in 12-hour format with AM/PM
-  const formattedTime = new Date().toLocaleTimeString("en-US", {
-    hour: "numeric",
-    minute: "2-digit",
-    second: "2-digit",
-    hour12: true,
-  });
-
-  // Output with timestamp and source tag
-  console.log(`${formattedTime} [${source}] ${message}`);
-  
-  // Capture to log buffer for debug page
-  logBuffer.add(level, `[${source}] ${message}`);
-}
-
-/**
- * REQUEST LOGGING MIDDLEWARE
- * --------------------------
- * Logs all API requests with method, path, status code, and timing information.
- * Also captures and logs the JSON response body for debugging purposes.
- * 
- * This middleware:
- * 1. Records the request start time
- * 2. Intercepts the res.json() method to capture response data
- * 3. On response finish, logs the complete request details
- * 
- * LOG FORMAT:
- * METHOD /path STATUS in Xms :: {response_body}
- * 
- * EXAMPLE OUTPUT:
- * GET /api/chats 200 in 15ms :: [{"id":"...","title":"..."}]
- * 
- * NOTE: Only logs requests to /api/* paths to avoid cluttering logs
- * with static file requests.
- */
+// --- SONAR: INBOUND REQUEST LOGGER ---
+// This guarantees every single click/refresh is logged to your terminal.
 app.use((req, res, next) => {
-  // Record when the request started for duration calculation
   const start = Date.now();
-  const path = req.path;
-  
-  // Variable to store captured JSON response
-  let capturedJsonResponse: Record<string, any> | undefined = undefined;
-
-  // Intercept res.json() to capture the response body
-  // This technique allows us to log responses without modifying route handlers
-  const originalResJson = res.json;
-  res.json = function (bodyJson, ...args) {
-    capturedJsonResponse = bodyJson;
-    return originalResJson.apply(res, [bodyJson, ...args]);
-  };
-
-  // When the response is complete, log the request details
-  res.on("finish", () => {
-    const duration = Date.now() - start;
-    
-    if (path.startsWith("/api") && path !== "/api/status") {
-      let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
-      
-      const skipBody = path.startsWith("/api/debug") || path.startsWith("/api/speech") || path.match(/\/api\/chats\/[^/]+$/);
-      if (capturedJsonResponse && !skipBody) {
-        logLine += ` :: ${JSON.stringify(capturedJsonResponse).slice(0, 2000)}`;
-      }
-
-      log(logLine);
-    }
+  console.log(`➡️  [REQ] ${req.method} ${req.url}`);
+  res.on('finish', () => {
+    console.log(`⬅️  [RES] ${req.method} ${req.url} - Status: ${res.statusCode} (${Date.now() - start}ms)`);
   });
-
-  // Continue to the next middleware
   next();
 });
 
-/**
- * SERVER INITIALIZATION
- * ---------------------
- * Async IIFE (Immediately Invoked Function Expression) that:
- * 1. Registers all API routes
- * 2. Sets up error handling
- * 3. Configures static file serving (based on environment)
- * 4. Starts the HTTP server on the configured port
- * 
- * Using an async IIFE allows us to use await at the top level
- * while keeping the server startup code organized.
- */
+app.use(express.json());
+app.use(express.urlencoded({ extended: false }));
+
+app.use(session({
+  secret: process.env.SESSION_SECRET || "sovereign_secret",
+  resave: false,
+  saveUninitialized: false,
+  store: storage.sessionStore, // Relies on MemoryStore we set previously
+  name: 'meowstik.sid',
+  cookie: { secure: false, maxAge: 24 * 60 * 60 * 1000 }
+}));
+
+console.log("⏳ [Boot] Setting up Auth...");
+setupAuth(app);
+app.use("/api/auth", authRouter);
+app.use("/api/auth/google", googleAuthRouter);
+
+// Health Check Route (To verify the backend independently)
+app.get("/api/health", (req, res) => {
+  res.json({ status: "alive", message: "Sonar is pinging." });
+});
+
+// Bypass Ignition
+app.get("/api/auth/ignite", async (req, res) => {
+    console.log("🔥 [Ignite] Ignition sequence triggered...");
+    try {
+        const email = process.env.HOME_DEV_EMAIL || "jason@meowstik.local";
+        const user = await storage.getUserByEmail(email);
+        if (user) {
+            console.log(`✅ [Ignite] Found Creator: ${email}. Logging in...`);
+            req.login(user, () => res.redirect("/"));
+        } else {
+             console.log(`⚠️ [Ignite] Creator missing. Auto-creating: ${email}`);
+             const newUser = await storage.createUser({
+                username: "creator",
+                email: email,
+                password: "init",
+                displayName: "Creator",
+                role: "admin",
+                googleId: "dev",
+                avatarUrl: "",
+                googleAccessToken: "",
+                googleRefreshToken: ""
+            });
+            req.login(newUser, () => res.redirect("/"));
+        }
+    } catch (e: any) {
+        console.error("❌ [Ignite] Error:", e);
+        res.status(500).send(`Ignition Failed: ${e.message}`);
+    }
+});
+
 (async () => {
-  /**
-   * INITIALIZE HOME DEV MODE
-   * ------------------------
-   * If HOME_DEV_MODE is enabled, set up auto-authentication for local development.
-   * This must happen before registering routes.
-   */
-  const { initializeHomeDevMode } = await import("./homeDevAuth");
-  await initializeHomeDevMode();
+  console.log("⏳ [Boot] Creating HTTP Server...");
+  const server = createServer(app);
 
-  /**
-   * REGISTER API ROUTES
-   * -------------------
-   * All API endpoints (/api/chats, /api/messages, etc.) are defined in routes.ts.
-   * This separation keeps the main entry point clean and focused on configuration.
-   */
-  await registerRoutes(httpServer, app);
-
-  /**
-   * SETUP LIVE VOICE WEBSOCKET
-   * --------------------------
-   * Initialize WebSocket server for real-time voice conversations.
-   * Handles bidirectional audio streaming with Gemini Live API.
-   */
-  const { setupLiveWebSocket } = await import("./websocket-live");
-  setupLiveWebSocket(httpServer);
-
-  /**
-   * SETUP TWILIO MEDIA STREAM WEBSOCKET
-   * -----------------------------------
-   * Initialize WebSocket server for Twilio Phone integrations.
-   * Handles real-time audio streams from phone calls.
-   */
-  const { setupTwilioWebSocket } = await import("./websocket-twilio");
-  setupTwilioWebSocket(httpServer);
-
-  /**
-   * SETUP AGENT WEBSOCKET
-   * ---------------------
-   * Initialize WebSocket server for local agent connections.
-   * Handles bidirectional communication for browser automation.
-   */
-  const { setupAgentWebSocket } = await import("./routes/agent");
-  setupAgentWebSocket(httpServer);
-
-  /**
-   * SETUP DESKTOP COLLABORATION WEBSOCKET
-   * --------------------------------------
-   * Initialize WebSocket server for AI Desktop Collaboration.
-   * Handles bidirectional screen sharing and input routing.
-   */
-  const { setupDesktopWebSocket } = await import("./websocket-desktop");
-  setupDesktopWebSocket(httpServer);
-
-  /**
-   * SETUP COLLABORATIVE EDITING WEBSOCKET
-   * --------------------------------------
-   * Initialize WebSocket server for real-time collaborative editing.
-   * Handles cursor sync, edit operations, and voice channel integration.
-   */
-  const { setupCollabWebSocket } = await import("./websocket-collab");
-  setupCollabWebSocket(httpServer);
-
-  /**
-   * SETUP TERMINAL WEBSOCKET
-   * -------------------------
-   * Initialize WebSocket server for shared terminal streaming.
-   * Handles real-time output from local and SSH commands.
-   */
-  const { setupTerminalWebSocket } = await import("./websocket-terminal");
-  setupTerminalWebSocket(httpServer);
-
-  /**
-   * INITIALIZE GOOGLE OAUTH TOKENS (NON-BLOCKING)
-   * ----------------------------------------------
-   * Load any persisted Google OAuth tokens from the database.
-   * This is non-blocking to prevent server crash if database is temporarily unavailable.
-   * Tokens will be loaded lazily on first authenticated request if startup load fails.
-   */
-  initializeFromDatabase().catch((error) => {
-    console.warn('Non-blocking: Failed to initialize Google OAuth on startup:', error instanceof Error ? error.message : error);
-  });
-
-  /**
-   * GLOBAL ERROR HANDLER
-   * --------------------
-   * Catches any unhandled errors from route handlers and middleware.
-   * Returns a consistent JSON error response to the client.
-   * 
-   * NOTE: This must be registered AFTER all routes to catch their errors.
-   * 
-   * @param err - The error object (may have status/statusCode and message)
-   * @param _req - The request object (unused but required by Express)
-   * @param res - The response object
-   * @param _next - The next function (unused but required by Express)
-   */
-  app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
-    // Extract status code from error, defaulting to 500 (Internal Server Error)
-    const status = err.status || err.statusCode || 500;
-    const message = err.message || "Internal Server Error";
-
-    // Send JSON error response
-    res.status(status).json({ message });
-    
-    // Re-throw to ensure error is logged/tracked
-    throw err;
-  });
-
-  /**
-   * STATIC WWW DIRECTORY
-   * --------------------
-   * Serve the www/ directory at /www route for static landing pages.
-   * This runs in both development and production modes.
-   */
-  const wwwPath = path.resolve(process.cwd(), "www");
-  if (fs.existsSync(wwwPath)) {
-    app.use("/www", express.static(wwwPath));
+  try {
+    console.log("⏳ [Boot] Registering API Routes...");
+    await registerRoutes(app);
+    console.log("✅ [Boot] API Routes Registered.");
+  } catch (e) {
+    console.error("❌ [Boot] Failed to register routes:", e);
   }
 
-  /**
-   * ENVIRONMENT-SPECIFIC STATIC FILE SERVING
-   * -----------------------------------------
-   * In production: Serve pre-built static files from dist/public
-   * In development: Use Vite's dev server with hot module replacement
-   * 
-   * IMPORTANT: This must be set up AFTER API routes so that /api/* requests
-   * don't get caught by the catch-all static file handler.
-   */
-  if (process.env.NODE_ENV === "production") {
-    // Production: Serve static files from the build output directory
-    serveStatic(app);
+  if (app.get("env") === "development") {
+    console.log("⏳ [Boot] Starting Vite Middleware (This can take 5-10 seconds)...");
+    try {
+      await setupVite(app, server);
+      console.log("✅ [Boot] Vite Middleware Online.");
+    } catch (e) {
+      console.error("❌ [Boot] VITE FAILED TO START. The frontend will be broken.", e);
+    }
   } else {
-    // Development: Use Vite dev server for hot reloading
-    const { setupVite } = await import("./vite");
-    await setupVite(httpServer, app);
+    serveStatic(app);
   }
 
-  /**
-   * START THE HTTP SERVER
-   * ---------------------
-   * Binds the server to the specified port and starts listening for requests.
-   * 
-   * PORT CONFIGURATION:
-   * - Uses PORT environment variable if set
-   * - Falls back to port 5000 (Replit's default)
-   * 
-   * HOST CONFIGURATION:
-   * - Binds to 0.0.0.0 to accept connections from any interface
-   * - This is required for the app to be accessible externally
-   * 
-   * REUSE PORT:
-   * - Enables multiple processes to bind to the same port
-   * - Useful for zero-downtime deployments
-   */
-  const port = parseInt(process.env.PORT || "5000", 10);
-  
-  httpServer.listen(
-    {
-      port,
-      host: "0.0.0.0",      // Accept connections from any interface
-      reusePort: true,       // Allow port reuse for zero-downtime restarts
-    },
-    () => {
-      log(`serving on port ${port}`);
-    },
-  );
+  const PORT = Number(process.env.PORT) || 5000;
+  server.listen(PORT, "0.0.0.0", async () => {
+    console.log(`\n========================================`);
+    console.log(`🚀 MEOWSTIK CORE ONLINE: http://localhost:${PORT}`);
+    console.log(`========================================\n`);
+    
+    // DB Check
+    console.log("⏳ [Boot] Pinging Database...");
+    try {
+        const client = await pool.connect();
+        await client.query('SELECT 1');
+        console.log('✅ [Boot] Database Link Established');
+        client.release();
+    } catch(e: any) {
+        console.error('⚠️  [Boot] Database Link Failed:', e.message);
+    }
+  });
 })();

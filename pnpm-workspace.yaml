@@ -1,19 +1,22 @@
 packages:
-  - "browser-extension"
-  - "desktop-agent"
-  - "desktop-app"
-  - "local-agent"
-  - "workspace/*"
+  - browser-extension
+  - desktop-agent
+  - desktop-app
+  - local-agent
+  - workspace/*
 
 onlyBuiltDependencies:
   - '@firebase/util'
   - '@playwright/browser-chromium'
   - '@playwright/browser-webkit'
   - cpu-features
+  - electron
+  - electron-winstaller
   - es5-ext
   - esbuild
   - keytar
   - node-pty
   - protobufjs
+  - robotjs
   - ssh2
   - tree-sitter-bash

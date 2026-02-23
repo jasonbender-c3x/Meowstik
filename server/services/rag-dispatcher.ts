@@ -40,20 +40,11 @@ import {
   type FileOperation,
   type BinaryFileOperation,
   type AutoexecScript,
-  webSearchParamsSchema,
-  googleSearchParamsSchema,
-  duckduckgoSearchParamsSchema,
-  browserScrapeParamsSchema,
   httpGetParamsSchema,
   httpPostParamsSchema,
   httpPutParamsSchema
 } from "@shared/schema";
-import { webSearch, formatSearchResult } from "../integrations/web-search";
-import { searchWeb } from "../integrations/web-scraper";
-import { browserScrape } from "../integrations/browser-scraper";
 import { httpGet, httpPost, httpPut, type HttpResponse } from "../integrations/http-client";
-import { tavilySearch, tavilyQnA, tavilyDeepResearch } from "../integrations/tavily";
-import { perplexitySearch, perplexityQuickAnswer, perplexityDeepResearch, perplexityNews } from "../integrations/perplexity";
 import * as googleTasks from "../integrations/google-tasks";
 import * as gmail from "../integrations/gmail";
 import * as googleCalendar from "../integrations/google-calendar";
@@ -62,7 +53,6 @@ import * as googleDocs from "../integrations/google-docs";
 import * as googleSheets from "../integrations/google-sheets";
 import * as googleContacts from "../integrations/google-contacts";
 import * as github from "../integrations/github";
-import * as browserbase from "../integrations/browserbase";
 import * as twilio from "../integrations/twilio";
 import * as sshService from "./ssh-service";
 import * as arduino from "../integrations/arduino";

@@ -1,116 +1,87 @@
-/**
- * =============================================================================
- * HOME DEV AUTHENTICATION
- * =============================================================================
- * * This module provides a simplified authentication flow for local development.
- * When HOME_DEV_MODE is enabled, it bypasses the standard Replit OAuth flow
- * and auto-logs in a default developer user.
- * * WARNING: This should ONLY be used on local development machines.
- * NEVER enable HOME_DEV_MODE in production environments.
- * * USAGE:
- * ------
- * Set HOME_DEV_MODE=true in your .env file to enable this mode.
- * The system will automatically create and authenticate a default developer user.
- * * =============================================================================
- */
-
-import { storage } from "./storage";
-import type { User } from "@shared/schema";
+import passport from "passport";
+import { Strategy as CustomStrategy } from "passport-custom";
+import { Strategy as GoogleStrategy } from "passport-google-oauth20";
+import { storage } from "./storage.js";
+import { Request, Response, NextFunction } from "express";
 
 /**
- * Get the developer user configuration from environment
- * Allows customization of the email address via HOME_DEV_EMAIL
+ * [💭 Analysis] 
+ * Sovereign Identity Strategy - Revision 3.6.1
+ * PATH: server/homeDevAuth.ts
+ * * FIX: Added aggressive username fallback to prevent DB constraint errors.
  */
-function getDevUserConfig() {
-  const email = process.env.HOME_DEV_EMAIL || "developer@home.local";
+
+export function isAuthenticated(req: Request, res: Response, next: NextFunction) {
+  if (req.isAuthenticated()) return next();
   
-  // We use the GitHub username 'jasonbender-c3x' as the ID to allow
-  // easy correlation between the dev environment and external scripts/tools.
-  return {
-    id: "jasonbender-c3x",
-    email,
-    firstName: "Jason",
-    lastName: "Bender",
-    profileImageUrl: null,
-  };
-}
-
-/**
- * Check if home dev mode is enabled
- */
-export function isHomeDevMode(): boolean {
-  return process.env.HOME_DEV_MODE === "true" || process.env.HOME_DEV_MODE === "1";
-}
-
-/**
- * Initialize home dev mode by ensuring the default developer user exists
- */
-export async function initializeHomeDevMode(): Promise<void> {
-  if (!isHomeDevMode()) {
-    return;
-  }
-
-  console.log("🏠 [Home Dev Mode] Enabled - Auto-authentication active");
-  console.warn("⚠️  WARNING: HOME_DEV_MODE should ONLY be used on local development machines!");
-
-  try {
-    // Ensure the default developer user exists in the database
-    const devUser = getDevUserConfig();
-    const user = await storage.upsertUser(devUser);
-    
-    console.log(`✅ [Home Dev Mode] Developer user ready: ${user.email} (ID: ${user.id})`);
-  } catch (error: any) {
-    // In dev mode, database connection issues are non-fatal
-    console.error("⚠️  [Home Dev Mode] Could not initialize developer user in database:", error?.message || error);
-    console.error("    The app will continue with in-memory user data.");
-    console.error("    This is normal if running without database access (e.g., in a sandboxed environment).");
+  if (req.accepts("json")) {
+    res.status(401).json({ message: "Unauthorized: Meowstik Identity Required" });
+  } else {
+    res.redirect("/login");
   }
 }
 
-/**
- * Get the default developer user for home dev mode
- */
-export async function getHomeDevUser(): Promise<User> {
-  if (!isHomeDevMode()) {
-    throw new Error("Home dev mode is not enabled");
-  }
+export function setupAuth(app: any) {
+  app.use(passport.initialize());
+  app.use(passport.session());
 
-  const devUser = getDevUserConfig();
-  
-  // First, try to find the user by ID
-  let user = await storage.getUser(devUser.id);
-  
-  // If not found by ID, try finding by Email
-  if (!user) {
-     user = await storage.getUserByEmail(devUser.email);
-  }
-  
-  if (!user) {
-    // If still not user, try upserting
-    user = await storage.upsertUser(devUser);
-  }
-  
-  if (!user) {
-    throw new Error("Failed to create or retrieve home dev user");
-  }
+  passport.serializeUser((user: any, done) => {
+    done(null, user.id);
+  });
 
-  return user;
-}
+  passport.deserializeUser(async (id: number, done) => {
+    try {
+      const user = await storage.getUser(id);
+      done(null, user);
+    } catch (err) {
+      done(err);
+    }
+  });
 
-/**
- * Create a mock user session object for home dev mode
- * This mimics the structure expected by the Replit auth flow
- */
-export function createHomeDevSession() {
-  const email = process.env.HOME_DEV_EMAIL || "developer@home.local";
-  const devConfig = getDevUserConfig();
+  // Sovereign Dev Strategy
+  passport.use("sovereign-dev", new CustomStrategy(async (req, done) => {
+    const devEmail = process.env.HOME_DEV_EMAIL || "jason@meowstik.local";
+    let user = await storage.getUserByEmail(devEmail);
+    if (!user) {
+      user = await storage.createUser({
+        username: "jason_root", // Anchor username
+        email: devEmail,
+        password: "sovereign_bypass_secure",
+        displayName: "Jason (Creator)",
+        role: "admin"
+      });
+    }
+    return done(null, user);
+  }));
 
-  return {
-      sub: devConfig.id,
-      email: email,
-      first_name: devConfig.firstName,
-      last_name: devConfig.lastName,
-      profile_image_url: null,
-      exp: Math.floor(Date.now() / 1000) + (365 * 24 * 60 * 60), // Expires in 1 year
-  };
+  // Google OAuth Strategy
+  if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
+    passport.use(new GoogleStrategy({
+        clientID: process.env.GOOGLE_CLIENT_ID,
+        clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+        callbackURL: process.env.GOOGLE_REDIRECT_URI || "http://localhost:5000/api/auth/google/callback",
+      },
+      async (accessToken, refreshToken, profile, done) => {
+        try {
+          const email = profile.emails?.[0]?.value;
+          if (!email) return done(new Error("No email provided"));
+          let user = await storage.getUserByEmail(email);
+          if (!user) {
+            user = await storage.createUser({
+              username: email.split('@')[0] || `user_${Date.now()}`,
+              email: email,
+              password: "", 
+              displayName: profile.displayName,
+              googleId: profile.id,
+              avatarUrl: profile.photos?.[0]?.value,
+              role: email === process.env.ADMIN_EMAIL ? "admin" : "user"
+            });
+          }
+          return done(null, user);
+        } catch (err) {
+          return done(err);
+        }
+      }
+    ));
+  }
 }
