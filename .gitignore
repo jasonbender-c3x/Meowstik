@@ -16,3 +16,4 @@ test-tokenless-connection.ts
 client/src/pages/debug-old.tsx
 .pythonlibs/
 
+package-lock.json

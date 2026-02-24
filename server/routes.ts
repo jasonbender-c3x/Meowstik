@@ -960,13 +960,22 @@ The user has MUTE mode enabled. Minimize all output.
       // Extract complete sentences from buffer, return remaining incomplete text
       const extractSentences = (buffer: string): { sentences: string[]; remainder: string } => {
         const sentences: string[] = [];
-        // Split on sentence-ending punctuation followed by optional whitespace or end
-        const parts = buffer.split(/([.!?]+[\s\n]*)/);
+        // Split on sentence-ending punctuation, but not on:
+        //   - decimal numbers  (digit . digit)       e.g. "3.14"
+        //   - domain names     (word . word no space) e.g. "example.com"
+        //   - abbreviations    (. followed by lowercase word) e.g. "Dr. smith"
+        // Strategy: scan for [.!?] followed by whitespace-or-end, skip if the
+        // period is between two word/digit characters (decimal/domain) or if
+        // the next non-space char is lowercase (abbreviation continuation).
+        const sentenceEnd = /([!?]+[\s\n]*|\.(?!\d)(?!\s*[a-z])[\s\n]*)/;
+        const parts = buffer.split(sentenceEnd);
         let accumulated = "";
         for (let i = 0; i < parts.length - 1; i += 2) {
           accumulated += parts[i] + (parts[i + 1] || "");
           const trimmed = accumulated.trim();
-          if (trimmed.length > 3) {
+          // Only emit sentences that contain at least one alphanumeric character
+          // to avoid passing punctuation-only fragments to TTS.
+          if (trimmed.length > 0 && /[a-zA-Z0-9]/.test(trimmed)) {
             sentences.push(trimmed);
             accumulated = "";
           }
@@ -978,7 +987,7 @@ The user has MUTE mode enabled. Minimize all output.
           const paraParts = remainder.split('\n\n');
           for (let i = 0; i < paraParts.length - 1; i++) {
             const part = paraParts[i].trim();
-            if (part.length > 3) sentences.push(part);
+            if (part.length > 0 && /[a-zA-Z0-9]/.test(part)) sentences.push(part);
           }
           return { sentences, remainder: paraParts[paraParts.length - 1] };
         }
@@ -1041,7 +1050,7 @@ The user has MUTE mode enabled. Minimize all output.
       }
       
       // Flush remaining TTS buffer after stream ends
-      if (useVoice && ttsSentenceBuffer.trim().length > 3) {
+      if (useVoice && ttsSentenceBuffer.trim().length > 0) {
         await streamTTSSentence(ttsSentenceBuffer.trim());
       }
       
