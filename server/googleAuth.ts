@@ -133,11 +133,11 @@ export async function setupAuth(app: Express) {
 
   try {
     // Determine callback URL based on environment
-    let callbackURL = process.env.GOOGLE_REDIRECT_URI;
+    let callbackURL = (process.env.GOOGLE_REDIRECT_URI || "").trim();
     
     if (!callbackURL) {
       const protocol = process.env.NODE_ENV === "production" ? "https" : "http";
-      const host = process.env.HOST || "localhost:5000";
+      const host = (process.env.HOST || "localhost:5000").trim();
       callbackURL = `${protocol}://${host}/api/auth/google/callback`;
     }
 
@@ -146,9 +146,10 @@ export async function setupAuth(app: Express) {
     passport.use(
       new GoogleStrategy(
         {
-          clientID: process.env.GOOGLE_CLIENT_ID,
-          clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+          clientID: (process.env.GOOGLE_CLIENT_ID || "").trim(),
+          clientSecret: (process.env.GOOGLE_CLIENT_SECRET || "").trim(),
           callbackURL,
+          proxy: true,
         },
         async (accessToken, refreshToken, profile, done) => {
           try {

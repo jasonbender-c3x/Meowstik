@@ -5,9 +5,9 @@ dotenv.config();
 
 async function main() {
   console.log('Script started');
-  const clientId = process.env.GOOGLE_CLIENT_ID;
-  const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
-  const redirectUri = process.env.GOOGLE_REDIRECT_URI || 'http://localhost:5000/api/auth/google/callback';
+  const clientId = (process.env.GOOGLE_CLIENT_ID || '').trim().replace(/\s/g, '');
+  const clientSecret = (process.env.GOOGLE_CLIENT_SECRET || '').trim().replace(/\s/g, '');
+  const redirectUri = (process.env.GOOGLE_REDIRECT_URI || 'http://localhost:5000/api/auth/google/callback').trim().replace(/\s/g, '');
 
   if (!clientId || !clientSecret) {
     console.error('Missing GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET');

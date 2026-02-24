@@ -8,7 +8,7 @@ const code = '4/0AfrIepBCGovTQle9ilVJ-OGPvT82dPirpWm8khIx-jQiVf_jiEXMEgIUNpIPzb_
 async function main() {
   const clientId = process.env.GOOGLE_CLIENT_ID?.trim().replace(/\s/g, '');
   const clientSecret = process.env.GOOGLE_CLIENT_SECRET?.trim().replace(/\s/g, '');
-  const redirectUri = (process.env.GOOGLE_REDIRECT_URI || 'http://localhost:5000/api/auth/google/callback').trim();
+  const redirectUri = (process.env.GOOGLE_REDIRECT_URI || 'http://localhost:5000/api/auth/google/callback').trim().replace(/\s/g, '');
 
   console.log(`Using Client ID: ${clientId}`);
   console.log(`Using Client Secret: ${clientSecret?.substring(0, 10)}...`);

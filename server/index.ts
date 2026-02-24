@@ -43,6 +43,8 @@ app.use(session({
 }));
 
 console.log("⏳ [Boot] Setting up Auth...");
+console.log(`🔑 [Auth] Using Google Client ID: ${process.env.GOOGLE_CLIENT_ID?.substring(0, 10)}...`);
+console.log(`🌐 [Auth] Using Redirect URI: ${process.env.GOOGLE_REDIRECT_URI}`);
 setupAuth(app);
 
 // Health Check Route (To verify the backend independently)

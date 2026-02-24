@@ -80,12 +80,15 @@ export function setupAuth(app: any) {
 
   // Google OAuth Strategy
   if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
-    const callbackURL = process.env.GOOGLE_REDIRECT_URI || "http://localhost:5000/api/auth/google/callback";
+    const rawCallbackURL = process.env.GOOGLE_REDIRECT_URI || "http://localhost:5000/api/auth/google/callback";
+    const callbackURL = rawCallbackURL.trim();
+    
     console.log(`🌐 [Auth] Initializing Google Strategy with Callback: ${callbackURL}`);
     passport.use(new GoogleStrategy({
-        clientID: process.env.GOOGLE_CLIENT_ID,
-        clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+        clientID: process.env.GOOGLE_CLIENT_ID?.trim(),
+        clientSecret: process.env.GOOGLE_CLIENT_SECRET?.trim(),
         callbackURL: callbackURL,
+        proxy: true,
       },
       async (accessToken, refreshToken, profile, done) => {
         try {
