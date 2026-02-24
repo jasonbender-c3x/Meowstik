@@ -705,14 +705,11 @@ export default function Home() {
                     utterance: speechData.utterance || '',
                   });
                   playNextInQueue();
-<<<<<<< HEAD
-=======
                 } else if (speechData.audioGenerated === false && speechData.utterance) {
                   // say tool explicitly failed: always attempt browser TTS so the
                   // utterance is not silently lost, regardless of verbosity mode.
                   console.log("[TTS] say tool reported audioGenerated:false, using browser TTS fallback");
                   speak(speechData.utterance);
->>>>>>> copilot/vscode-mm120b43-q54g
                 } else if (browserTTSPermitted && speechData.utterance) {
                   console.log("[TTS] Falling back to browser TTS for this speech event");
                   speak(speechData.utterance);
@@ -807,9 +804,6 @@ export default function Home() {
                 
                 // Only use browser TTS if NO speech events arrived (no HD audio or streaming TTS)
                 const textToSpeak = cleanContentForTTS || aiMessageContent;
-<<<<<<< HEAD
-                const isRawJson = textToSpeak.trim().startsWith('{') || textToSpeak.trim().startsWith('[');
-=======
                 // Detect content that should not be spoken: raw JSON, XML/thinking tags,
                 // code fences, or content that is entirely punctuation/symbols after stripping.
                 const stripped = textToSpeak.trim();
@@ -819,27 +813,18 @@ export default function Home() {
                   stripped.startsWith('<thinking>') ||
                   stripped.startsWith('```') ||
                   /^[\s\W]+$/.test(stripped);
->>>>>>> copilot/vscode-mm120b43-q54g
                 const browserTTSPermitted = shouldPlayBrowserTTS();
                 
                 console.log('[TTS] Final Stream Check:', {
                   speechEventsReceived,
                   browserTTSPermitted,
-<<<<<<< HEAD
-                  isRawJson,
-=======
                   isNonSpeakable,
->>>>>>> copilot/vscode-mm120b43-q54g
                   textLength: textToSpeak?.length || 0,
                   cleanContentForTTS_Len: cleanContentForTTS?.length || 0,
                   aiMessageContent_Len: aiMessageContent?.length || 0
                 });
 
-<<<<<<< HEAD
-                if (textToSpeak && speechEventsReceived === 0 && browserTTSPermitted && !isRawJson) {
-=======
                 if (textToSpeak && speechEventsReceived === 0 && browserTTSPermitted && !isNonSpeakable) {
->>>>>>> copilot/vscode-mm120b43-q54g
                   console.log('[TTS] No speech events received, triggered full response browser TTS fallback');
                   speak(textToSpeak);
                 } else if (speechEventsReceived > 0) {
