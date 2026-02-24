@@ -74,7 +74,7 @@
     "dotenv": "^16.4.7",
     "drizzle-orm": "^0.39.3",
     "drizzle-zod": "^0.7.0",
-    "electron": "28.3.3",
+    "electron": "35.7.5",
     "electron-builder": "24.13.3",
     "exa-js": "^1.1.2",
     "express": "^4.21.2",
