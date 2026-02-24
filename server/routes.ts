@@ -933,11 +933,21 @@ The user has MUTE mode enabled. Minimize all output.
       const streamTTSSentence = async (sentence: string) => {
         if (!useVoice || !sentence.trim()) return;
         try {
-          const { generateSingleSpeakerAudio, DEFAULT_TTS_VOICE } = await import("./integrations/expressive-tts");
-          const ttsResult = await generateSingleSpeakerAudio(sentence.trim(), DEFAULT_TTS_VOICE, 1);
+          // Determine TTS provider
+          const provider = process.env.TTS_PROVIDER || "google";
+          let ttsResult;
+          
+          if (provider === "elevenlabs" || provider === "11labs") {
+            const { generateSingleSpeakerAudio, DEFAULT_ELEVENLABS_VOICE } = await import("./integrations/elevenlabs-tts");
+            ttsResult = await generateSingleSpeakerAudio(sentence.trim(), DEFAULT_ELEVENLABS_VOICE, 1);
+          } else {
+            const { generateSingleSpeakerAudio, DEFAULT_TTS_VOICE } = await import("./integrations/expressive-tts");
+            ttsResult = await generateSingleSpeakerAudio(sentence.trim(), DEFAULT_TTS_VOICE, 1);
+          }
+
           if (ttsResult.audioBase64) {
             streamingSpeechCount++;
-            console.log(`[Routes][StreamTTS] ✓ Sentence ${streamingSpeechCount} audio generated, length: ${ttsResult.audioBase64.length}`);
+            console.log(`[Routes][StreamTTS] ✓ Sentence ${streamingSpeechCount} audio generated via ${provider}, length: ${ttsResult.audioBase64.length}`);
             res.write(
               `data: ${JSON.stringify({
                 speech: {
@@ -960,13 +970,22 @@ The user has MUTE mode enabled. Minimize all output.
       // Extract complete sentences from buffer, return remaining incomplete text
       const extractSentences = (buffer: string): { sentences: string[]; remainder: string } => {
         const sentences: string[] = [];
-        // Split on sentence-ending punctuation followed by optional whitespace or end
-        const parts = buffer.split(/([.!?]+[\s\n]*)/);
+        // Split on sentence-ending punctuation, but not on:
+        //   - decimal numbers  (digit . digit)       e.g. "3.14"
+        //   - domain names     (word . word no space) e.g. "example.com"
+        //   - abbreviations    (. followed by lowercase word) e.g. "Dr. smith"
+        // Strategy: scan for [.!?] followed by whitespace-or-end, skip if the
+        // period is between two word/digit characters (decimal/domain) or if
+        // the next non-space char is lowercase (abbreviation continuation).
+        const sentenceEnd = /([!?]+[\s\n]*|\.(?!\d)(?!\s*[a-z])[\s\n]*)/;
+        const parts = buffer.split(sentenceEnd);
         let accumulated = "";
         for (let i = 0; i < parts.length - 1; i += 2) {
           accumulated += parts[i] + (parts[i + 1] || "");
           const trimmed = accumulated.trim();
-          if (trimmed.length > 3) {
+          // Only emit sentences that contain at least one alphanumeric character
+          // to avoid passing punctuation-only fragments to TTS.
+          if (trimmed.length > 0 && /[a-zA-Z0-9]/.test(trimmed)) {
             sentences.push(trimmed);
             accumulated = "";
           }
@@ -978,7 +997,7 @@ The user has MUTE mode enabled. Minimize all output.
           const paraParts = remainder.split('\n\n');
           for (let i = 0; i < paraParts.length - 1; i++) {
             const part = paraParts[i].trim();
-            if (part.length > 3) sentences.push(part);
+            if (part.length > 0 && /[a-zA-Z0-9]/.test(part)) sentences.push(part);
           }
           return { sentences, remainder: paraParts[paraParts.length - 1] };
         }
@@ -1041,7 +1060,7 @@ The user has MUTE mode enabled. Minimize all output.
       }
       
       // Flush remaining TTS buffer after stream ends
-      if (useVoice && ttsSentenceBuffer.trim().length > 3) {
+      if (useVoice && ttsSentenceBuffer.trim().length > 0) {
         await streamTTSSentence(ttsSentenceBuffer.trim());
       }
       
@@ -1570,13 +1589,22 @@ The user has MUTE mode enabled. Minimize all output.
       if (useVoice && !sayToolCalled && streamingSpeechCount === 0 && finalContent && finalContent.trim().length > 0) {
         console.log(`[Routes][TTS-Fallback] No streaming TTS or say tool, generating single fallback`);
         try {
-          const { generateSingleSpeakerAudio, DEFAULT_TTS_VOICE } = await import("./integrations/expressive-tts");
+          const provider = process.env.TTS_PROVIDER || "google";
+          let ttsResult;
           const ttsText = finalContent.length > 500 
             ? finalContent.substring(0, 500) + "..."
             : finalContent;
-          const ttsResult = await generateSingleSpeakerAudio(ttsText, DEFAULT_TTS_VOICE);
+
+          if (provider === "elevenlabs" || provider === "11labs") {
+            const { generateSingleSpeakerAudio, DEFAULT_ELEVENLABS_VOICE } = await import("./integrations/elevenlabs-tts");
+            ttsResult = await generateSingleSpeakerAudio(ttsText, DEFAULT_ELEVENLABS_VOICE);
+          } else {
+            const { generateSingleSpeakerAudio, DEFAULT_TTS_VOICE } = await import("./integrations/expressive-tts");
+            ttsResult = await generateSingleSpeakerAudio(ttsText, DEFAULT_TTS_VOICE);
+          }
+
           if (ttsResult.audioBase64) {
-            console.log(`[Routes][TTS-Fallback] ✓ Generated fallback audio, length: ${ttsResult.audioBase64.length}`);
+            console.log(`[Routes][TTS-Fallback] ✓ Generated fallback audio via ${provider}, length: ${ttsResult.audioBase64.length}`);
             res.write(
               `data: ${JSON.stringify({
                 speech: {

@@ -583,9 +583,24 @@ export default function Home() {
       };
 
       // Read the stream until done
+      // Safety: if the server drops the connection without sending "done",
+      // reset the loading state after 30 s of inactivity so the UI doesn't
+      // hang forever.
+      const SSE_INACTIVITY_TIMEOUT_MS = 30_000;
+      let sseTimeoutId: ReturnType<typeof setTimeout> | null = null;
+      const resetSseTimeout = () => {
+        if (sseTimeoutId !== null) clearTimeout(sseTimeoutId);
+        sseTimeoutId = setTimeout(() => {
+          console.warn('[SSE] Inactivity timeout — forcing stream completion');
+          setIsLoading(false);
+        }, SSE_INACTIVITY_TIMEOUT_MS);
+      };
+      resetSseTimeout();
+
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
+        resetSseTimeout();
 
         // Decode bytes to text and add to buffer
         buffer += decoder.decode(value, { stream: true });
@@ -690,6 +705,14 @@ export default function Home() {
                     utterance: speechData.utterance || '',
                   });
                   playNextInQueue();
+<<<<<<< HEAD
+=======
+                } else if (speechData.audioGenerated === false && speechData.utterance) {
+                  // say tool explicitly failed: always attempt browser TTS so the
+                  // utterance is not silently lost, regardless of verbosity mode.
+                  console.log("[TTS] say tool reported audioGenerated:false, using browser TTS fallback");
+                  speak(speechData.utterance);
+>>>>>>> copilot/vscode-mm120b43-q54g
                 } else if (browserTTSPermitted && speechData.utterance) {
                   console.log("[TTS] Falling back to browser TTS for this speech event");
                   speak(speechData.utterance);
@@ -779,23 +802,44 @@ export default function Home() {
               // Step 6: Stream complete - update temp message with real DB message
               if (data.done) {
                 console.log('[SSE] Done event received');
+                if (sseTimeoutId !== null) { clearTimeout(sseTimeoutId); sseTimeoutId = null; }
                 setIsLoading(false);
                 
                 // Only use browser TTS if NO speech events arrived (no HD audio or streaming TTS)
                 const textToSpeak = cleanContentForTTS || aiMessageContent;
+<<<<<<< HEAD
                 const isRawJson = textToSpeak.trim().startsWith('{') || textToSpeak.trim().startsWith('[');
+=======
+                // Detect content that should not be spoken: raw JSON, XML/thinking tags,
+                // code fences, or content that is entirely punctuation/symbols after stripping.
+                const stripped = textToSpeak.trim();
+                const isNonSpeakable =
+                  stripped.startsWith('{') ||
+                  stripped.startsWith('[') ||
+                  stripped.startsWith('<thinking>') ||
+                  stripped.startsWith('```') ||
+                  /^[\s\W]+$/.test(stripped);
+>>>>>>> copilot/vscode-mm120b43-q54g
                 const browserTTSPermitted = shouldPlayBrowserTTS();
                 
                 console.log('[TTS] Final Stream Check:', {
                   speechEventsReceived,
                   browserTTSPermitted,
+<<<<<<< HEAD
                   isRawJson,
+=======
+                  isNonSpeakable,
+>>>>>>> copilot/vscode-mm120b43-q54g
                   textLength: textToSpeak?.length || 0,
                   cleanContentForTTS_Len: cleanContentForTTS?.length || 0,
                   aiMessageContent_Len: aiMessageContent?.length || 0
                 });
 
+<<<<<<< HEAD
                 if (textToSpeak && speechEventsReceived === 0 && browserTTSPermitted && !isRawJson) {
+=======
+                if (textToSpeak && speechEventsReceived === 0 && browserTTSPermitted && !isNonSpeakable) {
+>>>>>>> copilot/vscode-mm120b43-q54g
                   console.log('[TTS] No speech events received, triggered full response browser TTS fallback');
                   speak(textToSpeak);
                 } else if (speechEventsReceived > 0) {
@@ -853,6 +897,7 @@ export default function Home() {
           }
         }
       }
+      if (sseTimeoutId !== null) { clearTimeout(sseTimeoutId); sseTimeoutId = null; }
     } catch (error: any) {
       // Handle abort errors gracefully (user clicked stop)
       if (error.name === 'AbortError') {

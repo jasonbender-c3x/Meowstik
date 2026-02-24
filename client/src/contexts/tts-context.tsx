@@ -44,6 +44,9 @@ const TTSContext = createContext<TTSContextValue | undefined>(undefined);
 
 const TTS_STORAGE_KEY = "meowstic-tts-muted";
 const VERBOSITY_STORAGE_KEY = "meowstik-verbosity-mode";
+// Time to wait after AudioContext.resume() before rechecking state; some browsers
+// complete the state transition asynchronously on the next microtask/tick.
+const AUDIO_CONTEXT_RESUME_DELAY_MS = 50;
 
 export function TTSProvider({ children }: { children: ReactNode }) {
   const [verbosityMode, setVerbosityModeState] = useState<VerbosityMode>(() => {
@@ -92,8 +95,6 @@ export function TTSProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const unlockAudio = useCallback(async () => {
-    if (isAudioUnlocked) return;
-    
     try {
       const ctx = getOrCreateAudioContext();
       if (ctx) {
@@ -113,7 +114,7 @@ export function TTSProvider({ children }: { children: ReactNode }) {
     } catch (err) {
       console.warn("[TTS] Failed to unlock audio:", err);
     }
-  }, [isAudioUnlocked, getOrCreateAudioContext]);
+  }, [getOrCreateAudioContext]);
 
   const playAudioBase64 = useCallback(async (base64: string, mimeType?: string): Promise<boolean> => {
     try {
@@ -123,10 +124,15 @@ export function TTSProvider({ children }: { children: ReactNode }) {
         return false;
       }
       if (ctx.state === 'suspended') {
-        try { await ctx.resume(); } catch {}
+        try {
+          await ctx.resume();
+          // Some browsers complete resume() asynchronously; wait one tick
+          // to allow the state transition to propagate before checking.
+          await new Promise<void>(resolve => setTimeout(resolve, AUDIO_CONTEXT_RESUME_DELAY_MS));
+        } catch {}
       }
       if (ctx.state !== 'running') {
-        console.warn("[TTS] AudioContext not running, state:", ctx.state);
+        console.warn("[TTS] AudioContext not running after resume, state:", ctx.state);
         return false;
       }
       

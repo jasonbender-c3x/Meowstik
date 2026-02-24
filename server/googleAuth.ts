@@ -8,8 +8,8 @@ import { Strategy as GoogleStrategy } from "passport-google-oauth20";
 import session from "express-session";
 import type { Express, RequestHandler } from "express";
 import connectPg from "connect-pg-simple";
-import { storage } from "./storage";
-import { isHomeDevMode, getHomeDevUser } from "./homeDevAuth";
+import { storage } from "./storage.js";
+import { isHomeDevMode, getHomeDevUser } from "./homeDevAuth.js";
 import csurf from "csurf";
 
 // Session duration: 1 week (in milliseconds)
