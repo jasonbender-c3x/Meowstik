@@ -20,6 +20,19 @@ authRouter.get("/user", (req, res) => {
   res.status(401).json({ message: "Not authenticated" });
 });
 
+authRouter.get("/google", passport.authenticate("google", { 
+  scope: ["profile", "email"],
+  prompt: "select_account"
+}));
+
+authRouter.get(
+  "/google/callback",
+  passport.authenticate("google", { failureRedirect: "/login" }),
+  (req, res) => {
+    res.redirect("/");
+  }
+);
+
 authRouter.post("/dev-login", passport.authenticate("sovereign-dev"), (req, res) => {
     res.json(req.user);
 });

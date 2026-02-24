@@ -1,4 +1,4 @@
-import 'dotenv/config'; 
+import './load-env.js'; 
 import express, { type Request, Response, NextFunction } from "express";
 import session from "express-session";
 import { registerRoutes } from "./routes.js"; 
@@ -6,8 +6,7 @@ import { setupVite, serveStatic } from "./vite.js";
 import { createServer } from "http";
 import { storage } from "./storage.js";
 import { pool } from "./db.js";
-import authRouter, { setupAuth } from "./routes/auth.js";
-import googleAuthRouter from "./routes/google-auth.js";
+import { setupAuth } from "./routes/auth.js";
 import { WebSocketServer } from "ws";
 
 // --- SONAR: GLOBAL ERROR CATCHERS ---
@@ -44,9 +43,9 @@ app.use(session({
 }));
 
 console.log("⏳ [Boot] Setting up Auth...");
+console.log(`🔑 [Auth] Using Google Client ID: ${process.env.GOOGLE_CLIENT_ID?.substring(0, 10)}...`);
+console.log(`🌐 [Auth] Using Redirect URI: ${process.env.GOOGLE_REDIRECT_URI}`);
 setupAuth(app);
-app.use("/api/auth", authRouter);
-app.use("/api/auth/google", googleAuthRouter);
 
 // Health Check Route (To verify the backend independently)
 app.get("/api/health", (req, res) => {

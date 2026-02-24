@@ -214,7 +214,7 @@ export default function ProposalDesktopCollaborationPage() {
                     <p className="text-sm text-muted-foreground">
                       Both user and AI can send input events. Control modes (User/Shared/AI) determine whose 
                       inputs are accepted. The relay routes events to the agent, which injects them as real 
-                      mouse/keyboard actions using robotjs.
+                      mouse/keyboard actions using nut.js.
                     </p>
                   </div>
                 </CardContent>
@@ -265,7 +265,7 @@ export default function ProposalDesktopCollaborationPage() {
               { status: "current", label: "Wire WebSocket endpoints into Express routes" },
               { status: "pending", label: "Integrate noVNC viewer for headless browser" },
               { status: "pending", label: "Complete screen capture with screenshot-desktop" },
-              { status: "pending", label: "Add robotjs input injection" },
+              { status: "pending", label: "Add nut.js input injection" },
               { status: "pending", label: "Implement Gemini Vision fan-out" },
               { status: "pending", label: "Add bidirectional audio pipeline" },
               { status: "pending", label: "Polish control handoff UX" },

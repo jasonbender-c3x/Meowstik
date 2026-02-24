@@ -12,7 +12,7 @@ import musicRouter from "./music";
 import imageRouter from "./image";
 import pythonRouter from "./python";
 import playwrightRouter from "./playwright";
-import webScraperRouter from "./web-scraper";
+// import webScraperRouter from "./web-scraper";
 import knowledgeIngestionRouter from "./knowledge-ingestion";
 import statusRouter from "./status";
 import feedbackRouter from "./feedback";
@@ -54,7 +54,7 @@ export function createApiRouter(): Router {
   router.use("/image", imageRouter);
   router.use("/python", pythonRouter);
   router.use("/playwright", playwrightRouter);
-  router.use("/web", webScraperRouter);
+  // router.use("/web", webScraperRouter);
   router.use("/knowledge", knowledgeIngestionRouter);
   router.use("/status", statusRouter);
   router.use("/feedback", feedbackRouter);

@@ -22,6 +22,7 @@
   "author": "Meowstik",
   "license": "MIT",
   "dependencies": {
+    "@nut-tree-fork/nut-js": "^4.2.6",
     "commander": "^11.1.0",
     "pnpm": "^10.28.2",
     "robotjs": "^0.6.0",

@@ -158,7 +158,7 @@ function generateApiStack() {
     // Browser/Agents
     "Playwright": "https://playwright.dev/docs/intro",
     "Puppeteer": "https://pptr.dev/",
-    "RobotJS": "http://robotjs.io/docs/syntax",
+    "nut.js": "https://nutjs.dev/",
     
     // Utils
     "Zod": "https://zod.dev/",

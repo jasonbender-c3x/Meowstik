@@ -27,30 +27,31 @@ let initialized = false;
 let initializationPromise: Promise<void> | null = null;
 
 function getRedirectUri(): string {
+  // 1. Explicit environment variable always takes precedence
+  if (process.env.GOOGLE_REDIRECT_URI) {
+    const uri = process.env.GOOGLE_REDIRECT_URI.trim();
+    console.log('[Google OAuth] Using explicit GOOGLE_REDIRECT_URI:', uri);
+    return uri;
+  }
+
   let host: string;
   
-  // In development mode, always use dynamic detection
+  // 2. Dynamic detection (legacy / specialized environments)
   const isDevMode = process.env.HOME_DEV_MODE === 'true' || process.env.NODE_ENV === 'development';
   
   if (process.env.REPLIT_DEV_DOMAIN) {
-    // Development environment - always use dev domain
     host = `https://${process.env.REPLIT_DEV_DOMAIN}`;
-  } else if (!isDevMode && process.env.GOOGLE_REDIRECT_URI) {
-    // Production: use configured redirect URI
-    return process.env.GOOGLE_REDIRECT_URI;
   } else if (process.env.REPLIT_DOMAINS) {
-    // Production deployment - use first domain from comma-separated list
     const domains = process.env.REPLIT_DOMAINS.split(',');
     host = `https://${domains[0]}`;
   } else if (process.env.REPL_SLUG && process.env.REPL_OWNER) {
-    // Fallback to replit.app format
     host = `https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER.toLowerCase()}.replit.app`;
   } else {
     host = 'http://localhost:5000';
   }
   
   const redirectUri = `${host}/api/auth/google/callback`;
-  console.log('[Google OAuth] Using redirect URI:', redirectUri);
+  console.log('[Google OAuth] Using detected redirect URI:', redirectUri);
   return redirectUri;
 }
 

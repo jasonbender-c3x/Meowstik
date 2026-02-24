@@ -53,7 +53,7 @@ These are independent applications that connect to the Server to receive instruc
 
 *   **`desktop-agent/`** *(Node.js)*:
     *   **Role**: Full OS control.
-    *   **Capabilities**: Screen recording, mouse injection (`robotjs`), global keyboard shortcuts.
+    *   **Capabilities**: Screen recording, mouse/keyboard injection (`@nut-tree-fork/nut-js`), global keyboard shortcuts.
     *   **Use Case**: "Watch me fix this bug in VS Code" or "Click that button for me."
 *   **`browser-extension/`** *(Chrome Extension)*:
     *   **Role**: Context-aware browser companion.
@@ -112,6 +112,7 @@ Since there are many moving parts, the standard dev loop focuses on the Core:
 *   **Browserless System**: [BROWSERLESS_README.md](BROWSERLESS_README.md)
 *   **SSH / Operating System**: [CHIMERA_PHASE1_COMPLETE.md](CHIMERA_PHASE1_COMPLETE.md)
 *   **Desktop Hardware**: [HARDWARE_IMPLEMENTATION_SUMMARY.md](HARDWARE_IMPLEMENTATION_SUMMARY.md)
+*   **GitHub Copilot MCP Setup**: [docs/copilot/GITHUB_MCP_SETUP.md](docs/copilot/GITHUB_MCP_SETUP.md)
 
 ---
 

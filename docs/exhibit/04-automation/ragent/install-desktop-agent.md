@@ -24,7 +24,7 @@ Perfect for [Mode B: 2-Way Real-Time](./collaborative-editing.md#mode-b-2-way-re
 | **Node.js** | Version 18 or higher |
 | **OS** | Windows 10+, macOS 10.15+, or Linux |
 | **Network** | Internet connection to Meowstik server |
-| **Build Tools** | Required for robotjs (see below) |
+| **Build Tools** | Required for nut.js (see below) |
 
 ---
 
@@ -55,15 +55,11 @@ npx meowstik-agent --token YOUR_TOKEN --server wss://your-app.replit.app
 
 ## Build Tool Requirements
 
-The agent uses `robotjs` for input injection, which requires native compilation.
+The agent uses `@nut-tree-fork/nut-js` for input injection, which requires native compilation.
 
 ### Windows
 
-```bash
-npm install --global windows-build-tools
-```
-
-Or install Visual Studio Build Tools manually.
+Install Visual C++ Build Tools from [Visual Studio Downloads](https://visualstudio.microsoft.com/downloads/).
 
 ### macOS
 

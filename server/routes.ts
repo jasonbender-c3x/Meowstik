@@ -1,24 +1,30 @@
 import { type Express } from "express";
 import { createServer, type Server } from "http";
-import authRouter, { setupAuth } from "./routes/auth.js";
-import googleAuthRouter from "./routes/google-auth.js";
-import twilioRouter from "./routes/twilio.js";
+import { setupAuth } from "./routes/auth.js";
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import { createApiRouter } from "./routes/index.js";
+
+/**
+ * [💭 Analysis] 
+ * Sovereign Route Dispatcher - System Revision 3.6.0
+ * PATH: server/routes.ts
+ * FIX: Resolved catastrophic merge conflict.
+ * FIX: Unified modular routes under /api via createApiRouter.
+ */
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // 1. Auth Setup
+  // 1. Auth Setup (Ensures session & passport are ready)
   if (typeof setupAuth === 'function') {
     setupAuth(app);
   }
 
-  // 2. Core Routes
-  app.use("/api/auth", authRouter);
-  app.use("/api/auth/google", googleAuthRouter);
-  app.use("/api/twilio", twilioRouter);
+  // 2. Modular API Routes (The bulk of the system)
+  // This includes /api/auth, /api/twilio, /api/agent, etc.
+  app.use("/api", createApiRouter());
 
-  // 3. INLINE CHAT BRAIN
+  // 3. INLINE CHAT BRAIN (Legacy/Direct interface)
   app.post("/api/chats", async (req, res) => {
-    console.log(`🧠 [Chat] Received payload.`);
+    console.log(`🧠 [Chat] Received request.`);
     try {
       let msg = req.body.message || req.body.content || req.body.text;
       
@@ -35,7 +41,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-      const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+      const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
       
       const result = await model.generateContent(msg);
       res.json({ role: "model", content: result.response.text() });
@@ -45,12 +51,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ error: error.message });
     }
   });
-  console.log(`🧠 [Route] CHAT BRAIN ONLINE AT /api/chats`);
 
-  // 4. Status
-  app.get("/api/status", (req, res) => {
-     res.json({ status: "online", agent: "Meowstik" });
-  });
+  console.log(`🧠 [System] Routes Registered Successfully.`);
 
   return createServer(app);
 }
