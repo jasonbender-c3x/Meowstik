@@ -43,7 +43,7 @@ export async function generateImage(options: ImageGenerationOptions): Promise<Ge
 
   try {
     const response = await ai.models.generateContent({
-      model: "gemini-2.0-flash-preview-image-generation",
+      model: "gemini-3-flash-preview-preview-image-generation",
       contents: [{ role: "user", parts: [{ text: fullPrompt + aspectRatioInstruction }] }],
       config: {
         responseModalities: [Modality.TEXT, Modality.IMAGE],
@@ -92,7 +92,7 @@ export async function generateImage(options: ImageGenerationOptions): Promise<Ge
       style,
       aspectRatio
     }, {
-      model: "gemini-2.0-flash-preview-image-generation"
+      model: "gemini-3-flash-preview-preview-image-generation"
     });
     
     throw new Error(`Failed to generate image: ${error instanceof Error ? error.message : String(error)}`);
@@ -106,7 +106,7 @@ export async function editImageWithPrompt(
 ): Promise<GeneratedImage> {
   try {
     const response = await ai.models.generateContent({
-      model: "gemini-2.0-flash-preview-image-generation",
+      model: "gemini-3-flash-preview-preview-image-generation",
       contents: [
         {
           role: "user",
@@ -167,7 +167,7 @@ export async function editImageWithPrompt(
       promptLength: editPrompt.length,
       imageMimeType: mimeType
     }, {
-      model: "gemini-2.0-flash-preview-image-generation"
+      model: "gemini-3-flash-preview-preview-image-generation"
     });
     
     throw new Error(`Failed to edit image: ${error instanceof Error ? error.message : String(error)}`);

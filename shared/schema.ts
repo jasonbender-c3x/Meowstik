@@ -85,15 +85,20 @@ export const sessions = pgTable(
  */
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  email: varchar("email").unique(),
-  firstName: varchar("first_name"),
-  lastName: varchar("last_name"),
-  profileImageUrl: varchar("profile_image_url"),
+  username: text("username").unique(),
+  email: varchar("email").unique().notNull(),
+  password: text("password"),
+  displayName: varchar("display_name"),
+  role: varchar("role").default("user"),
+  googleId: text("google_id"),
+  avatarUrl: text("avatar_url"),
+  googleAccessToken: text("google_access_token"),
+  googleRefreshToken: text("google_refresh_token"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
-export type UpsertUser = typeof users.$inferInsert;
+export type InsertUser = typeof users.$inferInsert;
 export type User = typeof users.$inferSelect;
 
 /**
@@ -638,7 +643,7 @@ export const llmUsage = pgTable("llm_usage", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   chatId: varchar("chat_id").references(() => chats.id, { onDelete: "cascade" }),
   messageId: varchar("message_id").references(() => messages.id, { onDelete: "cascade" }),
-  model: text("model").notNull(), // e.g., "gemini-2.0-flash-exp"
+  model: text("model").notNull(), // e.g., "gemini-3-flash-preview-exp"
   promptTokens: integer("prompt_tokens").notNull(), // Input tokens
   completionTokens: integer("completion_tokens").notNull(), // Output tokens
   totalTokens: integer("total_tokens").notNull(), // Total tokens
@@ -3097,7 +3102,7 @@ export const llmInteractions = pgTable("llm_interactions", {
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   
   /**
-   * Model used for this interaction (e.g., "gemini-2.0-flash", "gemini-2.5-pro")
+   * Model used for this interaction (e.g., "gemini-3-flash-preview", "gemini-2.5-pro")
    */
   model: varchar("model", { length: 100 }),
   

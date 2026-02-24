@@ -10,10 +10,16 @@ import {
   type UserBranding,
   DEFAULT_AGENT_NAME,
   DEFAULT_DISPLAY_NAME,
-  DEFAULT_BRAND_COLOR
+  DEFAULT_BRAND_COLOR,
+  chats,
+  messages,
+  type Chat,
+  type Message,
+  type InsertChat,
+  type InsertMessage
 } from "@shared/schema";
 import { db, pool } from "./db";
-import { eq } from "drizzle-orm";
+import { eq, desc } from "drizzle-orm";
 import session from "express-session";
 
 export class DatabaseStorage {
@@ -23,6 +29,7 @@ export class DatabaseStorage {
     this.sessionStore = new session.MemoryStore(); 
   }
 
+  // User Operations
   async getUser(id: number | string): Promise<User | undefined> {
     try {
       const [user] = await db.select().from(users).where(eq(users.id, id.toString()));
@@ -56,6 +63,36 @@ export class DatabaseStorage {
     }
     const [newUser] = await db.insert(users).values(user).returning();
     return newUser;
+  }
+
+  // Chat Operations
+  async createChat(insertChat: InsertChat): Promise<Chat> {
+    const [chat] = await db.insert(chats).values(insertChat).returning();
+    return chat;
+  }
+
+  async getChat(id: string): Promise<Chat | undefined> {
+    const [chat] = await db.select().from(chats).where(eq(chats.id, id));
+    return chat;
+  }
+
+  async getChats(userId?: string): Promise<Chat[]> {
+    if (userId) {
+      return await db.select().from(chats).where(eq(chats.userId, userId)).orderBy(desc(chats.updatedAt));
+    }
+    return await db.select().from(chats).orderBy(desc(chats.updatedAt));
+  }
+
+  // Message Operations
+  async addMessage(insertMessage: InsertMessage): Promise<Message> {
+    const [message] = await db.insert(messages).values(insertMessage).returning();
+    // Update chat timestamp
+    await db.update(chats).set({ updatedAt: new Date() }).where(eq(chats.id, insertMessage.chatId));
+    return message;
+  }
+
+  async getMessages(chatId: string): Promise<Message[]> {
+    return await db.select().from(messages).where(eq(messages.chatId, chatId)).orderBy(messages.createdAt);
   }
 
   // Google OAuth Tokens
@@ -96,7 +133,6 @@ export class DatabaseStorage {
   async getUserBrandingOrDefault(userId: string): Promise<UserBranding> {
     try {
       const [branding] = await db.select().from(userBranding).where(eq(userBranding.userId, userId));
-      
       if (branding) return branding;
 
       // Return defaults if no custom branding found
@@ -122,7 +158,6 @@ export class DatabaseStorage {
   async upsertUserBranding(branding: InsertUserBranding): Promise<UserBranding> {
     try {
       const [existing] = await db.select().from(userBranding).where(eq(userBranding.userId, branding.userId));
-      
       if (existing) {
         const [updated] = await db.update(userBranding)
           .set({ ...branding, updatedAt: new Date() })

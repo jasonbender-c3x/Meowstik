@@ -235,7 +235,7 @@ Bucket definitions:
 - PROJECTS: Specific project work, tasks, deadlines`;
 
       const result = await genAI.models.generateContent({
-        model: 'gemini-2.0-flash-lite',
+        model: 'gemini-3-flash-preview-lite',
         contents: prompt,
       });
       const responseText = result.text || '';

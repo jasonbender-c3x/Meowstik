@@ -117,7 +117,7 @@ Respond with JSON only:
   "entities": [...]
 }`;
 
-const result = await genAI.models.generateContent({ model: 'gemini-2.0-flash-lite', contents: prompt });
+const result = await genAI.models.generateContent({ model: 'gemini-3-flash-preview-lite', contents: prompt });
 ```
 
 ```typescript

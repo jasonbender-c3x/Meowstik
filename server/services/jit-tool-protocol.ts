@@ -328,7 +328,7 @@ Categories: ${categoryList}
 JSON only: {"categories": ["cat1"], "confidence": 0.9, "reasoning": "brief"}`;
 
     const response = await this.ai.models.generateContent({
-      model: "gemini-2.0-flash-lite",
+      model: "gemini-3-flash-preview-lite",
       contents: [{ role: "user", parts: [{ text: prompt }] }],
       config: { temperature: 0.1, maxOutputTokens: 100 },
     });

@@ -126,7 +126,7 @@ export async function generateMusic(params: MusicGenerationParams): Promise<Musi
 Format this as a professional music production brief.`;
     
     const response = await client.models.generateContent({
-      model: "gemini-2.5-flash",
+      model: "gemini-3-flash-preview",
       config: {
         systemInstruction,
       },

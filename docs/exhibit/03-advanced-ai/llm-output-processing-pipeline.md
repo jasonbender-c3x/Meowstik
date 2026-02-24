@@ -111,7 +111,7 @@ const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
 
 // Call with streaming
 const result = await genAI.models.generateContentStream({
-  model: "gemini-2.0-flash-exp",
+  model: "gemini-3-flash-preview-exp",
   config: {
     systemInstruction: composedPrompt.systemPrompt,  // Contains tool definitions
   },

@@ -398,7 +398,7 @@ export const llmUsage = pgTable("llm_usage", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   chatId: varchar("chat_id").references(() => chats.id, { onDelete: "cascade" }),
   messageId: varchar("message_id").references(() => messages.id, { onDelete: "cascade" }),
-  model: text("model").notNull(), // e.g., "gemini-2.0-flash-exp"
+  model: text("model").notNull(), // e.g., "gemini-3-flash-preview-exp"
   promptTokens: integer("prompt_tokens").notNull(), // Input tokens
   completionTokens: integer("completion_tokens").notNull(), // Output tokens
   totalTokens: integer("total_tokens").notNull(), // Total tokens
@@ -415,7 +415,7 @@ export const llmUsage = pgTable("llm_usage", {
 | `id` | VARCHAR (UUID) | Primary key |
 | `chatId` | VARCHAR | Reference to the chat |
 | `messageId` | VARCHAR | Reference to the message |
-| `model` | TEXT | LLM model used (e.g., "gemini-2.0-flash-exp") |
+| `model` | TEXT | LLM model used (e.g., "gemini-3-flash-preview-exp") |
 | `promptTokens` | INTEGER | Number of input tokens |
 | `completionTokens` | INTEGER | Number of output tokens |
 | `totalTokens` | INTEGER | Total tokens (input + output) |

@@ -65,7 +65,7 @@ User Message → WebSocket Connection → Gemini Live API
 
 ### Model
 
-**Primary**: `gemini-2.5-flash-native-audio-preview-09-2025`
+**Primary**: `gemini-3-flash-preview-native-audio-preview-09-2025`
 
 This "native audio" model generates speech directly from internal state, producing more expressive and human-like voices compared to text-to-speech cascade models.
 
@@ -102,7 +102,7 @@ export async function createLiveSession(sessionId: string): Promise<void> {
   };
   
   const session = await ai.live.connect(
-    'gemini-2.5-flash-native-audio-preview-09-2025',
+    'gemini-3-flash-preview-native-audio-preview-09-2025',
     config
   );
   

@@ -23,8 +23,8 @@ const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
 
 // Computer Use model - the official Gemini model with built-in desktop control capabilities
 // Supports Gemini 2.0/2.5/3.0 models with computer use capabilities
-const COMPUTER_USE_MODEL = process.env.COMPUTER_USE_MODEL || "gemini-2.0-flash-exp";
-// Options: gemini-2.0-flash-exp, gemini-2.5-flash, gemini-3.0-flash-preview
+const COMPUTER_USE_MODEL = process.env.COMPUTER_USE_MODEL || "gemini-3-flash-preview-exp";
+// Options: gemini-3-flash-preview-exp, gemini-3-flash-preview, gemini-3-flash-preview
 
 /**
  * Gemini Computer Use Tool Declarations
@@ -183,7 +183,7 @@ Respond in JSON format:
 
     try {
       const result = await genAI.models.generateContent({
-        model: "gemini-2.0-flash-exp",
+        model: "gemini-3-flash-preview-exp",
         contents: [
           {
             role: "user",
@@ -265,7 +265,7 @@ Keep the plan minimal - just the immediate next steps. We can reanalyze after ea
 
     try {
       const result = await genAI.models.generateContent({
-        model: "gemini-2.0-flash-exp",
+        model: "gemini-3-flash-preview-exp",
         contents: [
           {
             role: "user",
@@ -645,7 +645,7 @@ Respond in JSON:
 
     try {
       const result = await genAI.models.generateContent({
-        model: "gemini-2.0-flash-exp",
+        model: "gemini-3-flash-preview-exp",
         contents: [
           {
             role: "user",
@@ -711,7 +711,7 @@ Respond in JSON:
 
     try {
       const result = await genAI.models.generateContent({
-        model: "gemini-2.0-flash-exp",
+        model: "gemini-3-flash-preview-exp",
         contents: [
           {
             role: "user",

@@ -222,7 +222,7 @@ If the Web Speech API fails or for audio file transcription, the backend Speech 
 export class SpeechService {
   async transcribe(request: TranscriptionRequest): Promise<TranscriptionResponse> {
     const response = await this.genAI.models.generateContent({
-      model: "gemini-2.5-flash",
+      model: "gemini-3-flash-preview",
       contents: [{
         role: "user",
         parts: [
@@ -324,7 +324,7 @@ The composed prompt is sent to Google's Gemini model:
 
 ```typescript
 const response = await genAI.models.generateContent({
-  model: "gemini-2.5-flash",
+  model: "gemini-3-flash-preview",
   contents: [
     {
       role: "user",

@@ -15,8 +15,8 @@
  * - Transcript streaming alongside audio
  * 
  * Models:
- * - Gemini 2.5: gemini-2.5-flash-native-audio-preview-12-2025 (audio only)
- * - Gemini 3.0: gemini-3.0-flash-preview (audio + video streaming)
+ * - Gemini 2.5: gemini-3-flash-preview-native-audio-preview-12-2025 (audio only)
+ * - Gemini 3.0: gemini-3-flash-preview (audio + video streaming)
  * Audio Format: 16-bit PCM, 16kHz input / 24kHz output
  * Video Format: JPEG frames at 1 FPS (Gemini 3.0 only)
  */
@@ -125,8 +125,8 @@ Use these tools to help the user accomplish tasks hands-free through voice comma
 
     // Select model based on configuration
     const modelName = config.useGemini3 
-      ? "gemini-3.0-flash-preview" 
-      : "gemini-2.5-flash-native-audio-preview-12-2025";
+      ? "gemini-3-flash-preview" 
+      : "gemini-3-flash-preview-native-audio-preview-12-2025";
 
     const session = await (ai as any).live.connect({
       model: modelName,

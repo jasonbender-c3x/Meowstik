@@ -9,7 +9,7 @@ const DEFAULT_AGENT_NAME = "Meowstik";
 const DEFAULT_DISPLAY_NAME = "Meowstik AI";
 
 interface ComposerOptions {
-  userId?: number;
+  userId?: string;
   agentId?: string; // e.g. "coder", "researcher"
   contextWindow?: number;
 }

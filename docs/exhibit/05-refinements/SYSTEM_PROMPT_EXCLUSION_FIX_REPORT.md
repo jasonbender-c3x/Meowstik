@@ -68,7 +68,7 @@ const systemInstruction = `You are analyzing a screenshot of a web page. Identif
 ...`;
 
 const result = await genAI.models.generateContent({
-  model: "gemini-2.0-flash-exp",
+  model: "gemini-3-flash-preview-exp",
   config: { systemInstruction },
   contents: [{
     role: "user",
@@ -108,7 +108,7 @@ contents: [{
 const systemInstruction = `You are a professional music producer. Create a detailed production plan...`;
 
 const response = await client.models.generateContent({
-  model: "gemini-2.5-flash",
+  model: "gemini-3-flash-preview",
   config: { systemInstruction },
   contents: [{
     role: "user",
@@ -313,7 +313,7 @@ import { validateLLMCall } from './server/utils/llm-call-validator';
 
 // Define your LLM call
 const config = {
-  model: "gemini-2.0-flash",
+  model: "gemini-3-flash-preview",
   config: {
     systemInstruction: "Your system instructions here"
   },

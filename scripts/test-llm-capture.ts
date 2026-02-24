@@ -39,7 +39,7 @@ async function testLLMCapture() {
     parsedToolCalls: [],
     cleanContent: 'I am doing well, thank you!',
     toolResults: [],
-    model: 'gemini-2.0-flash',
+    model: 'gemini-3-flash-preview',
     durationMs: 1500,
   };
   

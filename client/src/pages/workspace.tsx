@@ -243,27 +243,42 @@ export default function WorkspacePage() {
 
       const decoder = new TextDecoder();
       let fullContent = "";
+      let buffer = "";
 
       while (true) {
         const { done, value } = await reader.read();
-        if (done) break;
+        if (done) {
+          console.log("✅ [SSE] Stream complete");
+          break;
+        }
 
-        const chunk = decoder.decode(value, { stream: true });
-        const lines = chunk.split("\n");
+        const chunkStr = decoder.decode(value, { stream: true });
+        console.log("📥 [SSE] Raw Chunk:", chunkStr);
+        buffer += chunkStr;
+        const lines = buffer.split("\n");
+        buffer = lines.pop() || "";
 
         for (const line of lines) {
-          if (line.startsWith("data: ")) {
-            const data = line.slice(6);
+          const trimmedLine = line.trim();
+          if (!trimmedLine) continue;
+          
+          if (trimmedLine.startsWith("data: ")) {
+            const data = trimmedLine.slice(6);
             if (data === "[DONE]") continue;
             try {
               const parsed = JSON.parse(data);
               if (parsed.text) {
                 fullContent += parsed.text;
+                // Update the state with the incremental content
                 setMessages(prev => prev.map(m => 
                   m.id === aiMessage.id ? { ...m, content: fullContent } : m
                 ));
               }
-            } catch {}
+            } catch (err) {
+              console.error("❌ [SSE] Parse Error:", err, "Line:", trimmedLine);
+            }
+          } else {
+             console.warn("⚠️ [SSE] Line doesn't start with 'data: ':", trimmedLine);
           }
         }
       }

@@ -144,7 +144,7 @@ export class SpeechService {
         : `Transcribe this audio exactly as spoken. Output only the transcribed text, nothing else.`;
 
       const response = await this.genAI.models.generateContent({
-        model: "gemini-2.5-flash",
+        model: "gemini-3-flash-preview",
         contents: [{
           role: "user",
           parts: [

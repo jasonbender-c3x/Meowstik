@@ -178,7 +178,7 @@ async function analyzeScreenshot(data: { screenshot: string; url: string; title:
 Be concise but informative.`;
 
   const result = await genAI.models.generateContent({
-    model: "gemini-2.0-flash-exp",
+    model: "gemini-3-flash-preview-exp",
     config: {
       systemInstruction,
     },
@@ -229,7 +229,7 @@ async function analyzeConsoleLogs(data: { logs: any[]; url: string }) {
 Be concise and actionable.`;
 
   const result = await genAI.models.generateContent({
-    model: "gemini-2.0-flash-exp",
+    model: "gemini-3-flash-preview-exp",
     config: {
       systemInstruction,
     },
@@ -282,7 +282,7 @@ async function analyzeNetworkRequests(data: { requests: any[]; url: string }) {
 Be concise and actionable.`;
 
   const result = await genAI.models.generateContent({
-    model: "gemini-2.0-flash-exp",
+    model: "gemini-3-flash-preview-exp",
     config: {
       systemInstruction,
     },
@@ -329,7 +329,7 @@ async function analyzePageContent(data: { content: any; url: string; title: stri
 Be concise but helpful.`;
 
   const result = await genAI.models.generateContent({
-    model: "gemini-2.0-flash-exp",
+    model: "gemini-3-flash-preview-exp",
     config: {
       systemInstruction,
     },
@@ -369,7 +369,7 @@ async function analyzeSelection(data: { text: string; url: string }) {
 Be concise but informative.`;
 
   const result = await genAI.models.generateContent({
-    model: "gemini-2.0-flash-exp",
+    model: "gemini-3-flash-preview-exp",
     config: {
       systemInstruction,
     },
@@ -400,7 +400,7 @@ async function explainText(data: { text: string; url: string }) {
   const systemInstruction = `Explain text in simple terms. Provide a clear, easy-to-understand explanation of concepts and terms.`;
 
   const result = await genAI.models.generateContent({
-    model: "gemini-2.0-flash-exp",
+    model: "gemini-3-flash-preview-exp",
     config: {
       systemInstruction,
     },
@@ -456,7 +456,7 @@ async function analyzeHAR(data: { har: any }) {
 4. Notable patterns`;
 
   const result = await genAI.models.generateContent({
-    model: "gemini-2.0-flash-exp",
+    model: "gemini-3-flash-preview-exp",
     config: {
       systemInstruction,
     },
@@ -494,7 +494,7 @@ async function answerDevToolsQuestion(data: { question: string; context: any }) 
   const systemInstruction = `You are a developer tools assistant. Answer technical questions based on provided context. Be technical but clear.`;
 
   const result = await genAI.models.generateContent({
-    model: "gemini-2.0-flash-exp",
+    model: "gemini-3-flash-preview-exp",
     config: {
       systemInstruction,
     },
@@ -564,7 +564,7 @@ Content: ${typeof context === "string" ? context.substring(0, 5000) : context?.t
   }
 
   const result = await genAI.models.generateContent({
-    model: "gemini-2.0-flash-exp",
+    model: "gemini-3-flash-preview-exp",
     contents: [
       {
         role: "user",

@@ -8,7 +8,7 @@
 
 ```typescript
 const result = await genAI.models.generateContent({
-  model: "gemini-2.0-flash",
+  model: "gemini-3-flash-preview",
   config: {
     systemInstruction: "You are a helpful assistant. Provide clear, accurate responses.",
   },
@@ -25,7 +25,7 @@ const result = await genAI.models.generateContent({
 ```typescript
 // ❌ BAD - System prompt mixed into message content
 const result = await genAI.models.generateContent({
-  model: "gemini-2.0-flash",
+  model: "gemini-3-flash-preview",
   contents: [
     {
       role: "user",
@@ -42,7 +42,7 @@ const result = await genAI.models.generateContent({
 ```typescript
 // ❌ BAD - System role not supported in contents array
 const result = await genAI.models.generateContent({
-  model: "gemini-2.0-flash",
+  model: "gemini-3-flash-preview",
   contents: [
     { role: "system", parts: [{ text: "You are a helpful assistant." }] },
     { role: "user", parts: [{ text: "What is TypeScript?" }] }
@@ -55,7 +55,7 @@ const result = await genAI.models.generateContent({
 ```typescript
 // ❌ BAD - System instruction prefixed in user message
 const result = await genAI.models.generateContent({
-  model: "gemini-2.0-flash",
+  model: "gemini-3-flash-preview",
   contents: [
     { role: "user", parts: [{ text: "System: You are a task executor" }] },
     { role: "user", parts: [{ text: "Execute task XYZ" }] }
@@ -103,7 +103,7 @@ Use the validation utility to check your LLM calls:
 import { validateLLMCall } from './server/utils/llm-call-validator';
 
 const config = {
-  model: "gemini-2.0-flash",
+  model: "gemini-3-flash-preview",
   contents: myContents,
   config: {
     systemInstruction: mySystemPrompt
@@ -124,7 +124,7 @@ import { safeGenerateContent, safeGenerateContentStream } from './server/utils/l
 
 // These automatically validate and warn/error on issues
 const result = await safeGenerateContent(genAI.models, {
-  model: "gemini-2.0-flash",
+  model: "gemini-3-flash-preview",
   contents: [...],
   config: { systemInstruction: "..." }
 });
@@ -199,7 +199,7 @@ If you find existing code with embedded system prompts:
 **Before:**
 ```typescript
 const result = await genAI.models.generateContent({
-  model: "gemini-2.0-flash",
+  model: "gemini-3-flash-preview",
   contents: [{
     role: "user",
     parts: [{
@@ -218,7 +218,7 @@ Identify issues and suggest improvements.`
 const systemInstruction = `You are a code analyzer. Identify issues and suggest improvements.`;
 
 const result = await genAI.models.generateContent({
-  model: "gemini-2.0-flash",
+  model: "gemini-3-flash-preview",
   config: {
     systemInstruction,
   },

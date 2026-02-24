@@ -37,7 +37,7 @@ Both can be used with [Collaborative Editing](./collaborative-editing.md) for re
 | Gemini 3.0 Flash | ✅ Real-time | ✅ Screenshots | ✅ 1 FPS JPEG | ✅ |
 
 **Environment Variables:**
-- `COMPUTER_USE_MODEL` - Set model: `gemini-2.0-flash-exp`, `gemini-2.5-flash`, or `gemini-3.0-flash-preview`
+- `COMPUTER_USE_MODEL` - Set model: `gemini-3-flash-preview-exp`, `gemini-3-flash-preview`, or `gemini-3-flash-preview`
 
 ### How It Works
 

@@ -1,7 +1,7 @@
 # Gemini Live Mode Evaluation
 
 ## Overview
-The application implements a real-time voice conversation feature using the Gemini Live API (`gemini-2.5-flash-native-audio-preview-12-2025`). The implementation spans the client (React) and server (Node.js/Express + WebSockets).
+The application implements a real-time voice conversation feature using the Gemini Live API (`gemini-3-flash-preview-native-audio-preview-12-2025`). The implementation spans the client (React) and server (Node.js/Express + WebSockets).
 
 ## Architecture
 - **Client**: Captures audio using `MediaRecorder` / `ScriptProcessorNode`, converts to PCM, and streams via WebSocket. Plays back received audio chunks.
@@ -15,7 +15,7 @@ The application implements a real-time voice conversation feature using the Gemi
 ### Server-Side
 - **`server/websocket-live.ts`**: Correctly sets up a WebSocket server attached to the main HTTP server. Handles message routing (audio, text, interrupt, persona).
 - **`server/integrations/gemini-live.ts`**:
-  - Uses the correct model: `gemini-2.5-flash-native-audio-preview-12-2025`.
+  - Uses the correct model: `gemini-3-flash-preview-native-audio-preview-12-2025`.
   - Configures session with `Modality.AUDIO` and `Modality.TEXT`.
   - Implements `receiveResponses` generator to stream data from Gemini to the WebSocket client.
   - **Note**: The `interrupt` function relies on `liveSession.session.interrupt()`, which is expected to be available in the SDK.

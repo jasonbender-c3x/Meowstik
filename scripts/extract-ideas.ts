@@ -43,7 +43,7 @@ JSON:`;
 
   try {
     const result = await genAI.models.generateContent({
-      model: "gemini-2.0-flash",
+      model: "gemini-3-flash-preview",
       contents: [{ role: "user", parts: [{ text: prompt }] }]
     });
     const response = result.text || "";
@@ -169,7 +169,7 @@ Write in a professional but accessible tone. Use markdown formatting with header
 Blog post:`;
 
   const result = await genAI.models.generateContent({
-    model: "gemini-2.0-flash",
+    model: "gemini-3-flash-preview",
     contents: [{ role: "user", parts: [{ text: prompt }] }]
   });
   return result.text || "";

@@ -68,7 +68,7 @@ describe("LLM Call Validator", () => {
   describe("validateLLMCall", () => {
     it("should accept properly structured LLM call", () => {
       const config = {
-        model: "gemini-2.0-flash",
+        model: "gemini-3-flash-preview",
         contents: [{ role: "user", parts: [{ text: "Hello!" }] }],
         config: {
           systemInstruction: "You are a helpful assistant.",
@@ -82,7 +82,7 @@ describe("LLM Call Validator", () => {
 
     it("should reject LLM call with system prompt in contents", () => {
       const config = {
-        model: "gemini-2.0-flash",
+        model: "gemini-3-flash-preview",
         contents: [
           {
             role: "user",
@@ -113,7 +113,7 @@ describe("LLM Call Validator", () => {
 
     it("should require contents field", () => {
       const config = {
-        model: "gemini-2.0-flash",
+        model: "gemini-3-flash-preview",
         contents: undefined as any,
       };
 

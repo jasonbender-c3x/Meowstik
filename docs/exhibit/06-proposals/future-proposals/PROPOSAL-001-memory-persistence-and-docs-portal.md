@@ -552,7 +552,7 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 const genai = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
 
 async function enhanceDoc(doc: ProcessedDoc): Promise<ProcessedDoc> {
-  const model = genai.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
+  const model = genai.getGenerativeModel({ model: 'gemini-3-flash-preview-exp' });
   
   const prompt = `You are an expert technical writer and web designer.
   

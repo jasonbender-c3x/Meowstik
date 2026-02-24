@@ -419,7 +419,7 @@ PROJECTS        →    projects, tasks, deadlines
 New Content
     │
     ▼
-Lightweight LLM Classification (gemini-2.0-flash-lite)
+Lightweight LLM Classification (gemini-3-flash-preview-lite)
     │
     ├── Extract entities (people, places, dates)
     ├── Classify topic (1-3 tags)

@@ -46,7 +46,7 @@ app.use(session({
 console.log("⏳ [Boot] Setting up Auth...");
 console.log(`🔑 [Auth] Using Google Client ID: ${process.env.GOOGLE_CLIENT_ID?.substring(0, 10)}...`);
 console.log(`🌐 [Auth] Using Redirect URI: ${process.env.GOOGLE_REDIRECT_URI}`);
-// setupAuth(app); // REDUNDANT: Already called inside registerRoutes
+setupAuth(app); // Re-enabling this here to ensure it runs before any routes
 
 // Health Check Route (To verify the backend independently)
 app.get("/api/health", (req, res) => {
@@ -57,15 +57,13 @@ app.get("/api/health", (req, res) => {
 app.get("/api/auth/ignite", async (req, res) => {
     console.log("🔥 [Ignite] Ignition sequence triggered...");
     try {
-        const email = process.env.HOME_DEV_EMAIL || "jason@meowstik.local";
-        const user = await storage.getUserByEmail(email);
-        if (user) {
-            console.log(`✅ [Ignite] Found Creator: ${email}. Logging in...`);
-            req.login(user, () => res.redirect("/"));
-        } else {
+        const email = (process.env.HOME_DEV_EMAIL || "jason@meowstik.local").trim();
+        let user = await storage.getUserByEmail(email);
+        
+        if (!user) {
              console.log(`⚠️ [Ignite] Creator missing. Auto-creating: ${email}`);
-             const newUser = await storage.createUser({
-                username: "creator",
+             user = await storage.createUser({
+                username: "creator_" + Math.random().toString(36).substring(7),
                 email: email,
                 password: "init",
                 displayName: "Creator",
@@ -75,8 +73,16 @@ app.get("/api/auth/ignite", async (req, res) => {
                 googleAccessToken: "",
                 googleRefreshToken: ""
             });
-            req.login(newUser, () => res.redirect("/"));
         }
+
+        console.log(`✅ [Ignite] Logging in as: ${email}`);
+        req.login(user, (err) => {
+            if (err) {
+                console.error("❌ [Ignite] Login failed:", err);
+                return res.status(500).send(`Login Error: ${err.message}`);
+            }
+            res.redirect("/");
+        });
     } catch (e: any) {
         console.error("❌ [Ignite] Error:", e);
         res.status(500).send(`Ignition Failed: ${e.message}`);

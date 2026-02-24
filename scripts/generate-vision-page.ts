@@ -91,7 +91,7 @@ Write in markdown format. Use headers (##, ###), bullet points, bold text, and o
 Vision Document:`;
 
   const result = await genAI.models.generateContent({
-    model: "gemini-2.0-flash",
+    model: "gemini-3-flash-preview",
     contents: [{ role: "user", parts: [{ text: prompt }] }],
     config: {
       maxOutputTokens: 8192

@@ -81,7 +81,7 @@ class WorkerPoolService {
     try {
       const worker = createAgentWorker({
         name,
-        model: "gemini-2.5-flash",
+        model: "gemini-3-flash-preview",
         ...config,
       });
 

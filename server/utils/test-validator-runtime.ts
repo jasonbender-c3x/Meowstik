@@ -45,7 +45,7 @@ if (!result2.valid) console.log(`  Detected error:`, result2.errors[0]);
 // Test 3: Valid LLM call structure
 console.log("\n✓ Test 3: Valid LLM call structure");
 const validCall = {
-  model: "gemini-2.0-flash",
+  model: "gemini-3-flash-preview",
   contents: [{ role: "user", parts: [{ text: "Hello!" }] }],
   config: {
     systemInstruction: "You are a helpful assistant.",

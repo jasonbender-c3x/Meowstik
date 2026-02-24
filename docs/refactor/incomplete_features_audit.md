@@ -179,7 +179,7 @@ async processFrame(frame: Buffer): Promise<VisionAnalysis> {
   
   // 2. Send to Gemini Vision API
   const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY!);
-  const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
+  const model = genAI.getGenerativeModel({ model: 'gemini-3-flash-preview-exp' });
   
   const result = await model.generateContent([
     {
@@ -1325,7 +1325,7 @@ function classifyFeedback(content: string): string {
 ```typescript
 async function generateCodeFix(pattern: FeedbackPattern): Promise<CodeChange[]> {
   const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY!);
-  const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
+  const model = genAI.getGenerativeModel({ model: 'gemini-3-flash-preview-exp' });
   
   const prompt = `You are a senior software engineer tasked with fixing a reported issue.
 

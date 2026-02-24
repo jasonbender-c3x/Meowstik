@@ -241,7 +241,7 @@ Generate 2-5 suggestions based on the patterns.`;
 
   try {
     const result = await genAI.models.generateContent({
-      model: "gemini-2.0-flash",
+      model: "gemini-3-flash-preview",
       contents: prompt,
       config: {
         responseMimeType: "application/json"
@@ -515,7 +515,7 @@ Only include actual feedback - ignore regular questions or chat.`;
 
   try {
     const model = genAI.models.generateContent({
-      model: "gemini-2.0-flash",
+      model: "gemini-3-flash-preview",
       contents: analysisPrompt
     });
 

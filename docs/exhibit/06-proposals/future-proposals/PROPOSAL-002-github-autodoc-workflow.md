@@ -162,7 +162,7 @@ export async function generateCliffNotes(
   codeMap: CodeMap,
   genai: GoogleGenerativeAI
 ): Promise<CliffNote[]> {
-  const model = genai.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
+  const model = genai.getGenerativeModel({ model: 'gemini-3-flash-preview-exp' });
   const notes: CliffNote[] = [];
 
   for (const cluster of codeMap.clusters) {
@@ -225,7 +225,7 @@ export async function generateRosettaStone(
   cliffNotes: CliffNote[],
   genai: GoogleGenerativeAI
 ): Promise<RosettaStone> {
-  const model = genai.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
+  const model = genai.getGenerativeModel({ model: 'gemini-3-flash-preview-exp' });
 
   // Extract terminology candidates
   const candidates = new Set<string>();
@@ -478,7 +478,7 @@ export async function generateDeveloperDoc(
 ): Promise<DeveloperDoc> {
   // Multi-model review process
   const models = [
-    { name: 'gemini-2.0-flash-exp', provider: 'google' },
+    { name: 'gemini-3-flash-preview-exp', provider: 'google' },
     { name: 'gemini-1.5-pro', provider: 'google' },
   ];
 
@@ -558,7 +558,7 @@ export async function updateGroundTruth(
   }
 
   // Multi-agent review of proposed changes
-  const reviewers = ['gemini-2.0-flash-exp', 'gemini-1.5-pro'];
+  const reviewers = ['gemini-3-flash-preview-exp', 'gemini-1.5-pro'];
   const approvals: { reviewer: string; approved: boolean; comments: string }[] = [];
 
   for (const reviewer of reviewers) {
@@ -620,7 +620,7 @@ export async function generateAcademicDoc(
   topic: string,
   groundTruth: GroundTruthDoc
 ): Promise<AcademicDoc> {
-  const model = genai.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
+  const model = genai.getGenerativeModel({ model: 'gemini-3-flash-preview-exp' });
 
   const prompt = `Generate an academic-style technical document about: ${topic}
 
