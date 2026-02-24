@@ -15,6 +15,11 @@ export function isHomeDevMode() {
   return process.env.HOME_DEV_MODE === "true" || !process.env.GOOGLE_CLIENT_ID;
 }
 
+export async function getHomeDevUser() {
+  const email = process.env.HOME_DEV_EMAIL || "jason@meowstik.local";
+  return await storage.getUserByEmail(email);
+}
+
 export async function createHomeDevSession() {
   const email = process.env.HOME_DEV_EMAIL || "jason@meowstik.local";
   const user = await storage.getUserByEmail(email);

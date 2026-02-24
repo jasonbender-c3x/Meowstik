@@ -28,43 +28,50 @@ router.post(
   })
 );
 
-router.post(
-  "/tts",
-  asyncHandler(async (req, res) => {
-    const { text, speakers, model, provider } = req.body;
-    
-    if (!text) {
-      throw badRequest("text is required");
-    }
-    
-    if (!speakers || !Array.isArray(speakers) || speakers.length === 0) {
-      throw badRequest("speakers array is required");
-    }
-    
-    // Determine TTS provider (from request or environment)
-    const ttsProvider = provider || process.env.TTS_PROVIDER || "google";
-    
-    let result;
-    if (ttsProvider === "elevenlabs" || ttsProvider === "11labs") {
-      const { generateMultiSpeakerAudio } = await import("../integrations/elevenlabs-tts");
-      result = await generateMultiSpeakerAudio({ speakers });
-    } else {
-      const { generateMultiSpeakerAudio } = await import("../integrations/expressive-tts");
-      result = await generateMultiSpeakerAudio({
-        text,
-        speakers,
-        model: model || "flash"
-      });
-    }
-    
-    if (!result.success) {
-      res.status(400).json({ error: result.error });
-      return;
-    }
-    
-    res.json(result);
-  })
-);
+const generateTTS = asyncHandler(async (req, res) => {
+  const { text, speakers, voice, model, provider } = req.body;
+  
+  if (!text) {
+    throw badRequest("text is required");
+  }
+  
+  // Support both 'speakers' array and single 'voice' parameter
+  let speakersList = speakers;
+  if (!speakersList && voice) {
+    speakersList = [{ voice }];
+  }
+  
+  if (!speakersList || !Array.isArray(speakersList) || speakersList.length === 0) {
+    // Default to default voice if neither speakers nor voice is provided
+    speakersList = [{ voice: "Kore" }];
+  }
+  
+  // Determine TTS provider (from request or environment)
+  const ttsProvider = provider || process.env.TTS_PROVIDER || "google";
+  
+  let result;
+  if (ttsProvider === "elevenlabs" || ttsProvider === "11labs") {
+    const { generateMultiSpeakerAudio } = await import("../integrations/elevenlabs-tts");
+    result = await generateMultiSpeakerAudio({ text, speakers: speakersList });
+  } else {
+    const { generateMultiSpeakerAudio } = await import("../integrations/expressive-tts");
+    result = await generateMultiSpeakerAudio({
+      text,
+      speakers: speakersList,
+      model: model || "flash"
+    });
+  }
+  
+  if (!result.success) {
+    res.status(400).json({ error: result.error });
+    return;
+  }
+  
+  res.json(result);
+});
+
+router.post("/tts", generateTTS);
+router.post("/generate", generateTTS);
 
 router.get(
   "/voices",

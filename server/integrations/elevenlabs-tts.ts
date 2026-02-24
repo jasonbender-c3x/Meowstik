@@ -286,11 +286,14 @@ export async function generateSingleSpeakerAudio(
 }
 
 /**
- * Multi-speaker wrapper (currently delegates to single speaker)
- * Future enhancement: Could support ElevenLabs' multi-voice features
+ * Multi-speaker wrapper
+ * Supports two modes:
+ * 1. Array of speakers each with their own text (original implementation)
+ * 2. Top-level text with array of speaker definitions (ExpressiveSpeechPage implementation)
  */
 export async function generateMultiSpeakerAudio(request: {
-  speakers: Array<{ text: string; voice?: string }>;
+  text?: string;
+  speakers: Array<{ text?: string; voice?: string }>;
 }): Promise<TTSResponse> {
   if (!request.speakers || request.speakers.length === 0) {
     return {
@@ -299,8 +302,20 @@ export async function generateMultiSpeakerAudio(request: {
     };
   }
 
-  // For now, concatenate all text and use first speaker's voice
-  const combinedText = request.speakers.map(s => s.text).join(" ");
+  // Determine text to speak
+  let combinedText = request.text || "";
+  if (!combinedText && request.speakers.every(s => s.text)) {
+    combinedText = request.speakers.map(s => s.text).join(" ");
+  }
+
+  if (!combinedText) {
+    return {
+      success: false,
+      error: "No text provided for generation"
+    };
+  }
+
+  // For now, use first speaker's voice for the whole block
   const firstVoice = request.speakers[0].voice || DEFAULT_ELEVENLABS_VOICE;
 
   return generateSingleSpeakerAudio(combinedText, firstVoice);

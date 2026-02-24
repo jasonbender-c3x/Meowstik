@@ -49,6 +49,7 @@ export function createApiRouter(): Router {
   router.use("/sheets", sheetsRouter);
   router.use("/tasks", tasksRouter);
   router.use("/speech", speechRouter);
+  router.use("/tts", speechRouter); // Alias for compatibility with Voice Lab
   router.use("/terminal", terminalRouter);
   router.use("/music", musicRouter);
   router.use("/image", imageRouter);
