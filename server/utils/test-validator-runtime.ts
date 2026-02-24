@@ -80,7 +80,7 @@ if (allPassed) {
 // Test 5: Real-world example from routes.ts
 console.log("\n✓ Test 5: Real-world main chat endpoint structure");
 const mainChatStructure = {
-  model: "gemini-2.5-pro",
+  model: "gemini-3.1-pro-preview",
   contents: [
     { role: "user", parts: [{ text: "Tell me about TypeScript" }] },
     { role: "model", parts: [{ text: "TypeScript is..." }] },

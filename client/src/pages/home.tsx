@@ -670,21 +670,28 @@ export default function Home() {
                   index?: number;
                 };
                 speechEventsReceived++;
-                console.log(`[TTS] Speech event #${speechEventsReceived}:`, {
+                const hdPermitted = shouldPlayHDAudio();
+                const browserTTSPermitted = shouldPlayBrowserTTS();
+                
+                console.log(`[TTS] Incoming speech event #${speechEventsReceived}:`, {
                   streaming: speechData.streaming,
-                  index: speechData.index,
+                  audioGenerated: speechData.audioGenerated,
                   hasAudio: !!speechData.audioBase64,
-                  utteranceLen: speechData.utterance?.length,
+                  hdPermitted,
+                  browserTTSPermitted,
+                  utterance: speechData.utterance?.substring(0, 30) + "..."
                 });
                 
-                if (speechData.audioGenerated && speechData.audioBase64 && shouldPlayHDAudio()) {
+                if (speechData.audioGenerated && speechData.audioBase64 && hdPermitted) {
+                  console.log("[TTS] Queueing HD audio for playback");
                   audioQueue.push({
                     base64: speechData.audioBase64,
                     mimeType: speechData.mimeType || 'audio/mpeg',
                     utterance: speechData.utterance || '',
                   });
                   playNextInQueue();
-                } else if (shouldPlayBrowserTTS() && speechData.utterance) {
+                } else if (browserTTSPermitted && speechData.utterance) {
+                  console.log("[TTS] Falling back to browser TTS for this speech event");
                   speak(speechData.utterance);
                 }
               }
@@ -777,13 +784,22 @@ export default function Home() {
                 // Only use browser TTS if NO speech events arrived (no HD audio or streaming TTS)
                 const textToSpeak = cleanContentForTTS || aiMessageContent;
                 const isRawJson = textToSpeak.trim().startsWith('{') || textToSpeak.trim().startsWith('[');
-                console.log('[TTS] Stream done - speechEventsReceived:', speechEventsReceived, 
-                  'shouldPlayBrowserTTS:', shouldPlayBrowserTTS(),
-                  'isRawJson:', isRawJson, 
-                  'textLength:', textToSpeak?.length || 0);
-                if (textToSpeak && speechEventsReceived === 0 && shouldPlayBrowserTTS() && !isRawJson) {
-                  console.log('[TTS] No HD speech received, using browser TTS');
+                const browserTTSPermitted = shouldPlayBrowserTTS();
+                
+                console.log('[TTS] Final Stream Check:', {
+                  speechEventsReceived,
+                  browserTTSPermitted,
+                  isRawJson,
+                  textLength: textToSpeak?.length || 0,
+                  cleanContentForTTS_Len: cleanContentForTTS?.length || 0,
+                  aiMessageContent_Len: aiMessageContent?.length || 0
+                });
+
+                if (textToSpeak && speechEventsReceived === 0 && browserTTSPermitted && !isRawJson) {
+                  console.log('[TTS] No speech events received, triggered full response browser TTS fallback');
                   speak(textToSpeak);
+                } else if (speechEventsReceived > 0) {
+                  console.log(`[TTS] ${speechEventsReceived} speech events already handled, suppressing full response fallback`);
                 }
                 
                 // CRITICAL FIX: Replace temporary message with saved message from DB

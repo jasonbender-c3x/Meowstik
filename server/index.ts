@@ -95,7 +95,7 @@ app.get("/api/auth/ignite", async (req, res) => {
 
   try {
     console.log("⏳ [Boot] Registering API Routes...");
-    await registerRoutes(app);
+    await registerRoutes(server, app);
     console.log("✅ [Boot] API Routes Registered.");
   } catch (e) {
     console.error("❌ [Boot] Failed to register routes:", e);

@@ -195,18 +195,20 @@ export const checkAuthStatus: RequestHandler = async (req: Request, _res: Respon
   if (isHomeDevMode() && (!req.isAuthenticated?.() || !user?.claims?.sub)) {
     try {
       const devSession = await createHomeDevSession();
-      // Match the structure expected by Replit Auth (user.claims)
-      user = {
-        claims: devSession,
-        access_token: "home-dev-token",
-        refresh_token: "home-dev-refresh-token",
-        expires_at: devSession.exp
-      };
-      
-      req.user = user;
-      // Mark session as authenticated (simulate passport authentication)
-      (req as any).session = (req as any).session || {};
-      (req as any).session.passport = { user };
+      if (devSession) {
+        // Match the structure expected by Replit Auth (user.claims)
+        user = {
+          claims: devSession.claims,
+          access_token: "home-dev-token",
+          refresh_token: "home-dev-refresh-token",
+          expires_at: devSession.expires_at
+        };
+        
+        req.user = user;
+        // Mark session as authenticated (simulate passport authentication)
+        (req as any).session = (req as any).session || {};
+        (req as any).session.passport = { user };
+      }
     } catch (error) {
       console.error("Failed to create home dev session:", error);
     }

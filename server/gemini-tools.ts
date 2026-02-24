@@ -69,6 +69,17 @@ export const geminiFunctionDeclarations: FunctionDeclaration[] = [
     }
   },
   {
+    name: "send_chat",
+    description: "ALIAS for write. Send markdown content to the chat window. NON-TERMINATING.",
+    parametersJsonSchema: {
+      type: "object",
+      properties: {
+        content: { type: "string", description: "Markdown content to display" }
+      },
+      required: ["content"]
+    }
+  },
+  {
     name: "log",
     description: "Append content to a named log file in ~/workspace/logs/{name}.md",
     parametersJsonSchema: {

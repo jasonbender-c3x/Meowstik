@@ -1,0 +1,28 @@
+          await storage.logLlmUsage({
+          savedAttachment = await storage.createAttachment({
+      await storage.updateChatTitle(req.params.id, title);
+      const chat = await storage.createChat(validatedData);
+      const chat = await storage.getChatById(req.params.id);
+      const chatMessages = await storage.getMessagesByChatId(req.params.id, { 
+      const chats = await storage.getChats(userId);
+      const data = await storage.getTableData(tableName, limit, offset);
+      const deletedCount = await storage.deleteOldLlmInteractions(daysOld);
+      const deletedCount = await storage.deleteOldLlmInteractions(olderThanDays);
+      const interaction = await storage.getLlmInteractionById(req.params.id);
+      const interactions = await storage.getLlmInteractionsByChat(
+      const interactions = await storage.getRecentLlmInteractions(
+      const message = await storage.getMessageById(req.params.id);
+      const messages = await storage.getMessagesByChatId(req.params.id, { 
+      const savedAiMessage = await storage.addMessage({
+      const savedAttachments = await storage.getAttachmentsByMessageId(
+      const savedMessage = await storage.addMessage(userMessage);
+      const stats = await storage.getLlmInteractionStats();
+      const stats = await storage.getLlmUsageStats();
+      const success = await storage.deleteTableRecord(tableName, recordId);
+      const success = await storage.updateTableRecord(
+      const tables = await storage.getDebugDatabaseInfo();
+      const toolCall = await storage.getToolCallLogById(req.params.id);
+      const toolCalls = await storage.getRecentToolCallLogs(req.params.id);
+      const usage = await storage.getLlmUsageByChat(req.params.chatId);
+      const usage = await storage.getRecentLlmUsage(limit);
+      const user = await storage.getUser(userId);

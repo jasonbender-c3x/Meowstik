@@ -143,12 +143,20 @@ export async function registerRoutes(
   httpServer: Server,
   app: Express,
 ): Promise<Server> {
+  console.log("[Routes] registerRoutes entry. app defined?", !!app);
+  if (!app) {
+    console.error("[Routes] CRITICAL: app is undefined in registerRoutes!");
+    return httpServer;
+  }
+
   // ══════════════════════════════════════════════════════════════════════════
   // GOOGLE AUTH SETUP
   // Sets up session management and OAuth flow with Google as the identity provider
   // ═════════════════════════════════════════════════════════════════════════
   const { setupAuth, isAuthenticated } = await import("./googleAuth");
+  console.log("[Routes] Calling setupAuth...");
   await setupAuth(app);
+  console.log("[Routes] setupAuth completed.");
   
   // Import authentication status middleware
   const { checkAuthStatus } = await import("./routes/middleware");
@@ -723,9 +731,9 @@ The user has LOW verbosity mode enabled. Keep both text and speech responses con
 ## VERBOSITY MODE: NORMAL (Verbose Text & Speech)
 The user has NORMAL verbosity mode enabled. Provide comprehensive, detailed responses in both text and speech.
 - Use the \`say\` tool to speak your complete responses
-- All text sent via \`send_chat\` (except code blocks) should also be spoken
+- All text sent via \`write\` (except code blocks) should also be spoken
 - Provide thorough explanations with context and details
-- Example: {"toolCalls": [{"type": "say", "id": "s1", "parameters": {"utterance": "Let me provide a comprehensive answer..."}}, {"type": "send_chat", "id": "c1", "parameters": {"content": "Let me provide a comprehensive answer..."}}]}
+- CALL the tools natively using the function calling interface.
 `;
             break;
             
@@ -813,11 +821,11 @@ The user has MUTE mode enabled. Minimize all output.
         userParts.push({ text: "" });
       }
 
-      // Determine model based on user preference: "pro" = gemini-2.5-pro, "flash" = gemini-2.5-flash
+      // Determine model based on user preference: "pro" = gemini-3.1-pro-preview, "flash" = gemini-3-flash-preview
       const modelMode =
         req.body.model === "flash"
-          ? "gemini-2.5-flash"
-          : "gemini-2.5-pro";
+          ? "gemini-3-flash-preview"
+          : "gemini-3.1-pro-preview";
       console.log(
         `[Routes] Using model: ${modelMode} (mode: ${req.body.model || "pro"})`,
       );
@@ -1140,7 +1148,19 @@ The user has MUTE mode enabled. Minimize all output.
               };
               // Check if the say tool itself reported success
               if (sayResult?.success === false) {
-                console.log(`[Routes][SAY] Tool execution failed internally:`, sayResult);
+                console.log(`[Routes][SAY] Tool execution failed internally, falling back to client-side TTS:`, sayResult);
+                // Send speech event WITHOUT audio to trigger client-side fallback
+                res.write(
+                  `data: ${JSON.stringify({
+                    speech: {
+                      utterance: sayResult.utterance || "",
+                      voice: sayResult.voice,
+                      audioGenerated: false, // Explicitly false
+                      message: sayResult.message,
+                      error: sayResult.error
+                    },
+                  })}\n\n`,
+                );
               } else if (sayResult?.audioBase64) {
                 console.log(`[Routes][SAY] ✓ Sending speech event with voice: ${sayResult.voice}, audio length: ${sayResult.audioBase64.length}`);
                 res.write(
@@ -2046,7 +2066,7 @@ The user has MUTE mode enabled. Minimize all output.
       const genAI = new GoogleGenAI({ apiKey });
 
       const response = await genAI.models.generateContent({
-        model: "gemini-2.0-flash",
+        model: "gemini-3-flash-preview",
         contents: [
           {
             role: "user",
