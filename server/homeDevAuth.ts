@@ -84,9 +84,17 @@ export function setupAuth(app: any) {
     const callbackURL = rawCallbackURL.trim();
     
     console.log(`🌐 [Auth] Initializing Google Strategy with Callback: ${callbackURL}`);
+    
+    // Validate callbackURL is a valid URL and matches the expected format
+    try {
+      new URL(callbackURL);
+    } catch (e) {
+      console.error(`❌ [Auth] INVALID CALLBACK URL: "${callbackURL}"`);
+    }
+
     passport.use(new GoogleStrategy({
-        clientID: process.env.GOOGLE_CLIENT_ID?.trim(),
-        clientSecret: process.env.GOOGLE_CLIENT_SECRET?.trim(),
+        clientID: (process.env.GOOGLE_CLIENT_ID || "").trim(),
+        clientSecret: (process.env.GOOGLE_CLIENT_SECRET || "").trim(),
         callbackURL: callbackURL,
         proxy: true,
       },

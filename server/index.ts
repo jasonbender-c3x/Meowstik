@@ -18,6 +18,7 @@ process.on('unhandledRejection', (reason, promise) => {
 });
 
 const app = express();
+app.set("trust proxy", 1);
 
 // --- SONAR: INBOUND REQUEST LOGGER ---
 // This guarantees every single click/refresh is logged to your terminal.
@@ -45,7 +46,7 @@ app.use(session({
 console.log("⏳ [Boot] Setting up Auth...");
 console.log(`🔑 [Auth] Using Google Client ID: ${process.env.GOOGLE_CLIENT_ID?.substring(0, 10)}...`);
 console.log(`🌐 [Auth] Using Redirect URI: ${process.env.GOOGLE_REDIRECT_URI}`);
-setupAuth(app);
+// setupAuth(app); // REDUNDANT: Already called inside registerRoutes
 
 // Health Check Route (To verify the backend independently)
 app.get("/api/health", (req, res) => {
