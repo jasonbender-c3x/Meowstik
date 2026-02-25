@@ -20,7 +20,7 @@ import type { JobPayload } from "./job-queue";
 
 export interface WorkerConfig {
   name: string;
-  model: "gemini-3-flash-preview" | "gemini-2.5-pro";
+  model: "gemini-3-flash-preview" | "gemini-3.1-pro-preview";
   maxConcurrency: number;
   heartbeatIntervalMs: number;
 }

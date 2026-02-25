@@ -583,9 +583,24 @@ export default function Home() {
       };
 
       // Read the stream until done
+      // Safety: if the server drops the connection without sending "done",
+      // reset the loading state after 30 s of inactivity so the UI doesn't
+      // hang forever.
+      const SSE_INACTIVITY_TIMEOUT_MS = 30_000;
+      let sseTimeoutId: ReturnType<typeof setTimeout> | null = null;
+      const resetSseTimeout = () => {
+        if (sseTimeoutId !== null) clearTimeout(sseTimeoutId);
+        sseTimeoutId = setTimeout(() => {
+          console.warn('[SSE] Inactivity timeout — forcing stream completion');
+          setIsLoading(false);
+        }, SSE_INACTIVITY_TIMEOUT_MS);
+      };
+      resetSseTimeout();
+
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
+        resetSseTimeout();
 
         // Decode bytes to text and add to buffer
         buffer += decoder.decode(value, { stream: true });
@@ -670,21 +685,33 @@ export default function Home() {
                   index?: number;
                 };
                 speechEventsReceived++;
-                console.log(`[TTS] Speech event #${speechEventsReceived}:`, {
+                const hdPermitted = shouldPlayHDAudio();
+                const browserTTSPermitted = shouldPlayBrowserTTS();
+                
+                console.log(`[TTS] Incoming speech event #${speechEventsReceived}:`, {
                   streaming: speechData.streaming,
-                  index: speechData.index,
+                  audioGenerated: speechData.audioGenerated,
                   hasAudio: !!speechData.audioBase64,
-                  utteranceLen: speechData.utterance?.length,
+                  hdPermitted,
+                  browserTTSPermitted,
+                  utterance: speechData.utterance?.substring(0, 30) + "..."
                 });
                 
-                if (speechData.audioGenerated && speechData.audioBase64 && shouldPlayHDAudio()) {
+                if (speechData.audioGenerated && speechData.audioBase64 && hdPermitted) {
+                  console.log("[TTS] Queueing HD audio for playback");
                   audioQueue.push({
                     base64: speechData.audioBase64,
                     mimeType: speechData.mimeType || 'audio/mpeg',
                     utterance: speechData.utterance || '',
                   });
                   playNextInQueue();
-                } else if (shouldPlayBrowserTTS() && speechData.utterance) {
+                } else if (speechData.audioGenerated === false && speechData.utterance) {
+                  // say tool explicitly failed: always attempt browser TTS so the
+                  // utterance is not silently lost, regardless of verbosity mode.
+                  console.log("[TTS] say tool reported audioGenerated:false, using browser TTS fallback");
+                  speak(speechData.utterance);
+                } else if (browserTTSPermitted && speechData.utterance) {
+                  console.log("[TTS] Falling back to browser TTS for this speech event");
                   speak(speechData.utterance);
                 }
               }
@@ -772,18 +799,36 @@ export default function Home() {
               // Step 6: Stream complete - update temp message with real DB message
               if (data.done) {
                 console.log('[SSE] Done event received');
+                if (sseTimeoutId !== null) { clearTimeout(sseTimeoutId); sseTimeoutId = null; }
                 setIsLoading(false);
                 
                 // Only use browser TTS if NO speech events arrived (no HD audio or streaming TTS)
                 const textToSpeak = cleanContentForTTS || aiMessageContent;
-                const isRawJson = textToSpeak.trim().startsWith('{') || textToSpeak.trim().startsWith('[');
-                console.log('[TTS] Stream done - speechEventsReceived:', speechEventsReceived, 
-                  'shouldPlayBrowserTTS:', shouldPlayBrowserTTS(),
-                  'isRawJson:', isRawJson, 
-                  'textLength:', textToSpeak?.length || 0);
-                if (textToSpeak && speechEventsReceived === 0 && shouldPlayBrowserTTS() && !isRawJson) {
-                  console.log('[TTS] No HD speech received, using browser TTS');
+                // Detect content that should not be spoken: raw JSON, XML/thinking tags,
+                // code fences, or content that is entirely punctuation/symbols after stripping.
+                const stripped = textToSpeak.trim();
+                const isNonSpeakable =
+                  stripped.startsWith('{') ||
+                  stripped.startsWith('[') ||
+                  stripped.startsWith('<thinking>') ||
+                  stripped.startsWith('```') ||
+                  /^[\s\W]+$/.test(stripped);
+                const browserTTSPermitted = shouldPlayBrowserTTS();
+                
+                console.log('[TTS] Final Stream Check:', {
+                  speechEventsReceived,
+                  browserTTSPermitted,
+                  isNonSpeakable,
+                  textLength: textToSpeak?.length || 0,
+                  cleanContentForTTS_Len: cleanContentForTTS?.length || 0,
+                  aiMessageContent_Len: aiMessageContent?.length || 0
+                });
+
+                if (textToSpeak && speechEventsReceived === 0 && browserTTSPermitted && !isNonSpeakable) {
+                  console.log('[TTS] No speech events received, triggered full response browser TTS fallback');
                   speak(textToSpeak);
+                } else if (speechEventsReceived > 0) {
+                  console.log(`[TTS] ${speechEventsReceived} speech events already handled, suppressing full response fallback`);
                 }
                 
                 // CRITICAL FIX: Replace temporary message with saved message from DB
@@ -837,6 +882,7 @@ export default function Home() {
           }
         }
       }
+      if (sseTimeoutId !== null) { clearTimeout(sseTimeoutId); sseTimeoutId = null; }
     } catch (error: any) {
       // Handle abort errors gracefully (user clicked stop)
       if (error.name === 'AbortError') {

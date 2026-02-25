@@ -9,6 +9,7 @@ onlyBuiltDependencies:
   - '@firebase/util'
   - '@playwright/browser-chromium'
   - '@playwright/browser-webkit'
+  - '@nut-tree-fork/nut-js'
   - cpu-features
   - electron
   - electron-winstaller
@@ -17,6 +18,5 @@ onlyBuiltDependencies:
   - keytar
   - node-pty
   - protobufjs
-  - robotjs
   - ssh2
   - tree-sitter-bash

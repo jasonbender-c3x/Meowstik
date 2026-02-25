@@ -462,6 +462,19 @@ These steps are mandatory before sending your response via send_chat.
   }
 
   /**
+   * Alias for getSystemPrompt to support the usage in routes.ts
+   * @param options - Configuration for content inclusion
+   */
+  public async buildSystemPrompt(options?: {
+    userId?: string;
+    includeMemory?: boolean;
+    includeCache?: boolean;
+    includeTodos?: boolean;
+  }): Promise<string> {
+    return this.getSystemPrompt(DEFAULT_AGENT_NAME, DEFAULT_DISPLAY_NAME, options);
+  }
+
+  /**
    * Get breakdown of system prompt components with sizes
    * Useful for debugging and token analysis
    * @param agentName - Custom agent name

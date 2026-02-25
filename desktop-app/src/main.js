@@ -626,7 +626,7 @@ ipcMain.handle('show-open-dialog', async (event, options) => {
 let localAgentProcess = null;
 
 /**
- * Start the local-agent for Desktop Automation (RobotJS)
+ * Start the local-agent for Desktop Automation (NutJS)
  */
 ipcMain.handle('start-local-agent', async () => {
   if (localAgentProcess) {

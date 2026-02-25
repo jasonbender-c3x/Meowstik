@@ -1,26 +1,25 @@
+import "dotenv/config";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
 async function run() {
   const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
   const models = [
     "gemini-3-flash-preview",
+    "gemini-3.1-pro-preview",
     "gemini-3.0-flash",
-    "gemini-2.5-flash",
+    "gemini-2.5-pro",
     "gemini-2.0-flash",
-    "gemini-2.0-flash-exp",
-    "gemini-2.0-pro-exp",
-    "gemini-1.5-pro"
   ];
 
   for (const m of models) {
     try {
-      console.log(\`Trying \${m}...\`);
+      console.log(`Trying ${m}...`);
       const model = genAI.getGenerativeModel({ model: m });
       await model.generateContent("hi");
-      console.log(\`✅ \${m} WORKS!\`);
-      process.exit(0);
+      console.log(`✅ ${m} WORKS!`);
+      // No process.exit early, let's see all
     } catch (e: any) {
-      console.log(\`❌ \${m} failed: \${e.message}\`);
+      console.log(`❌ ${m} failed: ${e.message}`);
     }
   }
 }
