@@ -87,7 +87,7 @@ const history = [
 ];
 
 const result = await genAI.models.generateContentStream({
-  model: "gemini-2.5-pro",
+  model: "gemini-3.1-pro-preview",
   config: {
     systemInstruction: "You are a helpful assistant.",
   },

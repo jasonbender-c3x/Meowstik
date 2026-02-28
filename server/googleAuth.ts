@@ -8,8 +8,8 @@ import { Strategy as GoogleStrategy } from "passport-google-oauth20";
 import session from "express-session";
 import type { Express, RequestHandler } from "express";
 import connectPg from "connect-pg-simple";
-import { storage } from "./storage";
-import { isHomeDevMode, getHomeDevUser } from "./homeDevAuth";
+import { storage } from "./storage.js";
+import { isHomeDevMode, getHomeDevUser } from "./homeDevAuth.js";
 import csurf from "csurf";
 
 // Session duration: 1 week (in milliseconds)
@@ -95,13 +95,18 @@ async function upsertUser(profile: GoogleUser) {
   const email = profile.emails?.[0]?.value || "";
   const { firstName, lastName } = parseUserName(profile);
   const profileImageUrl = profile.photos?.[0]?.value || "";
+  const displayName = `${firstName} ${lastName}`.trim() || profile.displayName;
+  // Generate a username from email or use a fallback
+  const username = email.split("@")[0] || `user_${profile.id.substring(0, 8)}`;
 
   await storage.upsertUser({
     id: profile.id,
+    googleId: profile.id,
     email,
-    firstName,
-    lastName,
-    profileImageUrl,
+    username,
+    displayName,
+    avatarUrl: profileImageUrl,
+    role: "user",
   });
 }
 
@@ -120,14 +125,16 @@ export async function setupAuth(app: Express) {
   app.use(passport.initialize());
   app.use(passport.session());
 
-  if (isHomeDevMode()) {
-    console.log("🏠 [Auth] Skipping Google OAuth setup in HOME_DEV_MODE");
-    return;
-  }
-
   if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
-    console.warn("⚠️ [Google Auth] GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET not set. Skipping Google OAuth setup.");
-    console.warn("    Set these environment variables to enable Google authentication.");
+    if (isHomeDevMode()) {
+       console.log("🏠 [Google Auth] Skipping setup: HOME_DEV_MODE is enabled and no Google keys.");
+       // Register dummy routes so links don't 404
+       const devRedirect = (req: any, res: any) => res.redirect("/");
+       app.get("/api/login", devRedirect);
+       app.get("/api/auth/google", devRedirect);
+    } else {
+       console.warn("⚠️ [Google Auth] GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET not set. Skipping Google OAuth setup.");
+    }
     return;
   }
 
@@ -179,12 +186,13 @@ export async function setupAuth(app: Express) {
       )
     );
 
-    // Login route
-    app.get("/api/login", 
-      passport.authenticate("google", {
-        scope: ["profile", "email"],
-      })
-    );
+    // Login routes
+    const authHandler = passport.authenticate("google", {
+      scope: ["profile", "email"],
+    });
+
+    app.get("/api/login", authHandler);
+    app.get("/api/auth/google", authHandler);
 
     // OAuth callback route
     app.get(
@@ -239,13 +247,17 @@ export const isAuthenticated: RequestHandler = async (req, res, next) => {
     if (!req.user) {
       try {
         const user = await getHomeDevUser();
+        if (!user) {
+          console.error("Critical Auth Error: Home Dev User not found in database.");
+          return res.status(401).json({ message: "Home Dev User not found. Please seed the database." });
+        }
         req.user = {
           claims: {
-            sub: user.id,
+            sub: user.id.toString(),
             email: user.email,
-            first_name: user.firstName,
-            last_name: user.lastName,
-            profile_image_url: user.profileImageUrl,
+            first_name: user.displayName || "Developer",
+            last_name: "",
+            profile_image_url: user.avatarUrl || "",
             exp: Math.floor(Date.now() / 1000) + SESSION_TTL_SECONDS
           },
           access_token: "home-dev-token",

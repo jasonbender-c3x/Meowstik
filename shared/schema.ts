@@ -3102,7 +3102,7 @@ export const llmInteractions = pgTable("llm_interactions", {
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   
   /**
-   * Model used for this interaction (e.g., "gemini-3-flash-preview", "gemini-2.5-pro")
+   * Model used for this interaction (e.g., "gemini-3-flash-preview", "gemini-3.1-pro-preview")
    */
   model: varchar("model", { length: 100 }),
   

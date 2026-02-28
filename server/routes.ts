@@ -143,12 +143,20 @@ export async function registerRoutes(
   httpServer: Server,
   app: Express,
 ): Promise<Server> {
+  console.log("[Routes] registerRoutes entry. app defined?", !!app);
+  if (!app) {
+    console.error("[Routes] CRITICAL: app is undefined in registerRoutes!");
+    return httpServer;
+  }
+
   // ══════════════════════════════════════════════════════════════════════════
   // GOOGLE AUTH SETUP
   // Sets up session management and OAuth flow with Google as the identity provider
   // ═════════════════════════════════════════════════════════════════════════
   const { setupAuth, isAuthenticated } = await import("./googleAuth");
+  console.log("[Routes] Calling setupAuth...");
   await setupAuth(app);
+  console.log("[Routes] setupAuth completed.");
   
   // Import authentication status middleware
   const { checkAuthStatus } = await import("./routes/middleware");
@@ -723,9 +731,9 @@ The user has LOW verbosity mode enabled. Keep both text and speech responses con
 ## VERBOSITY MODE: NORMAL (Verbose Text & Speech)
 The user has NORMAL verbosity mode enabled. Provide comprehensive, detailed responses in both text and speech.
 - Use the \`say\` tool to speak your complete responses
-- All text sent via \`send_chat\` (except code blocks) should also be spoken
+- All text sent via \`write\` (except code blocks) should also be spoken
 - Provide thorough explanations with context and details
-- Example: {"toolCalls": [{"type": "say", "id": "s1", "parameters": {"utterance": "Let me provide a comprehensive answer..."}}, {"type": "send_chat", "id": "c1", "parameters": {"content": "Let me provide a comprehensive answer..."}}]}
+- CALL the tools natively using the function calling interface.
 `;
             break;
             
@@ -813,11 +821,11 @@ The user has MUTE mode enabled. Minimize all output.
         userParts.push({ text: "" });
       }
 
-      // Determine model based on user preference: "pro" = gemini-2.5-pro, "flash" = gemini-2.5-flash
+      // Determine model based on user preference: "pro" = gemini-3.1-pro-preview, "flash" = gemini-3-flash-preview
       const modelMode =
         req.body.model === "flash"
-          ? "gemini-2.5-flash"
-          : "gemini-2.5-pro";
+          ? "gemini-3-flash-preview"
+          : "gemini-3.1-pro-preview";
       console.log(
         `[Routes] Using model: ${modelMode} (mode: ${req.body.model || "pro"})`,
       );
@@ -925,11 +933,21 @@ The user has MUTE mode enabled. Minimize all output.
       const streamTTSSentence = async (sentence: string) => {
         if (!useVoice || !sentence.trim()) return;
         try {
-          const { generateSingleSpeakerAudio, DEFAULT_TTS_VOICE } = await import("./integrations/expressive-tts");
-          const ttsResult = await generateSingleSpeakerAudio(sentence.trim(), DEFAULT_TTS_VOICE, 1);
+          // Determine TTS provider
+          const provider = process.env.TTS_PROVIDER || "google";
+          let ttsResult;
+          
+          if (provider === "elevenlabs" || provider === "11labs") {
+            const { generateSingleSpeakerAudio, DEFAULT_ELEVENLABS_VOICE } = await import("./integrations/elevenlabs-tts");
+            ttsResult = await generateSingleSpeakerAudio(sentence.trim(), DEFAULT_ELEVENLABS_VOICE, 1);
+          } else {
+            const { generateSingleSpeakerAudio, DEFAULT_TTS_VOICE } = await import("./integrations/expressive-tts");
+            ttsResult = await generateSingleSpeakerAudio(sentence.trim(), DEFAULT_TTS_VOICE, 1);
+          }
+
           if (ttsResult.audioBase64) {
             streamingSpeechCount++;
-            console.log(`[Routes][StreamTTS] ✓ Sentence ${streamingSpeechCount} audio generated, length: ${ttsResult.audioBase64.length}`);
+            console.log(`[Routes][StreamTTS] ✓ Sentence ${streamingSpeechCount} audio generated via ${provider}, length: ${ttsResult.audioBase64.length}`);
             res.write(
               `data: ${JSON.stringify({
                 speech: {
@@ -952,13 +970,22 @@ The user has MUTE mode enabled. Minimize all output.
       // Extract complete sentences from buffer, return remaining incomplete text
       const extractSentences = (buffer: string): { sentences: string[]; remainder: string } => {
         const sentences: string[] = [];
-        // Split on sentence-ending punctuation followed by optional whitespace or end
-        const parts = buffer.split(/([.!?]+[\s\n]*)/);
+        // Split on sentence-ending punctuation, but not on:
+        //   - decimal numbers  (digit . digit)       e.g. "3.14"
+        //   - domain names     (word . word no space) e.g. "example.com"
+        //   - abbreviations    (. followed by lowercase word) e.g. "Dr. smith"
+        // Strategy: scan for [.!?] followed by whitespace-or-end, skip if the
+        // period is between two word/digit characters (decimal/domain) or if
+        // the next non-space char is lowercase (abbreviation continuation).
+        const sentenceEnd = /([!?]+[\s\n]*|\.(?!\d)(?!\s*[a-z])[\s\n]*)/;
+        const parts = buffer.split(sentenceEnd);
         let accumulated = "";
         for (let i = 0; i < parts.length - 1; i += 2) {
           accumulated += parts[i] + (parts[i + 1] || "");
           const trimmed = accumulated.trim();
-          if (trimmed.length > 3) {
+          // Only emit sentences that contain at least one alphanumeric character
+          // to avoid passing punctuation-only fragments to TTS.
+          if (trimmed.length > 0 && /[a-zA-Z0-9]/.test(trimmed)) {
             sentences.push(trimmed);
             accumulated = "";
           }
@@ -970,7 +997,7 @@ The user has MUTE mode enabled. Minimize all output.
           const paraParts = remainder.split('\n\n');
           for (let i = 0; i < paraParts.length - 1; i++) {
             const part = paraParts[i].trim();
-            if (part.length > 3) sentences.push(part);
+            if (part.length > 0 && /[a-zA-Z0-9]/.test(part)) sentences.push(part);
           }
           return { sentences, remainder: paraParts[paraParts.length - 1] };
         }
@@ -1033,7 +1060,7 @@ The user has MUTE mode enabled. Minimize all output.
       }
       
       // Flush remaining TTS buffer after stream ends
-      if (useVoice && ttsSentenceBuffer.trim().length > 3) {
+      if (useVoice && ttsSentenceBuffer.trim().length > 0) {
         await streamTTSSentence(ttsSentenceBuffer.trim());
       }
       
@@ -1140,7 +1167,19 @@ The user has MUTE mode enabled. Minimize all output.
               };
               // Check if the say tool itself reported success
               if (sayResult?.success === false) {
-                console.log(`[Routes][SAY] Tool execution failed internally:`, sayResult);
+                console.log(`[Routes][SAY] Tool execution failed internally, falling back to client-side TTS:`, sayResult);
+                // Send speech event WITHOUT audio to trigger client-side fallback
+                res.write(
+                  `data: ${JSON.stringify({
+                    speech: {
+                      utterance: sayResult.utterance || "",
+                      voice: sayResult.voice,
+                      audioGenerated: false, // Explicitly false
+                      message: sayResult.message,
+                      error: sayResult.error
+                    },
+                  })}\n\n`,
+                );
               } else if (sayResult?.audioBase64) {
                 console.log(`[Routes][SAY] ✓ Sending speech event with voice: ${sayResult.voice}, audio length: ${sayResult.audioBase64.length}`);
                 res.write(
@@ -1550,13 +1589,22 @@ The user has MUTE mode enabled. Minimize all output.
       if (useVoice && !sayToolCalled && streamingSpeechCount === 0 && finalContent && finalContent.trim().length > 0) {
         console.log(`[Routes][TTS-Fallback] No streaming TTS or say tool, generating single fallback`);
         try {
-          const { generateSingleSpeakerAudio, DEFAULT_TTS_VOICE } = await import("./integrations/expressive-tts");
+          const provider = process.env.TTS_PROVIDER || "google";
+          let ttsResult;
           const ttsText = finalContent.length > 500 
             ? finalContent.substring(0, 500) + "..."
             : finalContent;
-          const ttsResult = await generateSingleSpeakerAudio(ttsText, DEFAULT_TTS_VOICE);
+
+          if (provider === "elevenlabs" || provider === "11labs") {
+            const { generateSingleSpeakerAudio, DEFAULT_ELEVENLABS_VOICE } = await import("./integrations/elevenlabs-tts");
+            ttsResult = await generateSingleSpeakerAudio(ttsText, DEFAULT_ELEVENLABS_VOICE);
+          } else {
+            const { generateSingleSpeakerAudio, DEFAULT_TTS_VOICE } = await import("./integrations/expressive-tts");
+            ttsResult = await generateSingleSpeakerAudio(ttsText, DEFAULT_TTS_VOICE);
+          }
+
           if (ttsResult.audioBase64) {
-            console.log(`[Routes][TTS-Fallback] ✓ Generated fallback audio, length: ${ttsResult.audioBase64.length}`);
+            console.log(`[Routes][TTS-Fallback] ✓ Generated fallback audio via ${provider}, length: ${ttsResult.audioBase64.length}`);
             res.write(
               `data: ${JSON.stringify({
                 speech: {
@@ -2046,7 +2094,7 @@ The user has MUTE mode enabled. Minimize all output.
       const genAI = new GoogleGenAI({ apiKey });
 
       const response = await genAI.models.generateContent({
-        model: "gemini-2.0-flash",
+        model: "gemini-3-flash-preview",
         contents: [
           {
             role: "user",

@@ -2,6 +2,7 @@ import { storage } from '../storage';
 import { eq, sql, and, ilike, or, isNull } from 'drizzle-orm';
 import { GoogleGenAI } from '@google/genai';
 import { EmbeddingService } from './embedding-service';
+import { knowledgeEmbeddings } from '@shared/schema';
 
 const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' });
 const embeddingService = new EmbeddingService();

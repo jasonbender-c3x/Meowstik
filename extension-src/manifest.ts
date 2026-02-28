@@ -16,17 +16,17 @@ export default defineManifest({
     "128": "icons/icon128.png",
   },
   action: {
-    default_popup: "popup.html",
-    default_icon: "icons/icon48.png",
+    default_popup: "extension-src/popup.html",
+    default_icon: "extension-src/icons/icon48.png",
   },
   background: {
-    service_worker: "src/background.ts",
+    service_worker: "extension-src/background.ts",
     type: "module",
   },
   content_scripts: [
     {
       matches: ["http://*/*", "https://*/*"],
-      js: ["src/content.ts"],
+      js: ["extension-src/content.ts"],
     },
   ],
 });

@@ -21,7 +21,7 @@ export default defineConfig({
     sourcemap: process.env.NODE_ENV === 'development',
     rollupOptions: {
       input: {
-        popup: path.resolve(__dirname, 'extension-src/popup/popup.html'),
+        popup: path.resolve(__dirname, 'extension-src/popup.html'),
       },
     },
   },
