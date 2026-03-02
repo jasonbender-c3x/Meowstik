@@ -18,7 +18,8 @@ export function useAuth() {
   // Instead of just `!!user`, we now check for a truthy `user` object
   // AND the presence of a `user.id`. This prevents an empty object `{}`
   // from being considered a valid user.
-  const isAuthenticated = !!user && !!user.id;
+  // Also ensures user is an object and not null/undefined
+  const isAuthenticated = !!user && typeof user === 'object' && 'id' in user && !!user.id;
 
   return {
     user,

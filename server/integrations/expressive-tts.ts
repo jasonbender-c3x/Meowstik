@@ -49,7 +49,7 @@ function getServiceAccountAuth(): Auth.GoogleAuth | null {
   if (serviceAccountAuth) return serviceAccountAuth;
   
   // Method 1: Check for GOOGLE_SERVICE_ACCOUNT_JSON secret (JSON content directly)
-  const jsonSecret = process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
+  const jsonSecret = process.env.GOOGLE_SERVICE_ACCOUNT_JSON || (fs.existsSync("google-credentials.json") ? fs.readFileSync("google-credentials.json", "utf8") : null);
   if (jsonSecret) {
     try {
       const credentials = JSON.parse(jsonSecret);
@@ -67,7 +67,7 @@ function getServiceAccountAuth(): Auth.GoogleAuth | null {
   }
   
   // Method 2: Check for GOOGLE_APPLICATION_CREDENTIALS file path
-  const credentialsPath = process.env.GOOGLE_APPLICATION_CREDENTIALS;
+  const credentialsPath = process.env.GOOGLE_APPLICATION_CREDENTIALS || (fs.existsSync("google-credentials.json") ? "google-credentials.json" : null);
   if (!credentialsPath) {
     console.warn('[TTS] No service account credentials configured');
     console.warn('[TTS] Set GOOGLE_SERVICE_ACCOUNT_JSON secret or GOOGLE_APPLICATION_CREDENTIALS env var');

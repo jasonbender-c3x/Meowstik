@@ -17,3 +17,4 @@ client/src/pages/debug-old.tsx
 .pythonlibs/
 
 package-lock.json
+meowstik.AppImage

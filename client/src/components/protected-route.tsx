@@ -20,6 +20,7 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
   }
 
   if (!isAuthenticated) {
+    // console.log("Redirecting to login. User:", user, "IsAuthenticated:", isAuthenticated);
     return <Redirect to="/login" />;
   }
 

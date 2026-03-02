@@ -4,11 +4,17 @@ import * as fs from "fs";
 import * as path from "path";
 import { z } from "zod";
 import { getTrafficLog } from "../websocket-terminal";
+import { broadcastToTerminals } from "../services/ssh-service";
 
 const router = Router();
 
 const executeCommandSchema = z.object({
   command: z.string().min(1, "Command is required").max(10000, "Command too long")
+});
+
+const broadcastSchema = z.object({
+  message: z.string().min(1, "Message is required"),
+  source: z.string().optional().default("CLI")
 });
 
 const OUTPUT_FILE = path.join(process.cwd(), ".local", "terminal-output.txt");
@@ -26,6 +32,25 @@ function appendToOutputFile(content: string) {
   const entry = `\n[${timestamp}]\n${content}\n`;
   fs.appendFileSync(OUTPUT_FILE, entry);
 }
+
+router.post("/broadcast", (req, res) => {
+  try {
+    const parseResult = broadcastSchema.safeParse(req.body);
+    if (!parseResult.success) {
+      return res.status(400).json({ error: parseResult.error.errors[0]?.message });
+    }
+    
+    const { message, source } = parseResult.data;
+    
+    broadcastToTerminals(message + '\n', source);
+    appendToOutputFile(`[${source}] ${message}`);
+    
+    res.json({ success: true });
+  } catch (error) {
+    console.error("[Terminal] Error broadcasting:", error);
+    res.status(500).json({ error: "Failed to broadcast message" });
+  }
+});
 
 router.post("/execute", async (req, res) => {
   try {

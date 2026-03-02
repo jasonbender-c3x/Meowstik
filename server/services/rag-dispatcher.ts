@@ -33,6 +33,7 @@
  */
 
 import { storage } from "../storage";
+import { webSearch, formatSearchResult } from "../integrations/web-search";
 import { 
   structuredLLMResponseSchema,
   type StructuredLLMResponse,
@@ -220,6 +221,30 @@ const apiCallParamsSchema = z.object({
 const searchParamsSchema = z.object({
   query: z.string(),
   scope: z.string().optional()
+});
+
+const webSearchParamsSchema = z.object({
+  query: z.string(),
+  maxTokens: z.number().optional(),
+  searchRecency: z.enum(["day", "week", "month", "year"]).optional(),
+  domains: z.array(z.string()).optional()
+});
+
+const googleSearchParamsSchema = z.object({
+  query: z.string(),
+  searchRecency: z.enum(["day", "week", "month", "year"]).optional(),
+  domains: z.array(z.string()).optional()
+});
+
+const duckduckgoSearchParamsSchema = z.object({
+  query: z.string(),
+  maxResults: z.number().optional()
+});
+
+const browserScrapeParamsSchema = z.object({
+  url: z.string().url(),
+  selector: z.string().optional(),
+  timeout: z.number().optional()
 });
 
 const execAsync = promisify(exec);

@@ -1,47 +1,21 @@
 import { Router } from "express";
-import passport from "passport";
-import { setupAuth as setupPassport, isAuthenticated } from "../homeDevAuth.js";
+import { authRouter as googleAuthRouter } from "../googleAuth.js";
 
 /**
  * [💭 Analysis]
- * Identity Router - Revision 3.6.1
+ * Identity Router - Revision 4.0.0
  * PATH: server/routes/auth.ts
- * * FIX: Exporting setupAuth for server/index.ts to resolve TypeError.
+ * 
+ * This router is now a clean wrapper around the Google OAuth2 implementation
+ * in server/googleAuth.ts. This prevents duplicate route definitions and
+ * ensures consistent authentication behavior.
  */
 
 export const authRouter = Router();
 
-export function setupAuth(app: any) {
-  setupPassport(app);
-}
+// Mount the Google Auth routes
+// These will be available at /api/auth/google, /api/auth/google/callback, etc.
+authRouter.use("/", googleAuthRouter);
 
-authRouter.get("/user", (req, res) => {
-  if (req.isAuthenticated()) return res.json(req.user);
-  res.status(401).json({ message: "Not authenticated" });
-});
-
-authRouter.get("/google", passport.authenticate("google", { 
-  scope: ["profile", "email"],
-  prompt: "select_account"
-}));
-
-authRouter.get(
-  "/google/callback",
-  passport.authenticate("google", { failureRedirect: "/login" }),
-  (req, res) => {
-    res.redirect("/");
-  }
-);
-
-authRouter.post("/dev-login", passport.authenticate("sovereign-dev"), (req, res) => {
-    res.json(req.user);
-});
-
-authRouter.post("/logout", (req, res, next) => {
-  req.logout((err) => {
-    if (err) return next(err);
-    res.json({ message: "Logged out" });
-  });
-});
-
+export { setupAuth } from "../googleAuth.js";
 export default authRouter;

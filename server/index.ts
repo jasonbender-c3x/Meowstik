@@ -1,6 +1,6 @@
 import './load-env.js'; 
 import express, { type Request, Response, NextFunction } from "express";
-import session from "express-session";
+// import session from "express-session"; // Moved to googleAuth.ts
 import { registerRoutes } from "./routes.js"; 
 import { setupVite, serveStatic } from "./vite.js";
 import { createServer } from "http";
@@ -34,19 +34,13 @@ app.use((req, res, next) => {
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
-app.use(session({
-  secret: process.env.SESSION_SECRET || "sovereign_secret",
-  resave: false,
-  saveUninitialized: false,
-  store: storage.sessionStore, // Relies on MemoryStore we set previously
-  name: 'meowstik.sid',
-  cookie: { secure: false, maxAge: 24 * 60 * 60 * 1000 }
-}));
+// app.use(session({ ... })) REMOVED: Session is handled in setupAuth inside registerRoutes
+// to ensure we use the Postgres-backed session store and avoid double-init.
 
 console.log("⏳ [Boot] Setting up Auth...");
 console.log(`🔑 [Auth] Using Google Client ID: ${process.env.GOOGLE_CLIENT_ID?.substring(0, 10)}...`);
 console.log(`🌐 [Auth] Using Redirect URI: ${process.env.GOOGLE_REDIRECT_URI}`);
-setupAuth(app); // Re-enabling this here to ensure it runs before any routes
+// setupAuth(app); // REMOVED: Called inside registerRoutes to avoid duplicate session middleware
 
 // Health Check Route (To verify the backend independently)
 app.get("/api/health", (req, res) => {

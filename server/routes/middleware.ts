@@ -216,10 +216,12 @@ export const checkAuthStatus: RequestHandler = async (req: Request, _res: Respon
   
   // Attach auth status to request
   const isAuthFn = req.isAuthenticated?.() || false;
+  const userId = user?.id || user?.claims?.sub || null;
+  
   (req as any).authStatus = {
-    isAuthenticated: (isAuthFn && !!user?.claims?.sub) || (isHomeDevMode() && !!user?.claims?.sub),
-    userId: user?.claims?.sub || null,
-    isGuest: !user?.claims?.sub,
+    isAuthenticated: (isAuthFn && !!userId) || (isHomeDevMode() && !!userId),
+    userId: userId,
+    isGuest: !userId,
   };
   
   next();

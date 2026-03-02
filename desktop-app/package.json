@@ -8,9 +8,7 @@
     "postinstall": "electron-builder install-app-deps"
   },
   "dependencies": {
-    "electron-squirrel-startup": "^1.0.0",
-    "node-pty": "^1.1.0",
-    "ws": "^8.18.0"
+    "electron-squirrel-startup": "^1.0.0"
   },
   "devDependencies": {
     "electron": "^28.0.0",
@@ -28,6 +26,37 @@
     },
     "win": {
       "target": "nsis"
-    }
+    },
+    "extraResources": [
+      {
+        "from": "../server",
+        "to": "server",
+        "filter": [
+          "**/*",
+          "!node_modules",
+          "!**/*.map"
+        ]
+      },
+      {
+        "from": "../node_modules",
+        "to": "server/node_modules",
+        "filter": [
+          "**/*"
+        ]
+      },
+      {
+        "from": "../desktop-agent",
+        "to": "desktop-agent",
+        "filter": [
+          "dist/**/*",
+          "package.json",
+          "node_modules/**/*"
+        ]
+      },
+      {
+        "from": "../dist",
+        "to": "dist"
+      }
+    ]
   }
 }

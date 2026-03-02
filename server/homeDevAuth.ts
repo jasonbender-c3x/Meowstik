@@ -3,52 +3,94 @@ import { Strategy as CustomStrategy } from "passport-custom";
 import { Strategy as GoogleStrategy } from "passport-google-oauth20";
 import { storage } from "./storage.js";
 import { Request, Response, NextFunction } from "express";
+import crypto from "crypto";
 
 /**
  * [💭 Analysis] 
- * Sovereign Identity Strategy - Revision 3.6.1
+ * Sovereign Identity Layer - Revision 4.1.6
  * PATH: server/homeDevAuth.ts
- * * FIX: Added aggressive username fallback to prevent DB constraint errors.
+ * FIX: Polymorphic Middleware Signature. `createHomeDevSession` now safely
+ * acts as both a factory `app.use(createHomeDevSession())` AND a direct
+ * function `createHomeDevSession(req, res, next)` preventing undefined crashes.
  */
 
+// --- UTILITY EXPORTS ---
+
 export function isHomeDevMode() {
-  return process.env.HOME_DEV_MODE === "true" || !process.env.GOOGLE_CLIENT_ID;
+  return process.env.HOME_DEV_MODE === "true";
 }
 
 export async function getHomeDevUser() {
-  const email = process.env.HOME_DEV_EMAIL || "jason@meowstik.local";
-  return await storage.getUserByEmail(email);
+  const devEmail = process.env.HOME_DEV_EMAIL || "jason@oceanshorestech.com";
+  let user = await storage.getUserByEmail(devEmail);
+  if (!user) {
+    user = await storage.createUser({
+      username: "jason_root",
+      email: devEmail,
+      password: crypto.randomBytes(32).toString('hex'), // Bypass DB constraint
+      displayName: "Jason (Creator)",
+      role: "admin",
+      googleId: "dev_local",
+      avatarUrl: "",
+      googleAccessToken: "",
+      googleRefreshToken: ""
+    });
+  }
+  return user;
 }
 
-export async function createHomeDevSession() {
-  const email = process.env.HOME_DEV_EMAIL || "jason@meowstik.local";
-  const user = await storage.getUserByEmail(email);
-  if (!user) return null;
-  
-  return {
-    claims: {
-      sub: user.id.toString(),
-      email: user.email,
-      first_name: user.displayName || "Developer",
-      last_name: "",
-      profile_image_url: "",
-      exp: Math.floor(Date.now() / 1000) + (7 * 24 * 60 * 60)
-    },
-    access_token: "dev-token",
-    refresh_token: "dev-refresh-token",
-    expires_at: Math.floor(Date.now() / 1000) + (7 * 24 * 60 * 60)
+// --- BULLETPROOF MIDDLEWARE ---
+
+export function createHomeDevSession(req?: any, res?: any, next?: any) {
+  // The actual logic that runs per request
+  const handler = async (reqObj: any, resObj: any, nextFn: any) => {
+    if (!isHomeDevMode()) return nextFn();
+    
+    // Safely check auth status without throwing if passport isn't attached yet
+    const isAuth = typeof reqObj.isAuthenticated === 'function' ? reqObj.isAuthenticated() : false;
+    
+    if (!isAuth) {
+      try {
+        const user = await getHomeDevUser();
+        // Ensure req.login exists before calling it
+        if (typeof reqObj.login === 'function') {
+          reqObj.login(user, (err: any) => {
+            if (err) return nextFn(err);
+            return nextFn();
+          });
+          return;
+        } else {
+          // Fallback if Passport isn't fully mounted
+          reqObj.user = user;
+        }
+      } catch (err) {
+        console.error("Critical Auth Error: Could not fetch Home Dev User", err);
+        return nextFn(err);
+      }
+    }
+    return nextFn();
   };
+
+  // Factory pattern detection (called with 0 args from middleware.ts)
+  if (!req) {
+    return handler;
+  }
+
+  // Direct invocation detection (called with 3 args)
+  return handler(req, res, next);
 }
 
 export function isAuthenticated(req: Request, res: Response, next: NextFunction) {
-  if (req.isAuthenticated()) return next();
+  if (typeof req.isAuthenticated === 'function' && req.isAuthenticated()) return next();
   
   if (req.accepts("json")) {
-    res.status(401).json({ message: "Unauthorized: Meowstik Identity Required" });
+    res.status(401).json({ message: "Identity Required" });
   } else {
-    res.redirect("/login");
+    res.redirect("/api/login");
   }
 }
+
+// --- PASSPORT CONFIGURATION ---
 
 export function setupAuth(app: any) {
   app.use(passport.initialize());
@@ -67,57 +109,44 @@ export function setupAuth(app: any) {
     }
   });
 
-  // Sovereign Dev Strategy
+  // Sovereign Dev Strategy (Master Key)
   passport.use("sovereign-dev", new CustomStrategy(async (req, done) => {
-    const devEmail = process.env.HOME_DEV_EMAIL || "jason@meowstik.local";
-    let user = await storage.getUserByEmail(devEmail);
-    if (!user) {
-      user = await storage.createUser({
-        username: "jason_root", // Anchor username
-        email: devEmail,
-        password: "sovereign_bypass_secure",
-        displayName: "Jason (Creator)",
-        role: "admin"
-      });
+    try {
+      const user = await getHomeDevUser();
+      return done(null, user);
+    } catch (err) {
+      return done(err);
     }
-    return done(null, user);
   }));
 
   // Google OAuth Strategy
   if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
-    const rawCallbackURL = process.env.GOOGLE_REDIRECT_URI || "http://localhost:5000/api/auth/google/callback";
-    const callbackURL = rawCallbackURL.trim();
-    
-    console.log(`🌐 [Auth] Initializing Google Strategy with Callback: ${callbackURL}`);
-    
-    // Validate callbackURL is a valid URL and matches the expected format
-    try {
-      new URL(callbackURL);
-    } catch (e) {
-      console.error(`❌ [Auth] INVALID CALLBACK URL: "${callbackURL}"`);
-    }
-
     passport.use(new GoogleStrategy({
-        clientID: (process.env.GOOGLE_CLIENT_ID || "").trim(),
-        clientSecret: (process.env.GOOGLE_CLIENT_SECRET || "").trim(),
-        callbackURL: callbackURL,
-        proxy: true,
+        clientID: process.env.GOOGLE_CLIENT_ID,
+        clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+        callbackURL: process.env.GOOGLE_REDIRECT_URI || "http://localhost:5000/api/auth/google/callback",
+        proxy: true 
       },
       async (accessToken, refreshToken, profile, done) => {
         try {
           const email = profile.emails?.[0]?.value;
           if (!email) return done(new Error("No email provided"));
+          
           let user = await storage.getUserByEmail(email);
+          const userData = {
+            username: email.split('@')[0],
+            email: email,
+            password: crypto.randomBytes(32).toString('hex'), // <-- Database Fix
+            displayName: profile.displayName,
+            googleId: profile.id,
+            avatarUrl: profile.photos?.[0]?.value || "",
+            googleAccessToken: accessToken,
+            googleRefreshToken: refreshToken,
+            role: email === process.env.HOME_DEV_EMAIL ? "admin" : "user"
+          };
+
           if (!user) {
-            user = await storage.createUser({
-              username: email.split('@')[0] || `user_${Date.now()}`,
-              email: email,
-              password: "", 
-              displayName: profile.displayName,
-              googleId: profile.id,
-              avatarUrl: profile.photos?.[0]?.value,
-              role: email === process.env.ADMIN_EMAIL ? "admin" : "user"
-            });
+             user = await storage.createUser(userData);
           }
           return done(null, user);
         } catch (err) {

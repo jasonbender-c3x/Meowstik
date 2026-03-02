@@ -168,7 +168,11 @@ export async function registerRoutes(
   // Auth user endpoint - returns the current user's profile
   app.get("/api/auth/user", isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id || req.user.claims?.sub || req.user.googleId;
+      if (!userId) {
+         return res.status(500).json({ message: "Invalid user session" });
+      }
+
       const user = await storage.getUser(userId);
       res.json(user);
     } catch (error) {

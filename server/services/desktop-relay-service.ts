@@ -272,11 +272,28 @@ class DesktopRelayService {
       type: 'input',
       data: event,
     }));
-
+    
+    // Broadcast input event to browsers so they can see what's happening
     this.broadcastToBrowsers(session, {
       type: 'input_event',
-      data: { ...event, timestamp: Date.now() },
+      data: { ...event, timestamp: Date.now() }
     });
+  }
+
+  /**
+   * Trigger a network scan on the agent
+   */
+  async scanNetwork(sessionId: string): Promise<boolean> {
+    const session = this.sessions.get(sessionId);
+    if (!session || !session.agentWs) {
+      console.error(`[DesktopRelay] Cannot scan network: no agent for session ${sessionId}`);
+      return false;
+    }
+
+    session.agentWs.send(JSON.stringify({
+      type: 'scan-network'
+    }));
+    return true;
   }
 
   setControlMode(sessionId: string, mode: 'user' | 'ai' | 'shared'): void {

@@ -6,33 +6,26 @@
 import passport from "passport";
 import { Strategy as GoogleStrategy } from "passport-google-oauth20";
 import session from "express-session";
-import type { Express, RequestHandler } from "express";
+import { Router, type Express, type RequestHandler } from "express";
 import connectPg from "connect-pg-simple";
 import { storage } from "./storage.js";
+import { pool } from "./db.js";
 import { isHomeDevMode, getHomeDevUser } from "./homeDevAuth.js";
 import csurf from "csurf";
+import crypto from "crypto";
 
 // Session duration: 1 week (in milliseconds)
 const SESSION_TTL = 7 * 24 * 60 * 60 * 1000;
-// Session duration: 1 week (in seconds, for JWT exp claims)
 const SESSION_TTL_SECONDS = 7 * 24 * 60 * 60;
 
-/**
- * CSRF protection middleware configured to work with the session above.
- *
- * Usage (in your Express app setup, after getSession()):
- *   app.use(getSession());
- *   app.use(getCsrfProtection());
- */
 export function getCsrfProtection() {
-  // Using session-based tokens (no separate CSRF cookie) to complement express-session.
   return csurf({ cookie: false });
 }
 
 export function getSession() {
   const pgStore = connectPg(session);
   const sessionStore = new pgStore({
-    conString: process.env.DATABASE_URL,
+    pool, // Use shared pool
     createTableIfMissing: true,
     ttl: SESSION_TTL,
     tableName: "sessions",
@@ -40,7 +33,6 @@ export function getSession() {
   
   const isProduction = process.env.NODE_ENV === "production";
   
-  // Require SESSION_SECRET in production
   if (isProduction && !process.env.SESSION_SECRET) {
     throw new Error("SESSION_SECRET environment variable must be set in production");
   }
@@ -72,9 +64,6 @@ interface GoogleUser {
   provider: string;
 }
 
-/**
- * Parse first and last name from Google profile
- */
 function parseUserName(profile: GoogleUser): { firstName: string; lastName: string } {
   if (profile.name?.givenName) {
     return {
@@ -82,8 +71,6 @@ function parseUserName(profile: GoogleUser): { firstName: string; lastName: stri
       lastName: profile.name.familyName || "",
     };
   }
-  
-  // Fallback: parse displayName
   const parts = profile.displayName.split(" ");
   return {
     firstName: parts[0] || "",
@@ -91,55 +78,56 @@ function parseUserName(profile: GoogleUser): { firstName: string; lastName: stri
   };
 }
 
-async function upsertUser(profile: GoogleUser) {
+async function findOrCreateUser(profile: GoogleUser) {
   const email = profile.emails?.[0]?.value || "";
   const { firstName, lastName } = parseUserName(profile);
   const profileImageUrl = profile.photos?.[0]?.value || "";
   const displayName = `${firstName} ${lastName}`.trim() || profile.displayName;
-  // Generate a username from email or use a fallback
   const username = email.split("@")[0] || `user_${profile.id.substring(0, 8)}`;
 
-  await storage.upsertUser({
-    id: profile.id,
-    googleId: profile.id,
-    email,
-    username,
-    displayName,
-    avatarUrl: profileImageUrl,
-    role: "user",
-  });
+  let user = await storage.getUserByEmail(email);
+  
+  if (!user) {
+    user = await storage.createUser({
+      username,
+      email,
+      displayName,
+      googleId: profile.id,
+      avatarUrl: profileImageUrl,
+      password: crypto.randomBytes(32).toString('hex'), 
+      role: "user",
+    });
+  }
+  
+  return user;
 }
+
+// Create a router for auth endpoints
+export const authRouter = Router();
 
 export async function setupAuth(app: Express) {
   app.set("trust proxy", 1);
   app.use(getSession());
   
-  console.log("[Auth Setup] Registering passport serializers...");
-  passport.serializeUser((user: Express.User, cb) => {
+  passport.serializeUser((user: any, cb) => {
     cb(null, user);
   });
-  passport.deserializeUser((user: Express.User, cb) => {
+  passport.deserializeUser((user: any, cb) => {
     cb(null, user);
   });
 
   app.use(passport.initialize());
   app.use(passport.session());
 
-  if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
-    if (isHomeDevMode()) {
-       console.log("🏠 [Google Auth] Skipping setup: HOME_DEV_MODE is enabled and no Google keys.");
-       // Register dummy routes so links don't 404
-       const devRedirect = (req: any, res: any) => res.redirect("/");
-       app.get("/api/login", devRedirect);
-       app.get("/api/auth/google", devRedirect);
-    } else {
-       console.warn("⚠️ [Google Auth] GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET not set. Skipping Google OAuth setup.");
-    }
+  const clientId = (process.env.GOOGLE_CLIENT_ID || "").trim();
+  const clientSecret = (process.env.GOOGLE_CLIENT_SECRET || "").trim();
+
+  if (!clientId || !clientSecret) {
+    console.warn("⚠️ [Google Auth] GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET not set.");
     return;
   }
 
   try {
-    // Determine callback URL based on environment
     let callbackURL = (process.env.GOOGLE_REDIRECT_URI || "").trim();
     
     if (!callbackURL) {
@@ -148,22 +136,30 @@ export async function setupAuth(app: Express) {
       callbackURL = `${protocol}://${host}/api/auth/google/callback`;
     }
 
-    console.log("[Google Auth] Using callback URL:", callbackURL);
-
     passport.use(
       new GoogleStrategy(
         {
-          clientID: (process.env.GOOGLE_CLIENT_ID || "").trim(),
-          clientSecret: (process.env.GOOGLE_CLIENT_SECRET || "").trim(),
+          clientID: clientId,
+          clientSecret: clientSecret,
           callbackURL,
           proxy: true,
         },
         async (accessToken, refreshToken, profile, done) => {
           try {
-            await upsertUser(profile as GoogleUser);
+            const dbUser = await findOrCreateUser(profile as GoogleUser);
             
-            // Create user session object compatible with existing code
+            // Link tokens to the global singleton for tool access
+            await storage.saveGoogleTokens({
+              id: 'default',
+              accessToken: accessToken || null,
+              refreshToken: refreshToken || null,
+              expiryDate: Math.floor(Date.now() / 1000) + SESSION_TTL_SECONDS,
+              tokenType: 'Bearer',
+              scope: profile._json?.scope || null,
+            });
+
             const user = {
+              ...dbUser,
               claims: {
                 sub: profile.id,
                 email: profile.emails?.[0]?.value || "",
@@ -186,104 +182,71 @@ export async function setupAuth(app: Express) {
       )
     );
 
-    // Login routes
     const authHandler = passport.authenticate("google", {
-      scope: ["profile", "email"],
+      scope: ["profile", "email", "https://www.googleapis.com/auth/gmail.modify", "https://www.googleapis.com/auth/calendar", "https://www.googleapis.com/auth/drive.file"],
+      accessType: 'offline',
+      prompt: 'consent'
     });
 
-    app.get("/api/login", authHandler);
-    app.get("/api/auth/google", authHandler);
-
-    // OAuth callback route
-    app.get(
-      "/api/auth/google/callback",
-      passport.authenticate("google", {
-        failureRedirect: "/login",
-      }),
-      (req, res) => {
-        // Successful authentication, redirect home
-        res.redirect("/");
-      }
+    // Mount handlers on the router
+    authRouter.get("/google", authHandler);
+    authRouter.get("/google/callback", 
+      passport.authenticate("google", { failureRedirect: "/login" }),
+      (req, res) => { res.redirect("/"); }
     );
+    
+    authRouter.get("/user", isAuthenticated, async (req: any, res) => {
+      try {
+        const userId = req.user.id || req.user.claims?.sub || req.user.googleId;
+        const user = await storage.getUser(userId);
+        res.json(user);
+      } catch (error) {
+        res.status(500).json({ message: "Failed to fetch user" });
+      }
+    });
 
-    // Logout route
-    app.get("/api/logout", (req, res) => {
-      console.log("[LOGOUT] Logout request received");
-      const sessionId = req.session.id;
-      console.log(`[LOGOUT] Destroying session: ${sessionId}`);
-
-      req.logout((logoutErr: any) => {
-        if (logoutErr) {
-          console.error("[LOGOUT] Error during req.logout():", logoutErr);
-        } else {
-          console.log("[LOGOUT] req.logout() completed successfully.");
-        }
-
-        console.log("[LOGOUT] Attempting to destroy session...");
-        req.session.destroy((destroyErr: any) => {
-          if (destroyErr) {
-            console.error("[LOGOUT] FATAL: Error destroying session:", destroyErr);
-            return res.status(500).json({ message: "Failed to destroy session.", error: destroyErr.message });
-          }
-          
-          console.log("[LOGOUT] Session destroyed successfully.");
-          console.log("[LOGOUT] Redirecting to login page.");
-          
-          // Redirect to login page after logout
+    authRouter.get("/logout", (req, res) => {
+      req.logout((err) => {
+        req.session.destroy(() => {
           res.redirect("/login");
         });
       });
     });
 
-    console.log("✅ [Google Auth] OAuth setup complete");
+    console.log("✅ [Google Auth] OAuth strategy registered");
   } catch (error: any) {
-    console.error("⚠️  [Auth] Failed to setup Google OAuth:", error?.message || error);
-    console.error("    The app will continue but authentication via Google will not work.");
+    console.error("⚠️ [Auth] Failed to setup Google OAuth:", error?.message || error);
   }
 }
 
 export const isAuthenticated: RequestHandler = async (req, res, next) => {
+  if (req.isAuthenticated() && (req.user as any)?.claims?.sub) {
+     return next();
+  }
+
   if (isHomeDevMode()) {
     if (!req.user) {
       try {
         const user = await getHomeDevUser();
-        if (!user) {
-          console.error("Critical Auth Error: Home Dev User not found in database.");
-          return res.status(401).json({ message: "Home Dev User not found. Please seed the database." });
+        if (user) {
+          req.user = {
+            claims: {
+              sub: user.id.toString(),
+              email: user.email,
+              first_name: user.displayName || "Developer",
+              last_name: "",
+              profile_image_url: user.avatarUrl || "",
+              exp: Math.floor(Date.now() / 1000) + SESSION_TTL_SECONDS
+            },
+            access_token: "home-dev-token",
+            refresh_token: "home-dev-refresh-token",
+            expires_at: Math.floor(Date.now() / 1000) + SESSION_TTL_SECONDS
+          };
         }
-        req.user = {
-          claims: {
-            sub: user.id.toString(),
-            email: user.email,
-            first_name: user.displayName || "Developer",
-            last_name: "",
-            profile_image_url: user.avatarUrl || "",
-            exp: Math.floor(Date.now() / 1000) + SESSION_TTL_SECONDS
-          },
-          access_token: "home-dev-token",
-          refresh_token: "home-dev-refresh-token",
-          expires_at: Math.floor(Date.now() / 1000) + SESSION_TTL_SECONDS
-        };
-      } catch (e) {
-        console.error("Critical Auth Error: Could not fetch Home Dev User", e);
-        return res.status(500).json({ message: "Authentication error" });
-      }
+      } catch (e) {}
     }
     return next();
   }
 
-  const user = req.user as any;
-
-  if (!req.isAuthenticated() || !user) {
-    return res.status(401).json({ message: "Unauthorized" });
-  }
-
-  // Check if token is expired (with some buffer time)
-  const now = Math.floor(Date.now() / 1000);
-  if (user.expires_at && now > user.expires_at + 60) {
-    // Token expired - user needs to re-authenticate
-    return res.status(401).json({ message: "Session expired. Please log in again." });
-  }
-
-  return next();
+  return res.status(401).json({ message: "Unauthorized" });
 };

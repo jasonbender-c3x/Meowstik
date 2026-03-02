@@ -115,4 +115,17 @@ router.post("/sessions/:sessionId/input", async (req, res) => {
   }
 });
 
+router.post("/sessions/:sessionId/scan-network", async (req, res) => {
+  try {
+    const success = await desktopRelayService.scanNetwork(req.params.sessionId);
+    if (!success) {
+      return res.status(400).json({ error: "Agent not connected or session not found" });
+    }
+    res.json({ success: true, message: "Network scan triggered" });
+  } catch (error) {
+    console.error("[Desktop API] Error scanning network:", error);
+    res.status(500).json({ error: "Failed to scan network" });
+  }
+});
+
 export default router;

@@ -120,6 +120,33 @@ function handleAgentConnection(ws: WebSocket, sessionId: string): void {
           desktopRelayService.handleFrame(sessionId, message.data as any);
           break;
 
+        case "scan-result":
+          console.log(`[Desktop WS] Network scan results received for session ${sessionId}`);
+          // Broadcast to browsers
+          {
+            const s = desktopRelayService.getSession(sessionId);
+            if (s) {
+              desktopRelayService.broadcastToBrowsers(s, {
+                type: 'scan_result',
+                data: message.data
+              });
+            }
+          }
+          break;
+
+        case "scan-error":
+          console.error(`[Desktop WS] Network scan error for session ${sessionId}:`, message.data);
+          {
+             const s = desktopRelayService.getSession(sessionId);
+             if (s) {
+               desktopRelayService.broadcastToBrowsers(s, {
+                 type: 'scan_error',
+                 data: message.data
+               });
+             }
+          }
+          break;
+
         case "audio":
           break;
 

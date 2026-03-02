@@ -133,6 +133,9 @@ class DesktopAgent {
         case 'config':
           this.updateConfig(message.data);
           break;
+        case 'scan-network':
+          this.scanNetwork();
+          break;
         default:
           console.log('Unknown message type:', message.type);
       }
@@ -283,6 +286,88 @@ class DesktopAgent {
       memory: Math.round(os.totalmem() / 1024 / 1024 / 1024),
       screens: [{ width: 1920, height: 1080 }], // Would use systeminformation here
     };
+  }
+
+  private async scanNetwork(): Promise<void> {
+    const net = require('net');
+    console.log('🔍 Starting network scan...');
+
+    try {
+      const interfaces = os.networkInterfaces();
+      const subnets = new Set<string>();
+
+      // Add common home subnets by default
+      subnets.add('192.168.0.');
+      subnets.add('192.168.1.');
+      subnets.add('192.168.86.'); // Google Wifi
+      subnets.add('10.0.0.');
+
+      Object.values(interfaces).forEach((iface: any) => {
+        iface?.forEach((details: any) => {
+          if (details.family === 'IPv4' && !details.internal) {
+            const parts = details.address.split('.');
+            parts.pop();
+            subnets.add(parts.join('.') + '.');
+          }
+        });
+      });
+
+      console.log('  Subnets to scan:', Array.from(subnets));
+      
+      const foundDevices: { ip: string, ports: number[] }[] = [];
+      const commonPorts = [80, 8080, 554, 8000, 1935];
+
+      for (const subnet of subnets) {
+        console.log(`  Scanning ${subnet}1-254...`);
+        
+        // Batch scan to avoid resource exhaustion
+        const BATCH_SIZE = 50;
+        for (let i = 1; i < 255; i += BATCH_SIZE) {
+          const promises: Promise<{ip: string, port: number} | null>[] = [];
+          for (let j = 0; j < BATCH_SIZE && (i + j) < 255; j++) {
+            const ip = `${subnet}${i + j}`;
+            
+            // Check all ports for this IP
+            const portChecks: Promise<{ip: string, port: number} | null>[] = commonPorts.map(port => 
+              new Promise<{ip: string, port: number} | null>(resolve => {
+                const socket = new net.Socket();
+                socket.setTimeout(200);
+                socket.on('connect', () => {
+                  socket.destroy();
+                  resolve({ ip, port });
+                });
+                socket.on('timeout', () => {
+                  socket.destroy();
+                  resolve(null);
+                });
+                socket.on('error', () => resolve(null));
+                socket.connect(port, ip);
+              })
+            );
+            promises.push(...portChecks);
+          }
+          
+          const results = await Promise.all(promises);
+          results.forEach(res => {
+            if (res) {
+              const existing = foundDevices.find(d => d.ip === res.ip);
+              if (existing) {
+                if (!existing.ports.includes(res.port)) existing.ports.push(res.port);
+              } else {
+                foundDevices.push({ ip: res.ip, ports: [res.port] });
+              }
+            }
+          });
+        }
+      }
+
+      console.log(`✅ Scan complete. Found ${foundDevices.length} devices.`);
+      this.send({ type: 'scan-result', data: foundDevices });
+
+    } catch (error: any) {
+      console.error('Network scan failed:', error);
+      this.send({ type: 'scan-error', data: error.message });
+    }
   }
 
   private updateConfig(newConfig: Partial<AgentConfig>): void {

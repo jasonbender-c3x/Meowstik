@@ -117,6 +117,7 @@ import CommunicationsPage from "@/pages/communications";
 
 import { TTSProvider } from "@/contexts/tts-context";
 import { LocalDriveProvider } from "@/contexts/LocalDriveContext";
+import { AuthProvider } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/protected-route";
 
 // ============================================================================
@@ -344,7 +345,7 @@ function App() {
     // QueryClientProvider: Makes React Query available throughout the app
     // The client instance is imported from ./lib/queryClient.ts
     <QueryClientProvider client={queryClient}>
-      
+      <AuthProvider>
       {/* TTSProvider: Provides text-to-speech functionality with muted state */}
       <TTSProvider>
         
@@ -366,6 +367,7 @@ function App() {
           </TooltipProvider>
         </LocalDriveProvider>
       </TTSProvider>
+      </AuthProvider>
     </QueryClientProvider>
   );
 }

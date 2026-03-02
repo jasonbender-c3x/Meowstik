@@ -80,13 +80,13 @@ import {
 } from "@shared/schema";
 import { db, pool } from "./db";
 import { eq, desc, and, ne, sql, inArray } from "drizzle-orm";
-import session from "express-session";
+// import session from "express-session";
 
 export class DatabaseStorage {
-  sessionStore: session.Store;
+  // sessionStore: session.Store; // Moved to googleAuth.ts
 
   constructor() {
-    this.sessionStore = new session.MemoryStore(); 
+    // this.sessionStore = new session.MemoryStore(); 
   }
 
   // Database Access
@@ -126,12 +126,42 @@ export class DatabaseStorage {
   }
 
   async upsertUser(user: any): Promise<User> {
-    const [existingUser] = await db.select().from(users).where(eq(users.id, user.id));
-    if (existingUser) {
-      const [updatedUser] = await db.update(users).set(user).where(eq(users.id, user.id)).returning();
-      return updatedUser;
+    // First try to find by ID if provided
+    if (user.id) {
+        const [existingUser] = await db.select().from(users).where(eq(users.id, user.id));
+        if (existingUser) {
+            const [updatedUser] = await db.update(users).set(user).where(eq(users.id, user.id)).returning();
+            return updatedUser;
+        }
     }
-    const [newUser] = await db.insert(users).values(user).returning();
+
+    // Fallback: try to find by email (for OAuth/existing users)
+    if (user.email) {
+        const [existingUser] = await db.select().from(users).where(eq(users.email, user.email));
+        if (existingUser) {
+            // Update the existing user, preserving their original ID
+            const { id, ...updateData } = user; 
+            const [updatedUser] = await db.update(users).set(updateData).where(eq(users.id, existingUser.id)).returning();
+            return updatedUser;
+        }
+    }
+
+    // If neither found, insert as new, but handle race conditions on email unique constraint
+    try {
+      const [newUser] = await db.insert(users).values(user).returning();
+      return newUser;
+    } catch (error: any) {
+      if (error.code === '23505' && error.constraint === 'users_email_unique') {
+        // Race condition: user was created between check and insert
+        const [existingUser] = await db.select().from(users).where(eq(users.email, user.email));
+        if (existingUser) {
+           const { id, ...updateData } = user;
+           const [updatedUser] = await db.update(users).set(updateData).where(eq(users.id, existingUser.id)).returning();
+           return updatedUser;
+        }
+      }
+      throw error;
+    }
     return newUser;
   }
 

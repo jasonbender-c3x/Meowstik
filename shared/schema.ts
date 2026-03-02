@@ -639,6 +639,28 @@ export type Feedback = typeof feedback.$inferSelect;
  * Logs every LLM API call with token counts for monitoring and cost tracking.
  * Captures input tokens, output tokens, model used, and timing information.
  */
+/**
+ * GEMINI_CACHES TABLE
+ * --------------------
+ * Tracks transient context caches created in Gemini for token optimization.
+ * Caches are created at the start of a turn and deleted after the agentic loop.
+ */
+export const geminiCaches = pgTable("gemini_caches", {
+  id: varchar("id").primaryKey(),
+  chatId: varchar("chat_id").references(() => chats.id, { onDelete: "cascade" }).notNull(),
+  messageId: varchar("message_id").notNull(),
+  cacheName: text("cache_name").notNull(), // The unique ID from Gemini API
+  contentHash: text("content_hash").notNull(),
+  expiresAt: timestamp("expires_at").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertGeminiCacheSchema = createInsertSchema(geminiCaches).omit({
+  createdAt: true,
+});
+export type InsertGeminiCache = z.infer<typeof insertGeminiCacheSchema>;
+export type GeminiCache = typeof geminiCaches.$inferSelect;
+
 export const llmUsage = pgTable("llm_usage", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   chatId: varchar("chat_id").references(() => chats.id, { onDelete: "cascade" }),

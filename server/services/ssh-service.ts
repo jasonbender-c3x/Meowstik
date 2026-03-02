@@ -136,7 +136,7 @@ export function addOutputListener(listener: OutputListener) {
   return () => outputListeners.delete(listener);
 }
 
-function broadcastOutput(type: 'stdout' | 'stderr' | 'system' | 'command', content: string, source: string) {
+export function broadcastOutput(type: 'stdout' | 'stderr' | 'system' | 'command', content: string, source: string) {
   for (const listener of outputListeners) {
     try {
       listener({ type, content, source });
@@ -144,6 +144,13 @@ function broadcastOutput(type: 'stdout' | 'stderr' | 'system' | 'command', conte
       console.error('[SSH] Error in output listener:', e);
     }
   }
+}
+
+/**
+ * Broadcast a message to all connected terminals
+ */
+export function broadcastToTerminals(content: string, source: string = 'system') {
+  broadcastOutput('stdout', content, source);
 }
 
 // =============================================================================
