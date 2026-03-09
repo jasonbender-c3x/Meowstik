@@ -156,7 +156,8 @@ class RagDebugBuffer {
       traceId: event.traceId,
       traceType: this.inferTraceType(event.stage),
       timestamp: new Date(event.timestamp),
-      durationMs: event.durationMs,
+      // Ensure duration is a safe integer
+      durationMs: Math.min(Math.floor(event.durationMs || 0), 2147483647),
       stage: event.stage,
 
       // Content references

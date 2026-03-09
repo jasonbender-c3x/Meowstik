@@ -2,7 +2,8 @@ import { storage } from '../storage';
 import { eq, sql, and, ilike, or, isNull } from 'drizzle-orm';
 import { GoogleGenAI } from '@google/genai';
 import { EmbeddingService } from './embedding-service';
-import { knowledgeEmbeddings } from '@shared/schema';
+import { getVectorStore } from './vector-store';
+import { knowledgeEmbeddings, entities, evidence, documentChunks } from '@shared/schema';
 
 const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' });
 const embeddingService = new EmbeddingService();
@@ -46,6 +47,7 @@ export class IngestionPipeline {
   async ingestText(envelope: EvidenceEnvelope): Promise<Evidence> {
     const wordCount = envelope.extractedText?.split(/\s+/).length || 0;
     const userId = envelope.userId || null;
+    const isGuest = !userId || userId === 'guest';
     
     const [result] = await getDb().insert(evidence).values({
       sourceType: envelope.sourceType,
@@ -236,7 +238,7 @@ Bucket definitions:
 - PROJECTS: Specific project work, tasks, deadlines`;
 
       const result = await genAI.models.generateContent({
-        model: 'gemini-3-flash-preview-lite',
+        model: 'gemini-1.5-flash-001',
         contents: prompt,
       });
       const responseText = result.text || '';
@@ -338,7 +340,41 @@ Bucket definitions:
         isGuest: evidenceItem.isGuest,
       });
       
-      console.log(`Generated embedding for evidence ${evidenceId}`);
+      // Insert into documentChunks (for Hybrid Search compatibility)
+      await getDb().insert(documentChunks).values({
+        id: evidenceId, // Force ID to match vector store ID
+        documentId: evidenceId,
+        chunkIndex: 0,
+        content: textToEmbed,
+        embedding: embeddingResult.embedding,
+        metadata: {
+          bucket: evidenceItem.bucket,
+          modality: evidenceItem.modality,
+          sourceType: evidenceItem.sourceType,
+          userId: evidenceItem.userId,
+          isGuest: evidenceItem.isGuest,
+        }
+      });
+      
+      // Sync to vector store for retrieval
+      try {
+        const vectorStore = await getVectorStore();
+        await vectorStore.upsert({
+          id: evidenceId,
+          content: textToEmbed,
+          embedding: embeddingResult.embedding,
+          metadata: {
+            bucket: evidenceItem.bucket,
+            modality: evidenceItem.modality,
+            sourceType: evidenceItem.sourceType,
+            userId: evidenceItem.userId,
+            isGuest: evidenceItem.isGuest,
+          }
+        });
+      } catch (vectorError) {
+        console.error(`Failed to sync to vector store for ${evidenceId}:`, vectorError);
+      }
+      
     } catch (error) {
       console.error(`Failed to generate embedding for ${evidenceId}:`, error);
     }
@@ -359,12 +395,15 @@ Bucket definitions:
     const queryEmbedding = await embeddingService.embed(query);
     
     // Build database query
-    // NOTE: Removed userId filtering to support single-user "god mode"
-    // The system now ignores client/user ownership limits for retrieval
     let queryBuilder = getDb().select().from(knowledgeEmbeddings);
     
-    let allEmbeddings = await queryBuilder;
+    // Filter by userId if provided
+    if (userId) {
+      queryBuilder = queryBuilder.where(eq(knowledgeEmbeddings.userId, userId)) as any;
+    }
     
+    let allEmbeddings = await queryBuilder;
+
     // Additional in-memory filters for bucket and modality (these don't have indexes yet)
     if (bucket) {
       allEmbeddings = allEmbeddings.filter((e) => e.bucket === bucket);

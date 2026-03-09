@@ -104,6 +104,7 @@ export class PromptComposer {
   private shortTermMemory: string = "";
   private cache: string = "";
   private todoList: string = "";
+  private personalLog: string = "";
   private promptsLoaded: boolean = false;
 
   constructor() {
@@ -184,6 +185,17 @@ export class PromptComposer {
     } catch (error) {
       console.warn("Could not load logs/todo.md. This is expected if no to-dos exist yet.");
       this.todoList = "";
+    }
+
+    // Load personal_log.md (personal turn log)
+    try {
+      this.personalLog = fs.readFileSync(
+        path.join(logsDir, "personal_log.md"),
+        "utf-8"
+      );
+    } catch (error) {
+      console.warn("Could not load logs/personal_log.md. This is expected if no personal log exists yet.");
+      this.personalLog = "";
     }
 
     this.promptsLoaded = true;
@@ -325,12 +337,13 @@ export class PromptComposer {
 
 Before you call 'send_chat' to end your turn, you MUST perform the following actions:
 
-1.  **Append Execution Log**:
-    *   **Action**: Use the \`log_append\` tool with \`name: "execution"\`
-    *   **Content**: Log the tools you executed in this turn. Include tool name, parameters, and result summary.
+1.  **Append Personal Log (MANDATORY)**:
+    *   **Action**: Use the \`log_append\` tool with \`name: "personal_log"\`
+    *   **Content**: A concise summary of what you did this turn, current state, and what is next.
+    *   **Why**: This ensures you remember context across sessions.
     *   **Example**:
         \`\`\`
-        log_append({ name: "execution", content: "### Turn Log\\n- **Tool**: gmail_search\\n- **Result**: Found 5 emails from Nick" })
+        log_append({ name: "personal_log", content: "- Implemented user auth\n- Fixed login bug in auth.ts\n- Next: Add logout endpoint" })
         \`\`\`
 
 2.  **Update Thoughts Forward Cache**:
@@ -442,6 +455,19 @@ These steps are mandatory before sending your response via send_chat.
       if (todoContent.trim()) {
         components.push(todoContent);
       }
+    }
+
+    // Include personal log (recent entries)
+    if (this.personalLog.trim()) {
+      const logLines = this.personalLog.split('\n');
+      const maxLogLines = 50; // Keep last 50 lines to avoid context bloat
+      let recentLog = this.personalLog;
+      
+      if (logLines.length > maxLogLines) {
+        recentLog = `... [older logs truncated] ...\n${logLines.slice(-maxLogLines).join('\n')}`;
+      }
+      
+      components.push(`# Personal Log (Recent)\n\n${recentLog}`);
     }
 
     // Include family member context if recognized

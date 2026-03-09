@@ -1,0 +1,247 @@
+<head>
+
+<script type="text/javascript">
+var presetlist_json;
+var page_num = 1;//将要显示的页码 
+var page_preset = 10;//每页显示多少条记录 
+var preset_total = 0;//预置位总数 
+var page_total = 0;//页总数 
+var start_preset = 0;//每页最前的
+var end_preset = 0;//每页最后的
+var fgRefreshPresetFlay = 0;
+
+function do_select_sensor(list_i)
+{
+	var editindex = presetlist_json.preset[list_i].preset_index;
+	SetCookie('preset_index',editindex,3600*24*30);
+	$("#control_div").load("preset_sensor.html");
+}
+
+function do_sure_preset(list_i)
+{
+	var sure_preset_text = "sure_preset_text" + list_i;
+	var cName = document.getElementById(sure_preset_text).value;
+	if(cName == "")
+	{
+		alert(a[532]);
+		return;
+	}
+	
+	var editindex = presetlist_json.preset[list_i].preset_index;
+	var params = {opType:"edit",edit_index:editindex,name:cName};
+	var preset_info = call_cgi("editpreset.cgi", params);
+	if(preset_info.ret_code == 1)
+	{
+		on_load();
+	}
+	goto_add_place(0, 0, editindex);
+}
+
+function do_cancel_preset(list_i)
+{
+	var editindex = presetlist_json.preset[list_i].preset_index;
+	on_load();
+	goto_add_place(0, 0, editindex);
+}
+
+function do_edit_preset(i)
+{	
+	var edit_name = presetlist_json.preset[i].preset_name;
+	delete_pagepreset();
+	search_page_preset(page_num, 1, i, edit_name);
+}
+
+function search_page_preset(page_num, edit_flag, edit_id, del_before_name)
+{
+	var input_list;
+	var id_type;
+	var id_input;
+	
+	start_preset = page_preset*(page_num-1);
+	if(preset_total >= start_preset + page_preset){
+		end_preset = start_preset + page_preset;
+	}else{
+		end_preset = preset_total;
+	}
+
+	for (var i = start_preset; i < end_preset; i++)
+	{
+		id_type = "preset_id" + i;
+		id_input = "preset_list" + i;
+		input_list = "list" + i;
+		
+		if(edit_flag == 1 && i == edit_id){
+			var sure_preset = "sure_preset" + i;
+			var sure_preset_text = "sure_preset_text" + i;
+			var cancel_preset = "cancel_preset" + i;
+			input_list = '<tr id=' + id_type + '><td><label for="' + id_input + '">'
+			+'<input name="' + sure_preset_text + '" type="text" id="' + sure_preset_text + '" maxlength="32" style="width:200px"/>'
+			+'</td><td align="right">'
+			+'<div class="btn_menu" id="' + cancel_preset + '" onclick="do_cancel_preset(' + i + ')" onmouseover="this.className=\'btn_menu_over\'" onMouseOut="this.className=\'btn_menu\'">Cancel</div>'
+			+'<div class="btn_menu" id="' + sure_preset + '" onclick="do_sure_preset(' + i + ')" onmouseover="this.className=\'btn_menu_over\'" onMouseOut="this.className=\'btn_menu\'">Sure</div>'
+			+'</label></td></tr>';
+			
+			$("#preset_set_table").append(input_list);
+			document.getElementById(sure_preset_text).value=del_before_name;
+			document.getElementById(cancel_preset).innerHTML=a[461];
+			document.getElementById(sure_preset).innerHTML=a[23];
+		}else{
+			var id_presetname = "preset_name" + i;
+			var edit_preset = "edit_preset" + i;
+			var select_sensor = "select_sensor" + i;
+			
+			input_list = '<tr id=' + id_type + '><td><label for="' + id_input + '">'
+			+'<span style="float:left;padding-left:2px;line-height:0.9;padding-top:6px;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;width:200px;" id="' + id_presetname + '""></span>'
+			+'<td align="right">'
+			+'<div class="btn_menu" id="' + select_sensor + '" onclick="do_select_sensor(' + i + ')" onmouseover="this.className=\'btn_menu_over\'" onMouseOut="this.className=\'btn_menu\'">Select</div>'
+			+'<div class="btn_menu" id="' + edit_preset + '" onclick="do_edit_preset(' + i + ')" onmouseover="this.className=\'btn_menu_over\'" onMouseOut="this.className=\'btn_menu\'">Edit</div>'
+			+'</label></td></td></tr>';
+			
+			$("#preset_set_table").append(input_list);
+			document.getElementById(select_sensor).innerHTML=a[536];
+			document.getElementById(select_sensor).style.width="100px";
+			document.getElementById(edit_preset).innerHTML=a[533];
+			document.getElementById(id_presetname).innerHTML = presetlist_json.preset[i].preset_name;
+		}
+	}	
+}
+
+function delete_pagepreset(){
+	var id_type;
+	for(var i=start_preset; i<end_preset; i++)
+	{
+		id_type = "#preset_id" + i;
+		$(id_type).remove();
+	}
+}
+
+function preset_checkPagenum(num){
+    if(num<1){
+        num="1";
+    }else if(num>page_total){
+        num=page_total;
+    }
+}
+
+function preset_first_Page(){ 
+	page_num = 1;
+	delete_pagepreset();
+	search_page_preset(page_num, 0, 0, 0);
+}
+
+function preset_goto_Page(num){
+    preset_checkPagenum(page_num);
+	page_num = num;
+	delete_pagepreset();
+	search_page_preset(num, 0, 0, 0);
+} 
+
+//find_flag=1，通过名称查询；find_flag=0或其他，通过presetIndex查询；
+function goto_add_place(find_flag, name, presetIndex)
+{
+	for(var i=0; i<preset_total; i++)
+	{
+		if(find_flag == 1){
+			if(presetlist_json.preset[i].preset_name == name)
+				break;
+		}else{
+			if(presetlist_json.preset[i].preset_index == presetIndex)
+				break;
+		}
+	}
+	var pagenum = parseInt(i/page_preset);
+	document.getElementById('goto').selectedIndex = pagenum;
+	preset_goto_Page(pagenum+1);
+}
+
+function display_init_zero()
+{
+	document.getElementById("total_preset").innerHTML=0;
+	var obj = document.getElementById('goto');
+	obj.length = 0;
+	obj.options[obj.length] = new Option(1, 1);	
+}
+
+function preset_setlist_response(response)
+{
+	presetlist_json = eval("(" + response + ")");
+	if (!presetlist_json.preset) {
+		display_init_zero();
+		$("#Refresh_table").empty();
+		fgRefreshPresetFlay = 0;
+		$("#preset_set_table").empty();
+		return;
+	}
+	$("#preset_set_table").empty();
+	preset_total = presetlist_json.preset.length;	
+	page_total = Math.ceil(preset_total/page_preset);
+	
+	document.getElementById("total_preset").innerHTML=preset_total;
+	if(preset_total > 0 && fgRefreshPresetFlay == 0)
+	{
+		var refresh_div = '<td>'
+		+'<div class="btn_menu" id="refresh_preset" onclick="on_load()" onmouseover="this.className=\'btn_menu_over\'" onMouseOut="this.className=\'btn_menu\'">Refresh</div>'
+		+'</td>';
+		$("#Refresh_table").append(refresh_div);
+		document.getElementById("refresh_preset").innerHTML = a[24];
+		document.getElementById("refresh_preset").style.float="left";
+		document.getElementById("refresh_preset").style.width="80px";
+		fgRefreshPresetFlay = 1;
+	}
+	
+	var obj = document.getElementById('goto');
+	obj.length = 0;
+	for(i=0; i<page_total; i++)
+	{
+		obj.options[obj.length] = new Option(i+1, i+1);	
+	}
+	document.getElementById('goto').selectedIndex = 0;
+	
+	preset_first_Page();
+}
+
+function on_load(){
+	document.getElementById("search_preset_nums").innerHTML = a[531];
+	document.getElementById("GotoTxt").innerHTML = a[186];
+	document.getElementById("Page").innerHTML = a[187];
+	
+	$.ajax({
+		url : "/cgi-bin/editpreset.cgi",
+		data: {opType:"get"},
+		cache: false,
+		async: false,
+		type: "POST",
+		success: preset_setlist_response
+	});
+}
+
+$(function(){
+	on_load();
+});
+</script>
+</head>
+
+<body>
+<div class="dtree_control_div" onselectstart="return false" style="width:600px">
+
+	<tr height="34"><td colspan="2">
+	<center><table border="0" cellpadding="0" cellspacing="0"><tr>
+	<td><span id="search_preset_nums"></span>:<span id="total_preset">0</span>&nbsp;&nbsp;
+	<span id="GotoTxt">Goto</span>&nbsp;&nbsp;</td>
+	<td><select onChange="preset_goto_Page(this.value)" name="goto" id="goto">&nbsp;&nbsp;<option value=1>1</option> </select></td>
+	<td>&nbsp;&nbsp;<span id="Page">Page</span></td>
+	</tr></table></center>
+	</td></tr>
+	
+	<br/>
+	<table align="center" style="width:440px" id="Refresh_table">
+	</table>
+	
+	<table class="transborder_tab" align="center" style="width:440px" id="preset_set_table">
+		<tr align=right>
+			<th></th>
+			<th></th>
+		</tr>
+	</table>
+</div>
+</body>

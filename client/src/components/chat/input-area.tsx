@@ -883,7 +883,7 @@ export function ChatInputArea({ onSend, isLoading, promptHistory = [], onStop }:
        * Rounded card with subtle border and focus effects
        * Changes appearance when focused (border, shadow, background)
        */}
-      <div className="relative group rounded-3xl bg-secondary/50 border border-transparent focus-within:border-primary/20 focus-within:bg-background focus-within:shadow-xl focus-within:shadow-primary/5 transition-all duration-300">
+      <div className="relative group rounded-3xl bg-background/40 backdrop-blur-xl border border-white/10 shadow-lg shadow-black/5 focus-within:border-primary/30 focus-within:bg-background/60 focus-within:shadow-2xl focus-within:shadow-primary/10 transition-all duration-500 ease-out">
         
         {/* Attachment Preview Area */}
         <AnimatePresence>

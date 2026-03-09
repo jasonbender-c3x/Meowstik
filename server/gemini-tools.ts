@@ -15,7 +15,7 @@
  * 
  * Legacy aliases maintained for backward compatibility.
  */
-import type { FunctionDeclaration } from "@google/genai";
+import { FunctionDeclaration } from "@google/genai";
 
 export const geminiFunctionDeclarations: FunctionDeclaration[] = [
   // ═══════════════════════════════════════════════════════════════════════════
@@ -593,7 +593,10 @@ export const geminiFunctionDeclarations: FunctionDeclaration[] = [
       type: "object",
       properties: {
         query: { type: "string", description: "Search query" },
-        maxResults: { type: "number", description: "Max results (default: 10)" }
+        maxResults: { type: "number", description: "Max results (default: 10)" },
+        searchRecency: { type: "string", enum: ["day", "week", "month", "year"], description: "Filter results by date" },
+        domains: { type: "array", items: { type: "string" }, description: "Restrict search to specific domains" },
+        provider: { type: "string", enum: ["google", "exa"], description: "Search provider to use (default: google)" }
       },
       required: ["query"]
     }

@@ -121,22 +121,54 @@ async function handleCollabConnection(ws: WebSocket, sessionId: string, url: str
   if (!session) {
     const [dbSession] = await getDb().select().from(collaborativeSessions).where(eq(collaborativeSessions.id, sessionId));
     if (!dbSession) {
-      ws.close(4004, "Session not found");
-      return;
+      if (sessionId === "global-editor") {
+        // Auto-create global session for editor page
+        const [newSession] = await getDb().insert(collaborativeSessions).values({
+          id: sessionId,
+          name: "Global Editor Session",
+          description: "Default session for the Editor page",
+          isPublic: true,
+          status: "active"
+        }).onConflictDoNothing().returning();
+        
+        // If we just created it (newSession exists) or it already existed (newSession undefined but we know it's there now)
+        // We can proceed. If it existed, we need to fetch it again? 
+        // Actually, if onConflictDoNothing matched, it means it exists.
+        // Let's just fall through to the logic below, but we need 'dbSession' to be valid or handled.
+        
+        // Simplest way: just create the in-memory session object directly since we know it exists (or we just created it)
+        session = {
+          id: sessionId,
+          participants: new Map(),
+          fileVersions: new Map(),
+          pendingOperations: new Map(),
+          turnState: {
+            currentTurn: "user",
+            turnHistory: [],
+          },
+          voiceEnabled: false,
+        };
+        sessions.set(sessionId, session);
+        // Continue to participation logic...
+      } else {
+        ws.close(4004, "Session not found");
+        return;
+      }
+    } else {
+      // DB Session found, create in-memory session
+      session = {
+        id: sessionId,
+        participants: new Map(),
+        fileVersions: new Map(),
+        pendingOperations: new Map(),
+        turnState: {
+          currentTurn: "user",
+          turnHistory: [],
+        },
+        voiceEnabled: false,
+      };
+      sessions.set(sessionId, session);
     }
-    
-    session = {
-      id: sessionId,
-      participants: new Map(),
-      fileVersions: new Map(),
-      pendingOperations: new Map(),
-      turnState: {
-        currentTurn: "user",
-        turnHistory: [],
-      },
-      voiceEnabled: false,
-    };
-    sessions.set(sessionId, session);
   }
 
   const [participant] = await getDb().insert(sessionParticipants).values({
@@ -652,4 +684,29 @@ export function broadcastAIEdit(sessionId: string, filePath: string, operation: 
   };
 
   handleEditOperation(session, aiParticipant.id, op);
+}
+
+/**
+ * Broadcast full content update from AI to all active sessions
+ * Used by RAG Dispatcher for "editor:" file writes
+ */
+export function broadcastAIContentToAll(filePath: string, content: string): void {
+  console.log(`[Collab WS] Broadcasting AI content update for ${filePath} to ${sessions.size} sessions`);
+  
+  for (const session of sessions.values()) {
+    // Find or create AI participant for this session
+    let aiParticipant = Array.from(session.participants.values()).find(p => p.participantType === "ai");
+    
+    // If no AI participant, we can't really attribute the edit, but we can try to inject it as a system message
+    // For now, let's just broadcast a custom event "ai_content_load"
+    
+    broadcastToSession(session, {
+      type: "ai_content_load",
+      data: {
+        filePath,
+        content,
+        timestamp: new Date().toISOString()
+      }
+    });
+  }
 }

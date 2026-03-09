@@ -219,7 +219,7 @@ function stripToolCalls(content: string): string {
   let cleaned = content.replace(/<thinking>[\s\S]*?<\/thinking>\s*/g, '');
   
   // Known tool type prefixes for targeted matching
-  const toolTypePattern = '(?:github_|gmail_|calendar_|drive_|docs_|sheets_|tasks_|terminal_|tavily_|perplexity_|browserbase_|api_call|search|web_search|google_search|duckduckgo_search|browser_scrape|file_ingest|file_upload)[\\w_]*';
+  const toolTypePattern = '(?:github_|gmail_|calendar_|drive_|docs_|sheets_|tasks_|terminal_|perplexity_|api_call|search|web_search|google_search|duckduckgo_search|browser_scrape|file_ingest|file_upload)[\\w_]*';
   
   // Remove code blocks containing tool call arrays (identified by known tool types)
   cleaned = cleaned.replace(new RegExp('```(?:json|tool_code|tool|)?\\s*\\n?\\s*\\[\\s*\\{[\\s\\S]*?"type"\\s*:\\s*"' + toolTypePattern + '"[\\s\\S]*?\\}\\s*\\]\\s*\\n?```', 'gi'), '');

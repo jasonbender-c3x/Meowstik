@@ -46,7 +46,9 @@ async function cleanupOldSessions() {
     if (now - session.createdAt.getTime() > SESSION_TIMEOUT) {
       try {
         await session.browser.close();
-      } catch (e) {}
+      } catch (e) {
+        console.error(`[Playwright] Error closing expired session ${id}:`, e);
+      }
       sessions.delete(id);
     }
   }
@@ -59,7 +61,9 @@ async function getValidSession(sessionId: string): Promise<TestSession | null> {
   if (Date.now() - session.createdAt.getTime() > SESSION_TIMEOUT) {
     try {
       await session.browser.close();
-    } catch (e) {}
+    } catch (e) {
+      console.error(`[Playwright] Error closing expired session ${sessionId}:`, e);
+    }
     sessions.delete(sessionId);
     return null;
   }
@@ -79,7 +83,11 @@ async function getOrCreateSession(sessionId: string, headless: boolean = true): 
     if (oldestId) {
       const oldSession = sessions.get(oldestId);
       if (oldSession) {
-        await oldSession.browser.close();
+        try {
+          await oldSession.browser.close();
+        } catch (e) {
+          console.error(`[Playwright] Error closing evicted session ${oldestId}:`, e);
+        }
         sessions.delete(oldestId);
       }
     }

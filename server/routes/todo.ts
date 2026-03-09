@@ -26,18 +26,26 @@ import { insertTodoItemSchema } from "@shared/schema";
 import { z } from "zod";
 import * as fs from "fs";
 import * as path from "path";
+import { isAuthenticated } from "../googleAuth";
 
 const router = Router();
 
+// Apply authentication middleware to all routes
+router.use(isAuthenticated as any);
+
 /**
- * Helper to get user ID from request
- * In production, this would come from authenticated session
- * For now, we use a fallback or query parameter
+ * Helper to get user ID from authenticated request
  */
 function getUserId(req: Request): string {
-  // TODO: Replace with actual authentication
-  // For now, use query parameter or default to 'guest'
-  return (req.query.userId as string) || req.body?.userId || "guest";
+  // Try multiple fallback locations for user ID
+  const user = req.user as any;
+  
+  if (!user) {
+    throw new Error("User not authenticated");
+  }
+  
+  // Prioritize ID from database record, then claims
+  return String(user.id || user.claims?.sub || user.googleId);
 }
 
 /**
@@ -60,6 +68,7 @@ async function writeTodoCache(userId: string): Promise<void> {
     fs.writeFileSync(path.join(logsDir, "todo.md"), content, "utf-8");
   } catch (error) {
     console.error("[TODO] Error writing cache:", error);
+    // Non-critical error, do not propagate to client
   }
 }
 

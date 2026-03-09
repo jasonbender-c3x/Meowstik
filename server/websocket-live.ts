@@ -13,12 +13,14 @@ import type { IncomingMessage } from "http";
 import type { Duplex } from "stream";
 import * as geminiLive from "./integrations/gemini-live";
 import { desktopRelayService } from "./services/desktop-relay-service";
+import { localComputerControl } from "./services/local-computer-control";
 
 interface LiveWebSocketClient {
   ws: WebSocket;
   sessionId: string;
   isActive: boolean;
   desktopSessionId?: string; // For Computer Use integration
+  pendingScreenshotRequests?: Map<string, { resolve: (data: string) => void, reject: (reason: any) => void }>;
 }
 
 const activeClients = new Map<string, LiveWebSocketClient>();
@@ -30,6 +32,7 @@ export function setupLiveWebSocket(httpServer: Server): void {
 
   httpServer.on("upgrade", (request: IncomingMessage, socket: Duplex, head: Buffer) => {
     const url = request.url;
+    console.log(`[Live WS] Upgrade request for: ${url}`);
     
     if (url?.startsWith("/api/live/stream/")) {
       const sessionId = url.split("/api/live/stream/")[1]?.split("?")[0];
@@ -56,6 +59,7 @@ async function handleConnection(ws: WebSocket, sessionId: string): Promise<void>
     ws,
     sessionId,
     isActive: true,
+    pendingScreenshotRequests: new Map()
   };
 
   activeClients.set(sessionId, client);
@@ -66,7 +70,23 @@ async function handleConnection(ws: WebSocket, sessionId: string): Promise<void>
     try {
       const message = JSON.parse(data.toString());
 
-      if (message.type === "audio") {
+      if (message.type === "screenshot_response") {
+        const { id, data: b64Data, error } = message;
+        const pending = client.pendingScreenshotRequests?.get(id);
+        
+        if (pending) {
+          if (error) {
+            pending.reject(new Error(error));
+          } else {
+            pending.resolve(b64Data);
+          }
+          client.pendingScreenshotRequests?.delete(id);
+        }
+        return;
+      } else if (message.type === "log") {
+        console.log(`[Client Log] ${sessionId}:`, message.data);
+      } else if (message.type === "audio") {
+        console.log(`[Live WS] Received audio chunk (${message.data.length} chars)`);
         const result = await geminiLive.sendAudio(
           sessionId,
           message.data,
@@ -77,6 +97,7 @@ async function handleConnection(ws: WebSocket, sessionId: string): Promise<void>
           sendError(ws, result.error || "Failed to send audio");
         }
       } else if (message.type === "text") {
+        console.log(`[Live WS] Received text: ${message.text.substring(0, 50)}...`);
         const result = await geminiLive.sendText(sessionId, message.text);
 
         if (!result.success) {
@@ -172,52 +193,108 @@ async function handleFunctionCall(
     functionCall 
   });
 
-  // If this is a Computer Use function and we have a linked desktop session
-  if (functionCall.name.startsWith('computer_') && client.desktopSessionId) {
-    try {
-      // Convert function call to desktop input event
-      const inputEvent = convertFunctionCallToInputEvent(functionCall);
-      
-      if (inputEvent) {
-        // Execute on desktop
-        desktopRelayService.sendInputToAgent(client.desktopSessionId, inputEvent);
-        
-        // Send success result back to Gemini Live
-        await geminiLive.sendFunctionResult(
-          client.sessionId,
-          functionCall.name,
-          { success: true, executed: true }
-        );
-        
-        console.log(`[Live WS] Executed ${functionCall.name} on desktop ${client.desktopSessionId}`);
-      } else {
-        // Unknown function - send error
-        await geminiLive.sendFunctionResult(
-          client.sessionId,
-          functionCall.name,
-          { success: false, error: "Unknown function type" }
-        );
-      }
-    } catch (error: any) {
-      console.error(`[Live WS] Error executing function ${functionCall.name}:`, error);
-      await geminiLive.sendFunctionResult(
-        client.sessionId,
-        functionCall.name,
-        { success: false, error: error.message }
-      );
-    }
-  } else if (!client.desktopSessionId) {
-    // No desktop session linked
-    sendMessage(client.ws, { 
-      type: "error", 
-      error: "No desktop session linked. Use linkDesktop message to connect."
-    });
+  // If this is a Computer Use function
+  if (functionCall.name.startsWith('computer_')) {
     
-    await geminiLive.sendFunctionResult(
-      client.sessionId,
-      functionCall.name,
-      { success: false, error: "No desktop session linked" }
-    );
+    // 1. Try Desktop Agent (Priority)
+    if (client.desktopSessionId) {
+      try {
+        // ... (existing desktop logic) ...
+        const inputEvent = convertFunctionCallToInputEvent(functionCall);
+        if (inputEvent) {
+          desktopRelayService.sendInputToAgent(client.desktopSessionId, inputEvent);
+          await geminiLive.sendFunctionResult(client.sessionId, functionCall.name, { success: true, executed: true });
+          console.log(`[Live WS] Executed ${functionCall.name} on desktop ${client.desktopSessionId}`);
+          return;
+        }
+      } catch (error: any) {
+        console.error(`[Live WS] Desktop execution failed, trying local:`, error);
+      }
+    }
+
+    // 2. Fallback to Local Execution (Server-side)
+    try {
+      console.log(`[Live WS] Executing ${functionCall.name} locally on server...`);
+      const { name, args } = functionCall;
+      let result = { success: true, executed: true };
+
+      switch (name) {
+        case 'computer_click':
+          await localComputerControl.click(args.x, args.y, args.button);
+          break;
+        case 'computer_move':
+          await localComputerControl.moveMouse(args.x, args.y);
+          break;
+        case 'computer_type':
+          await localComputerControl.type(args.text);
+          break;
+        case 'computer_key':
+          await localComputerControl.pressKey(args.key, args.modifiers);
+          break;
+        case 'computer_scroll':
+          await localComputerControl.scroll(args.direction, args.amount);
+          break;
+        case 'computer_screenshot':
+          // Try to get screenshot from client first (browser/frontend)
+          let b64 = "";
+          try {
+            // Request screenshot from client with 5s timeout
+            b64 = await new Promise<string>((resolve, reject) => {
+              const requestId = `req-${Date.now()}-${Math.random()}`;
+              
+              // Store pending request
+              // Note: We need access to pendingScreenshotRequests map here.
+              // Since it's inside handleConnection scope, we can't easily access it from handleFunctionCall 
+              // unless we pass it or attach it to the client object.
+              
+              // Let's attach it to the client object for simplicity
+              if (!client.pendingScreenshotRequests) {
+                reject(new Error("Client not ready for screenshots"));
+                return;
+              }
+              
+              client.pendingScreenshotRequests.set(requestId, { resolve, reject });
+              
+              // Send request
+              sendMessage(client.ws, { type: "request_screenshot", id: requestId });
+              
+              // Timeout fallback
+              setTimeout(() => {
+                if (client.pendingScreenshotRequests?.has(requestId)) {
+                  client.pendingScreenshotRequests.delete(requestId);
+                  reject(new Error("Client screenshot timeout"));
+                }
+              }, 5000);
+            });
+            console.log("[Live WS] Received screenshot from client");
+          } catch (err) {
+            console.warn(`[Live WS] Client screenshot failed (${err.message}), falling back to local system...`);
+            // Fallback to local system (which might be headless/placeholder)
+            b64 = await localComputerControl.takeScreenshot();
+          }
+
+          // Send as video frame for Gemini 3.0 Live
+          await geminiLive.sendVideoFrame(client.sessionId, b64);
+          result = { success: true, screenshot_taken: true };
+          break;
+        case 'computer_wait':
+          await new Promise(r => setTimeout(r, args.delay || 1000));
+          break;
+      }
+
+      await geminiLive.sendFunctionResult(client.sessionId, name, result);
+      console.log(`[Live WS] Locally executed ${name}`);
+
+    } catch (error: any) {
+      console.error(`[Live WS] Local execution failed:`, error);
+      await geminiLive.sendFunctionResult(client.sessionId, functionCall.name, { success: false, error: error.message });
+    }
+
+  } else {
+    // Unknown function (not computer_*) or handled elsewhere
+    // ... existing error handling for non-computer functions? ...
+    // Actually the original code had an else block for !client.desktopSessionId which sent an error.
+    // We removed that restriction for computer_* functions.
   }
 }
 

@@ -89,6 +89,8 @@ interface VoicemailItem {
 export default function CommunicationsPage() {
   const [activeTab, setActiveTab] = useState("messages");
   const [selectedConversation, setSelectedConversation] = useState<string | null>(null);
+  const [selectedCallId, setSelectedCallId] = useState<string | null>(null);
+  const [selectedVoicemailId, setSelectedVoicemailId] = useState<string | null>(null);
   const [messageText, setMessageText] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [playingVoicemail, setPlayingVoicemail] = useState<string | null>(null);
@@ -484,34 +486,36 @@ export default function CommunicationsPage() {
                     calls.map((call) => {
                       const Icon = getCallIcon(call);
                       return (
-                        <div key={call.id} className="p-4 border-b hover:bg-muted/50">
+                        <button
+                          key={call.id}
+                          onClick={() => setSelectedCallId(call.id)}
+                          className={cn(
+                            "w-full p-4 border-b text-left hover:bg-muted/50 transition-colors",
+                            selectedCallId === call.id && "bg-muted"
+                          )}
+                        >
                           <div className="flex items-start gap-3">
                             <div className={cn(
-                              "p-2 rounded-full",
+                              "p-2 rounded-full shrink-0",
                               call.direction === "inbound" && call.status === "completed" && "bg-green-500/10 text-green-600",
                               call.direction === "inbound" && call.status !== "completed" && "bg-red-500/10 text-red-600",
                               call.direction === "outbound" && "bg-blue-500/10 text-blue-600"
                             )}>
                               <Icon className="h-4 w-4" />
                             </div>
-                            <div className="flex-1">
-                              <div className="font-medium">
+                            <div className="flex-1 min-w-0">
+                              <div className="font-medium truncate">
                                 {call.direction === "inbound" ? call.from : call.to}
                               </div>
                               <div className="text-sm text-muted-foreground">
                                 {call.status === "completed" ? formatDuration(call.duration) : call.status}
                               </div>
-                              <div className="text-xs text-muted-foreground">
+                              <div className="text-xs text-muted-foreground mt-1">
                                 {formatDistanceToNow(new Date(call.createdAt), { addSuffix: true })}
                               </div>
                             </div>
-                            {call.recordingUrl && (
-                              <Button variant="ghost" size="sm">
-                                <Play className="h-4 w-4" />
-                              </Button>
-                            )}
                           </div>
-                        </div>
+                        </button>
                       );
                     })
                   )}
@@ -529,34 +533,32 @@ export default function CommunicationsPage() {
                     </div>
                   ) : (
                     voicemails.map((vm) => (
-                      <div 
-                        key={vm.id} 
+                      <button
+                        key={vm.id}
+                        onClick={() => setSelectedVoicemailId(vm.id)}
                         className={cn(
-                          "p-4 border-b hover:bg-muted/50",
+                          "w-full p-4 border-b text-left hover:bg-muted/50 transition-colors",
+                          selectedVoicemailId === vm.id && "bg-muted",
                           !vm.heard && "bg-primary/5"
                         )}
                       >
                         <div className="flex items-start gap-3">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handlePlayVoicemail(vm)}
-                          >
+                          <div className="shrink-0 mt-1">
                             {playingVoicemail === vm.id ? (
-                              <Pause className="h-4 w-4" />
+                              <Pause className="h-4 w-4 text-primary" />
                             ) : (
-                              <Play className="h-4 w-4" />
+                              <Play className="h-4 w-4 text-muted-foreground" />
                             )}
-                          </Button>
-                          <div className="flex-1">
+                          </div>
+                          <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 mb-1">
-                              <div className="font-medium">{vm.from}</div>
+                              <div className="font-medium truncate">{vm.from}</div>
                               {!vm.heard && (
                                 <Badge variant="default" className="text-xs">New</Badge>
                               )}
                             </div>
                             {vm.transcription && (
-                              <div className="text-sm text-muted-foreground mb-2">
+                              <div className="text-sm text-muted-foreground mb-2 line-clamp-2">
                                 "{vm.transcription}"
                               </div>
                             )}
@@ -567,7 +569,7 @@ export default function CommunicationsPage() {
                             </div>
                           </div>
                         </div>
-                      </div>
+                      </button>
                     ))
                   )}
                 </TabsContent>
@@ -674,11 +676,167 @@ export default function CommunicationsPage() {
                   </div>
                 </div>
               </>
+            ) : activeTab === "calls" && selectedCallId ? (
+              <div className="flex-1 flex flex-col p-8">
+                {calls.find(c => c.id === selectedCallId) && (
+                  (() => {
+                    const call = calls.find(c => c.id === selectedCallId)!;
+                    const Icon = getCallIcon(call);
+                    return (
+                      <div className="max-w-2xl mx-auto w-full space-y-8">
+                        <div className="flex flex-col items-center text-center space-y-4">
+                          <Avatar className="h-24 w-24">
+                            <AvatarFallback className="text-2xl">
+                              <User className="h-12 w-12" />
+                            </AvatarFallback>
+                          </Avatar>
+                          <div>
+                            <h2 className="text-2xl font-semibold">
+                              {call.direction === "inbound" ? call.from : call.to}
+                            </h2>
+                            <p className="text-muted-foreground flex items-center justify-center gap-2 mt-1">
+                              <Icon className="h-4 w-4" />
+                              {call.direction === "inbound" ? "Incoming Call" : "Outgoing Call"}
+                              <span>•</span>
+                              {formatDistanceToNow(new Date(call.createdAt), { addSuffix: true })}
+                            </p>
+                          </div>
+                          
+                          <div className="flex gap-4">
+                            <Button size="lg" className="rounded-full gap-2" onClick={() => makeCall.mutate(call.direction === "inbound" ? call.from : call.to)}>
+                              <Phone className="h-5 w-5" />
+                              Call Back
+                            </Button>
+                            <Button size="lg" variant="outline" className="rounded-full gap-2" onClick={() => {
+                              setNewMessageNumber(call.direction === "inbound" ? call.from : call.to);
+                              setIsNewMessageOpen(true);
+                            }}>
+                              <MessageSquare className="h-5 w-5" />
+                              Message
+                            </Button>
+                          </div>
+                        </div>
+
+                        <Card>
+                          <CardHeader>
+                            <CardTitle>Call Details</CardTitle>
+                          </CardHeader>
+                          <CardContent className="space-y-4">
+                            <div className="grid grid-cols-2 gap-4">
+                              <div>
+                                <div className="text-sm font-medium text-muted-foreground">Status</div>
+                                <div className="capitalize">{call.status}</div>
+                              </div>
+                              <div>
+                                <div className="text-sm font-medium text-muted-foreground">Duration</div>
+                                <div>{formatDuration(call.duration)}</div>
+                              </div>
+                              <div>
+                                <div className="text-sm font-medium text-muted-foreground">Time</div>
+                                <div>{new Date(call.createdAt).toLocaleString()}</div>
+                              </div>
+                              <div>
+                                <div className="text-sm font-medium text-muted-foreground">Type</div>
+                                <div className="capitalize">{call.direction}</div>
+                              </div>
+                            </div>
+                            
+                            {call.recordingUrl && (
+                              <div className="pt-4 border-t">
+                                <div className="text-sm font-medium text-muted-foreground mb-2">Call Recording</div>
+                                <audio controls className="w-full" src={call.recordingUrl} />
+                              </div>
+                            )}
+                          </CardContent>
+                        </Card>
+                      </div>
+                    );
+                  })()
+                )}
+              </div>
+            ) : activeTab === "voicemail" && selectedVoicemailId ? (
+              <div className="flex-1 flex flex-col p-8">
+                {voicemails.find(v => v.id === selectedVoicemailId) && (
+                  (() => {
+                    const vm = voicemails.find(v => v.id === selectedVoicemailId)!;
+                    return (
+                      <div className="max-w-2xl mx-auto w-full space-y-8">
+                        <div className="flex flex-col items-center text-center space-y-4">
+                          <Avatar className="h-24 w-24">
+                            <AvatarFallback className="text-2xl">
+                              <User className="h-12 w-12" />
+                            </AvatarFallback>
+                          </Avatar>
+                          <div>
+                            <h2 className="text-2xl font-semibold">{vm.from}</h2>
+                            <p className="text-muted-foreground mt-1">
+                              {formatDistanceToNow(new Date(vm.createdAt), { addSuffix: true })}
+                            </p>
+                          </div>
+                          
+                          <div className="flex gap-4">
+                            <Button size="lg" className="rounded-full gap-2" onClick={() => makeCall.mutate(vm.from)}>
+                              <Phone className="h-5 w-5" />
+                              Call Back
+                            </Button>
+                            <Button size="lg" variant="outline" className="rounded-full gap-2" onClick={() => {
+                              setNewMessageNumber(vm.from);
+                              setIsNewMessageOpen(true);
+                            }}>
+                              <MessageSquare className="h-5 w-5" />
+                              Message
+                            </Button>
+                          </div>
+                        </div>
+
+                        <Card>
+                          <CardHeader>
+                            <CardTitle>Voicemail</CardTitle>
+                          </CardHeader>
+                          <CardContent className="space-y-6">
+                            <div className="bg-muted/50 rounded-lg p-6 flex flex-col items-center gap-4">
+                              <Button 
+                                size="lg" 
+                                className="h-16 w-16 rounded-full"
+                                onClick={() => handlePlayVoicemail(vm)}
+                              >
+                                {playingVoicemail === vm.id ? (
+                                  <Pause className="h-8 w-8" />
+                                ) : (
+                                  <Play className="h-8 w-8 pl-1" />
+                                )}
+                              </Button>
+                              <div className="text-sm font-medium">
+                                {formatDuration(vm.duration)}
+                              </div>
+                            </div>
+                            
+                            {vm.transcription && (
+                              <div className="space-y-2">
+                                <div className="text-sm font-medium text-muted-foreground">Transcription</div>
+                                <div className="p-4 bg-muted rounded-lg text-lg leading-relaxed">
+                                  "{vm.transcription}"
+                                </div>
+                              </div>
+                            )}
+                          </CardContent>
+                        </Card>
+                      </div>
+                    );
+                  })()
+                )}
+              </div>
             ) : (
               <div className="flex-1 flex items-center justify-center text-muted-foreground">
                 <div className="text-center">
-                  <MessageSquare className="h-16 w-16 mx-auto mb-4 opacity-50" />
-                  <p>Select a conversation to start messaging</p>
+                  {activeTab === "messages" ? (
+                    <MessageSquare className="h-16 w-16 mx-auto mb-4 opacity-50" />
+                  ) : activeTab === "calls" ? (
+                    <Phone className="h-16 w-16 mx-auto mb-4 opacity-50" />
+                  ) : (
+                    <Voicemail className="h-16 w-16 mx-auto mb-4 opacity-50" />
+                  )}
+                  <p>Select an item to view details</p>
                 </div>
               </div>
             )}

@@ -24,6 +24,47 @@
 import { GoogleGenAI, Modality } from "@google/genai";
 import { DEFAULT_TTS_VOICE } from "./expressive-tts";
 
+// Simple AsyncQueue to bridge callback-based API to async iterator
+class AsyncQueue<T> {
+  private queue: T[] = [];
+  private resolvers: ((value: IteratorResult<T>) => void)[] = [];
+  private closed = false;
+
+  enqueue(item: T) {
+    if (this.closed) return;
+    if (this.resolvers.length > 0) {
+      const resolve = this.resolvers.shift()!;
+      resolve({ value: item, done: false });
+    } else {
+      this.queue.push(item);
+    }
+  }
+
+  close() {
+    this.closed = true;
+    while (this.resolvers.length > 0) {
+      const resolve = this.resolvers.shift()!;
+      resolve({ value: undefined as any, done: true });
+    }
+  }
+
+  [Symbol.asyncIterator]() {
+    return {
+      next: () => {
+        if (this.queue.length > 0) {
+          return Promise.resolve({ value: this.queue.shift()!, done: false });
+        }
+        if (this.closed) {
+          return Promise.resolve({ value: undefined as any, done: true });
+        }
+        return new Promise<IteratorResult<T>>((resolve) => {
+          this.resolvers.push(resolve);
+        });
+      }
+    };
+  }
+}
+
 export interface LiveSessionConfig {
   systemInstruction?: string;
   voiceName?: string;
@@ -39,9 +80,12 @@ export interface LiveSession {
   session: any;
   isActive: boolean;
   createdAt: Date;
+  messageQueue: AsyncQueue<any>; // Buffer for incoming server messages
 }
 
 const activeSessions = new Map<string, LiveSession>();
+const MODULE_ID = Math.random().toString(36).substring(7);
+console.log(`[Gemini Live] Module loaded: ${MODULE_ID}`);
 
 const DEFAULT_SYSTEM_INSTRUCTION = `You are Meowstik, a helpful and friendly AI assistant. 
 You are having a real-time voice conversation. Be concise and natural in your responses.
@@ -56,6 +100,7 @@ export async function createLiveSession(
   sessionId: string,
   config: LiveSessionConfig = {}
 ): Promise<{ success: boolean; error?: string }> {
+  console.log(`[Gemini Live] createLiveSession called for ${sessionId} (Module: ${MODULE_ID})`);
   const apiKey = process.env.GEMINI_API_KEY;
   
   if (!apiKey) {
@@ -128,16 +173,40 @@ Use these tools to help the user accomplish tasks hands-free through voice comma
       ? "gemini-3-flash-preview" 
       : "gemini-3-flash-preview-native-audio-preview-12-2025";
 
+    // Setup message queue to bridge callbacks to async iterator
+    const messageQueue = new AsyncQueue<any>();
+
     const session = await (ai as any).live.connect({
       model: modelName,
-      config: sessionConfig
+      config: sessionConfig,
+      // Pass callbacks to handle incoming messages
+      callbacks: {
+        onopen: () => {
+           console.log(`[Gemini Live] Session ${sessionId} opened`);
+        },
+        onmessage: (msg: any) => {
+           messageQueue.enqueue(msg);
+        },
+        onclose: () => {
+           console.log(`[Gemini Live] Session ${sessionId} closed remotely`);
+           messageQueue.close();
+           if (activeSessions.has(sessionId)) {
+             activeSessions.get(sessionId)!.isActive = false;
+           }
+        },
+        onerror: (err: any) => {
+           console.error(`[Gemini Live] Session ${sessionId} error:`, err);
+           // Don't close immediately on error, but log it
+        }
+      }
     });
 
     activeSessions.set(sessionId, {
       id: sessionId,
       session,
       isActive: true,
-      createdAt: new Date()
+      createdAt: new Date(),
+      messageQueue
     });
 
     const features = [
@@ -169,6 +238,7 @@ export async function sendAudio(
   const liveSession = activeSessions.get(sessionId);
   
   if (!liveSession || !liveSession.isActive) {
+    console.error(`[Gemini Live] sendAudio failed: Session ${sessionId} not found (Module: ${MODULE_ID}). Active sessions: ${Array.from(activeSessions.keys()).join(', ')}`);
     return { success: false, error: "Session not found or inactive" };
   }
 
@@ -268,13 +338,15 @@ export async function* receiveResponses(
   }
 
   try {
-    for await (const response of liveSession.session) {
+    for await (const response of liveSession.messageQueue) {
+      if (!response) continue;
+
+      // Handle raw data (audio)
       if (response.data) {
         yield { type: "audio", data: response.data };
       }
-      if (response.text) {
-        yield { type: "text", text: response.text };
-      }
+      
+      // Handle server content (text, function calls)
       if (response.serverContent?.modelTurn?.parts) {
         for (const part of response.serverContent.modelTurn.parts) {
           if (part.inlineData) {
@@ -283,13 +355,15 @@ export async function* receiveResponses(
           if (part.text) {
             yield { type: "transcript", text: part.text };
           }
-          // Handle function calls from Computer Use (Project Ghost)
-          if (part.functionCall) {
+          
+          // Handle function calls (toolUse)
+          const toolUse = part.functionCall || part.toolUse;
+          if (toolUse) {
             yield { 
               type: "functionCall", 
               functionCall: {
-                name: part.functionCall.name,
-                args: part.functionCall.args
+                name: toolUse.name,
+                args: toolUse.args
               }
             };
           }

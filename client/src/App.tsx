@@ -114,6 +114,7 @@ import AudioSettingsPage from "@/pages/audio-settings";
 import VoiceLabPage from "@/pages/voice-lab";
 import SoundSettingsPage from "@/pages/sound-settings";
 import CommunicationsPage from "@/pages/communications";
+import CamerasPage from "@/pages/cameras";
 
 import { TTSProvider } from "@/contexts/tts-context";
 import { LocalDriveProvider } from "@/contexts/LocalDriveContext";
@@ -197,6 +198,10 @@ function Router() {
       
       <Route path="/communications">
         {() => <ProtectedRoute><CommunicationsPage /></ProtectedRoute>}
+      </Route>
+
+      <Route path="/cameras">
+        {() => <ProtectedRoute><CamerasPage /></ProtectedRoute>}
       </Route>
       
       <Route path="/image">

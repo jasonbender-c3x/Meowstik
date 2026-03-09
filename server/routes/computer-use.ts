@@ -11,9 +11,10 @@
  */
 
 import { Router, Request, Response } from "express";
-import { computerUseService, ComputerAction } from "../services/computer-use";
+import { computerUseService, ComputerAction, executeLocalAction } from "../services/computer-use";
 import { sendToExtension, getConnectedExtensions } from "./extension";
 import { desktopRelayService } from "../services/desktop-relay-service";
+import { localComputerControl } from "../services/local-computer-control";
 
 const router = Router();
 
@@ -87,6 +88,66 @@ router.post("/plan-with-gemini", async (req: Request, res: Response) => {
 });
 
 /**
+ * Validate a ComputerAction object
+ */
+function validateAction(action: any): string | null {
+  if (!action || typeof action !== 'object') {
+    return "Action must be an object";
+  }
+
+  const allowedTypes = ['click', 'type', 'scroll', 'move', 'key', 'screenshot', 'wait'];
+  if (!allowedTypes.includes(action.type)) {
+    return `Invalid action type: ${action.type}`;
+  }
+
+  switch (action.type) {
+    case 'click':
+    case 'move':
+      // Basic check for target object
+      if (!action.target || typeof action.target !== 'object') {
+        return `${action.type} action requires target object`;
+      }
+      // Check coordinates
+      if (typeof action.target.x !== 'number' || typeof action.target.y !== 'number') {
+        return `${action.type} action requires numeric x and y coordinates`;
+      }
+      if (action.button && !['left', 'right', 'middle'].includes(action.button)) {
+        return "Invalid mouse button";
+      }
+      break;
+    
+    case 'type':
+      if (typeof action.text !== 'string') {
+        return "Type action requires text string";
+      }
+      break;
+
+    case 'key':
+      if (typeof action.key !== 'string') {
+        return "Key action requires key string";
+      }
+      if (action.modifiers && (!Array.isArray(action.modifiers) || !action.modifiers.every((m: any) => typeof m === 'string'))) {
+        return "Key action modifiers must be an array of strings";
+      }
+      break;
+
+    case 'scroll':
+      if (!action.direction || !['up', 'down', 'left', 'right'].includes(action.direction)) {
+        return "Scroll action requires valid direction (up, down, left, right)";
+      }
+      break;
+      
+    case 'wait':
+      if (typeof action.delay !== 'number') {
+         return "Wait action requires numeric delay";
+      }
+      break;
+  }
+
+  return null;
+}
+
+/**
  * Execute an action via desktop agent (Project Ghost)
  * This is the primary endpoint for hands-free desktop control
  */
@@ -98,16 +159,35 @@ router.post("/execute-desktop", async (req: Request, res: Response) => {
       return res.status(400).json({ error: "Action required" });
     }
 
+    const validationError = validateAction(action);
+    if (validationError) {
+      return res.status(400).json({ error: validationError });
+    }
+
+    // Try local execution if session ID missing or empty
     if (!sessionId) {
-      return res.status(400).json({ error: "Desktop session ID required" });
+      try {
+        console.log("[ComputerUse] Local execution fallback (no sessionId)");
+        await executeLocalAction(action);
+        return res.json({ success: true, message: "Action executed locally", action });
+      } catch (err: any) {
+        return res.status(500).json({ error: "Local execution failed: " + err.message });
+      }
     }
 
     const session = desktopRelayService.getSession(sessionId);
     if (!session) {
-      return res.status(404).json({ 
-        error: "Desktop session not found",
-        hint: "Start a desktop collaboration session first"
-      });
+      // Try local execution if session ID invalid
+      try {
+        console.log("[ComputerUse] Local execution fallback (session not found)");
+        await executeLocalAction(action);
+        return res.json({ success: true, message: "Action executed locally", action });
+      } catch (err: any) {
+        return res.status(404).json({ 
+          error: "Desktop session not found and local execution failed",
+          hint: "Start a desktop collaboration session first"
+        });
+      }
     }
 
     // Convert ComputerAction to InputEvent format for desktop agent
@@ -201,6 +281,11 @@ router.post("/execute", async (req: Request, res: Response) => {
 
     if (!action) {
       return res.status(400).json({ error: "Action required" });
+    }
+
+    const validationError = validateAction(action);
+    if (validationError) {
+      return res.status(400).json({ error: validationError });
     }
 
     const connections = getConnectedExtensions();

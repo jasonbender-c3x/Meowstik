@@ -1,6 +1,6 @@
 import type { Request, Response, NextFunction, RequestHandler } from "express";
 import { logBuffer } from "../services/log-buffer";
-import { isHomeDevMode, createHomeDevSession } from "../homeDevAuth";
+import { isHomeDevMode, getHomeDevUser } from "../homeDevAuth";
 
 export type AsyncHandler = (
   req: Request,
@@ -194,14 +194,22 @@ export const checkAuthStatus: RequestHandler = async (req: Request, _res: Respon
   // We also check for malformed user objects (missing claims) to fix broken sessions
   if (isHomeDevMode() && (!req.isAuthenticated?.() || !user?.claims?.sub)) {
     try {
-      const devSession = await createHomeDevSession();
-      if (devSession) {
+      const devUser = await getHomeDevUser();
+      if (devUser) {
         // Match the structure expected by Replit Auth (user.claims)
         user = {
-          claims: devSession.claims,
+          id: devUser.id,
+          claims: {
+            sub: String(devUser.id),
+            email: devUser.email,
+            first_name: "Jason (Creator)",
+            last_name: "",
+            profile_image_url: devUser.avatarUrl || "",
+            exp: Math.floor(Date.now() / 1000) + (7 * 24 * 60 * 60)
+          },
           access_token: "home-dev-token",
           refresh_token: "home-dev-refresh-token",
-          expires_at: devSession.expires_at
+          expires_at: Math.floor(Date.now() / 1000) + (7 * 24 * 60 * 60)
         };
         
         req.user = user;

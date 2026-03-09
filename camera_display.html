@@ -1,0 +1,312 @@
+<head>
+<title>display</title>
+<style type="text/css">
+a {
+	text-decoration: none;
+}
+#display_menu_div {
+	height: 24px;
+	width: 700px;
+}
+#display_menu_div ul {
+	list-style: none;
+	padding: 0px;
+	margin-top: 2px;
+	margin-right: 0px;
+	margin-bottom: 0px;
+	margin-left: 0px;
+}
+#display_menu_div ul li {
+	float:left;
+	margin-right: 4px;
+	margin-left: 4px;
+}
+#ocx_div {
+	height: 452px;
+	width: 700px;
+	margin: 0px;
+}
+.div_clr {
+	clear: both;
+}
+</style>
+
+<script type="text/javascript">
+
+var browser = {
+    versions: function () {
+        var u = navigator.userAgent, app = navigator.appVersion;
+        return {//移动终端浏览器版本信息 
+            trident: u.indexOf('Trident') > -1, //IE内核
+            presto: u.indexOf('Presto') > -1, //opera内核
+            webKit: u.indexOf('AppleWebKit') > -1, //苹果、谷歌内核
+            gecko: u.indexOf('Gecko') > -1 && u.indexOf('KHTML') == -1, //火狐内核
+            mobile: !!u.match(/AppleWebKit.*Mobile.*/) || !!u.match(/AppleWebKit/), //是否为移动终端
+            ios: !!u.match(/\(i[^;]+;( U;)? CPU.+Mac OS X/), //ios终端
+            android: u.indexOf('Android') > -1 || u.indexOf('Linux') > -1, //android终端或者uc浏览器
+            iPhone: u.indexOf('iPhone') > -1 || u.indexOf('Mac') > -1, //是否为iPhone或者QQHD浏览器
+            iPad: u.indexOf('iPad') > -1, //是否iPad
+            webApp: u.indexOf('Safari') == -1 //是否web应该程序，没有头部与底部
+        };
+    } (),
+    language: (navigator.browserLanguage || navigator.language).toLowerCase()
+}
+
+var timeinfo;
+
+function get_time()
+{
+	var tmptime_obj = new Date();
+	var address = window.location.host;
+	var trans_address = address.split(":");
+	timeinfo = trans_address[0]+"_"+tmptime_obj.getFullYear();
+
+	//alert(timeinfo);
+	if((tmptime_obj.getMonth()+1)<10) timeinfo = timeinfo+"0"+(tmptime_obj.getMonth()+1);
+	else timeinfo = timeinfo+(tmptime_obj.getMonth()+1);
+	if(tmptime_obj.getDate()<10) timeinfo = timeinfo+"0"+tmptime_obj.getDate();
+	else timeinfo = timeinfo+tmptime_obj.getDate();
+	timeinfo = timeinfo+"T";
+	if(tmptime_obj.getHours()<10) timeinfo = timeinfo+"0"+tmptime_obj.getHours();
+	else timeinfo = timeinfo+tmptime_obj.getHours();
+	if(tmptime_obj.getMinutes()<10) timeinfo = timeinfo+"0"+tmptime_obj.getMinutes();
+	else timeinfo = timeinfo+tmptime_obj.getMinutes();
+	if(tmptime_obj.getSeconds()<10) timeinfo = timeinfo+"0"+tmptime_obj.getSeconds();
+	else timeinfo = timeinfo+tmptime_obj.getSeconds();
+	return timeinfo;
+}
+
+var talk_flag=0;
+var voice_flag=0;
+var record_flag=0;
+function voice()
+{
+	if(checkocx(document.getElementById("H264Player")))	{
+		if(1==voice_flag){
+			H264Player.StopAudioOut(); voice_flag=0;
+			H264Player.StopAudioIn(); talk_flag=0;
+		}
+		else {
+			H264Player.StartAudioOut(); 
+			voice_flag=1;
+			talk_flag=0;
+		}
+	}
+}
+
+function talk()
+{
+	if(checkocx(document.getElementById("H264Player")))	{
+		if(1==talk_flag){
+			H264Player.StopAudioIn(); talk_flag=0;
+		}
+		else {
+			H264Player.StartAudioOut(); voice_flag=1;
+			H264Player.StartAudioIn(); talk_flag=1;
+		}
+	}
+}
+
+function capture()
+{
+	var filename = get_time()+".bmp";
+	//alert(capture_path_cookie);
+	var ret=H264Player.SaveScreen(getpath(capture_path_cookie)+":\\capture\\"+filename);
+	if(0==ret)
+	{
+		alert(getpath(capture_path_cookie)+":\\capture\\"+filename+a[148]);
+	}
+	else
+	{
+		alert(getpath(capture_path_cookie)+":\\capture\\"+" "+a[235]);		
+	}
+}
+
+function change_record_file()
+{
+	//alert("record_pic_1");
+	if(1==record_flag)
+	{
+		H264Player.StopRecord();
+		var filename = get_time()+".avi";
+		document.getElementById("pic_1").src = "images/record.gif";
+		record_flag = 1;
+		H264Player.StartRecord(getpath(videorcd_path_cookie)+":\\record\\"+filename);
+		//alert(filename+a[149]);
+	}
+}
+
+function record()
+{
+	//alert("record");
+	if(0==record_flag)
+	{
+		var filename = get_time()+".avi";
+		var ret_val=0;
+		ret_val = H264Player.StartRecord(getpath(videorcd_path_cookie)+":\\record\\"+filename);
+		if(0 == ret_val)
+		{
+			document.getElementById("pic_1").src = "images/record.gif";
+			record_flag = 1;
+			//alert(getpath(videorcd_path_cookie)+":\\record\\"+filename+a[149]);
+		}
+		else
+		{
+			//alert(getpath(videorcd_path_cookie)+":\\record\\"+" "+a[235]);
+		}
+	}
+	else
+	{
+		document.getElementById("pic_1").src = "images/togo.gif";
+		record_flag = 0;
+		H264Player.StopRecord();
+	}
+}
+
+function OnLoadActiveX(hostname, video_port, stream_id)
+{
+	if(!fgGK710xOcxOn)
+	{
+		var ocxdiv = '<div id="download" style="display:none"><font color=red size=5> Please Install OCX!</font>'
+		+'<a href="RSAV1.exe" target="_new" style=" color:#F00; text-decoration:underline">Download</a></div>'
+		+'<object classid="clsid:02A9E28E-AE20-4692-A22B-C1113730F769" codebase="http://"+window.location.host+"/activeX/GOKEWeb.cab#version=1,0,0,33" id="GKIPCWebPlugin" width="692" height="444" style="margin-left:4px; margin-top:4px">'
+		+'<param name="_ExtentX" VALUE="17299"><param name="_StockProps" value="0">'
+		+'<embed _version="65536" _extentx="10954" _extenty="11478" _stockprops="0" align="center" height="0" width="0">'
+		+'</object>';
+		document.getElementById("ocx_div").innerHTML=ocxdiv;
+		
+		try {
+			var version;
+			activeX = document.getElementById("GKIPCWebPlugin");
+			try
+			{
+				version = activeX.GetVersion();
+				if(version < '1707201110')
+				{
+					alert(a[462]);
+					document.getElementById("download").style.display="block";
+					document.getElementById("GKIPCWebPlugin").style.display="none";
+					return;
+				}
+			}
+			catch(e)
+			{
+				alert(a[462]);
+				document.getElementById("download").style.display="block";
+				document.getElementById("GKIPCWebPlugin").style.display="none";
+				return;
+			}
+			try
+			{
+				activeX.DeinitPlugin();
+				activeX.InitPlugin();
+				activeX.ConnectToBoard(hostname, video_port);
+				activeX.SetAutoReconnect(1);
+				fgGK710xOcxOn = 1;
+				activeX.SetIpcStreamId(stream_id);
+			}catch(e){
+				alert(a[503]);
+				return;
+			}
+		}catch (e){
+			document.getElementById("download").style.display="block";
+			document.getElementById("GKIPCWebPlugin").style.display="none";
+			return;
+		}
+	}
+}
+
+$(function(){
+
+	document.getElementById("display_div").style.width="700px";
+	document.getElementById("display_div").style.height="480px";
+
+	var params = {opType:"get"};
+	var flow_info=call_cgi("getflowinfo.cgi", params);
+	if(flow_info.support_gk7101 == 1)
+	{
+		var flow = getCookie('flow_slct');
+		if(flow == null)
+		{
+			flow = flow_info.flow_slct;
+		}
+		OnLoadActiveX(window.location.host, flow_info.GK710xVideoPort, flow);
+	}else{
+		var menudiv = '<ul>'
+		+'<li><a href="#"><img src="images/capture.gif" name="pic_0" width="20" height="20" border="0" id="pic_0" onClick="capture()"/></a></li>'
+		+'<li><a href="#"><img src="images/togo.gif" width="20" height="20" border="0" id="pic_1" onClick="record()"/></a></li>'
+		+'<li><a href="#"><img src="images/voice.gif" width="20" height="20" border="0" id="pic_2" onClick="voice()"/></a></li>'
+		+'<li><a href="#"><img src="images/speaker.gif" width="20" height="20" border="0" id="pic_3" onClick="talk()"/></a></li>'
+		+'</ul>';
+		document.getElementById("display_menu_div").innerHTML=menudiv;
+		
+		document.getElementById("pic_0").alt=a[411];
+		document.getElementById("pic_1").alt=a[412];
+		document.getElementById("pic_2").alt=a[414];
+		document.getElementById("pic_3").alt=a[413];
+		document.getElementById("pic_0").title=a[411];
+		document.getElementById("pic_1").title=a[412];
+		document.getElementById("pic_2").title=a[414];
+		document.getElementById("pic_3").title=a[413];
+		setInterval("change_record_file();",12*60*60);
+		
+		var ocxdiv = '<div id="download" style="display:none"><font color=red size=5> Please Install OCX!</font>'
+		+'<a href="RSAV.exe" target="_new" style=" color:#F00; text-decoration:underline">Download</a></div>'
+		+'<object classid="clsid:63D7DBE2-955D-4CC6-B1E6-4CC8CFB3E479" codebase="RSAVPlugin2.ocx" id="H264Player" width="692" height="444" style="margin-left:4px; margin-top:4px">'
+		+'<param name="_ExtentX" VALUE="17299"><param name="_StockProps" value="0">'
+		+'<embed _version="65536" _extentx="10954" _extenty="6826" _stockprops="0" align="center" height="0" width="0">'
+		+'</object>';
+		document.getElementById("ocx_div").innerHTML=ocxdiv;
+	
+		if(1==checkocx(document.getElementById("H264Player")))
+		{
+			//alert(version+";"+H264Player.CheckUpdate(version));
+			var param = {dev_num:1,opType:"get"};
+			var ret=call_cgi("netinfo.cgi", param);
+			var rtspport = ret.rtspport;
+			var rcfgport = ret.rcfgport;
+		
+			params = {opType:"set",cmd:"getversion"};
+			ret=call_cgi("cmd.cgi", params);
+			if(0!=H264Player.CheckUpdate(ret.version))
+			{
+				if(browser.versions.trident){
+					alert(a[462]);
+				}else{
+					alert(a[494]);
+				}
+				document.getElementById("download").style.display="block";
+				document.getElementById("H264Player").style.display="none";
+				//do_signout();
+			}
+			else
+			{
+				ocx_play_port(window.location.host,rtspport,rcfgport,document.getElementById("H264Player"));
+				setInterval("change_record_file();",12*60*60);
+			}
+		}
+		else
+		{
+			if(browser.versions.trident){
+				alert(a[462]);
+			}else{
+				alert(a[494]);
+			}
+			document.getElementById("download").style.display="block";
+			document.getElementById("H264Player").style.display="none";
+			//do_signout();
+		}
+	}
+});
+
+
+</script>
+</head>
+
+<body>
+  <div id="display_menu_div"></div>
+    <div id="ocx_div"></div>  
+</body>
+
+
+

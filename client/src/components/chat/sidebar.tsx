@@ -95,7 +95,8 @@ import {
   User,
   Info,
   Search,
-  Phone
+  Phone,
+  Camera
 } from "lucide-react";
 
 import { useAppSession } from "@/hooks/use-app-session";
@@ -269,11 +270,29 @@ export function Sidebar({ isOpen, setIsOpen, onNewChat, chats, currentChatId, on
        */}
       <div 
         className={cn(
-          "fixed inset-0 bg-background/80 backdrop-blur-sm z-40 lg:hidden",
-          isOpen ? "block" : "hidden"
+          "fixed inset-0 bg-background/80 backdrop-blur-sm z-40 lg:hidden transition-opacity duration-300",
+          isOpen ? "opacity-100" : "opacity-0 pointer-events-none"
         )}
         onClick={() => setIsOpen(false)}
       />
+
+      {/* 
+       * Collapsed state toggle button
+       * Floating button that appears when sidebar is collapsed to expand it
+       */}
+      {effectiveCollapsed && (
+        <div className="hidden lg:flex fixed left-[72px] top-4 z-50 animate-in fade-in slide-in-from-left-2 duration-300">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 rounded-full bg-background/50 backdrop-blur-md border border-white/5 shadow-lg hover:bg-primary/10 hover:text-primary transition-all"
+            onClick={() => setIsCollapsed(false)}
+            data-testid="button-expand-sidebar"
+          >
+            <PanelLeft className="h-4 w-4" />
+          </Button>
+        </div>
+      )}
 
       {/* 
        * Sidebar Container
@@ -281,43 +300,60 @@ export function Sidebar({ isOpen, setIsOpen, onNewChat, chats, currentChatId, on
        * Slides in/out on mobile with transform animation
        * Collapsible on desktop (w-72 expanded, w-16 collapsed)
        */}
-      <div 
+      <aside 
         className={cn(
-          "fixed inset-y-0 left-0 z-50 bg-secondary/30 border-r border-border backdrop-blur-xl transform transition-all duration-300 ease-in-out lg:translate-x-0 lg:static lg:h-screen flex flex-col",
-          isOpen ? "translate-x-0" : "-translate-x-full",
-          // Always full width on mobile, only collapse on desktop (lg+)
-          "w-72",
-          effectiveCollapsed && "lg:w-16"
+          "fixed inset-y-0 left-0 z-50 flex flex-col h-full transition-all duration-300 ease-[cubic-bezier(0.2,0,0,1)]",
+          "bg-background/60 backdrop-blur-xl border-r border-white/5 shadow-2xl lg:shadow-none",
+          // Mobile: slide in/out
+          isOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0",
+          // Desktop: width control
+          effectiveCollapsed ? "w-[72px]" : "w-72"
         )}
       >
         {/* 
          * Header Section
          * Contains close button (mobile), logo/branding, and collapse toggle (desktop)
          */}
-        <div className={cn("p-4 flex items-center", effectiveCollapsed ? "justify-center" : "justify-between")}>
+        <div className={cn(
+          "h-16 flex items-center border-b border-white/5", 
+          effectiveCollapsed ? "justify-center px-2" : "justify-between px-4"
+        )}>
           {/* Close button - only visible on mobile */}
-          <Button variant="ghost" size="icon" className="lg:hidden" onClick={() => setIsOpen(false)}>
+          <Button variant="ghost" size="icon" className="lg:hidden text-muted-foreground hover:text-foreground" onClick={() => setIsOpen(false)}>
             <X className="h-5 w-5" />
           </Button>
           
           {/* Logo and Brand Name - Links to landing page */}
           <Link href="/landing">
-            <div className={cn("flex items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity", effectiveCollapsed ? "px-0" : "px-2")}>
-               <img src={logo} alt="Logo" className="w-8 h-8 rounded-lg" />
-               {!effectiveCollapsed && <span className="font-display font-semibold text-lg tracking-tight">Meowstik</span>}
+            <div className={cn(
+              "flex items-center gap-3 cursor-pointer group transition-all", 
+              effectiveCollapsed ? "justify-center" : ""
+            )}>
+               <div className="relative">
+                 <div className="absolute inset-0 bg-primary/20 blur-md rounded-full group-hover:bg-primary/30 transition-colors opacity-0 group-hover:opacity-100"></div>
+                 <img src={logo} alt="Logo" className="w-8 h-8 rounded-lg relative z-10 shadow-sm group-hover:scale-105 transition-transform" />
+               </div>
+               {!effectiveCollapsed && (
+                 <span className="font-display font-bold text-lg tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-foreground to-foreground/70 group-hover:to-foreground transition-all">
+                   Meowstik
+                 </span>
+               )}
             </div>
           </Link>
           
-          {/* Collapse toggle button - only visible on desktop */}
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            className={cn("hidden lg:flex", effectiveCollapsed && "absolute right-2 top-4")}
-            onClick={() => setIsCollapsed(!effectiveCollapsed)}
-            data-testid="button-collapse-sidebar"
-          >
-            {effectiveCollapsed ? <PanelLeft className="h-5 w-5" /> : <PanelLeftClose className="h-5 w-5" />}
-          </Button>
+          {/* Collapse toggle button - only visible on desktop when expanded */}
+          {!effectiveCollapsed && (
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="hidden lg:flex text-muted-foreground hover:text-foreground hover:bg-white/5"
+              onClick={() => setIsCollapsed(true)}
+              data-testid="button-collapse-sidebar"
+            >
+              <PanelLeftClose className="h-4 w-4" />
+            </Button>
+          )}
+
         </div>
 
         {/* 
@@ -471,6 +507,23 @@ export function Sidebar({ isOpen, setIsOpen, onNewChat, chats, currentChatId, on
                   >
                     <Image className="h-4 w-4" />
                     {!effectiveCollapsed && "Image Studio"}
+                  </Button>
+                </Link>
+
+                {/* Cameras Button */}
+                <Link href="/cameras">
+                  <Button 
+                    variant="ghost" 
+                    className={cn(
+                      "font-normal text-muted-foreground hover:text-foreground",
+                      effectiveCollapsed ? "w-12 h-9 p-0 justify-center" : "w-full justify-start gap-3",
+                      location === "/cameras" && "bg-secondary/50 text-foreground"
+                    )}
+                    title={effectiveCollapsed ? "Cameras" : undefined}
+                    data-testid="button-cameras"
+                  >
+                    <Camera className="h-4 w-4" />
+                    {!effectiveCollapsed && "Cameras"}
                   </Button>
                 </Link>
                 
@@ -1042,7 +1095,7 @@ export function Sidebar({ isOpen, setIsOpen, onNewChat, chats, currentChatId, on
             </div>
           )}
         </div>
-      </div>
+      </aside>
     </>
   );
 }

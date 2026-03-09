@@ -3232,3 +3232,24 @@ export const insertTodoItemSchema = createInsertSchema(todoItems).omit({
 });
 export type InsertTodoItem = z.infer<typeof insertTodoItemSchema>;
 export type TodoItem = typeof todoItems.$inferSelect;
+
+// =============================================================================
+// CAMERA MANAGEMENT
+// =============================================================================
+
+export const cameras = pgTable("cameras", {
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  name: text("name").notNull(),
+  ip: text("ip").notNull(),
+  username: text("username"),
+  password: text("password"),
+  onvifPort: integer("onvif_port").default(5000),
+  rtspPort: integer("rtsp_port").default(554),
+  httpPort: integer("http_port").default(80),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertCameraSchema = createInsertSchema(cameras);
+export const selectCameraSchema = createInsertSchema(cameras);
+export type InsertCamera = z.infer<typeof insertCameraSchema>;
+export type Camera = typeof cameras.$inferSelect;

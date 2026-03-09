@@ -18,17 +18,19 @@ interface VADConfig {
   sampleRate: number;
 }
 
-interface VADResult {
+  interface VADResult {
   /** Whether voice activity is currently detected */
   isSpeaking: boolean;
   /** Current audio volume level (0-1) */
   volume: number;
   /** Start voice activity detection */
-  start: () => Promise<void>;
+  start: (stream?: MediaStream, audioContext?: AudioContext) => Promise<void>;
   /** Stop voice activity detection */
   stop: () => void;
   /** Update VAD configuration */
   updateConfig: (config: Partial<VADConfig>) => void;
+  /** Ref to speaking state for use in callbacks/loops */
+  isSpeakingRef: React.MutableRefObject<boolean>;
 }
 
 const DEFAULT_CONFIG: VADConfig = {
@@ -127,20 +129,26 @@ export function useVoiceActivityDetection(
     checkVolume();
   }, [config, onSpeechStart, onSpeechEnd, onVolumeChange]);
 
-  const start = useCallback(async () => {
+  const start = useCallback(async (existingStream?: MediaStream, existingContext?: AudioContext) => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: {
-          channelCount: 1,
-          sampleRate: config.sampleRate,
-          echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: true,
-        },
-      });
+      let stream = existingStream;
+      
+      if (!stream) {
+        stream = await navigator.mediaDevices.getUserMedia({
+          audio: {
+            channelCount: 1,
+            sampleRate: config.sampleRate,
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true,
+          },
+        });
+      }
 
       streamRef.current = stream;
-      audioContextRef.current = new AudioContext({ sampleRate: config.sampleRate });
+      
+      // Use existing context if provided, otherwise create new one
+      audioContextRef.current = existingContext || new AudioContext({ sampleRate: config.sampleRate });
       
       const source = audioContextRef.current.createMediaStreamSource(stream);
       const analyser = audioContextRef.current.createAnalyser();
@@ -203,5 +211,6 @@ export function useVoiceActivityDetection(
     start,
     stop,
     updateConfig,
+    isSpeakingRef, // Export ref for direct access without re-renders
   };
 }

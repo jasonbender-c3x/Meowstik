@@ -402,6 +402,7 @@ export class RAGService {
     } = options;
 
     const traceId = ragDebugBuffer.generateTraceId();
+    const startTime = Date.now();
     ragDebugBuffer.logQueryStart(traceId, query);
 
     try {
@@ -480,7 +481,7 @@ export class RAGService {
         );
       }
 
-      const totalDuration = Date.now();
+      const totalDuration = Date.now() - startTime;
       ragDebugBuffer.logQueryComplete(traceId, query, finalChunks.length, 0, totalDuration);
 
       return {

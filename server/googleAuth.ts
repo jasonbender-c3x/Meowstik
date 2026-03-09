@@ -36,6 +36,8 @@ export function getSession() {
   if (isProduction && !process.env.SESSION_SECRET) {
     throw new Error("SESSION_SECRET environment variable must be set in production");
   }
+
+  console.log(`[Auth] Session Config: secure=${isProduction}, sameSite=lax, proxy=true`);
   
   return session({
     secret: process.env.SESSION_SECRET || "meowstik-dev-secret-change-in-production",
@@ -48,7 +50,7 @@ export function getSession() {
       sameSite: "lax",
       maxAge: SESSION_TTL,
     },
-    proxy: isProduction,
+    proxy: true,
   });
 }
 

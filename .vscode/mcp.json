@@ -9,6 +9,21 @@
       "env": {
         "GITHUB_PERSONAL_ACCESS_TOKEN": "${input:github_mcp_pat}"
       }
+    },
+    "playwright": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-playwright"
+      ]
+    },
+    "postgresql": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-postgresql",
+        "${input:database_url}"
+      ]
     }
   },
   "inputs": [
@@ -16,6 +31,12 @@
       "type": "promptString",
       "id": "github_mcp_pat",
       "description": "GitHub Personal Access Token for MCP Server",
+      "password": true
+    },
+    {
+      "type": "promptString",
+      "id": "database_url",
+      "description": "PostgreSQL Connection String for MCP Server",
       "password": true
     }
   ]

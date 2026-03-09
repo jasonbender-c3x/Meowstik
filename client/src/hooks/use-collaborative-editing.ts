@@ -65,6 +65,7 @@ interface UseCollaborativeEditingOptions {
   onVoiceStarted?: (participantId: string) => void;
   onVoiceStopped?: (participantId: string) => void;
   onVoiceAudio?: (participantId: string, audio: string) => void;
+  onAIContentLoad?: (filePath: string, content: string) => void;
 }
 
 export function useCollaborativeEditing(options: UseCollaborativeEditingOptions) {
@@ -80,6 +81,7 @@ export function useCollaborativeEditing(options: UseCollaborativeEditingOptions)
     onVoiceStarted,
     onVoiceStopped,
     onVoiceAudio,
+    onAIContentLoad,
   } = options;
 
   const [session, setSession] = useState<CollabSession>({
@@ -339,8 +341,15 @@ export function useCollaborativeEditing(options: UseCollaborativeEditingOptions)
         console.log("[Collab] Screenshot received");
         break;
       }
+
+      case "ai_content_load": {
+        const { filePath, content } = message.data as { filePath: string; content: string };
+        console.log("[Collab] AI content load received:", filePath);
+        onAIContentLoad?.(filePath, content);
+        break;
+      }
     }
-  }, [onRemoteEdit, onParticipantJoined, onParticipantLeft, onVoiceStarted, onVoiceStopped, onVoiceAudio]);
+  }, [onRemoteEdit, onParticipantJoined, onParticipantLeft, onVoiceStarted, onVoiceStopped, onVoiceAudio, onAIContentLoad]);
 
   const send = useCallback((type: string, data: unknown) => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {

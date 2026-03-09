@@ -19,8 +19,18 @@ export function log(message: string, source = "express") {
 }
 
 export async function setupVite(app: Express, server: Server) {
+  // CRITICAL FIX: Explicitly point to the config file since the backend
+  // might be started from a sub-directory (like /server).
+  const configFile = path.resolve(__dirname, "..", "vite.config.ts");
+  
   const vite = await createViteServer({
-    server: { middlewareMode: true, hmr: { server } },
+    configFile: fs.existsSync(configFile) ? configFile : undefined,
+    server: { 
+      middlewareMode: true, 
+      hmr: { server },
+      // Ensure we allow all hosts for local access
+      allowedHosts: true
+    },
     appType: "custom",
   });
 
@@ -29,6 +39,10 @@ export async function setupVite(app: Express, server: Server) {
     const url = req.originalUrl;
     try {
       const clientIndex = path.resolve(__dirname, "..", "client", "index.html");
+      if (!fs.existsSync(clientIndex)) {
+        throw new Error(`Could not find index.html at ${clientIndex}`);
+      }
+      
       let template = fs.readFileSync(clientIndex, "utf-8");
       template = await vite.transformIndexHtml(url, template);
       res.status(200).set({ "Content-Type": "text/html" }).end(template);

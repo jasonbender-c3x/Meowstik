@@ -100,6 +100,8 @@ import { recognizeFamilyMember } from "./services/family-recognition";
 
 import { createApiRouter } from "./routes/index";
 import diagRouter from "./routes/diag";
+import computerUseRouter from "./routes/computer-use";
+import liveRouter from "./routes/live";
 
 // ═══════════════════════════════════════════════════════════════════════════
 // SECTION: AI CLIENT INITIALIZATION
@@ -675,6 +677,8 @@ export async function registerRoutes(
       res.setHeader("Content-Type", "text/event-stream"); // SSE MIME type
       res.setHeader("Cache-Control", "no-cache"); // Don't cache the stream
       res.setHeader("Connection", "keep-alive"); // Keep connection open
+      res.setHeader("X-Accel-Buffering", "no"); // Prevent buffering
+      res.setHeader("Content-Encoding", "none"); // Avoid compression buffering
 
       // ─────────────────────────────────────────────────────────────────────
       // STEP 3.5: Compose system prompt using PromptComposer
@@ -1033,7 +1037,7 @@ The user has MUTE mode enabled. Minimize all output.
         }
 
         // Capture any text content (rare with function calling mode)
-        const text = chunk.text || "";
+        const text = chunk.candidates?.[0]?.content?.parts?.map((p) => p.text).join("") || "";
         if (text) {
           fullResponse += text;
           cleanContentForStorage += text;
@@ -1094,7 +1098,7 @@ The user has MUTE mode enabled. Minimize all output.
       // ─────────────────────────────────────────────────────────────────────
       
       let loopIteration = 0;
-      const MAX_LOOP_ITERATIONS = 10; // Safety limit to prevent infinite loops
+      const MAX_LOOP_ITERATIONS = 25; // Safety limit to prevent infinite loops
       const MAX_TOOLS_PER_TURN = 20; // Limit tool calls per turn to prevent runaway
       let totalToolsExecuted = 0;
       const MAX_TOTAL_TOOLS = 50; // Absolute limit across all turns
@@ -1352,7 +1356,7 @@ The user has MUTE mode enabled. Minimize all output.
           let loopParsedResponse: { toolCalls?: ToolCall[] } | null = null;
           
           for await (const chunk of loopResult) {
-            const text = chunk.text || "";
+            const text = chunk.candidates?.[0]?.content?.parts?.map((p) => p.text || "").join("") || "";
             if (text) loopResponse += text;
             
             // Collect function calls
@@ -2355,6 +2359,8 @@ ${summary}`,
 
   app.use("/api", createApiRouter());
   app.use("/api/diag", diagRouter);
+  app.use("/api/computer-use", computerUseRouter);
+  app.use("/api/live", liveRouter);
 
   // ═════════════════════════════════════════════════════════════════════════
   // Return the HTTP server instance

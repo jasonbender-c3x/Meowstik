@@ -120,13 +120,20 @@ function redactObjectCredentials(obj: any): any {
         keyLower.includes('password') ||
         keyLower.includes('secret') ||
         keyLower.includes('token') ||
-        keyLower.includes('key') && keyLower.includes('api') ||
+        (keyLower.includes('key') && keyLower.includes('api')) ||
         keyLower.includes('credential') ||
+        keyLower.includes('audiobase64') || // Avoid logging massive base64 strings
+        keyLower.includes('imagebase64') ||
+        keyLower === 'base64' ||
         keyLower === 'auth' ||
         keyLower === 'authorization';
       
       if (isCredentialKey && typeof value === 'string') {
-        redacted[key] = '[REDACTED]';
+        if (keyLower.includes('base64')) {
+           redacted[key] = '[BASE64_DATA_REDACTED]';
+        } else {
+           redacted[key] = '[REDACTED]';
+        }
       } else {
         redacted[key] = redactObjectCredentials(value);
       }
@@ -315,7 +322,15 @@ ${ragSection}
     const filepath = path.join(this.logsDir, filename);
 
     // Redact credentials from all output content
-    const redactedRawResponse = redactCredentials(data.rawResponse);
+    let redactedRawResponse: string;
+    try {
+      const parsed = JSON.parse(data.rawResponse);
+      const redactedObj = redactObjectCredentials(parsed);
+      redactedRawResponse = JSON.stringify(redactedObj, null, 2);
+    } catch (e) {
+      redactedRawResponse = redactCredentials(data.rawResponse);
+    }
+    
     const redactedCleanContent = redactCredentials(data.cleanContent);
     
     // Redact credentials from tool calls and results

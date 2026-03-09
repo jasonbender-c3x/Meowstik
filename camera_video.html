@@ -1,0 +1,175 @@
+<head>
+<script type="text/javascript">
+//-->
+
+function on_load()
+{
+	document.getElementById("Sure").innerHTML=a[23];
+	document.getElementById("Refresh").innerHTML=a[24];
+	document.getElementById("max_bit_rate").innerHTML=a[29];
+	document.getElementById("I_frame_interval").innerHTML=a[30];
+	document.getElementById("Bit_rate_type").innerHTML=a[31];
+	document.getElementById("max_frame_rate").innerHTML=a[32];
+	document.getElementById("Image_quality").innerHTML=a[33];
+	document.getElementById("Flow_Select_span").innerHTML=a[95];
+	document.getElementById("flow_slct").options[0].text = a[167];
+	var channel_num = getCookie('chn_num');
+	if(channel_num==3)//3-->表示有3路通道
+	{
+		$("#flow_slct").append("<option>" + a[495] + "</option>");
+		$("#flow_slct").append("<option>" + a[496] + "</option>");
+	}else{
+		$("#flow_slct").append("<option>" + a[168] + "</option>");
+	}
+	
+	document.getElementById("qualityselect").options[0].text = a[218];
+	document.getElementById("qualityselect").options[1].text = a[219];
+	document.getElementById("qualityselect").options[2].text = a[220];
+	document.getElementById("qualityselect").options[3].text = a[221];
+	document.getElementById("qualityselect").options[4].text = a[222];
+	
+	document.getElementById("videocodingselect").options[0].text = a[223];
+	document.getElementById("videocodingselect").options[1].text = a[224];
+
+	var flow_slct = getCookie('flow_slct');
+	document.getElementById("flow_slct").selectedIndex = flow_slct;
+	changedecode();
+}
+
+function changedecode()
+{
+	var params = {opType:"get",flow:get_slctid('flow_slct')};
+	var flowinfo=call_cgi("getflowinfo.cgi", params);
+	flowinfoshow(flowinfo);
+}
+
+function do_submit()
+{
+	var params;
+	var form = document.form1;
+	var ret_val;
+	
+	var param_get = {opType:"get",flow:get_slctid('flow_slct')};
+	var flowinfo=call_cgi("getflowinfo.cgi", param_get);
+	
+	if(checkval('I_frame_interval',form.flow_igap.value,flowinfo.igap_min,flowinfo.igap_max)) return;
+	if(checkval('max_bit_rate',form.flow_speed.value,flowinfo.speed_min,flowinfo.speed_max)) return;
+	if(checkval('max_frame_rate',form.flow_rate.value,flowinfo.rate_min,flowinfo.rate_max)) return;
+	
+	params = {opType:"set",
+	flow_slct:get_slctid('flow_slct'),
+	flow_speed:form.flow_speed.value,
+	flow_rate:form.flow_rate.value,
+	flow_igap:form.flow_igap.value,
+	videocodingselect:form.videocodingselect.options[get_slctid('videocodingselect')].value,
+	qualityselect:form.qualityselect.options[get_slctid('qualityselect')].value
+	};
+
+	SetCookie('flow_slct',get_slctid('flow_slct'),3600*24*90);
+
+	ret_val = call_cgi("getflowinfo.cgi", params);
+	
+	//alert(ret_val.ret_code);
+	switch(ret_val.ret_code)
+	{
+		case "1":
+			alert(a[43]);
+			//location.reload(true);
+			break;	
+		case "11":
+			alert("no para");	
+			//location.reload(true);
+			break;
+		default:
+			break;
+	}
+}
+
+function flowinfoshow(flow_info)
+{
+	var form=document.form1;
+
+	SetCookie('flow_slct',get_slctid('flow_slct'),3600*24*90);
+	
+	form.flow_speed.value = flow_info.flow_speed;
+	form.flow_igap.value = flow_info.flow_igap;
+	form.flow_rate.value = flow_info.flow_rate;
+	form.videocodingselect.options[flow_info.videocodingselect-1].selected = true;
+	form.qualityselect.options[flow_info.qualityselect-1].selected = true;
+	
+	document.getElementById("frame_range").innerHTML = "&nbsp;["+flow_info.speed_min+"-"+flow_info.speed_max+"]kbps";
+	document.getElementById("frame_range_igap").innerHTML = "&nbsp;["+flow_info.igap_min+"-"+flow_info.igap_max+"]frames";
+	document.getElementById("framerate_range").innerHTML = "&nbsp;["+flow_info.rate_min+"-"+flow_info.rate_max+"]fps";
+}
+
+$(function(){
+	on_load();
+});
+</script>
+
+</head>
+<body>
+<div class="dtree_control_div">
+<form name="form1">
+<table class="main_table">
+    <tr><td align="right"><span id="Flow_Select_span">Flow Select</span>:</td>
+    <td>
+        <table>
+        <tr><td>
+        <select name="flow_slct" id="flow_slct" onChange="changedecode()">
+          <option>Main Flow</option>
+        </select>
+        </td>
+        </tr>
+        </table>
+    </td></tr>
+    <tr>
+          <td align="right"><span id="max_bit_rate">Maximum bit rate</span>:</td>
+          <td align="left" nowrap>&nbsp;<input name="flow_speed" type="text" id="flow_speed" onKeyUp="this.value=this.value.replace(/[^\d]/g,'') " value="2048" size="1" maxlength="4" onafterpaste="this.value=this.value.replace(/[^\d]/g,'') " style="width:80px"/>
+            <span id="frame_range">&nbsp;[32-4096]kbps</span></td>
+        </tr>
+        <tr>
+          <td align="right"><span id="I_frame_interval">I-frame interval</span>:</td>
+          <td align="left" nowrap>&nbsp;<input name="flow_igap" type="text" id="flow_igap" onKeyUp="this.value=this.value.replace(/[^\d]/g,'') " value="100" size="1" maxlength="3" onafterpaste="this.value=this.value.replace(/[^\d]/g,'') " style="width:80px"/>
+                <span id="frame_range_igap">&nbsp;[1-100]frames</span></td>
+        </tr>
+        <tr>
+          <td align="right"><span id="Bit_rate_type">Bit rate type</span>:</td>
+          <td>&nbsp;<select name="videocodingselect" id="videocodingselect" onChange="">
+        <option value="1">CBR</option>
+        <option value="2" selected>VBR</option>
+        </select></td>
+        </tr>
+        <tr>
+          <td align="right"><span id="max_frame_rate">Maximum frame rate</span>:</td>
+          <td align="left">&nbsp;<input name="flow_rate" type="text" id="flow_rate" onKeyUp="this.value=this.value.replace(/[^\d]/g,'') " value="25" size="1" maxlength="2" onafterpaste="this.value=this.value.replace(/[^\d]/g,'') " style="width:80px"/>
+                &nbsp;<span id="framerate_range">[1-15]fps</span></td>
+        </tr>
+        <tr>
+        <td align="right"><span id="Image_quality">Image quality</span>:</td>
+        <td>&nbsp;<select name="qualityselect" id="qualityselect" onChange="">
+        <option value="1">Very High</option>
+        <option value="2">High</option>
+        <option value="3">Normal</option>
+        <option value="4">Low</option>
+        <option value="5">Very Low</option>
+        </select></td>
+        </tr>
+        <tr>
+        <td colspan="2">
+            <table border="0" align="center" cellpadding="0" cellspacing="8"  class="form_table">
+      <tr>
+            <td>
+            <div class="app_menu" id="Sure"  onclick="do_submit()"  onmouseover="this.className='app_menu_over'" onMouseOut="this.className='app_menu'">Sure</div>
+            </td><td>
+            <div class="app_menu" id="Refresh"  onclick="on_load()"  onmouseover="this.className='app_menu_over'" onMouseOut="this.className='app_menu'">Refresh</div>
+            </td>
+              </tr>
+            </table>
+        </td>
+        </tr>
+    </table>
+</form>
+</div>
+</body>
+</html>

@@ -16,6 +16,8 @@
  * @see https://developers.google.com/custom-search/v1/overview
  */
 
+import Exa from "exa-js";
+
 export interface WebSearchResult {
   success: boolean;
   content: string;
@@ -35,21 +37,91 @@ export interface WebSearchOptions {
   maxTokens?: number;
   searchRecency?: "day" | "week" | "month" | "year";
   domains?: string[];
+  provider?: "google" | "exa";
 }
 
 const GOOGLE_SEARCH_API_URL = "https://www.googleapis.com/customsearch/v1";
 
 /**
- * Perform a web search using Google Custom Search API
+ * Perform a web search using Google Custom Search API or Exa
  * 
  * @param options - Search options including query and filters
  * @returns Search result with content and citations
  */
 export async function webSearch(options: WebSearchOptions): Promise<WebSearchResult> {
+  const provider = options.provider || "google";
+
+  if (provider === "exa") {
+    return exaSearch(options);
+  } else if (provider === "google") {
+      return googleSearch(options);
+  } else {
+      // Fallback or default logic if needed, currently defaults to google above
+      return googleSearch(options);
+  }
+}
+
+async function exaSearch(options: WebSearchOptions): Promise<WebSearchResult> {
+  const apiKey = process.env.EXA_API_KEY;
+  if (!apiKey) {
+    return {
+        success: false,
+        content: "",
+        citations: [],
+        model: "exa",
+        error: "EXA_API_KEY is not configured."
+    };
+  }
+
+  const exa = new Exa(apiKey);
+  
+  try {
+      const result = await exa.searchAndContents(
+        options.query,
+        {
+            type: "neural",
+            useAutoprompt: true,
+            numResults: 5,
+            text: true,
+            livecrawl: options.searchRecency ? "always" : "never", // crude mapping
+            includeDomains: options.domains,
+        }
+      );
+      
+      const items = result.results.map(r => ({
+          title: r.title || "No Title",
+          link: r.url,
+          snippet: r.text || ""
+      }));
+
+      const content = formatResults(items);
+      const citations = items.map(i => i.link);
+
+      return {
+          success: true,
+          content,
+          citations,
+          model: "exa"
+      };
+
+  } catch (error: any) {
+      return {
+          success: false,
+          content: "",
+          citations: [],
+          model: "exa",
+          error: `Exa search failed: ${error.message}`
+      };
+  }
+}
+
+async function googleSearch(options: WebSearchOptions): Promise<WebSearchResult> {
   const apiKey = process.env.GOOGLE_SEARCH_API_KEY;
   const cseId = process.env.GOOGLE_SEARCH_ENGINE_ID;
   
   if (!apiKey) {
+    // If Google is missing, try falling back to Exa if not explicitly requested?
+    // For now, return error as per original logic
     return {
       success: false,
       content: "",

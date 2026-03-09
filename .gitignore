@@ -18,3 +18,4 @@ client/src/pages/debug-old.tsx
 
 package-lock.json
 meowstik.AppImage
+google_cloud_key.json

@@ -1,0 +1,78 @@
+<head>
+
+<script type="text/javascript">
+
+function ptzcmd(cmd)
+{
+	var ptz_cmd=0;
+	switch(cmd)
+	{
+		case "zoomin":ptz_cmd=11;	break;
+		case "zoomout":ptz_cmd=10;	break;
+		case "focusfar":ptz_cmd=9;	break;
+		case "focusnear":ptz_cmd=8;	break;
+		case "irislarge":ptz_cmd=6;	break;
+		case "irissmall":ptz_cmd=7;	break;
+		case "left":ptz_cmd=3;	break;
+		case "right":ptz_cmd=4;	break;
+		case "top":ptz_cmd=1;	break;
+		case "down":ptz_cmd=2;	break;
+		case "stop":ptz_cmd=5; break;
+		case "lefttop": ptz_cmd=19;break;
+		case "righttop": ptz_cmd=21;break;
+		case "leftdown": ptz_cmd=20;break;
+		case "rightdown": ptz_cmd=22;break;
+		case "vscan":ptz_cmd=36; break;
+		case "hscan":ptz_cmd=37; break;
+		default: return;
+	}
+	
+	var params = {opType:"set",cmd:"ptz",ptz_cmd:ptz_cmd};
+	call_cgi("cmd.cgi", params);
+}
+
+$(function(){
+
+	document.getElementById("zoomin").alt=a[415];
+	document.getElementById("zoomout").alt=a[416];
+	document.getElementById("vertical").alt=a[417];
+	document.getElementById("horizontal").alt=a[418];
+
+	document.getElementById("zoomin").title=a[415];
+	document.getElementById("zoomout").title=a[416];
+	document.getElementById("vertical").title=a[417];
+	document.getElementById("horizontal").title=a[418];
+	
+});
+
+</script><!-- End Preload Script -->
+</head>
+
+<body>    
+    <div class="div_left">
+    <table width="242" border="0" align="center" cellpadding="0" cellspacing="0">
+    <tr>
+      <td align="center"><img src="images/dirpanel.gif" width="200" height="100" usemap="#dirpanel" border="0"/></td></tr>
+    <tr><td align="center"><br /><img src="images/route.gif" width="100" height="26" usemap="#route" border="0"/></td></tr>
+  </table></div>
+
+<map name="dirpanel">
+  <area href="javascript:ptzcmd('lefttop')" shape="rect" coords="7,4,62,31" target="_self" />
+  <area href="javascript:ptzcmd('top')" shape="rect" coords="74,4,130,31" target="_self" />
+  <area href="javascript:ptzcmd('righttop')" shape="rect" coords="140,4,195,31" target="_self" />
+  <area href="javascript:ptzcmd('left')" shape="rect" coords="7,38,62,64" target="_self" />
+  <area href="javascript:ptzcmd('stop')" shape="rect" coords="74,38,130,64" target="_self" />
+  <area href="javascript:ptzcmd('right')" shape="rect" coords="140,38,195,64" target="_self" />
+  <area href="javascript:ptzcmd('leftdown')" shape="rect" coords="7,72,63,98" target="_self" />
+  <area href="javascript:ptzcmd('down')" shape="rect" coords="74,72,130,98" target="_self" />
+  <area href="javascript:ptzcmd('rightdown')" shape="rect" coords="140,72,195,98" target="_self" />
+</map>
+<map name="zoom">
+  <area id="zoomin" href="javascript:ptzcmd('stop')" onmousedown="javascript:ptzcmd('zoomin');" shape="rect" coords="2,2,50,28" target="_self" />
+  <area id="zoomout" href="javascript:ptzcmd('stop')" onmousedown="javascript:ptzcmd('zoomout')" shape="rect" coords="50,2,104,28" target="_self" />
+</map>
+<map name="route">
+  <area id="vertical" href="javascript:ptzcmd('vscan');" shape="rect" coords="0,0,44,28" target="_self" />
+  <area id="horizontal" href="javascript:ptzcmd('hscan');" shape="rect" coords="57,0,100,28" target="_self" />
+</map>
+</body>

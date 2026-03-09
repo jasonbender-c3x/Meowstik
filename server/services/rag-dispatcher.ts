@@ -66,6 +66,7 @@ import { ragService } from "./rag-service";
 import { retrievalOrchestrator } from "./retrieval-orchestrator";
 import { chunkingService } from "./chunking-service";
 import { clientRouter } from "./client-router";
+import { broadcastAIContentToAll } from "../websocket-collab";
 import type { CodeEntity } from "./codebase-analyzer";
 import { exec } from "child_process";
 import { promisify } from "util";
@@ -227,7 +228,8 @@ const webSearchParamsSchema = z.object({
   query: z.string(),
   maxTokens: z.number().optional(),
   searchRecency: z.enum(["day", "week", "month", "year"]).optional(),
-  domains: z.array(z.string()).optional()
+  domains: z.array(z.string()).optional(),
+  provider: z.enum(["google", "exa"]).optional()
 });
 
 const googleSearchParamsSchema = z.object({
@@ -245,6 +247,16 @@ const browserScrapeParamsSchema = z.object({
   url: z.string().url(),
   selector: z.string().optional(),
   timeout: z.number().optional()
+});
+
+const browserbaseActionParamsSchema = z.object({
+  url: z.string().url(),
+  actions: z.array(z.object({
+    type: z.enum(['click', 'type', 'scroll', 'wait', 'screenshot']),
+    selector: z.string().optional(),
+    text: z.string().optional(),
+    delay: z.number().optional()
+  }))
 });
 
 const execAsync = promisify(exec);
@@ -1244,7 +1256,8 @@ export class RAGDispatcher {
       query: params.query,
       maxTokens: params.maxTokens,
       searchRecency: params.searchRecency,
-      domains: params.domains
+      domains: params.domains,
+      provider: params.provider
     });
 
     if (!result.success) {
@@ -1273,7 +1286,8 @@ export class RAGDispatcher {
       query: params.query,
       maxTokens: 1024,
       searchRecency: params.searchRecency,
-      domains: params.domains
+      domains: params.domains,
+      provider: "google"
     });
 
     if (!result.success) {
@@ -1866,13 +1880,25 @@ export class RAGDispatcher {
   }
 
   private async executeDocsCreate(toolCall: ToolCall): Promise<unknown> {
-    const params = toolCall.parameters as { title: string };
-    return await googleDocs.createDocument(params.title);
+    const params = toolCall.parameters as { title: string; content?: string };
+    const doc = await googleDocs.createDocument(params.title);
+    
+    if (params.content && doc && typeof doc === 'object' && 'documentId' in doc) {
+      await googleDocs.appendText((doc as any).documentId, params.content);
+    }
+    
+    return doc;
   }
 
   private async executeDocsAppend(toolCall: ToolCall): Promise<unknown> {
-    const params = toolCall.parameters as { documentId: string; text: string };
-    await googleDocs.appendText(params.documentId, params.text);
+    const params = toolCall.parameters as { documentId: string; text?: string; content?: string };
+    const textToAppend = params.content || params.text;
+    
+    if (!textToAppend) {
+      throw new Error('docs_append requires content or text parameter');
+    }
+    
+    await googleDocs.appendText(params.documentId, textToAppend);
     return { success: true, documentId: params.documentId, message: 'Text appended successfully' };
   }
 
@@ -2090,6 +2116,23 @@ export class RAGDispatcher {
    * - client:path → Write to client via desktop-app
    * - editor:path → Write to Monaco editor canvas
    */
+  /**
+   * Sanitize content from LLM to fix common JSON escaping issues
+   */
+  private sanitizeContent(content: string): string {
+    if (!content) return content;
+    
+    // Fix: Double-escaped newlines (\\n) when no real newlines exist
+    // This happens when LLM outputs JSON string with \\n but it gets parsed as \\n 
+    // because of some double-escaping in the pipeline or LLM mistake.
+    if (content.includes('\\n') && !content.includes('\n')) {
+      console.warn('[RAGDispatcher] Detected double-escaped newlines in content. Auto-fixing.');
+      return content.replace(/\\n/g, '\n');
+    }
+    
+    return content;
+  }
+
   private async executeFilePut(toolCall: ToolCall): Promise<unknown> {
     const params = toolCall.parameters as { 
       path: string; 
@@ -2106,6 +2149,9 @@ export class RAGDispatcher {
       throw new Error('file_put requires a content parameter');
     }
 
+    // Sanitize content to fix potential encoding issues
+    params.content = this.sanitizeContent(params.content);
+
     // Parse prefix to determine target
     const parsed = parsePathPrefix(params.path, 'server');
     const actualPath = parsed.path;
@@ -2113,6 +2159,13 @@ export class RAGDispatcher {
     // Route to editor canvas
     if (parsed.target === 'editor') {
       console.log(`[RAGDispatcher] Writing to editor canvas: ${actualPath}`);
+      
+      // Broadcast to connected clients via WebSocket
+      try {
+        broadcastAIContentToAll(actualPath, params.content);
+      } catch (err) {
+        console.error(`[RAGDispatcher] Failed to broadcast to editor:`, err);
+      }
       
       // Auto-ingest into RAG if content is text-based
       const mimeType = params.mimeType || this.detectMimeType(actualPath);
@@ -2571,16 +2624,15 @@ export class RAGDispatcher {
   }
 
   private async executeBrowserbaseAction(toolCall: ToolCall): Promise<unknown> {
-    const params = toolCall.parameters as {
-      url: string;
-      actions: Array<{
-        type: 'click' | 'type' | 'scroll' | 'wait' | 'screenshot';
-        selector?: string;
-        text?: string;
-        delay?: number;
-      }>;
-    };
-    const result = await browserbase.executeBrowserAction(params.url, params.actions);
+    const parseResult = browserbaseActionParamsSchema.safeParse(toolCall.parameters);
+    
+    if (!parseResult.success) {
+      throw new Error(`Invalid browser action parameters: ${parseResult.error.message}`);
+    }
+
+    const { url, actions } = parseResult.data;
+
+    const result = await browserbase.executeBrowserAction(url, actions as any);
     return {
       success: result.success,
       results: result.results,

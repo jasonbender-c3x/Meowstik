@@ -1019,7 +1019,14 @@ export default function Home() {
   // ===========================================================================
 
   return (
-    <div className="flex h-screen bg-background overflow-hidden font-sans">
+    <div className="flex h-screen bg-background overflow-hidden font-sans relative selection:bg-primary/20">
+      {/* Background Decor */}
+      <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden">
+        <div className="absolute top-[-20%] right-[-10%] w-[600px] h-[600px] rounded-full bg-primary/5 blur-[120px] opacity-50 animate-pulse [animation-duration:10s]" />
+        <div className="absolute bottom-[-20%] left-[-10%] w-[500px] h-[500px] rounded-full bg-secondary/20 blur-[100px] opacity-40" />
+        <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-[0.03] mix-blend-overlay"></div>
+      </div>
+
       {/* 
        * Sidebar Component
        * - Shows chat history
@@ -1143,53 +1150,72 @@ export default function Home() {
             // WELCOME SCREEN (Empty State)
             // Shown when no messages exist in current chat
             // =================================================================
-            <div className="h-full flex flex-col items-center justify-center p-8 max-w-4xl mx-auto animate-in fade-in duration-500">
-               {/* Cat Logo with glow effect */}
-               <div className="mb-8 relative">
-                  <div className="absolute inset-0 bg-primary/20 blur-3xl rounded-full"></div>
-                  <img src={logo} alt="Meowstik Logo" className="w-24 h-24 rounded-2xl relative z-10 shadow-2xl shadow-primary/20" data-testid="img-logo" />
-               </div>
-               
-              {/* Welcome Heading */}
-              <h1 className="text-4xl md:text-5xl font-display font-medium text-transparent bg-clip-text bg-gradient-to-r from-foreground to-foreground/60 mb-3 text-center tracking-tight" data-testid="text-welcome-title">
-                Meow there, {displayName}! 🐱
-              </h1>
-              
-              {/* Subtitle */}
-              <h2 className="text-2xl md:text-3xl font-display font-light text-muted-foreground mb-12 text-center" data-testid="text-welcome-subtitle">
-                What can this curious cat help you with?
-              </h2>
+            <div className="h-full flex flex-col items-center justify-center p-8 max-w-4xl mx-auto overflow-hidden relative">
+               <motion.div 
+                 initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                 animate={{ opacity: 1, scale: 1, y: 0 }}
+                 transition={{ duration: 0.5, ease: "easeOut" }}
+                 className="flex flex-col items-center z-10 w-full"
+               >
+                 {/* Cat Logo with glow effect */}
+                 <div className="mb-8 relative group">
+                    <div className="absolute inset-0 bg-primary/20 blur-3xl rounded-full scale-110 group-hover:scale-125 transition-transform duration-700"></div>
+                    <div className="absolute inset-0 bg-gradient-to-tr from-primary/30 to-secondary/30 blur-2xl rounded-full animate-pulse-slow"></div>
+                    <img 
+                      src={logo} 
+                      alt="Meowstik Logo" 
+                      className="w-24 h-24 rounded-2xl relative z-10 shadow-2xl shadow-primary/20 group-hover:rotate-3 transition-transform duration-500 ease-spring" 
+                      data-testid="img-logo" 
+                    />
+                 </div>
+                 
+                {/* Welcome Heading */}
+                <h1 className="text-4xl md:text-6xl font-display font-medium text-transparent bg-clip-text bg-gradient-to-r from-foreground via-foreground/90 to-foreground/60 mb-4 text-center tracking-tight drop-shadow-sm" data-testid="text-welcome-title">
+                  Meow there, {displayName}! 🐱
+                </h1>
+                
+                {/* Subtitle */}
+                <h2 className="text-xl md:text-2xl font-display font-light text-muted-foreground/80 mb-12 text-center max-w-lg leading-relaxed" data-testid="text-welcome-subtitle">
+                  What can this curious cat help you with today?
+                </h2>
 
-              {/* 
-               * Cat-Themed Quick Start Carousel
-               * Animated card carousel with cat-themed prompts
-               * Click cards to send prompts, use arrows to navigate
-               */}
-              <CatCardCarousel onSendMessage={handleSendMessage} />
-              
-              {/* Quick Links */}
-              <div className="mt-8 w-full max-w-4xl">
-                <h3 className="text-sm font-medium text-muted-foreground mb-3 text-center">Quick Links</h3>
-                <div className="flex flex-wrap justify-center gap-2">
-                  <a href="https://mail.google.com" target="_blank" rel="noopener" className="flex items-center gap-2 px-3 py-2 bg-secondary/30 hover:bg-secondary/60 rounded-lg text-sm transition-colors" data-testid="link-gmail">
-                    <Mail className="h-4 w-4 text-red-500" /> Gmail
-                  </a>
-                  <a href="https://calendar.google.com" target="_blank" rel="noopener" className="flex items-center gap-2 px-3 py-2 bg-secondary/30 hover:bg-secondary/60 rounded-lg text-sm transition-colors" data-testid="link-calendar">
-                    <Calendar className="h-4 w-4 text-blue-500" /> Calendar
-                  </a>
-                  <a href="https://drive.google.com" target="_blank" rel="noopener" className="flex items-center gap-2 px-3 py-2 bg-secondary/30 hover:bg-secondary/60 rounded-lg text-sm transition-colors" data-testid="link-drive">
-                    <FileText className="h-4 w-4 text-yellow-500" /> Drive
-                  </a>
-                  <a href="https://github.com" target="_blank" rel="noopener" className="flex items-center gap-2 px-3 py-2 bg-secondary/30 hover:bg-secondary/60 rounded-lg text-sm transition-colors" data-testid="link-github">
-                    <Github className="h-4 w-4" /> GitHub
-                  </a>
+                {/* 
+                 * Cat-Themed Quick Start Carousel
+                 * Animated card carousel with cat-themed prompts
+                 * Click cards to send prompts, use arrows to navigate
+                 */}
+                <div className="w-full relative z-20">
+                  <CatCardCarousel onSendMessage={handleSendMessage} />
                 </div>
-              </div>
-              
-              {/* Copyright */}
-              <div className="mt-8 text-xs text-muted-foreground/50">
-                © {new Date().getFullYear()} Jason Bender
-              </div>
+                
+                {/* Quick Links */}
+                <motion.div 
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.3, duration: 0.5 }}
+                  className="mt-12 w-full max-w-4xl flex flex-col items-center"
+                >
+                  <div className="flex flex-wrap justify-center gap-3">
+                    <a href="https://mail.google.com" target="_blank" rel="noopener" className="flex items-center gap-2 px-4 py-2 bg-background/50 backdrop-blur-sm border border-border/50 hover:bg-secondary/40 hover:border-primary/20 hover:shadow-lg hover:shadow-primary/5 rounded-full text-sm transition-all duration-300 group" data-testid="link-gmail">
+                      <div className="p-1 bg-red-500/10 rounded-full group-hover:bg-red-500/20 transition-colors"><Mail className="h-3.5 w-3.5 text-red-500" /></div> Gmail
+                    </a>
+                    <a href="https://calendar.google.com" target="_blank" rel="noopener" className="flex items-center gap-2 px-4 py-2 bg-background/50 backdrop-blur-sm border border-border/50 hover:bg-secondary/40 hover:border-primary/20 hover:shadow-lg hover:shadow-primary/5 rounded-full text-sm transition-all duration-300 group" data-testid="link-calendar">
+                      <div className="p-1 bg-blue-500/10 rounded-full group-hover:bg-blue-500/20 transition-colors"><Calendar className="h-3.5 w-3.5 text-blue-500" /></div> Calendar
+                    </a>
+                    <a href="https://drive.google.com" target="_blank" rel="noopener" className="flex items-center gap-2 px-4 py-2 bg-background/50 backdrop-blur-sm border border-border/50 hover:bg-secondary/40 hover:border-primary/20 hover:shadow-lg hover:shadow-primary/5 rounded-full text-sm transition-all duration-300 group" data-testid="link-drive">
+                      <div className="p-1 bg-yellow-500/10 rounded-full group-hover:bg-yellow-500/20 transition-colors"><FileText className="h-3.5 w-3.5 text-yellow-500" /></div> Drive
+                    </a>
+                    <a href="https://github.com" target="_blank" rel="noopener" className="flex items-center gap-2 px-4 py-2 bg-background/50 backdrop-blur-sm border border-border/50 hover:bg-secondary/40 hover:border-primary/20 hover:shadow-lg hover:shadow-primary/5 rounded-full text-sm transition-all duration-300 group" data-testid="link-github">
+                      <div className="p-1 bg-foreground/5 rounded-full group-hover:bg-foreground/10 transition-colors"><Github className="h-3.5 w-3.5" /></div> GitHub
+                    </a>
+                  </div>
+                </motion.div>
+                
+                {/* Copyright */}
+                <div className="mt-8 text-xs text-muted-foreground/30 font-mono tracking-widest uppercase">
+                  © {new Date().getFullYear()} Meowstik AI
+                </div>
+               </motion.div>
             </div>
           ) : (
             // =================================================================

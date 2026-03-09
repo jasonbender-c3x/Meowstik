@@ -1,0 +1,409 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+
+<title>control</title>
+<style type="text/css">
+.ptz_menu_div {
+	background-color: #1e1e1e;
+	height: 30px;
+	clear: both;
+}
+#dis_control_div {
+	height: 478px;
+	width: 242px;
+}
+.head_style {
+	margin-top: 5px;
+	margin-right: auto;
+	margin-bottom: 0;
+	margin-left: 4px;
+	clear: both;
+	float: left;
+}
+.font16_bold {
+	font-size: 16px;
+	font-weight: bold;
+}
+.div_left {
+	margin-top: 6px;
+	margin-right: auto;
+	margin-bottom: 6px;
+	margin-left: 2px;
+	float: left;
+	clear: both;
+}
+.div_right {
+	margin-top: 8px;
+	margin-right: 4px;
+	margin-bottom: 0px;
+	float: right;
+	clear: none;
+}
+.div_left ul {
+	list-style: none;
+	margin: 0px;
+	clear: both;
+	float: left;
+	padding: 0px;
+	width: 230px;
+}
+.div_left ul li {
+	margin-top: 2px;
+	margin-bottom: 2px;
+	text-align: left;
+	float: left;
+}
+.ptz_menu_over { 
+    color: #FFFFFF; 
+    width:121px; 
+    height:30px; 
+    background:url(../images/btn_l_over.gif) no-repeat;
+	font-size:13px;
+	text-align:center;
+    cursor:pointer;
+    line-height:28px;
+    float:left;
+	font-weight: lighter;
+}
+.ptz_menu { 
+    color: #FFFFFF; 
+    width:121px; 
+    height:30px; 
+    background:url(../images/btn_l.gif) no-repeat;
+	font-size:13px;
+	text-align:center;
+    cursor:pointer;
+    line-height:28px;
+    float:left;
+	font-weight: lighter;
+}
+</style>
+<script type="text/javascript">
+var slider1,slider2,slider3;
+
+function set_power(val)
+{
+	//alert(val);
+	var params;
+	params = {opType:"set",power:val};
+	call_cgi("displaycfg.cgi", params);
+	flush();
+}
+
+function set_flip(val)
+{
+	//alert(val);
+	var params;
+	params = {opType:"set",flip:val};
+	call_cgi("displaycfg.cgi", params);flush();
+}
+
+function set_flow()
+{
+	var flow_slct = get_slctid('flow');
+	SetCookie('flow_slct',flow_slct,3600*24*90);
+	
+	var fgSupportHtml5 = getCookie('support_html5');
+	if(fgSupportHtml5 == 1){
+		var params = {opType:"set", random:getLiveStreamingRandom, stream_type:flow_slct};
+		call_cgi("livestreaming.cgi", params);
+		changedecode();
+	}
+	else
+	{
+		var fgGkDevice = changedecode();
+		try {unload_ocx(H264Player);}catch(e){}
+		var decode = getCookie('decode');
+		if('vlc'==decode)
+		{
+			$("#display_div").load("display_vlc.html");
+		}
+		else
+		{
+			if(fgGkDevice == 1)
+			{
+				if(fgGK710xOcxOn==0)
+				{
+					$("#display_div").load("display.html");
+				}else{
+					activeX.SetIpcStreamId(flow_slct);
+				}
+			}else{
+				$("#display_div").load("display.html");
+			}
+		}
+	}
+}
+
+function changedecode()
+{
+	var params = {opType:"get",flow:get_slctid('flow')};
+	var flow_info = call_cgi("getflowinfo.cgi", params);
+	
+	var img_size_obj=document.getElementById("imageSize_a");
+	img_size_obj.length=0;
+	if(0==flow_info.flow_slct)
+	{
+		if(0!=flow_info.vi_0_valid)
+		{
+			img_size_obj.options[img_size_obj.length] = new Option(flow_info.vi_0_img, flow_info.vi_0_frame);
+			if(0==flow_info.imageSlct)
+			{
+				document.getElementById("imageSize_a").selectedIndex = 0;
+			}
+		}
+	}
+	else if(1==flow_info.flow_slct)
+	{
+		if(0!=flow_info.vi_0_valid)
+		{
+			img_size_obj.options[img_size_obj.length] = new Option(flow_info.vi_0_img, flow_info.vi_0_frame);
+			if(0==flow_info.imageSlct)
+			{
+				document.getElementById("imageSize_a").selectedIndex = 0;
+			}
+		}
+	}
+	else if(2==flow_info.flow_slct)
+	{
+		if(0!=flow_info.vi_0_valid)
+		{
+			img_size_obj.options[img_size_obj.length] = new Option(flow_info.vi_0_img, flow_info.vi_0_frame);
+			if(0==flow_info.imageSlct)
+			{
+				document.getElementById("imageSize_a").selectedIndex = 0;
+			}
+		}
+	}
+	return flow_info.support_gk7101;
+}
+
+function flush()
+{
+	var params = {opType:"get"};
+	cmos_info=call_cgi("displaycfg.cgi", params);
+		
+	slider1.setValue(cmos_info.bright, cmos_info.bright_max);
+	slider2.setValue(cmos_info.saturation, cmos_info.saturation_max);
+	slider3.setValue(cmos_info.contrast, cmos_info.contrast_max);	
+	//slider4.setValue(cmos_info.hue, cmos_info.hue_max);
+	document.getElementById("power").selectedIndex = Math.min(cmos_info.power,2);
+	document.getElementById("flip").selectedIndex = cmos_info.flip;
+	var flow_slct = getCookie('flow_slct');
+	document.getElementById("flow").selectedIndex = flow_slct;
+	changedecode();	
+}
+
+function changepic_size()
+{
+	var params;
+	var ret_val;
+		
+	params = {opType:"set",flow_slct:get_slctid('flow'),imageSlct:get_slctid('imageSize_a')};
+	
+	ret_val = call_cgi("getflowinfo.cgi", params);
+	//alert(ret_val.ret_code);
+	switch(ret_val.ret_code)
+	{
+		case "1":
+			var fgSupportHtml5 = getCookie('support_html5');
+			if(fgSupportHtml5 == 1){
+				$("#display_div").load("display_html5.html");
+			}
+			else
+			{
+				try {unload_ocx(H264Player);}catch(e){}
+				var decode = getCookie('decode');
+				if('vlc'==decode)
+				{
+					$("#display_div").load("display_vlc.html");
+				}
+				else
+				{
+					$("#display_div").load("display.html");
+				}
+			}
+			break;	
+		case "11":
+			//location.reload(true);
+			break;
+		default:
+			break;
+	}
+}
+
+
+function set_val_1(pos, slider1)
+{
+	var params;
+	params = {opType:"set",bright:pos};
+	call_cgi("displaycfg.cgi", params);
+	flush();
+}
+function set_val_2(pos, slider2)
+{
+	var params;
+	params = {opType:"set",saturation:pos};
+	call_cgi("displaycfg.cgi", params);
+	flush();
+}
+function set_val_3(pos, slider3)
+{
+	var params;
+	params = {opType:"set",contrast:pos};
+	call_cgi("displaycfg.cgi", params);
+	flush();
+}
+
+function do_ctrl_cmd(val)
+{
+	switch(val)
+	{
+		case 0:
+			$("#ptz_preset_ctrl").load("ptz.html");
+			break;
+		case 1:
+			$("#ptz_preset_ctrl").load("preset_add.html");
+			break;
+	}
+}
+
+$(function(){
+	var params = {opType:"get"};
+	cmos_info=call_cgi("getcmos.cgi", params);
+
+	document.getElementById("control_div").style.width="242px";
+	document.getElementById("control_div").style.height="480px";
+	
+	document.getElementById("bright").alt=a[421];
+	document.getElementById("contra").alt=a[422];
+	document.getElementById("saturation").alt=a[9];
+
+	document.getElementById("bright").title=a[421];
+	document.getElementById("contra").title=a[422];
+	document.getElementById("saturation").title=a[9];
+	
+	document.getElementById("flip").options[0].text = a[517];
+	document.getElementById("flip").options[1].text = a[518];
+	document.getElementById("flip").options[2].text = a[519];
+	document.getElementById("flip").options[3].text = a[520];
+	document.getElementById("flow").options[0].text = a[167];
+	
+	document.getElementById("power").options[0].text = a[526];
+	document.getElementById("power").options[1].text = a[527];
+	document.getElementById("power").options[2].text = a[528];
+	
+	document.getElementById("imagecontrol").innerHTML=a[420];
+	
+	document.getElementById("PowerConfig").innerHTML=a[424];
+	document.getElementById("FlipConfig").innerHTML=a[425];
+	document.getElementById("FlowSelect").innerHTML=a[426];
+	document.getElementById("resolution").innerHTML=a[427];
+	var channel_num = getCookie('chn_num');
+	if(channel_num==3)//3-->表示有3路通道
+	{
+		$("#flow").append("<option>" + a[495] + "</option>");
+		$("#flow").append("<option>" + a[496] + "</option>");
+	}else{
+		$("#flow").append("<option>" + a[168] + "</option>");
+	}
+	document.getElementById("ctrl_ptz").innerHTML=a[419];
+	document.getElementById("ctrl_preset").innerHTML=a[535];
+	$("#ptz_preset_ctrl").load("ptz.html");
+	
+	slider1 = new dhtmlxSlider("sliderBox_bright", {
+	skin: "arrowgreen",
+	min: 1,
+	max: cmos_info.brightness_max,
+	step: 1,
+	size: 180,
+	vertical: false});
+	//slider.setImagePath("codebase/imgs/");
+	slider1.attachEvent("onChange", set_val_1);
+	slider1.init();
+	slider1.setValue(50, 100);
+	
+	slider2 = new dhtmlxSlider("sliderBox_saturation", {
+	skin: "arrowgreen",
+	min: 1,
+	max: cmos_info.saturation_max,
+	step: 1,
+	size: 180,
+	vertical: false});
+	slider2.attachEvent("onChange", set_val_2);
+	slider2.init();
+	slider2.setValue(50, 100);
+	
+	slider3 = new dhtmlxSlider("sliderBox_contrast", {
+	skin: "arrowgreen",
+	min: 1,
+	max: cmos_info.contrast_max,
+	step: 1,
+	size: 180,
+	vertical: false});
+	slider3.attachEvent("onChange", set_val_3);
+	slider3.init();
+	slider3.setValue(50, 100);
+	
+	flush();
+});
+</script>
+</head>
+
+<body>
+<div id="dis_control_div">
+
+<div class="ptz_menu_div">
+    <div class="head_style"><span class="font16_bold" id="imagecontrol">Image Control</span></div>
+  </div>
+
+  <div class="div_left">
+  <ul><li><a href="#"><img src="images/bright.gif" id="bright" width="24" height="24" border="0" onclick="set_val_1(50, slider1)"/></a></li>
+  <li><span id="sliderBox_bright"></span></li></ul>
+  
+  <ul><li><a href="#"><img src="images/saturation.gif" id="saturation" width="24" height="24" border="0" onclick="set_val_2(50, slider2)"/></a></li>
+  <li><span id="sliderBox_saturation"></span></li></ul>
+    
+  <ul><li><a href="#"><img src="images/contra.gif" id="contra" width="24" height="24" border="0" onclick="set_val_3(50, slider3)"/></a></li>
+  <li><span id="sliderBox_contrast"></span></li></ul>
+  
+  <ul><li style="width:100px; margin-top:6px"><span id="PowerConfig">Power Config</span></li>
+  <li class="margintop-4"><select name="power" id="power" onchange="set_power(this.value)" style="width:100px;">    
+    <option value=0>Indoor 50Hz</option>
+    <option value=1>Indoor 60Hz</option>
+    <option value=2>Outdoor</option>
+  </select></li></ul>
+  
+  <ul><li style="width:100px; margin-top:6px"><span id="FlipConfig">Flip Config</span></li>
+  <li class="margintop-4"><select name="flip" id="flip" onchange="set_flip(this.value)" style="width:100px;">
+    <option value=0>NoMove</option>
+    <option value=1>UpDown</option>
+    <option value=2>LeftRight</option>
+    <option value=3>All</option>
+    </select></li></ul>
+
+  <ul><li style="width:100px; margin-top:6px"><span id="FlowSelect">Flow Select</span></li>
+  <li class="margintop-4"><select name="flow" id="flow" onchange="set_flow()" style="width:100px;">
+    <option value=0>Main Flow</option>
+    </select></li></ul>
+    
+  <ul><li style="width:100px; margin-top:6px"><span id="resolution">Resolution</span></li>
+  <li class="margintop-4"><select name="imageSize_a" id="imageSize_a" onchange="changepic_size()" style="width:100px;">
+    <!--<option value=0>720P</option>
+    <option value=1>UVGA</option>-->
+    </select></li></ul>
+  </div>
+  
+<div class="ptz_menu_div">
+	<div class="ptz_menu" id="ctrl_ptz"  onclick="do_ctrl_cmd(0)"  onmouseover="this.className='ptz_menu_over'" onMouseOut="this.className='ptz_menu'">PTZ Control</div>
+	<div class="ptz_menu" id="ctrl_preset"  onclick="do_ctrl_cmd(1)"  onmouseover="this.className='ptz_menu_over'" onMouseOut="this.className='ptz_menu'">Add Preset</div>
+</div>
+  
+<div id="ptz_preset_ctrl">
+  </div>
+  
+</div>
+</body>
+</html>

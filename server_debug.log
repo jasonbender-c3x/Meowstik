@@ -1,0 +1,7 @@
+
+> meowstik-core@1.0.0 dev
+> (fuser -k 5000/tcp || true) && tsx server/index.ts
+
+✅ [Env] .env file loaded and variables overridden.
+🚀 [Env] GOOGLE_CLIENT_ID: 188476922299-qmfibap676nuuqs2hbj5q97j2etdfupu.apps.googleusercontent.com
+🚀 [Env] GOOGLE_REDIRECT_URI: http://localhost:5000/api/auth/google/callback

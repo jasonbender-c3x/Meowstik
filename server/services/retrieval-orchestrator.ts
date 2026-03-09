@@ -5,6 +5,7 @@ import { EmbeddingService } from './embedding-service';
 import { hybridSearchService } from './hybrid-search';
 import { rerankerService } from './reranker';
 import { ragService } from './rag-service';
+import { evidence, crossReferences, entities, knowledgeEmbeddings } from "@shared/schema";
 
 const embeddingService = new EmbeddingService();
 
@@ -56,11 +57,11 @@ export class RetrievalOrchestrator {
     const semanticStartTime = Date.now();
     
     // Step 1: Initial semantic search (vector similarity)
-    // NOTE: Removed userId filtering for single-user support
     const semanticResults = await ingestionPipeline.semanticSearch(context.query, {
       limit: topK * 2,  // Get more candidates for hybrid search
       threshold: 0.25,  // Lowered threshold for better recall
       bucket: context.buckets?.[0],
+      userId: context.userId, // Pass userId for isolation
     });
     const semanticTime = Date.now() - semanticStartTime;
 
@@ -170,7 +171,8 @@ export class RetrievalOrchestrator {
 
     // Step 5: Token-aware filtering to fit within maxTokens
     let totalChars = 0;
-    const maxChars = maxTokens * this.CHARS_PER_TOKEN;
+    const maxTokensToUse = maxTokens;
+    const maxChars = maxTokensToUse * this.CHARS_PER_TOKEN;
     const filteredItems: RetrievedItem[] = [];
 
     for (const item of finalItems) {
@@ -207,8 +209,10 @@ export class RetrievalOrchestrator {
         )
       ];
 
-      // NOTE: Removed userId filters for single-user mode
-      // The system now searches all documents regardless of ownership
+      // Add userId filter if present
+      if (userId) {
+        queryConditions.push(eq(evidence.userId, userId));
+      }
 
       let matches = await getDb().select()
         .from(evidence)

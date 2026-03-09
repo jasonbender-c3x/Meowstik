@@ -46,6 +46,7 @@ export { DEFAULT_CONFIG } from "./types";
 import { createPgVectorAdapter } from "./pgvector-adapter";
 import { createMemoryAdapter } from "./memory-adapter";
 import { createVertexAdapter } from "./vertex-adapter";
+import { createPineconeAdapter } from "./pinecone-adapter";
 import type { VectorStoreConfig, VectorStoreAdapter } from "./types";
 
 /**
@@ -62,6 +63,11 @@ import type { VectorStoreConfig, VectorStoreAdapter } from "./types";
  * not during backend selection. This allows graceful error handling.
  */
 export function detectBackend(): VectorStoreConfig["backend"] {
+  // Check for Pinecone
+  if (process.env.PINECONE_API_KEY) {
+    return "pinecone";
+  }
+
   // Check for PostgreSQL (Replit, Supabase, etc.)
   if (process.env.DATABASE_URL) {
     return "pgvector";
@@ -138,9 +144,8 @@ export function createVectorStore(config?: Partial<VectorStoreConfig>): VectorSt
       return createMemoryAdapter(fullConfig);
 
     case "pinecone":
-      // TODO: Implement Pinecone adapter
-      console.warn("[vector-store] Pinecone adapter not yet implemented, using memory");
-      return createMemoryAdapter(fullConfig);
+      console.log("[vector-store] Initializing Pinecone adapter...");
+      return createPineconeAdapter(fullConfig);
 
     default:
       throw new Error(`Unknown vector store backend: ${fullConfig.backend}`);

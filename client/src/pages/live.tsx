@@ -28,6 +28,8 @@ import {
   Waves,
   Settings2,
   Zap,
+  Monitor,
+  StopCircle,
 } from "lucide-react";
 import { Link } from "wouter";
 import { cn } from "@/lib/utils";
@@ -68,19 +70,37 @@ export default function LivePage() {
   const [vadSensitivity, setVadSensitivity] = useState(0.015);
   const [userInterimTranscript, setUserInterimTranscript] = useState("");
   const [enableSTT, setEnableSTT] = useState(true);
+  const [isScreenSharing, setIsScreenSharing] = useState(false);
 
   const sessionIdRef = useRef<string | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
   const playbackContextRef = useRef<AudioContext | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const screenStreamRef = useRef<MediaStream | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const speakingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const audioQueueRef = useRef<AudioBufferSourceNode[]>([]);
   const workletNodeRef = useRef<AudioWorkletNode | null>(null);
   const userSpeechBufferRef = useRef<string[]>([]);
+  const isSpeakingRef = useRef(false);
+  const silenceTimerRef = useRef<NodeJS.Timeout | null>(null);
   const speechRecognitionRef = useRef<any>(null);
+  const continuousModeRef = useRef(continuousMode);
+  // Ref for VAD callbacks to be used in closure
+  const vadCallbacksRef = useRef<any>(null);
+
+  const sendLog = useCallback((msg: string) => {
+    console.log(`[Live Debug] ${msg}`);
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      try {
+        wsRef.current.send(JSON.stringify({ type: "log", data: msg }));
+      } catch (e) {
+        console.error("Failed to send log:", e);
+      }
+    }
+  }, []);
 
   const addTranscriptEntry = useCallback((speaker: "user" | "ai", text: string) => {
     const entry: TranscriptEntry = {
@@ -172,21 +192,56 @@ export default function LivePage() {
     }, []),
   };
 
-  const vad = useVoiceActivityDetection(
-    vadCallbacks.onSpeechStart,
-    vadCallbacks.onSpeechEnd,
-    vadCallbacks.onVolumeChange,
-    { threshold: vadSensitivity, silenceDuration: 800, speechDuration: 200 }
-  );
+  // Removed complex VAD hook to simplify audio pipeline
+  // const vad = useVoiceActivityDetection(...)
+
+  // Remove direct VAD hook dependencies from useEffect
+  // useEffect(() => { isVadSpeakingRef.current = vad.isSpeaking; }, [vad.isSpeaking]);
+
+  useEffect(() => {
+    vadCallbacksRef.current = vadCallbacks;
+  }, [vadCallbacks]);
+
+  useEffect(() => {
+    continuousModeRef.current = continuousMode;
+  }, [continuousMode]);
+
+  const toggleScreenShare = useCallback(async () => {
+    if (isScreenSharing) {
+      if (screenStreamRef.current) {
+        screenStreamRef.current.getTracks().forEach(track => track.stop());
+        screenStreamRef.current = null;
+      }
+      setIsScreenSharing(false);
+    } else {
+      try {
+        const stream = await navigator.mediaDevices.getDisplayMedia({
+          video: { displaySurface: "monitor" }
+        });
+        screenStreamRef.current = stream;
+        setIsScreenSharing(true);
+        
+        // Handle stream ending (user stops sharing via browser UI)
+        stream.getVideoTracks()[0].onended = () => {
+          setIsScreenSharing(false);
+          screenStreamRef.current = null;
+        };
+      } catch (err) {
+        console.error("Failed to share screen:", err);
+      }
+    }
+  }, [isScreenSharing]);
 
   const connect = useCallback(async () => {
     setConnectionState("connecting");
     setError(null);
+    console.log("[Live] Starting connection process...");
 
     try {
       const sessionId = crypto.randomUUID();
       sessionIdRef.current = sessionId;
 
+      console.log(`[Live] Creating session: ${sessionId}`);
       const response = await fetch("/api/live/session", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -209,6 +264,7 @@ export default function LivePage() {
       ws.onopen = () => {
         console.log("[Live] WebSocket connected");
         setConnectionState("connected");
+        sendLog("WebSocket connected successfully");
         
         // Auto-start listening in continuous mode
         if (continuousMode) {
@@ -224,7 +280,47 @@ export default function LivePage() {
         try {
           const message = JSON.parse(event.data);
           
-          if (message.type === "audio") {
+          if (message.type === "request_screenshot") {
+            const { id } = message;
+            if (screenStreamRef.current) {
+              const video = document.createElement("video");
+              video.srcObject = screenStreamRef.current;
+              video.muted = true;
+              video.onloadedmetadata = () => {
+                video.play().then(() => {
+                  const canvas = document.createElement("canvas");
+                  canvas.width = video.videoWidth;
+                  canvas.height = video.videoHeight;
+                  const ctx = canvas.getContext("2d");
+                  if (ctx) {
+                    ctx.drawImage(video, 0, 0);
+                    const dataUrl = canvas.toDataURL("image/jpeg", 0.7);
+                    // dataUrl is "data:image/jpeg;base64,..."
+                    const b64 = dataUrl.split(",")[1];
+                    
+                    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+                      wsRef.current.send(JSON.stringify({
+                        type: "screenshot_response",
+                        id,
+                        data: b64
+                      }));
+                    }
+                  }
+                  // Cleanup
+                  video.srcObject = null;
+                  video.remove();
+                }).catch(err => console.error("Video play failed:", err));
+              };
+            } else {
+              if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+                wsRef.current.send(JSON.stringify({
+                  type: "screenshot_response",
+                  id,
+                  error: "No screen shared"
+                }));
+              }
+            }
+          } else if (message.type === "audio") {
             playAudioChunk(message.data);
             setIsSpeaking(true);
           } else if (message.type === "transcript") {
@@ -303,9 +399,14 @@ export default function LivePage() {
   }, []);
 
   const startListening = useCallback(async () => {
-    if (connectionState !== "connected") return;
+    // Check WebSocket state directly to avoid React closure staleness
+    if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
+      console.warn("Cannot start listening: WebSocket not connected");
+      return;
+    }
 
     try {
+      sendLog("Requesting microphone access...");
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: {
           channelCount: 1,
@@ -316,29 +417,103 @@ export default function LivePage() {
         },
       });
       streamRef.current = stream;
+      sendLog("Microphone access granted");
 
       audioContextRef.current = new AudioContext({ sampleRate: 16000 });
+      if (audioContextRef.current.state === 'suspended') {
+        try {
+          await audioContextRef.current.resume();
+          sendLog("AudioContext resumed");
+        } catch (e) {
+          console.warn("[Live] Failed to resume audio context:", e);
+          sendLog(`AudioContext resume failed: ${e instanceof Error ? e.message : String(e)}`);
+        }
+      }
       
       // Load the AudioWorklet processor
       try {
         await audioContextRef.current.audioWorklet.addModule("/audio-processor.js");
+        sendLog("AudioWorklet loaded");
       } catch (e) {
         console.error("Failed to load audio processor worklet:", e);
+        sendLog(`AudioWorklet load failed: ${e instanceof Error ? e.message : String(e)}`);
         throw new Error("Failed to initialize audio processor");
       }
 
       const source = audioContextRef.current.createMediaStreamSource(stream);
       const workletNode = new AudioWorkletNode(audioContextRef.current, "audio-processor");
+      
+      // CRITICAL: Connect the audio source to the processor
+      source.connect(workletNode);
+      // We don't connect to destination to avoid echo/feedback
+      
       workletNodeRef.current = workletNode;
+      sendLog("Audio pipeline connected (source -> worklet)");
+
+      let packetsSent = 0;
+      let lastVadLog = 0;
 
       workletNode.port.onmessage = (event) => {
         if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return;
 
-        // In continuous mode, only send audio when VAD detects speech
-        // In manual mode, always send audio
-        if (!continuousMode || vad.isSpeaking) {
-          // event.data is the ArrayBuffer containing Int16 PCM data
-          const pcmBuffer = event.data;
+        // event.data is the ArrayBuffer containing Int16 PCM data
+        const pcmBuffer = event.data;
+        const int16Array = new Int16Array(pcmBuffer);
+
+        // Simple Volume Detection (VAD replacement)
+        let sum = 0;
+        for (let i = 0; i < int16Array.length; i++) {
+          sum += Math.abs(int16Array[i]);
+        }
+        const average = sum / int16Array.length;
+        // 500 is roughly equivalent to 0.015 float threshold (32768 * 0.015)
+        // Lowered threshold to ensure better pickup
+        const isLoudEnough = average > 300; 
+
+        if (packetsSent % 100 === 0) { // Log every ~4 seconds (40ms * 100)
+             // sendLog(`Audio stats: avg=${average.toFixed(2)}, loud=${isLoudEnough}, speaking=${isSpeakingRef.current}`);
+        }
+        packetsSent++;
+        
+        // Debug first packet
+        if (packetsSent === 1) {
+            sendLog(`First audio packet processed. Avg volume: ${average}`);
+        }
+
+
+        // Update speaking state for UI
+        if (isLoudEnough) {
+          if (!isSpeakingRef.current) {
+            isSpeakingRef.current = true;
+            setIsSpeaking(true);
+            // Trigger VAD start callback
+            if (vadCallbacksRef.current?.onSpeechStart) {
+              vadCallbacksRef.current.onSpeechStart();
+            }
+          }
+          // Reset silence timer
+          if (silenceTimerRef.current) {
+            clearTimeout(silenceTimerRef.current);
+            silenceTimerRef.current = null;
+          }
+        } else {
+          // If silent for 1s, mark as stopped speaking
+          if (isSpeakingRef.current && !silenceTimerRef.current) {
+            silenceTimerRef.current = setTimeout(() => {
+              isSpeakingRef.current = false;
+              setIsSpeaking(false);
+              // Trigger VAD end callback
+              if (vadCallbacksRef.current?.onSpeechEnd) {
+                vadCallbacksRef.current.onSpeechEnd();
+              }
+              silenceTimerRef.current = null;
+            }, 1000);
+          }
+        }
+
+        // ALWAYS send audio if listening. The server VAD is better.
+        // Client-side gating was causing dropped starts of sentences.
+        if (true) {
           const uint8Array = new Uint8Array(pcmBuffer);
           
           // Convert to base64 for transmission
@@ -349,11 +524,13 @@ export default function LivePage() {
           }
           const base64 = btoa(binaryString);
           
-          wsRef.current.send(JSON.stringify({
-            type: "audio",
-            data: base64,
-            mimeType: "audio/pcm",
-          }));
+          if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+            wsRef.current.send(JSON.stringify({
+              type: "audio",
+              data: base64,
+              mimeType: "audio/pcm",
+            }));
+          }
         }
       };
 
@@ -361,24 +538,27 @@ export default function LivePage() {
       workletNode.connect(audioContextRef.current.destination);
 
       // Start VAD if in continuous mode
+      /* Disabled external VAD to use internal simple VAD
       if (continuousMode) {
         try {
-          await vad.start();
+          // Pass the existing stream and context to avoid double initialization
+          // await vad.start(stream, audioContextRef.current);
         } catch (e) {
           console.error("[Live] Failed to start VAD:", e);
         }
       }
+      */
 
       setIsListening(true);
     } catch (err) {
       console.error("[Live] Failed to start listening:", err);
       setError("Microphone access denied");
     }
-  }, [connectionState, continuousMode, vad]);
+  }, [connectionState, continuousMode]);
 
   const stopListening = useCallback(() => {
     // Stop VAD
-    vad.stop();
+    // vad.stop();
 
     if (streamRef.current) {
       streamRef.current.getTracks().forEach(track => track.stop());
@@ -392,7 +572,7 @@ export default function LivePage() {
 
     workletNodeRef.current = null;
     setIsListening(false);
-  }, [vad]);
+  }, []);
 
   const playAudioChunk = useCallback((base64Data: string) => {
     if (isMuted) return;
@@ -494,6 +674,15 @@ export default function LivePage() {
             <Button
               variant="ghost"
               size="icon"
+              onClick={toggleScreenShare}
+              className={isScreenSharing ? "text-primary" : ""}
+              title={isScreenSharing ? "Stop Sharing Screen" : "Share Screen"}
+            >
+              {isScreenSharing ? <StopCircle className="h-5 w-5" /> : <Monitor className="h-5 w-5" />}
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
               onClick={() => setShowSettings(!showSettings)}
               data-testid="button-settings"
             >
@@ -565,7 +754,7 @@ export default function LivePage() {
                       value={[vadSensitivity]}
                       onValueChange={([value]) => {
                         setVadSensitivity(value);
-                        vad.updateConfig({ threshold: value });
+                        // vad.updateConfig({ threshold: value });
                       }}
                       data-testid="slider-vad-sensitivity"
                     />
@@ -630,7 +819,7 @@ export default function LivePage() {
                 ? "Connect to start a voice conversation"
                 : connectionState === "connected"
                 ? continuousMode
-                  ? vad.isSpeaking
+                  ? isSpeaking
                     ? "🎤 Listening to you..."
                     : isListening
                     ? "👂 Waiting for you to speak..."
@@ -748,7 +937,7 @@ export default function LivePage() {
                   className={cn(
                     "rounded-full h-16 w-16 transition-all",
                     isListening && "ring-4 ring-primary/30 animate-pulse",
-                    vad.isSpeaking && "ring-4 ring-green-500/30"
+                    isSpeaking && "ring-4 ring-green-500/30"
                   )}
                   onClick={isListening ? stopListening : startListening}
                   data-testid="button-mic"

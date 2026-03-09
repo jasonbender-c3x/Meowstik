@@ -65,25 +65,63 @@ pause_for_user() {
 }
 
 # =============================================================================
-# STEP 1: CHECK FOR SECRETS.JSON
+# STEP 1 & 2: CONFIGURE ENVIRONMENT
 # =============================================================================
 
 print_header "MEOWSTIK DESKTOP INSTALLER"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(dirname "$(dirname "$SCRIPT_DIR")")"
 SECRETS_FILE="$SCRIPT_DIR/secrets.json"
 ENV_FILE="$SCRIPT_DIR/.env"
+ROOT_ENV_FILE="$PROJECT_ROOT/.env"
 EXTENSION_DEST="$HOME/.meowstik/extension"
 
-print_step "Checking for secrets.json..."
+print_step "Configuring environment..."
 
-if [ ! -f "$SECRETS_FILE" ]; then
-    print_error "secrets.json not found!"
+if [ -f "$ENV_FILE" ]; then
+    print_success "Existing .env file found. Skipping secrets.json processing."
+elif [ -f "$SECRETS_FILE" ]; then
+    print_step "Found secrets.json. Creating .env file..."
+
+    # Check if jq is available, otherwise use Node.js
+    if command -v jq &> /dev/null; then
+        # Use jq to parse JSON
+        jq -r 'to_entries | .[] | "\(.key)=\(.value)"' "$SECRETS_FILE" > "$ENV_FILE"
+    elif command -v node &> /dev/null; then
+        # Use Node.js to parse JSON
+        node -e "
+            const fs = require('fs');
+            const secrets = JSON.parse(fs.readFileSync('$SECRETS_FILE', 'utf8'));
+            const env = Object.entries(secrets)
+                .map(([key, value]) => \`\${key}=\${value}\`)
+                .join('\n');
+            fs.writeFileSync('$ENV_FILE', env);
+        "
+    else
+        print_error "Neither jq nor Node.js found. Please install one of them first."
+        echo "  sudo apt install jq"
+        echo "  OR"
+        echo "  sudo apt install nodejs"
+        exit 1
+    fi
+
+    # Set secure permissions (read/write for owner only)
+    chmod 600 "$ENV_FILE"
+    print_success "Created .env with secure permissions (600)"
+elif [ -f "$ROOT_ENV_FILE" ]; then
+    print_step "secrets.json not found, but found root .env. Copying..."
+    cp "$ROOT_ENV_FILE" "$ENV_FILE"
+    chmod 600 "$ENV_FILE"
+    print_success "Copied .env from project root"
+else
+    print_error "No secrets.json or .env found!"
+    echo "Please provide one of the following:"
+    echo "1. A secrets.json file in $SCRIPT_DIR/"
+    echo "2. An .env file in $SCRIPT_DIR/"
+    echo "3. An .env file in the project root"
     echo ""
-    echo "Please place your secrets.json file in:"
-    echo "  $SCRIPT_DIR/"
-    echo ""
-    echo "The secrets.json should contain your API keys like:"
+    echo "secrets.json example:"
     echo '  {'
     echo '    "GEMINI_API_KEY": "your-api-key-here",'
     echo '    "DATABASE_URL": "postgresql://..."'
@@ -92,49 +130,27 @@ if [ ! -f "$SECRETS_FILE" ]; then
     exit 1
 fi
 
-print_success "Found secrets.json"
-
-# =============================================================================
-# STEP 2: PARSE SECRETS AND CREATE .ENV
-# =============================================================================
-
-print_step "Creating .env file from secrets.json..."
-
-# Check if jq is available, otherwise use Node.js
-if command -v jq &> /dev/null; then
-    # Use jq to parse JSON
-    jq -r 'to_entries | .[] | "\(.key)=\(.value)"' "$SECRETS_FILE" > "$ENV_FILE"
-elif command -v node &> /dev/null; then
-    # Use Node.js to parse JSON
-    node -e "
-        const fs = require('fs');
-        const secrets = JSON.parse(fs.readFileSync('$SECRETS_FILE', 'utf8'));
-        const env = Object.entries(secrets)
-            .map(([key, value]) => \`\${key}=\${value}\`)
-            .join('\n');
-        fs.writeFileSync('$ENV_FILE', env);
-    "
-else
-    print_error "Neither jq nor Node.js found. Please install one of them first."
-    echo "  sudo apt install jq"
-    echo "  OR"
-    echo "  sudo apt install nodejs"
-    exit 1
-fi
-
-# Set secure permissions (read/write for owner only)
-chmod 600 "$ENV_FILE"
-
-print_success "Created .env with secure permissions (600)"
-
 # =============================================================================
 # STEP 3: INSTALL SYSTEM DEPENDENCIES
 # =============================================================================
 
 print_step "Installing system dependencies..."
 
-# Check if we can use apt
-if command -v apt &> /dev/null; then
+# Check if Node.js is already installed
+if command -v node &> /dev/null && command -v npm &> /dev/null; then
+    print_success "Node.js $(node -v) and npm $(npm -v) are already installed. Skipping apt install."
+    
+    # Still verify build-essential if possible, but don't fail if we can't
+    if command -v apt &> /dev/null; then
+         if [ "$EUID" -eq 0 ]; then
+            apt update && apt install -y build-essential || echo "Failed to install build-essential, continuing anyway..."
+        elif command -v sudo &> /dev/null; then
+            sudo apt update && sudo apt install -y build-essential || echo "Failed to install build-essential, continuing anyway..."
+        fi
+    fi
+else
+    # Check if we can use apt
+    if command -v apt &> /dev/null; then
     echo "Installing Node.js and build tools..."
     
     # Check if running as root or can use sudo
@@ -153,15 +169,13 @@ if command -v apt &> /dev/null; then
 else
     print_warning "apt not found. Please install Node.js 18+ manually for your system."
 fi
+fi
 
 # =============================================================================
 # STEP 4: INSTALL NODE.JS PACKAGES
 # =============================================================================
 
 print_step "Installing Node.js packages..."
-
-# Get the project root (parent of desktop-app)
-PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 
 # Install main project dependencies
 if [ -f "$PROJECT_ROOT/package.json" ]; then

@@ -16,6 +16,7 @@
 import { storage } from "../storage";
 import { type Trigger, TriggerTypes } from "@shared/schema";
 import { workflowExecutor } from "./workflow-executor";
+import safeRegex from 'safe-regex';
 
 class TriggerService {
   private isRunning = false;
@@ -23,6 +24,22 @@ class TriggerService {
   private pollIntervalMs = 30000; // Check every 30 seconds
   private lastEmailCheck = new Date();
   
+  /**
+   * Safely create a RegExp, checking for ReDoS vulnerabilities
+   */
+  private createSafeRegExp(pattern: string, flags?: string): RegExp | null {
+    if (!safeRegex(pattern)) {
+      console.warn(`[TriggerService] Unsafe regex pattern rejected: ${pattern}`);
+      return null;
+    }
+    try {
+      return new RegExp(pattern, flags);
+    } catch (e) {
+      console.warn(`[TriggerService] Invalid regex pattern: ${pattern}`, e);
+      return null;
+    }
+  }
+
   /**
    * Start monitoring triggers
    */
@@ -104,26 +121,33 @@ class TriggerService {
    * Check if an email matches a trigger's patterns
    */
   private matchesEmailTrigger(email: { from?: string; subject?: string; snippet?: string }, trigger: Trigger): boolean {
-    // Check sender filter
-    if (trigger.senderFilter && email.from) {
-      const senderRegex = new RegExp(trigger.senderFilter, "i");
-      if (!senderRegex.test(email.from)) return false;
+    try {
+      // Check sender filter
+      if (trigger.senderFilter && email.from) {
+        const senderRegex = this.createSafeRegExp(trigger.senderFilter, "i");
+        if (!senderRegex || !senderRegex.test(email.from)) return false;
+      }
+      
+      // Check subject filter
+      if (trigger.subjectFilter && email.subject) {
+        const subjectRegex = this.createSafeRegExp(trigger.subjectFilter, "i");
+        if (!subjectRegex || !subjectRegex.test(email.subject)) return false;
+      }
+      
+      // Check content pattern
+      if (trigger.pattern) {
+        const contentRegex = this.createSafeRegExp(trigger.pattern, "i");
+        if (!contentRegex) return false;
+        
+        const content = `${email.subject || ""} ${email.snippet || ""}`;
+        if (!contentRegex.test(content)) return false;
+      }
+      
+      return true;
+    } catch (error) {
+      console.warn(`[TriggerService] Invalid regex in trigger ${trigger.id}:`, error);
+      return false;
     }
-    
-    // Check subject filter
-    if (trigger.subjectFilter && email.subject) {
-      const subjectRegex = new RegExp(trigger.subjectFilter, "i");
-      if (!subjectRegex.test(email.subject)) return false;
-    }
-    
-    // Check content pattern
-    if (trigger.pattern) {
-      const contentRegex = new RegExp(trigger.pattern, "i");
-      const content = `${email.subject || ""} ${email.snippet || ""}`;
-      if (!contentRegex.test(content)) return false;
-    }
-    
-    return true;
   }
   
   /**
@@ -135,14 +159,18 @@ class TriggerService {
     
     for (const trigger of keywordTriggers) {
       if (trigger.pattern) {
-        const pattern = new RegExp(trigger.pattern, "i");
-        if (pattern.test(prompt)) {
-          matchedTriggers.push(trigger);
-          await this.fireTrigger(trigger, {
-            source: "prompt",
-            prompt,
-            matchedPattern: trigger.pattern
-          });
+        try {
+          const pattern = this.createSafeRegExp(trigger.pattern, "i");
+          if (pattern && pattern.test(prompt)) {
+            matchedTriggers.push(trigger);
+            await this.fireTrigger(trigger, {
+              source: "prompt",
+              prompt,
+              matchedPattern: trigger.pattern
+            });
+          }
+        } catch (error) {
+          console.warn(`[TriggerService] Invalid regex in prompt trigger ${trigger.id}:`, error);
         }
       }
     }

@@ -2,11 +2,11 @@ import { Router } from "express";
 import { searchEmails, getEmail } from "../integrations/gmail";
 import { listDriveFiles, getDriveFileContent } from "../integrations/google-drive";
 import { storage } from "../storage";
-import { conversationSources, ingestionJobs, extractedKnowledge, evidence, entities, entityMentions } from "@shared/schema";
+import { conversationSources, ingestionJobs, extractedKnowledge, evidence, entities, entityMentions, User } from "@shared/schema";
 import { eq, desc } from "drizzle-orm";
 import * as fs from "fs";
 import * as path from "path";
-import { ingestionPipeline } from "../services/ingestion-pipeline";
+import { ingestionPipeline, KnowledgeBucket } from "../services/ingestion-pipeline";
 import { retrievalOrchestrator } from "../services/retrieval-orchestrator";
 
 function getDb() {
@@ -68,16 +68,29 @@ router.post("/scan", async (req, res) => {
       "subject:AI conversation"
     ];
     
+    // Optimized: Fetch all existing source IDs first to avoid N+1 queries
+    // Also use try/catch per item to prevent one failure from blocking others
     for (const query of gmailSearches) {
       try {
         const emails = await searchEmails(query, 30);
+        if (emails.length === 0) continue;
+
+        // Collect IDs to check existence in batch
+        const emailIds = emails.map(e => e.id).filter((id): id is string => !!id);
+        if (emailIds.length === 0) continue;
+        
+        // Find existing sources matching any of these IDs
+        const existingSources = await db.select({ sourceId: conversationSources.sourceId })
+          .from(conversationSources)
+          .where(or(...emailIds.map(id => eq(conversationSources.sourceId, id))));
+        
+        const existingIds = new Set(existingSources.map(s => s.sourceId));
+
+        // Filter and insert new sources
         for (const email of emails) {
-          if (!email.id) continue;
+          if (!email.id || existingIds.has(email.id)) continue;
           
-          const existing = await db.select().from(conversationSources)
-            .where(eq(conversationSources.sourceId, email.id)).limit(1);
-          
-          if (existing.length === 0) {
+          try {
             await db.insert(conversationSources).values({
               sourceType: "gmail",
               sourceId: email.id,
@@ -88,11 +101,17 @@ router.post("/scan", async (req, res) => {
               dateEnd: email.date ? new Date(email.date) : new Date(),
               status: "pending"
             });
+            // .onConflictDoNothing() removed as it may not be supported by all Drizzle drivers or schemas without explicit constraints
+            // The check above + individual try/catch handles the race condition well enough for now
+            
+            existingIds.add(email.id); // Update local set
             sourcesFound++;
+          } catch (insertErr) {
+            console.warn(`Failed to insert email source ${email.id}:`, insertErr);
           }
         }
       } catch (err) {
-        console.log(`Gmail search "${query}" failed:`, err);
+        console.error(`Gmail search "${query}" failed:`, err);
       }
     }
     
@@ -106,28 +125,39 @@ router.post("/scan", async (req, res) => {
     for (const query of driveSearches) {
       try {
         const files = await listDriveFiles(query, 30);
+        if (files.length === 0) continue;
+        
+        const fileIds = files.map(f => f.id).filter((id): id is string => !!id);
+        if (fileIds.length === 0) continue;
+
+        const existingSources = await db.select({ sourceId: conversationSources.sourceId })
+          .from(conversationSources)
+          .where(or(...fileIds.map(id => eq(conversationSources.sourceId, id))));
+          
+        const existingIds = new Set(existingSources.map(s => s.sourceId));
+
         for (const file of files) {
-          if (!file.id) continue;
+          if (!file.id || existingIds.has(file.id)) continue;
           
-          const existing = await db.select().from(conversationSources)
-            .where(eq(conversationSources.sourceId, file.id)).limit(1);
-          
-          if (existing.length === 0) {
+          try {
             await db.insert(conversationSources).values({
               sourceType: "drive",
               sourceId: file.id,
               title: file.name || "Untitled Document",
               participants: ["LLM Conversation"],
-              messageCount: 0,
-              dateStart: file.createdTime ? new Date(file.createdTime) : new Date(),
-              dateEnd: file.modifiedTime ? new Date(file.modifiedTime) : new Date(),
+              messageCount: 1,
+              dateStart: new Date(),
+              dateEnd: new Date(),
               status: "pending"
             });
             sourcesFound++;
+            existingIds.add(file.id);
+          } catch (insertErr) {
+             console.warn(`Failed to insert drive source ${file.id}:`, insertErr);
           }
         }
       } catch (err) {
-        console.log(`Drive search "${query}" failed:`, err);
+        console.error(`Drive search "${query}" failed:`, err);
       }
     }
     
@@ -183,7 +213,7 @@ router.post("/ingest/:sourceId", async (req, res) => {
       .where(eq(conversationSources.id, sourceId));
     
     // Pass userId to job processor
-    const userId = (req.user as any)?.id;
+    const userId = (req.user as User)?.id;
 
     processIngestionJob(job.id, source, userId).catch(async (err) => {
       console.error("Ingestion job failed:", err);
@@ -262,7 +292,14 @@ async function processIngestionJob(jobId: string, source: typeof conversationSou
     } else {
       try {
         const fileContent = await getDriveFileContent(source.sourceId);
-        content = (fileContent as any)?.text || (fileContent as any)?.content || "";
+        if (typeof fileContent === "string") {
+          content = fileContent;
+        } else if (fileContent && typeof fileContent === "object") {
+          const fc = fileContent as { text?: unknown; content?: unknown };
+          content = (typeof fc.text === 'string' ? fc.text : '') || 
+                    (typeof fc.content === 'string' ? fc.content : '') || 
+                    "";
+        }
       } catch (err) {
         console.log("Failed to fetch drive file:", err);
         content = "";
@@ -483,7 +520,7 @@ router.get("/pipeline/evidence", async (req, res) => {
     
     let items;
     if (bucket) {
-      items = await ingestionPipeline.getEvidenceByBucket(bucket as any, limit);
+      items = await ingestionPipeline.getEvidenceByBucket(bucket as KnowledgeBucket, limit);
     } else {
       items = await ingestionPipeline.getRecentEvidence(limit);
     }
@@ -523,7 +560,7 @@ router.post("/pipeline/ingest/text", async (req, res) => {
     const { content, title, sourceType = 'upload' } = req.body;
     
     // Get userId for data isolation
-    const userId = (req.user as any)?.id || null;
+    const userId = (req.user as User)?.id || null;
 
     if (!content) {
       return res.status(400).json({ error: "Content is required" });
@@ -561,7 +598,7 @@ router.post("/pipeline/search", async (req, res) => {
     const { query, bucket, modality, limit = 10, threshold = 0.5 } = req.body;
     
     // Get userId for data isolation
-    const userId = (req.user as any)?.id || null;
+    const userId = (req.user as User)?.id || null;
 
     if (!query) {
       return res.status(400).json({ error: "Query is required" });
@@ -587,7 +624,7 @@ router.post("/pipeline/retrieve", async (req, res) => {
     const { query, maxTokens, includeEntities } = req.body;
     
     // Get userId for data isolation
-    const userId = (req.user as any)?.id || null;
+    const userId = (req.user as User)?.id || null;
     
     if (!query) {
       return res.status(400).json({ error: "Query is required" });

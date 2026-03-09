@@ -33,6 +33,20 @@ import type {
   UpsertOptions,
 } from "./types";
 
+interface PgVectorRow {
+  id: string;
+  content: string;
+  embedding?: string;
+  metadata: Record<string, any>;
+  similarity: number;
+  created_at?: Date;
+  updated_at?: Date;
+}
+
+interface PgVectorCountRow {
+  count: string;
+}
+
 export class PgVectorAdapter implements VectorStoreAdapter {
   readonly name = "pgvector";
   private config: VectorStoreConfig;
@@ -170,13 +184,13 @@ export class PgVectorAdapter implements VectorStoreAdapter {
     `);
 
     // Filter by threshold and format results
-    return (results.rows as any[])
+    return (results.rows as unknown as PgVectorRow[])
       .filter((row) => row.similarity >= threshold)
       .map((row) => ({
         document: {
           id: row.id,
           content: row.content,
-          embedding: includeEmbeddings ? this.parseEmbedding(row.embedding) : [],
+          embedding: row.embedding ? this.parseEmbedding(row.embedding) : [],
           metadata: row.metadata || {},
         },
         score: row.similarity,
@@ -197,11 +211,11 @@ export class PgVectorAdapter implements VectorStoreAdapter {
 
     if (results.rows.length === 0) return null;
 
-    const row = results.rows[0] as any;
+    const row = results.rows[0] as unknown as PgVectorRow;
     return {
       id: row.id,
       content: row.content,
-      embedding: this.parseEmbedding(row.embedding),
+      embedding: row.embedding ? this.parseEmbedding(row.embedding) : [],
       metadata: row.metadata || {},
     };
   }
@@ -252,7 +266,8 @@ export class PgVectorAdapter implements VectorStoreAdapter {
       ${filterClause}
     `);
 
-    return parseInt((results.rows[0] as any).count, 10);
+    const row = results.rows[0] as unknown as PgVectorCountRow;
+    return parseInt(row.count, 10);
   }
 
   /**

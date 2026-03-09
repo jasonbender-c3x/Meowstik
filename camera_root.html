@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<title></title>
+<link href="css/style.css" rel="stylesheet" type="text/css" />
+
+<script src="js/jquery.js" type="text/javascript"></script>
+<script language="JavaScript1.2" src="js/common.js" type="text/javascript"></script>
+<link rel="STYLESHEET" type="text/css" href="codebase/dhtmlxslider.css">
+<link rel="StyleSheet" href="css/dtree.css" type="text/css" />
+<link href="codebase/fileuploader.css" rel="stylesheet" type="text/css">
+<link rel="icon" href="images/zskj.gif" type="image/gif" />
+<script>window.dhx_globalImgPath = "codebase/imgs/";</script>
+<script  src="codebase/dhtmlxcommon.js"></script>
+<script  src="codebase/dhtmlxslider.js"></script>
+<script  src="codebase/ext/dhtmlxslider_start.js"></script>
+<script language="JavaScript1.2" src="js/calendar_simple.js" type="text/javascript"></script>
+<script type="text/javascript" src="js/dtree.js"></script>
+<script src="codebase/fileuploader.js" type="text/javascript"></script>
+
+
+<script type="text/javascript">
+
+var MyAgent  = navigator.userAgent;
+if((MyAgent.indexOf('Chrome') > -1 && window.chrome) || (MyAgent.indexOf('Gecko') > -1 && MyAgent.indexOf('KHTML') == -1))
+{
+	document.write('<script src="http://7.url.cn/edu/jslib/jquery/1.9.1/jquery.min.js"><'+'/script>');
+	document.write('<script src="player/mediaelement-and-player.js"><'+'/script>');
+	document.write('<link rel="stylesheet" href="player/mediaelementplayer.css" />');
+}
+
+var param = {opType:"get"};
+var lan_info = top.call_cgi("language.cgi",param);
+	
+if(lan_info.slctlanguage == 0) document.write('<script src="js/language_en.js"><'+'/script>');
+else if(lan_info.slctlanguage == 1)document.write('<script src="js/language_cn.js"><'+'/script>');
+else document.write('<script src="js/language_ru.js"><'+'/script>');
+
+$(function(){
+	var divid=document.getElementById("continer_div");
+	var left=(document.body.clientWidth-970)/2;
+	divid.style.marginLeft=left+"px";
+	
+	var MaxOffsetWidth = document.documentElement.clientWidth - 536;
+	var MaxOffsetHeight = document.documentElement.clientHeight - 296;
+	var floatingid = document.getElementById("floating_window_div");
+	floatingid.style.marginLeft=MaxOffsetWidth+"px";
+	floatingid.style.marginTop=MaxOffsetHeight+"px";
+	
+	window.onresize = function(){
+		left=(document.body.clientWidth-970)/2;
+		divid.style.marginLeft=left+"px";
+		
+		MaxOffsetWidth = document.documentElement.clientWidth - 536;
+		MaxOffsetHeight = document.documentElement.clientHeight - 296;
+		floatingid.style.marginLeft=MaxOffsetWidth+"px";
+		floatingid.style.marginTop=MaxOffsetHeight+"px";
+	}
+	
+	if(0!=sigin){
+		$("#head_div").load("head.html");
+	}else{
+		$("#continer_div").load("signin.html");
+	}
+});
+
+</script>
+</head>
+
+<body>
+<div id="floating_window_div"></div>
+<div id="head_div"></div>
+<div id="main_div">
+    <div id="continer_div">
+        <div id="display_div"></div>
+        <div id="control_div"></div>
+    </div>
+</div>
+</body>
+</html>

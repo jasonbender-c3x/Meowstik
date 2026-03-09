@@ -27,6 +27,59 @@
   </head>
   <body>
     <div id="root"></div>
+    <script>
+      window.onerror = function (msg, url, lineNo, columnNo, error) {
+        const errorData = {
+          msg: msg,
+          url: url,
+          lineNo: lineNo,
+          columnNo: columnNo,
+          error: error ? error.stack : null,
+          type: "client-error"
+        };
+        console.error("Global Error Caught:", errorData);
+        fetch('/api/client-log', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(errorData)
+        }).catch(e => console.error("Failed to report error:", e));
+        return false;
+      };
+      
+      window.addEventListener('unhandledrejection', function(event) {
+        const errorData = {
+          msg: event.reason ? (event.reason.message || String(event.reason)) : "Unhandled Rejection",
+          error: event.reason ? event.reason.stack : null,
+          type: "unhandled-rejection"
+        };
+        console.error("Unhandled Rejection Caught:", errorData);
+        fetch('/api/client-log', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(errorData)
+        }).catch(e => console.error("Failed to report rejection:", e));
+      });
+
+      // Patch console.error to capture logged errors
+      const originalConsoleError = console.error;
+      console.error = function(...args) {
+        originalConsoleError.apply(console, args);
+        // Avoid infinite loop if fetch fails and logs error
+        try {
+            const msg = args.map(a => (typeof a === 'object' ? JSON.stringify(a) : String(a))).join(' ');
+            if (msg.includes("Failed to report")) return;
+            
+            fetch('/api/client-log', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    msg: msg,
+                    type: "console-error"
+                })
+            }).catch(() => {});
+        } catch (e) {}
+      };
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

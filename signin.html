@@ -1,0 +1,82 @@
+<head>
+
+<script type="text/javascript">
+
+function do_signin(val)
+{
+	var params;
+	if(navigator.userAgent.indexOf('Safari') > -1)
+	{
+		params = {opType:"get"};
+	} else {
+		params = {opType:"dologin"};
+	}
+	var info = call_cgi("do_login.cgi", params);
+	try
+	{
+		switch(info.ret_code)
+		{
+			case "1":
+			{
+				SetCookie("sigin",1,60);	/*10s后自动超时*/
+				top.location.reload();
+				break;	
+			}
+			default:
+				break;
+		}	
+	}catch(e){}
+	
+}
+function createXMLObject() {
+	try {
+		if (window.XMLHttpRequest) {
+		xmlhttp = new XMLHttpRequest();
+	}
+	// code for IE
+	else if (window.ActiveXObject) {
+		xmlhttp=new ActiveXObject("Microsoft.XMLHTTP");
+	}
+	} catch (e) {
+		xmlhttp=false
+	}
+	return xmlhttp;
+}
+
+function clearAuthenticationCache() {
+	try {
+		var agt=navigator.userAgent.toLowerCase();
+		if (agt.indexOf("msie") != -1) {
+		// IE clear HTTP Authentication
+		document.execCommand("ClearAuthenticationCache");
+	}
+	else if (agt.indexOf("firefox") != -1) {
+		// Let's create an xmlhttp object
+		var xmlhttp = createXMLObject();
+		// Let's prepare invalid credentials
+		xmlhttp.open("GET", '/', true, "logout", "logout");
+		// Let's send the request to the server
+		xmlhttp.send("");
+		// Let's abort the request
+		xmlhttp.abort();
+	}
+	else {
+	//window.close();
+	}
+	} catch(e) {
+	// There was an error
+	return;
+	}
+}
+$(function(){
+	clearAuthenticationCache();
+	do_signin('ocx');
+});
+</script>
+
+</head>
+
+<body>
+
+
+</body>

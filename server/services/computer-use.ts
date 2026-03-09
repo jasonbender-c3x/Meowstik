@@ -18,6 +18,69 @@
  */
 
 import { GoogleGenAI, type FunctionDeclaration } from "@google/genai";
+import { localComputerControl } from "./local-computer-control";
+
+// Local execution helper
+export async function executeLocalAction(action: ComputerAction): Promise<any> {
+  const { type } = action;
+  
+  try {
+    // Basic environment check
+    const hasDisplay = !!process.env.DISPLAY;
+    
+    // xdotool and screenshots require a display
+    // Type/Key/Click/Move/Scroll/Screenshot all need X11
+    if (!hasDisplay) {
+        console.warn(`[LocalComputerUse] No DISPLAY environment variable. Skipping ${type} action.`);
+        
+        if (type === 'screenshot') {
+             throw new Error("Cannot take screenshot: No X11 display connected (DISPLAY env var missing).");
+        }
+        
+        // For other actions, we return success: false but don't crash, 
+        // effectively "mocking" the action so the LLM doesn't get stuck in a retry loop.
+        return { success: false, message: "Action skipped: No display connected" };
+    }
+
+    switch (type) {
+      case 'click':
+        if (action.target && typeof action.target !== 'string') {
+          const { x, y } = action.target;
+          const button = action.button || 'left';
+          await localComputerControl.click(x, y, button as 'left' | 'right' | 'middle');
+        }
+        break;
+        
+      case 'type':
+        if (action.text) {
+          await localComputerControl.type(action.text);
+        }
+        break;
+        
+      case 'key':
+        if (action.key) {
+          await localComputerControl.pressKey(action.key, action.modifiers);
+        }
+        break;
+        
+      case 'scroll':
+        await localComputerControl.scroll(action.direction as 'up'|'down'|'left'|'right', action.amount || 300);
+        break;
+        
+      case 'move':
+        if (action.target && typeof action.target !== 'string') {
+          await localComputerControl.moveMouse(action.target.x, action.target.y);
+        }
+        break;
+        
+      case 'screenshot':
+        return await localComputerControl.takeScreenshot();
+    }
+  } catch (e) {
+    console.error(`[LocalComputerUse] Action ${type} failed:`, e);
+    throw e;
+  }
+}
 
 const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
 

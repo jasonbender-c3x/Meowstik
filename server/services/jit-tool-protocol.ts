@@ -45,8 +45,9 @@ interface ToolDef {
 // ============================================================================
 
 const ALL_TOOLS: ToolDef[] = [
-  // === GENERAL (1) ===
+  // === GENERAL (2) ===
   { name: "debug_echo", params: "message:string", category: "general" },
+  { name: "camera_control", params: "action:string (left,right,up,down,in,out,stop,snapshot), cameraId?:string, speed?:number", category: "general" },
   
   // === FILE (5) - Paths support prefixes: server: (default), client:, editor: ===
   { name: "file_get", params: "path:string (prefix: server:, client:, editor:)", category: "file" },

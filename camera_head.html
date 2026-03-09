@@ -1,0 +1,536 @@
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>head</title>
+<style>
+#head_b {
+	width: 1000px;
+	height: 1px;
+	top: 99px;
+}
+#head_u {
+	margin: auto;
+	height: 99px;
+	width: 500px;
+}
+#head_u #logo {
+	float: left;
+	margin-top: 10px;
+	margin-right: 0px;
+	margin-bottom: 0px;
+	margin-left: 0px;
+}
+#head_u #menu_div {
+	float: right;
+	margin-top: 30px;
+	margin-right: 0px;
+	margin-bottom: 0px;
+	margin-left: 0px;
+}
+#head_u #menu_div ul {
+	list-style:none;
+	margin: 0px;
+	padding: 0px;
+}
+#head_u #menu_div ul li a {
+	display:block;
+	height: 26px;
+	line-height: 26px;
+	float:left;
+	padding-top: 0px;
+	padding-right: 12px;
+	padding-bottom: 0px;
+	padding-left: 12px;
+	color: #CCC;
+	text-decoration: none;
+	font-size: 18px;
+	font-weight: bold;
+	margin-right: 1px;
+	margin-left: 1px;
+}
+#head_u #menu_div ul li a:hover {
+	color:#F00;
+	background-color: #666;
+}
+#head_u #menu_div ul li {
+	float: left;
+}
+.button_style {
+	color:#F00;
+	background-color: #666;
+}
+
+#display_menu_div {
+	height: 24px;
+	width: 700px;
+}
+.mejs-controls {
+	display: none !important;
+}
+
+.drag_floating_div {
+    cursor: move;
+	position:absolute;
+	z-index:1000;
+	width: 517px;
+	height: 120px;
+	display: none;
+	background-color: #000;
+	background: rgba(0,0,0,0.25)
+}
+
+.mini_play_close_btn 
+{
+    z-index: 10001;
+    cursor: pointer;
+    position: absolute;
+    right: 15px;
+    top: 24px;
+    width: 20px;
+    height: 20px;
+    background: url(../images/delete.gif) no-repeat;
+    background-size: cover;
+}
+
+.no_longer_appear_box 
+{
+    z-index: 10001;
+    cursor: move;
+    position: absolute;
+    right: 35px;
+    top: 24px;
+    width: 160px;
+    height: 20px;
+}
+
+.drag_floating_iframe {
+    cursor: move;
+	position:absolute;
+	visibility:visible;
+	z-index:-1;
+	top:0px;
+	left:0px;
+	width: 517px;
+	height: 120px;
+	background-color: #000;
+	background: rgba(0,0,0,0.25)
+}
+
+</style>
+<script type="text/javascript">
+var getLiveStreamingRandom;
+var iSupportZibeeModeFlag = 0;
+var iHaveCameraFlag = 0;
+var fgFirstFloatingDisplay = 0;
+var iCurrIpcMode = 0;  //0:normal mode   1:save mode   2:privacy mode
+
+function GetBrowserType()
+{
+	var MyAgent  = navigator.userAgent;
+
+	if(MyAgent.indexOf('Trident') > -1)
+	{
+		return 0;
+	}
+	else if(MyAgent.indexOf('Chrome') > -1 && window.chrome)
+	{
+		return 1;
+	}
+	else if(MyAgent.indexOf('Gecko') > -1 && MyAgent.indexOf('KHTML') == -1)
+	{
+		return 1;
+	}
+	return 0;
+}
+
+function floating_Mouse_Down(event)
+{
+	var target = document.getElementById("floating_window_div");
+	var x_drag_offset = event.clientX;
+	var y_drag_offset = event.clientY;
+	var CurrentLeft = target.offsetLeft;
+	var CurrentTop = target.offsetTop;
+	var MaxOffsetWidth = document.documentElement.clientWidth - 517;
+	var MaxOffsetHeight = document.documentElement.clientHeight - 294;
+	
+	$(document).bind("mousemove", function(event)
+	{
+		var NewLeft = event.clientX - x_drag_offset + CurrentLeft;
+		var NewTop = event.clientY - y_drag_offset + CurrentTop;
+		NewLeft = (NewLeft > 0)?NewLeft:0;
+		NewTop = (NewTop > 0)?NewTop:0;
+		NewLeft = (NewLeft > MaxOffsetWidth)?MaxOffsetWidth:NewLeft;
+		NewTop = (NewTop > MaxOffsetHeight)?MaxOffsetHeight:NewTop;
+		target.style.marginLeft = NewLeft + "px";
+		target.style.marginTop = NewTop + "px";
+	}).mouseup(function(event)
+	{
+		$(this).unbind('mousemove').unbind('mouseup');
+	});
+}
+
+function do_mini_play_close()
+{
+	try {unload_ocx(H264Player_drag);}catch(e){}
+	try {H264Player_drag.style.display="none";}catch(e){}
+	try {if(fgGK710xOcxOn){activeX.DeinitPlugin();fgGK710xOcxOn=0;activeX.style.display="none";}}catch(e){}
+	document.getElementById("floating_window_div").style.display="none";
+}
+
+function do_no_longer_appear()
+{
+	if(document.getElementById("no_longer_appear_id").checked == true)
+	{
+		do_mini_play_close();
+		fgfloatingNoLongerAppear = 1;
+	}
+}
+
+function darg_floating_config()
+{
+	document.getElementById("drag_explanation_info").innerHTML = a[711];
+	document.getElementById("no_longer_appear_info").innerHTML = a[712];
+	if(lan_info.slctlanguage == 1)//ch
+	{
+		document.getElementById("set_no_longer_appear_box").style.width = "100px";
+	}else if(lan_info.slctlanguage == 2){
+		document.getElementById("set_no_longer_appear_box").style.width = "190px";
+	}
+
+	$("#floating_window_div").mouseover(function()
+	{
+		document.getElementById("drag_floating").style.display="block";
+	});
+	$("#floating_window_div").mouseout(function()
+	{
+		document.getElementById("drag_floating").style.display="none";
+	});
+}
+
+function floating_display(val, iCtrlSelet)
+{
+	var floating_div;
+	var fgSupportHtml5 = 0;
+	
+	if(val < 0)
+		return;
+	if(fgFirstFloatingDisplay == 1 && val > 0)
+		return;
+	if(val > 0 && fgfloatingNoLongerAppear == 1)
+		return;
+		
+	fgSupportHtml5 = GetBrowserType();
+	if(fgSupportHtml5 == 1)
+	{
+		var Html5swf = navigator.plugins["Shockwave Flash"];//判断浏览器是否打开flash
+		if(!Html5swf)
+		{
+			if(val == 0)
+			{
+				$("#display_div").load("display_html5.html");
+			}
+			return;
+		}
+		if(val == 0){
+			document.getElementById("floating_window_div").style.display="none";
+			getLiveStreamingRandom = Math.round(Math.random()*50000);
+			SetCookie('support_html5',fgSupportHtml5,300*24*3600);
+			$("#display_div").load("display_html5.html");
+			
+			fgFirstFloatingDisplay = 0;
+			document.getElementById("floating_window_div").innerHTML = floating_div;
+		}else{
+			document.getElementById("floating_window_div").style.display="block";			
+			floating_div = '<div class="drag_floating_div" id="drag_floating" onmousedown="floating_Mouse_Down(event)">'
+			+'<div id="drag_explanation_info" style="font-size: 16px;">点击按住视频可拖动</div>'
+			+'<div id="set_no_longer_appear_box" class="no_longer_appear_box">'
+			+'<span style="font-size:14px;font-weight:bold;color:#00ff00;overflow:hidden;white-space:nowrap;width:80px;" id="no_longer_appear_info">不再出现</span>'
+			+'<input type="checkbox" style="zoom:120%;cursor:pointer;" id="no_longer_appear_id" onClick="do_no_longer_appear()">'
+			+'</div><div class="mini_play_close_btn" id="mini_play_close" onclick="do_mini_play_close()"></div>'
+			+'</div><div><video id="floating_display_html5" width="517" height="290">'
+			+'<source id="video_source" src="" type="application/x-mpegURL"></video>'
+			+'</div>';
+			document.getElementById("floating_window_div").innerHTML = floating_div;
+			darg_floating_config();
+						
+			getLiveStreamingRandom = Math.round(Math.random()*50000);
+			var m3u8FileUrl = "http://" + window.location.host + "/" + getLiveStreamingRandom + ".m3u8";
+			var params = {opType:"set", random:getLiveStreamingRandom, stream_type:getCookie('flow_slct')};
+			var ret_val=call_cgi("livestreaming.cgi", params);
+			
+			switch(ret_val.ret_code)
+			{
+				case "1":
+					document.getElementById("video_source").src = m3u8FileUrl;
+					var player = new MediaElementPlayer('#floating_display_html5', {
+						loop: true,
+						clickToFullScreen: true,
+						success: function (media, ele, player) {
+							player.play();
+						}
+					});
+					fgFirstFloatingDisplay = 1;
+					break;
+				case "11":
+					alert(a[514]);
+					break;
+				default:
+					break;
+			}
+		}
+	}else{
+		if(1 == iCtrlSelet){
+			if(val == 0){
+				fgFirstFloatingDisplay = 0;
+				document.getElementById("floating_window_div").style.display="none";
+				$("#display_div").load("display_vlc.html");
+			}else{
+				document.getElementById("floating_window_div").style.display="none";
+				//暂时未使用
+			}
+		}else{
+			try {unload_ocx(H264Player_drag);}catch(e){}
+			try {H264Player_drag.style.display="none";}catch(e){}
+			try {if(fgGK710xOcxOn){activeX.DeinitPlugin();fgGK710xOcxOn=0;activeX.style.display="none";}}catch(e){}
+			if(val == 0){
+				fgFirstFloatingDisplay = 0;
+				document.getElementById("floating_window_div").style.display="none";
+				$("#display_div").load("display.html");
+			}else{
+				document.getElementById("floating_window_div").style.display="block";
+				var params = {opType:"get"};
+				var flow_info=call_cgi("getflowinfo.cgi", params);
+				if(flow_info.support_gk7101 == 1)
+				{
+					var flow = getCookie('flow_slct');
+					if(flow == null)
+					{
+						flow = flow_info.flow_slct;
+					}
+										
+					floating_div = '<div class="drag_floating_div" id="drag_floating" onmousedown="floating_Mouse_Down(event)">'
+					+'<div id="drag_explanation_info" style="width:517px;height:120px;font-size: 16px;">点击按住视频可拖动</div>'
+					+'<div id="set_no_longer_appear_box" class="no_longer_appear_box">'
+					+'<span style="font-size:14px;font-weight:bold;color:#00ff00;overflow:hidden;white-space:nowrap;width:80px;" id="no_longer_appear_info">不再出现</span>'
+					+'<input type="checkbox" style="zoom:120%;cursor:pointer;" id="no_longer_appear_id" onClick="do_no_longer_appear()">'
+					+'</div><div class="mini_play_close_btn" id="mini_play_close" onclick="do_mini_play_close()"></div>'
+					+'<iframe src="about:blank" frameborder="0" marginheight="0" marginwidth="0" class="drag_floating_iframe"></iframe>'
+					+'</div><div><object classid="clsid:02A9E28E-AE20-4692-A22B-C1113730F769" codebase="http://"+window.location.host+"/activeX/GOKEWeb.cab#version=1,0,0,33" id="GKIPCWebPlugin_drag" width="517" height="290">'
+					+'<param name="wmode" value="opaque"><param name="_ExtentX" VALUE="17299"><param name="_StockProps" value="0">'
+					+'<embed wmode="opaque" _version="65536" _extentx="10954" _extenty="11478" _stockprops="0" align="center" height="0" width="0">'
+					+'</div>';
+					
+					document.getElementById("floating_window_div").innerHTML = floating_div;
+					darg_floating_config();
+										
+					try {
+						activeX = document.getElementById("GKIPCWebPlugin_drag");
+						try
+						{
+							version = activeX.GetVersion();
+							if(version < '1707201110')
+							{
+								document.getElementById("floating_window_div").style.display="none";
+								return;
+							}
+						}
+						catch(e)
+						{
+							document.getElementById("floating_window_div").style.display="none";
+							return;
+						}
+						try
+						{
+							activeX.DeinitPlugin();
+							activeX.InitPlugin();
+							activeX.ConnectToBoard(window.location.host, flow_info.GK710xVideoPort);
+							activeX.SetAutoReconnect(1);
+							fgGK710xOcxOn = 1;
+							activeX.SetIpcStreamId(flow);
+							fgFirstFloatingDisplay = 1;
+						}catch(e){
+							alert(a[503]);
+							document.getElementById("floating_window_div").style.display="none";
+							return;
+						}
+					}catch (e){
+						document.getElementById("floating_window_div").style.display="none";
+						document.getElementById("GKIPCWebPlugin_drag").style.display="none";
+						return;
+					}
+				}else{
+					floating_div = '<div class="drag_floating_div" id="drag_floating" onmousedown="floating_Mouse_Down(event)">'
+					+'<div id="drag_explanation_info" style="width:517px;height:120px;font-size: 16px;">点击按住视频可拖动</div>'
+					+'<div id="set_no_longer_appear_box" class="no_longer_appear_box">'
+					+'<span style="font-size:14px;font-weight:bold;color:#00ff00;overflow:hidden;white-space:nowrap;width:80px;" id="no_longer_appear_info">不再出现</span>'
+					+'<input type="checkbox" style="zoom:120%;cursor:pointer;" id="no_longer_appear_id" onClick="do_no_longer_appear()">'
+					+'</div><div class="mini_play_close_btn" id="mini_play_close" onclick="do_mini_play_close()"></div>'
+					+'<iframe src="about:blank" frameborder="0" marginheight="0" marginwidth="0" class="drag_floating_iframe"></iframe>'
+					+'</div><div><object classid="clsid:63D7DBE2-955D-4CC6-B1E6-4CC8CFB3E479" codebase="RSAVPlugin2.ocx" id="H264Player_drag" width="517" height="290">'
+					+'<param name="_ExtentX" VALUE="17299"><param name="_StockProps" value="0"><param name="wmode" value="transparent"> '
+					+'<embed _version="65536" _extentx="10954" _extenty="6826" _stockprops="0" wmode="transparent" align="center" height="0" width="0">'
+					+'</object></div>';	
+					
+					document.getElementById("floating_window_div").innerHTML = floating_div;
+					darg_floating_config();
+					
+					if(1==checkocx(document.getElementById("H264Player_drag")))
+					{
+						var param = {dev_num:1,opType:"get"};
+						var ret=call_cgi("netinfo.cgi", param);
+						var rtspport = ret.rtspport;
+						var rcfgport = ret.rcfgport;
+					
+						ocx_play_port(window.location.host,rtspport,rcfgport,document.getElementById("H264Player_drag"));
+						fgFirstFloatingDisplay = 1;
+					}else{
+						document.getElementById("floating_window_div").style.display="none";
+					}
+				}
+			}
+		}
+	}
+}
+
+function load_fun(val)
+{
+	var iCtrlSelet = 0;
+	try {unload_ocx(H264Player);}catch(e){}
+	try {unload_ocx(H264Replayer);}catch(e){}
+	try {unload_ocx(H264Download);}catch(e){}
+	try {vlc=getVLC("vlc");vlc.playlist.stop();vlc.playlist.clear();}catch(e){}
+	try {if(fgGKRecordReplayOn){GKRecoed_activeX.DeinitPlugin();fgGKRecordReplayOn=0;GKRecoed_activeX.style.display="none";}}catch(e){}
+	try {H264Player.style.display="none";}catch(e){}
+	
+	switch(val)
+	{
+		case 1:
+			$("#display_div").load("setup_control.html");
+			break;
+		case 2:
+			$("#display_div").load("record_ctl.html");
+			break;
+		case 3:
+			$("#display_div").load("blank.html");
+			$("#control_div").load("viewpic.html");
+			break;
+	    case 0:
+			var params = {opType:"get"};
+			var flow_info=call_cgi("getflowinfo.cgi", params);
+			iCtrlSelet = flow_info.ctrl_selet;
+			SetCookie('chn_num',flow_info.channel_num,300*24*3600);
+			change_pluin(iCtrlSelet);
+			$("#control_div").load("display_control.html");
+			document.getElementById("display_div").style.width="700px";
+			document.getElementById("display_div").style.height="480px";
+			break;
+		case 5:do_signout();return;
+		case 4:do_reboot();return;
+	}
+	if(iHaveCameraFlag == 1 && iCurrIpcMode == 0)
+	{
+		floating_display(val, iCtrlSelet);
+	}
+}
+
+function change_pluin(index)
+{
+	if(index==0) SetCookie("decode",'ocx',300*24*3600);
+	else if(index==1) SetCookie("decode",'vlc',300*24*3600);
+}
+
+function do_reboot()
+{
+	if(confirm(a[53]))
+	{
+		var params = {opType:"set",cmd:"reboot",forcesave:1};
+		top.call_cgi("cmd.cgi", params);
+	}
+}
+function do_menu_cmd(obj, val)
+{
+	if(iHaveCameraFlag == 1 || iSupportZibeeModeFlag == 0)
+	{
+		document.getElementById("menu_0").className="";
+		document.getElementById("menu_2").className="";
+		document.getElementById("menu_3").className="";
+	}
+	document.getElementById("menu_1").className="";
+	document.getElementById("menu_4").className="";
+	document.getElementById("menu_5").className="";
+	obj.className="button_style";
+	switch(val)
+	{
+		default: load_fun(val);
+	}
+}
+$(function(){
+	var params = {opType:"get"};
+	var ipc_info = call_cgi("setipcparam.cgi", params);
+	if(ipc_info.ret_code == 1)
+	{
+		iSupportZibeeModeFlag = ipc_info.support_zibee_mode;
+		iHaveCameraFlag = ipc_info.IsCamera;
+		iCurrIpcMode = ipc_info.curr_mode;
+	}
+		
+	var menudiv;
+	if(iSupportZibeeModeFlag == 1 && iHaveCameraFlag == 0)
+	{
+		menudiv = '<ul>'
+		+'<li><a href="#" id="menu_1" onClick="do_menu_cmd(this,1)" onFocus="this.blur()">Setup</a></li>'
+		+'<li><a href="#" id="menu_4" onClick="do_menu_cmd(this,4)" onFocus="this.blur()">Reboot</a></li>'
+		+'<li><a href="#" id="menu_5" onClick="do_menu_cmd(this,5)" onFocus="this.blur()">Exit</a></li>'
+		+'</ul>';
+		document.getElementById("menu_div").innerHTML = menudiv;
+		document.getElementById("menu_1").innerHTML=a[406];
+		document.getElementById("menu_4").innerHTML=a[409];
+		document.getElementById("menu_5").innerHTML=a[410];
+	
+		do_menu_cmd(document.getElementById("menu_1"), 1);
+		if(lan_info.slctlanguage == 2)
+		{
+			document.getElementById("head_u").style.width="500px";
+			document.getElementById("menu_1").style.width="120px";
+			document.getElementById("menu_4").style.width="120px";
+			document.getElementById("menu_5").style.width="120px";
+		}else{
+			document.getElementById("head_u").style.width="300px";
+			document.getElementById("menu_1").style.width="60px";
+			document.getElementById("menu_4").style.width="60px";
+			document.getElementById("menu_5").style.width="60px";
+		}
+	}else if(iHaveCameraFlag == 1){
+		menudiv = '<ul><li><a href="#" id="menu_0" onClick="do_menu_cmd(this,0)" onFocus="this.blur()">Live Video</a></li>'
+		+'<li><a href="#" id="menu_1" onClick="do_menu_cmd(this,1)" onFocus="this.blur()">Setup</a></li>'
+		+'<li><a href="#" id="menu_2" onClick="do_menu_cmd(this,2)" onFocus="this.blur()">Playback</a></li>'
+		+'<li><a href="#" id="menu_3" onClick="do_menu_cmd(this,3)" onFocus="this.blur()">View Pictures</a></li>'
+		+'<li><a href="#" id="menu_4" onClick="do_menu_cmd(this,4)" onFocus="this.blur()">Reboot</a></li>'
+		+'<li><a href="#" id="menu_5" onClick="do_menu_cmd(this,5)" onFocus="this.blur()">Exit</a></li>'
+		+'</ul>';
+		document.getElementById("menu_div").innerHTML = menudiv;
+		document.getElementById("menu_0").innerHTML=a[405];
+		document.getElementById("menu_1").innerHTML=a[406];
+		document.getElementById("menu_2").innerHTML=a[407];
+		document.getElementById("menu_3").innerHTML=a[408];
+		document.getElementById("menu_4").innerHTML=a[409];
+		document.getElementById("menu_5").innerHTML=a[410];
+		
+		do_menu_cmd(document.getElementById("menu_0"), 0);
+		if(lan_info.slctlanguage == 0)//en
+		{
+			document.getElementById("head_u").style.width=600+"px";
+		}
+	}
+});
+</script>
+</head>
+<body>
+	<div id="head_u">
+    	<div id="logo">
+        <img src="images/logo.gif"/></div>
+        <div id="menu_div"></div>
+    </div>
+	<div id="head_b">
+    <img src="images/head_b.gif" width="100%" height="1" /></div>
+</body>

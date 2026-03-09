@@ -22,7 +22,8 @@ PUT  /repos/{owner}/{repo}/contents/{path} → create/update file {message, cont
 ### Write (capture useful info)
 ```json
 // Save doc: file_put to knowledge/{category}/{name}.md
-{"type": "file_put", "parameters": {"path": "knowledge/apis/github-api.md", "content": "# GitHub API\n..."}}
+// NOTE: Use single backslash \n for newlines in content, NOT double \\n (unless literal backslash-n is intended)
+{"type": "file_put", "parameters": {"path": "knowledge/apis/github-api.md", "content": "# GitHub API\n## Section 2\n..."}}
 
 // Ingest for RAG: use file_ingest to enable semantic search & auto-retrieval
 // Use for: notes, docs, reference material you want automatically retrieved later
