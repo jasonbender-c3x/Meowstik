@@ -1,0 +1,33 @@
+
+[2026-03-10T06:28:17.131Z]
+# Python Script
+# Python Sandbox - Write and execute Python code
+# Output will appear in the panel below
+
+print("Hello from Python!")
+
+# Example: Calculate fibonacci numbers
+def fibonacci(n):
+    if n <= 1:
+        return n
+    return fibonacci(n-1) + fibonacci(n-2)
+
+# Print first 10 fibonacci numbers
+for i in range(10):
+    print(f"Fibonacci({i}) = {fibonacci(i)}")
+
+
+[2026-03-10T06:28:17.306Z]
+[OUTPUT]
+Hello from Python!
+Fibonacci(0) = 0
+Fibonacci(1) = 1
+Fibonacci(2) = 1
+Fibonacci(3) = 2
+Fibonacci(4) = 3
+Fibonacci(5) = 5
+Fibonacci(6) = 8
+Fibonacci(7) = 13
+Fibonacci(8) = 21
+Fibonacci(9) = 34
+

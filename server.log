@@ -1,0 +1,450 @@
+
+> meowstik-core@1.0.0 dev /workspaces/Meowstik
+> tsx server/index.ts
+
+✅ [Env] .env file loaded and variables overridden.
+🚀 [Env] GOOGLE_CLIENT_ID: 188476922299-qmfibap676nuuqs2hbj5q97j2etdfupu.apps.googleusercontent.com
+🚀 [Env] GOOGLE_REDIRECT_URI: https://humble-broccoli-5gp7459v5jvj2pg5j-5000.app.github.dev/api/auth/google/callback
+⏳ [Boot] Setting up Auth...
+🔑 [Auth] Using Google Client ID: 1884769222...
+🌐 [Auth] Using Redirect URI: https://humble-broccoli-5gp7459v5jvj2pg5j-5000.app.github.dev/api/auth/google/callback
+🌐 [Auth] Initializing Google Strategy with Callback: https://humble-broccoli-5gp7459v5jvj2pg5j-5000.app.github.dev/api/auth/google/callback
+⏳ [Boot] Creating HTTP Server...
+⏳ [Boot] Registering API Routes...
+🌐 [Auth] Initializing Google Strategy with Callback: https://humble-broccoli-5gp7459v5jvj2pg5j-5000.app.github.dev/api/auth/google/callback
+🧠 [System] Routes Registered Successfully.
+✅ [Boot] API Routes Registered.
+⏳ [Boot] Starting Vite Middleware (This can take 5-10 seconds)...
+✅ [Boot] Vite Middleware Online.
+
+========================================
+🚀 MEOWSTIK CORE ONLINE: http://localhost:5000
+========================================
+
+⏳ [Boot] Pinging Database...
+(node:24020) Warning: SECURITY WARNING: The SSL modes 'prefer', 'require', and 'verify-ca' are treated as aliases for 'verify-full'.
+In the next major version (pg-connection-string v3.0.0 and pg v9.0.0), these modes will adopt standard libpq semantics, which have weaker security guarantees.
+
+To prepare for this change:
+- If you want the current behavior, explicitly use 'sslmode=verify-full'
+- If you want libpq compatibility now, use 'uselibpqcompat=true&sslmode=require'
+
+See https://www.postgresql.org/docs/current/libpq-ssl.html for libpq SSL mode definitions.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✅ [Boot] Database Link Established
+➡️  [REQ] GET /
+⬅️  [RES] GET / - Status: 200 (175ms)
+➡️  [REQ] GET /@vite/client
+➡️  [REQ] GET /@react-refresh
+⬅️  [RES] GET /@react-refresh - Status: 304 (63ms)
+➡️  [REQ] GET /src/main.tsx
+⬅️  [RES] GET /@vite/client - Status: 200 (246ms)
+⬅️  [RES] GET /src/main.tsx - Status: 304 (261ms)
+➡️  [REQ] GET /src/App.tsx
+⬅️  [RES] GET /src/App.tsx - Status: 304 (2ms)
+➡️  [REQ] GET /@fs/workspaces/Meowstik/node_modules/.pnpm/vite@6.4.1_@types+node@20.19.33_jiti@1.21.7_lightningcss@1.30.2_tsx@4.21.0_yaml@2.8.2/node_modules/vite/dist/client/env.mjs
+⬅️  [RES] GET /@fs/workspaces/Meowstik/node_modules/.pnpm/vite@6.4.1_@types+node@20.19.33_jiti@1.21.7_lightningcss@1.30.2_tsx@4.21.0_yaml@2.8.2/node_modules/vite/dist/client/env.mjs - Status: 304 (9ms)
+➡️  [REQ] GET /src/index.css
+➡️  [REQ] GET /src/components/ui/tooltip.tsx
+➡️  [REQ] GET /src/pages/home.tsx
+➡️  [REQ] GET /src/pages/not-found.tsx
+➡️  [REQ] GET /src/pages/editor.tsx
+➡️  [REQ] GET /src/pages/preview.tsx
+➡️  [REQ] GET /src/pages/help.tsx
+➡️  [REQ] GET /src/pages/google-services.tsx
+➡️  [REQ] GET /src/pages/settings.tsx
+➡️  [REQ] GET /src/pages/debug.tsx
+➡️  [REQ] GET /src/pages/knowledge-ingestion.tsx
+➡️  [REQ] GET /src/pages/terminal.tsx
+➡️  [REQ] GET /src/pages/python-sandbox.tsx
+➡️  [REQ] GET /src/pages/web-search.tsx
+⬅️  [RES] GET /src/pages/preview.tsx - Status: 304 (4904ms)
+⬅️  [RES] GET /src/pages/not-found.tsx - Status: 304 (4919ms)
+⬅️  [RES] GET /src/pages/editor.tsx - Status: 304 (4984ms)
+⬅️  [RES] GET /src/pages/home.tsx - Status: 304 (5164ms)
+⬅️  [RES] GET /src/pages/help.tsx - Status: 304 (5155ms)
+➡️  [REQ] GET /src/pages/markdown-playground.tsx
+➡️  [REQ] GET /src/pages/glasses.tsx
+➡️  [REQ] GET /src/pages/watch.tsx
+➡️  [REQ] GET /src/pages/live.tsx
+➡️  [REQ] GET /src/pages/browser.tsx
+➡️  [REQ] GET /src/pages/database-explorer.tsx
+➡️  [REQ] GET /src/pages/schedules.tsx
+➡️  [REQ] GET /src/pages/vision.tsx
+➡️  [REQ] GET /src/pages/docs.tsx
+➡️  [REQ] GET /src/pages/collaborate.tsx
+➡️  [REQ] GET /src/pages/agent-settings.tsx
+➡️  [REQ] GET /src/pages/rag-debug.tsx
+➡️  [REQ] GET /src/pages/landing.tsx
+➡️  [REQ] GET /src/pages/login.tsx
+⬅️  [RES] GET /src/pages/settings.tsx - Status: 304 (356ms)
+⬅️  [RES] GET /src/pages/knowledge-ingestion.tsx - Status: 304 (356ms)
+⬅️  [RES] GET /src/pages/terminal.tsx - Status: 304 (361ms)
+⬅️  [RES] GET /src/pages/debug.tsx - Status: 304 (824ms)
+⬅️  [RES] GET /src/pages/google-services.tsx - Status: 304 (850ms)
+➡️  [REQ] GET /src/pages/install.tsx
+➡️  [REQ] GET /src/components/chat/message.tsx
+➡️  [REQ] GET /src/components/chat/input-area.tsx
+➡️  [REQ] GET /src/components/ui/local-drive-button.tsx
+➡️  [REQ] GET /src/components/ui/verbosity-slider.tsx
+➡️  [REQ] GET /src/assets/generated_images/cute_cat_logo_icon.png?import
+➡️  [REQ] GET /src/hooks/useAuth.ts
+➡️  [REQ] GET /src/components/ui/scroll-area.tsx
+➡️  [REQ] GET /src/components/ui/textarea.tsx
+➡️  [REQ] GET /src/pages/sound-settings.tsx
+⬅️  [RES] GET /src/assets/generated_images/cute_cat_logo_icon.png?import - Status: 304 (6ms)
+➡️  [REQ] GET /src/pages/communications.tsx
+⬅️  [RES] GET /src/index.css - Status: 304 (8689ms)
+⬅️  [RES] GET /src/pages/vision.tsx - Status: 304 (3735ms)
+⬅️  [RES] GET /src/pages/web-search.tsx - Status: 304 (4085ms)
+⬅️  [RES] GET /src/pages/markdown-playground.tsx - Status: 304 (3774ms)
+⬅️  [RES] GET /src/pages/watch.tsx - Status: 304 (3786ms)
+⬅️  [RES] GET /src/pages/python-sandbox.tsx - Status: 304 (4153ms)
+⬅️  [RES] GET /src/pages/browser.tsx - Status: 304 (3824ms)
+⬅️  [RES] GET /src/pages/collaborate.tsx - Status: 304 (3865ms)
+➡️  [REQ] GET /src/contexts/tts-context.tsx
+⬅️  [RES] GET /src/pages/live.tsx - Status: 304 (3993ms)
+⬅️  [RES] GET /src/pages/glasses.tsx - Status: 304 (4007ms)
+⬅️  [RES] GET /src/pages/database-explorer.tsx - Status: 304 (4173ms)
+➡️  [REQ] GET /src/components/ui/enhanced-markdown.tsx
+➡️  [REQ] GET /src/contexts/LocalDriveContext.tsx
+⬅️  [RES] GET /src/pages/landing.tsx - Status: 304 (4221ms)
+⬅️  [RES] GET /src/pages/login.tsx - Status: 304 (4240ms)
+⬅️  [RES] GET /src/pages/docs.tsx - Status: 304 (4246ms)
+⬅️  [RES] GET /src/pages/install.tsx - Status: 304 (3754ms)
+⬅️  [RES] GET /src/pages/sound-settings.tsx - Status: 304 (3722ms)
+⬅️  [RES] GET /src/pages/agent-settings.tsx - Status: 304 (4294ms)
+⬅️  [RES] GET /src/pages/communications.tsx - Status: 304 (2901ms)
+➡️  [REQ] GET /src/components/ui/feedback-panel.tsx
+➡️  [REQ] GET /src/assets/generated_images/smartwatch_with_ai_chat_interface.png?import
+➡️  [REQ] GET /src/assets/generated_images/watch_voice_command_interface.png?import
+➡️  [REQ] GET /src/assets/generated_images/watch_and_laptop_collaborative_editing.png?import
+➡️  [REQ] GET /src/assets/generated_images/ar_smart_glasses_with_holographic_display.png?import
+➡️  [REQ] GET /src/hooks/use-voice-activity-detection.ts
+➡️  [REQ] GET /src/assets/generated_images/realistic_rack_back_with_ar_overlay.png?import
+➡️  [REQ] GET /src/assets/generated_images/realistic_ar_router_identification_pov.png?import
+➡️  [REQ] GET /src/assets/generated_images/realistic_cable_nightmare_with_ar_trace.png?import
+➡️  [REQ] GET /src/components/protected-route.tsx
+⬅️  [RES] GET /src/assets/generated_images/smartwatch_with_ai_chat_interface.png?import - Status: 304 (11ms)
+⬅️  [RES] GET /src/assets/generated_images/watch_voice_command_interface.png?import - Status: 304 (12ms)
+⬅️  [RES] GET /src/assets/generated_images/watch_and_laptop_collaborative_editing.png?import - Status: 304 (14ms)
+⬅️  [RES] GET /src/assets/generated_images/ar_smart_glasses_with_holographic_display.png?import - Status: 304 (18ms)
+⬅️  [RES] GET /src/assets/generated_images/realistic_rack_back_with_ar_overlay.png?import - Status: 304 (19ms)
+⬅️  [RES] GET /src/assets/generated_images/realistic_ar_router_identification_pov.png?import - Status: 304 (20ms)
+⬅️  [RES] GET /src/assets/generated_images/realistic_cable_nightmare_with_ar_trace.png?import - Status: 304 (20ms)
+⬅️  [RES] GET /src/pages/rag-debug.tsx - Status: 304 (4400ms)
+⬅️  [RES] GET /src/components/ui/tooltip.tsx - Status: 304 (9652ms)
+⬅️  [RES] GET /src/components/protected-route.tsx - Status: 304 (83ms)
+⬅️  [RES] GET /src/contexts/tts-context.tsx - Status: 304 (572ms)
+⬅️  [RES] GET /src/contexts/LocalDriveContext.tsx - Status: 304 (261ms)
+⬅️  [RES] GET /src/components/ui/local-drive-button.tsx - Status: 304 (3895ms)
+➡️  [REQ] GET /src/components/ui/dialog.tsx
+➡️  [REQ] GET /src/pages/audio-settings.tsx
+⬅️  [RES] GET /src/pages/audio-settings.tsx - Status: 304 (2ms)
+➡️  [REQ] GET /src/pages/music-generation.tsx
+⬅️  [RES] GET /src/pages/music-generation.tsx - Status: 304 (5ms)
+⬅️  [RES] GET /src/pages/schedules.tsx - Status: 304 (4901ms)
+⬅️  [RES] GET /src/components/ui/verbosity-slider.tsx - Status: 304 (4342ms)
+⬅️  [RES] GET /src/components/ui/textarea.tsx - Status: 304 (4342ms)
+⬅️  [RES] GET /src/components/ui/scroll-area.tsx - Status: 304 (4344ms)
+⬅️  [RES] GET /src/components/chat/input-area.tsx - Status: 304 (4357ms)
+⬅️  [RES] GET /src/hooks/useAuth.ts - Status: 304 (4351ms)
+⬅️  [RES] GET /src/components/chat/message.tsx - Status: 304 (4373ms)
+➡️  [REQ] GET /src/components/rag/TraceList.tsx
+➡️  [REQ] GET /src/components/rag/MetricsDashboard.tsx
+➡️  [REQ] GET /src/lib/file-picker.ts
+➡️  [REQ] GET /src/lib/local-drive-store.ts
+➡️  [REQ] GET /src/pages/evolution.tsx
+⬅️  [RES] GET /src/pages/evolution.tsx - Status: 304 (3ms)
+⬅️  [RES] GET /src/components/ui/enhanced-markdown.tsx - Status: 304 (806ms)
+⬅️  [RES] GET /src/components/ui/feedback-panel.tsx - Status: 304 (662ms)
+⬅️  [RES] GET /src/hooks/use-voice-activity-detection.ts - Status: 304 (673ms)
+⬅️  [RES] GET /src/components/ui/dialog.tsx - Status: 304 (559ms)
+➡️  [REQ] GET /src/pages/proposal-desktop-collaboration.tsx
+⬅️  [RES] GET /src/pages/proposal-desktop-collaboration.tsx - Status: 304 (6ms)
+➡️  [REQ] GET /src/pages/voice-lab.tsx
+⬅️  [RES] GET /src/pages/voice-lab.tsx - Status: 304 (2ms)
+⬅️  [RES] GET /src/lib/local-drive-store.ts - Status: 304 (217ms)
+⬅️  [RES] GET /src/lib/file-picker.ts - Status: 304 (218ms)
+⬅️  [RES] GET /src/components/rag/MetricsDashboard.tsx - Status: 304 (234ms)
+⬅️  [RES] GET /src/components/rag/TraceList.tsx - Status: 304 (235ms)
+➡️  [REQ] GET /src/components/ui/dropdown-menu.tsx
+➡️  [REQ] GET /src/hooks/use-voice.ts
+➡️  [REQ] GET /src/components/rag/SourceCitation.tsx
+➡️  [REQ] GET /src/pages/workspace.tsx
+⬅️  [RES] GET /src/pages/workspace.tsx - Status: 304 (7ms)
+⬅️  [RES] GET /src/hooks/use-voice.ts - Status: 304 (39ms)
+⬅️  [RES] GET /src/components/ui/dropdown-menu.tsx - Status: 304 (43ms)
+⬅️  [RES] GET /src/components/rag/SourceCitation.tsx - Status: 304 (49ms)
+➡️  [REQ] GET /src/lib/queryClient.ts
+⬅️  [RES] GET /src/lib/queryClient.ts - Status: 304 (2ms)
+➡️  [REQ] GET /src/pages/task-queue.tsx
+⬅️  [RES] GET /src/pages/task-queue.tsx - Status: 304 (3ms)
+➡️  [REQ] GET /src/pages/image-generation.tsx
+⬅️  [RES] GET /src/pages/image-generation.tsx - Status: 304 (3ms)
+➡️  [REQ] GET /src/components/ui/toaster.tsx
+⬅️  [RES] GET /src/components/ui/toaster.tsx - Status: 304 (3ms)
+➡️  [REQ] GET /src/components/ui/button.tsx
+⬅️  [RES] GET /src/components/ui/button.tsx - Status: 304 (4ms)
+➡️  [REQ] GET /src/components/ui/select.tsx
+⬅️  [RES] GET /src/components/ui/select.tsx - Status: 304 (1ms)
+➡️  [REQ] GET /src/components/ui/input.tsx
+⬅️  [RES] GET /src/components/ui/input.tsx - Status: 304 (1ms)
+➡️  [REQ] GET /src/components/chat/sidebar.tsx
+⬅️  [RES] GET /src/components/chat/sidebar.tsx - Status: 304 (2ms)
+➡️  [REQ] GET /src/components/ui/badge.tsx
+⬅️  [RES] GET /src/components/ui/badge.tsx - Status: 304 (1ms)
+➡️  [REQ] GET /src/components/ui/collapsible.tsx
+⬅️  [RES] GET /src/components/ui/collapsible.tsx - Status: 304 (3ms)
+➡️  [REQ] GET /src/components/ui/switch.tsx
+⬅️  [RES] GET /src/components/ui/switch.tsx - Status: 304 (1ms)
+➡️  [REQ] GET /src/components/ui/label.tsx
+⬅️  [RES] GET /src/components/ui/label.tsx - Status: 304 (1ms)
+➡️  [REQ] GET /src/components/ui/slider.tsx
+⬅️  [RES] GET /src/components/ui/slider.tsx - Status: 304 (2ms)
+➡️  [REQ] GET /src/components/ui/progress.tsx
+⬅️  [RES] GET /src/components/ui/progress.tsx - Status: 304 (1ms)
+➡️  [REQ] GET /src/components/ui/tabs.tsx
+⬅️  [RES] GET /src/components/ui/tabs.tsx - Status: 304 (2ms)
+➡️  [REQ] GET /src/lib/utils.ts
+⬅️  [RES] GET /src/lib/utils.ts - Status: 304 (2ms)
+➡️  [REQ] GET /@fs/workspaces/Meowstik/node_modules/.pnpm/@xterm+xterm@6.0.0/node_modules/@xterm/xterm/css/xterm.css
+⬅️  [RES] GET /@fs/workspaces/Meowstik/node_modules/.pnpm/@xterm+xterm@6.0.0/node_modules/@xterm/xterm/css/xterm.css - Status: 304 (3ms)
+➡️  [REQ] GET /src/hooks/use-toast.ts
+⬅️  [RES] GET /src/hooks/use-toast.ts - Status: 304 (1ms)
+➡️  [REQ] GET /src/assets/generated_images/watch_hero_banner_with_ai_features.png?import
+⬅️  [RES] GET /src/assets/generated_images/watch_hero_banner_with_ai_features.png?import - Status: 304 (2ms)
+➡️  [REQ] GET /src/components/ui/card.tsx
+⬅️  [RES] GET /src/components/ui/card.tsx - Status: 304 (1ms)
+➡️  [REQ] GET /src/hooks/use-silence-detection.ts
+⬅️  [RES] GET /src/hooks/use-silence-detection.ts - Status: 304 (2ms)
+➡️  [REQ] GET /src/components/ui/separator.tsx
+⬅️  [RES] GET /src/components/ui/separator.tsx - Status: 304 (2ms)
+➡️  [REQ] GET /src/hooks/use-speech-recognition.ts
+⬅️  [RES] GET /src/hooks/use-speech-recognition.ts - Status: 304 (3ms)
+➡️  [REQ] GET /src/components/ui/checkbox.tsx
+⬅️  [RES] GET /src/components/ui/checkbox.tsx - Status: 304 (2ms)
+➡️  [REQ] GET /src/components/ui/avatar.tsx
+⬅️  [RES] GET /src/components/ui/avatar.tsx - Status: 304 (2ms)
+➡️  [REQ] GET /src/components/ui/resizable.tsx
+⬅️  [RES] GET /src/components/ui/resizable.tsx - Status: 304 (4ms)
+➡️  [REQ] GET /src/components/ui/toast.tsx
+⬅️  [RES] GET /src/components/ui/toast.tsx - Status: 304 (1ms)
+➡️  [REQ] GET /src/hooks/use-app-session.ts
+⬅️  [RES] GET /src/hooks/use-app-session.ts - Status: 304 (1ms)
+➡️  [REQ] GET /api/auth/user
+⬅️  [RES] GET /user - Status: 401 (10ms)
+➡️  [REQ] GET /favicon.png
+⬅️  [RES] GET /favicon.png - Status: 304 (8ms)
+➡️  [REQ] GET /api/auth/google
+⬅️  [RES] GET /google - Status: 302 (10ms)
+➡️  [REQ] GET /settings
+⬅️  [RES] GET / - Status: 200 (24ms)
+➡️  [REQ] GET /api/auth/google/status
+⬅️  [RES] GET / - Status: 200 (13ms)
+➡️  [REQ] GET /@vite/client
+⬅️  [RES] GET /@vite/client - Status: 304 (6ms)
+➡️  [REQ] GET /@react-refresh
+⬅️  [RES] GET /@react-refresh - Status: 304 (3ms)
+➡️  [REQ] GET /src/main.tsx
+⬅️  [RES] GET /src/main.tsx - Status: 304 (1ms)
+➡️  [REQ] GET /@fs/workspaces/Meowstik/node_modules/.pnpm/vite@6.4.1_@types+node@20.19.33_jiti@1.21.7_lightningcss@1.30.2_tsx@4.21.0_yaml@2.8.2/node_modules/vite/dist/client/env.mjs
+⬅️  [RES] GET /@fs/workspaces/Meowstik/node_modules/.pnpm/vite@6.4.1_@types+node@20.19.33_jiti@1.21.7_lightningcss@1.30.2_tsx@4.21.0_yaml@2.8.2/node_modules/vite/dist/client/env.mjs - Status: 304 (3ms)
+➡️  [REQ] GET /src/index.css
+⬅️  [RES] GET /src/index.css - Status: 304 (5ms)
+➡️  [REQ] GET /src/App.tsx
+⬅️  [RES] GET /src/App.tsx - Status: 304 (3ms)
+➡️  [REQ] GET /src/lib/queryClient.ts
+⬅️  [RES] GET /src/lib/queryClient.ts - Status: 304 (3ms)
+➡️  [REQ] GET /src/components/ui/toaster.tsx
+⬅️  [RES] GET /src/components/ui/toaster.tsx - Status: 304 (4ms)
+➡️  [REQ] GET /src/components/ui/tooltip.tsx
+⬅️  [RES] GET /src/components/ui/tooltip.tsx - Status: 304 (3ms)
+➡️  [REQ] GET /src/pages/not-found.tsx
+⬅️  [RES] GET /src/pages/not-found.tsx - Status: 304 (5ms)
+➡️  [REQ] GET /src/pages/home.tsx
+⬅️  [RES] GET /src/pages/home.tsx - Status: 304 (2ms)
+➡️  [REQ] GET /src/pages/google-services.tsx
+⬅️  [RES] GET /src/pages/google-services.tsx - Status: 304 (2ms)
+➡️  [REQ] GET /src/pages/help.tsx
+⬅️  [RES] GET /src/pages/help.tsx - Status: 304 (3ms)
+➡️  [REQ] GET /src/pages/music-generation.tsx
+⬅️  [RES] GET /src/pages/music-generation.tsx - Status: 304 (2ms)
+➡️  [REQ] GET /src/pages/image-generation.tsx
+⬅️  [RES] GET /src/pages/image-generation.tsx - Status: 304 (3ms)
+➡️  [REQ] GET /src/pages/terminal.tsx
+⬅️  [RES] GET /src/pages/terminal.tsx - Status: 304 (2ms)
+➡️  [REQ] GET /src/pages/editor.tsx
+⬅️  [RES] GET /src/pages/editor.tsx - Status: 304 (4ms)
+➡️  [REQ] GET /src/pages/debug.tsx
+⬅️  [RES] GET /src/pages/debug.tsx - Status: 304 (4ms)
+➡️  [REQ] GET /src/pages/preview.tsx
+⬅️  [RES] GET /src/pages/preview.tsx - Status: 304 (1ms)
+➡️  [REQ] GET /src/pages/python-sandbox.tsx
+⬅️  [RES] GET /src/pages/python-sandbox.tsx - Status: 304 (6ms)
+➡️  [REQ] GET /src/pages/settings.tsx
+⬅️  [RES] GET /src/pages/settings.tsx - Status: 304 (3ms)
+➡️  [REQ] GET /src/pages/web-search.tsx
+⬅️  [RES] GET /src/pages/web-search.tsx - Status: 304 (4ms)
+➡️  [REQ] GET /src/pages/knowledge-ingestion.tsx
+⬅️  [RES] GET /src/pages/knowledge-ingestion.tsx - Status: 304 (6ms)
+➡️  [REQ] GET /src/pages/markdown-playground.tsx
+⬅️  [RES] GET /src/pages/markdown-playground.tsx - Status: 304 (2ms)
+➡️  [REQ] GET /src/pages/evolution.tsx
+⬅️  [RES] GET /src/pages/evolution.tsx - Status: 304 (1ms)
+➡️  [REQ] GET /src/pages/task-queue.tsx
+⬅️  [RES] GET /src/pages/task-queue.tsx - Status: 304 (2ms)
+➡️  [REQ] GET /src/pages/schedules.tsx
+⬅️  [RES] GET /src/pages/schedules.tsx - Status: 304 (6ms)
+➡️  [REQ] GET /src/pages/database-explorer.tsx
+⬅️  [RES] GET /src/pages/database-explorer.tsx - Status: 304 (4ms)
+➡️  [REQ] GET /src/pages/browser.tsx
+⬅️  [RES] GET /src/pages/browser.tsx - Status: 304 (4ms)
+➡️  [REQ] GET /src/pages/live.tsx
+⬅️  [RES] GET /src/pages/live.tsx - Status: 304 (1ms)
+➡️  [REQ] GET /src/pages/glasses.tsx
+⬅️  [RES] GET /src/pages/glasses.tsx - Status: 304 (2ms)
+➡️  [REQ] GET /src/pages/collaborate.tsx
+➡️  [REQ] GET /src/pages/proposal-desktop-collaboration.tsx
+⬅️  [RES] GET /src/pages/collaborate.tsx - Status: 304 (10ms)
+⬅️  [RES] GET /src/pages/proposal-desktop-collaboration.tsx - Status: 304 (11ms)
+➡️  [REQ] GET /src/pages/workspace.tsx
+➡️  [REQ] GET /src/pages/watch.tsx
+⬅️  [RES] GET /src/pages/workspace.tsx - Status: 304 (7ms)
+⬅️  [RES] GET /src/pages/watch.tsx - Status: 304 (8ms)
+➡️  [REQ] GET /src/pages/vision.tsx
+⬅️  [RES] GET /src/pages/vision.tsx - Status: 304 (2ms)
+➡️  [REQ] GET /src/pages/landing.tsx
+⬅️  [RES] GET /src/pages/landing.tsx - Status: 304 (2ms)
+➡️  [REQ] GET /src/pages/audio-settings.tsx
+⬅️  [RES] GET /src/pages/audio-settings.tsx - Status: 304 (5ms)
+➡️  [REQ] GET /src/pages/agent-settings.tsx
+➡️  [REQ] GET /src/pages/voice-lab.tsx
+➡️  [REQ] GET /src/pages/login.tsx
+➡️  [REQ] GET /src/pages/docs.tsx
+⬅️  [RES] GET /src/pages/agent-settings.tsx - Status: 304 (15ms)
+⬅️  [RES] GET /src/pages/voice-lab.tsx - Status: 304 (23ms)
+⬅️  [RES] GET /src/pages/login.tsx - Status: 304 (19ms)
+⬅️  [RES] GET /src/pages/docs.tsx - Status: 304 (22ms)
+➡️  [REQ] GET /src/pages/sound-settings.tsx
+➡️  [REQ] GET /src/pages/install.tsx
+➡️  [REQ] GET /src/pages/rag-debug.tsx
+➡️  [REQ] GET /src/pages/communications.tsx
+➡️  [REQ] GET /src/contexts/tts-context.tsx
+➡️  [REQ] GET /src/contexts/LocalDriveContext.tsx
+➡️  [REQ] GET /src/components/protected-route.tsx
+⬅️  [RES] GET /src/pages/sound-settings.tsx - Status: 304 (10ms)
+⬅️  [RES] GET /src/pages/install.tsx - Status: 304 (14ms)
+⬅️  [RES] GET /src/pages/rag-debug.tsx - Status: 304 (14ms)
+⬅️  [RES] GET /src/pages/communications.tsx - Status: 304 (12ms)
+⬅️  [RES] GET /src/contexts/tts-context.tsx - Status: 304 (18ms)
+⬅️  [RES] GET /src/contexts/LocalDriveContext.tsx - Status: 304 (20ms)
+⬅️  [RES] GET /src/components/protected-route.tsx - Status: 304 (28ms)
+➡️  [REQ] GET /src/hooks/use-toast.ts
+⬅️  [RES] GET /src/hooks/use-toast.ts - Status: 304 (2ms)
+➡️  [REQ] GET /src/components/ui/toast.tsx
+⬅️  [RES] GET /src/components/ui/toast.tsx - Status: 304 (1ms)
+➡️  [REQ] GET /src/lib/utils.ts
+⬅️  [RES] GET /src/lib/utils.ts - Status: 304 (3ms)
+➡️  [REQ] GET /src/components/ui/button.tsx
+⬅️  [RES] GET /src/components/ui/button.tsx - Status: 304 (3ms)
+➡️  [REQ] GET /src/components/ui/scroll-area.tsx
+⬅️  [RES] GET /src/components/ui/scroll-area.tsx - Status: 304 (3ms)
+➡️  [REQ] GET /src/components/ui/badge.tsx
+⬅️  [RES] GET /src/components/ui/badge.tsx - Status: 304 (3ms)
+➡️  [REQ] GET /src/components/ui/collapsible.tsx
+⬅️  [RES] GET /src/components/ui/collapsible.tsx - Status: 304 (3ms)
+➡️  [REQ] GET /src/components/chat/sidebar.tsx
+⬅️  [RES] GET /src/components/chat/sidebar.tsx - Status: 304 (2ms)
+➡️  [REQ] GET /src/components/chat/message.tsx
+⬅️  [RES] GET /src/components/chat/message.tsx - Status: 304 (2ms)
+➡️  [REQ] GET /src/components/chat/input-area.tsx
+⬅️  [RES] GET /src/components/chat/input-area.tsx - Status: 304 (3ms)
+➡️  [REQ] GET /src/components/ui/verbosity-slider.tsx
+⬅️  [RES] GET /src/components/ui/verbosity-slider.tsx - Status: 304 (1ms)
+➡️  [REQ] GET /src/components/ui/local-drive-button.tsx
+⬅️  [RES] GET /src/components/ui/local-drive-button.tsx - Status: 304 (3ms)
+➡️  [REQ] GET /src/assets/generated_images/cute_cat_logo_icon.png?import
+⬅️  [RES] GET /src/assets/generated_images/cute_cat_logo_icon.png?import - Status: 304 (2ms)
+➡️  [REQ] GET /src/components/ui/input.tsx
+⬅️  [RES] GET /src/components/ui/input.tsx - Status: 304 (5ms)
+➡️  [REQ] GET /src/hooks/useAuth.ts
+⬅️  [RES] GET /src/hooks/useAuth.ts - Status: 304 (1ms)
+➡️  [REQ] GET /src/components/ui/slider.tsx
+⬅️  [RES] GET /src/components/ui/slider.tsx - Status: 304 (3ms)
+➡️  [REQ] GET /src/components/ui/label.tsx
+⬅️  [RES] GET /src/components/ui/label.tsx - Status: 304 (5ms)
+➡️  [REQ] GET /src/components/ui/select.tsx
+⬅️  [RES] GET /src/components/ui/select.tsx - Status: 304 (1ms)
+➡️  [REQ] GET /src/components/ui/tabs.tsx
+⬅️  [RES] GET /src/components/ui/tabs.tsx - Status: 304 (15ms)
+➡️  [REQ] GET /src/components/ui/textarea.tsx
+⬅️  [RES] GET /src/components/ui/textarea.tsx - Status: 304 (5ms)
+➡️  [REQ] GET /@fs/workspaces/Meowstik/node_modules/.pnpm/@xterm+xterm@6.0.0/node_modules/@xterm/xterm/css/xterm.css
+⬅️  [RES] GET /@fs/workspaces/Meowstik/node_modules/.pnpm/@xterm+xterm@6.0.0/node_modules/@xterm/xterm/css/xterm.css - Status: 304 (4ms)
+➡️  [REQ] GET /src/components/ui/progress.tsx
+⬅️  [RES] GET /src/components/ui/progress.tsx - Status: 304 (3ms)
+➡️  [REQ] GET /src/components/ui/enhanced-markdown.tsx
+⬅️  [RES] GET /src/components/ui/enhanced-markdown.tsx - Status: 304 (1ms)
+➡️  [REQ] GET /src/components/ui/feedback-panel.tsx
+⬅️  [RES] GET /src/components/ui/feedback-panel.tsx - Status: 304 (3ms)
+➡️  [REQ] GET /src/components/ui/checkbox.tsx
+⬅️  [RES] GET /src/components/ui/checkbox.tsx - Status: 304 (3ms)
+➡️  [REQ] GET /src/components/ui/dialog.tsx
+⬅️  [RES] GET /src/components/ui/dialog.tsx - Status: 304 (1ms)
+➡️  [REQ] GET /src/components/ui/switch.tsx
+⬅️  [RES] GET /src/components/ui/switch.tsx - Status: 304 (3ms)
+➡️  [REQ] GET /src/hooks/use-voice-activity-detection.ts
+⬅️  [RES] GET /src/hooks/use-voice-activity-detection.ts - Status: 304 (2ms)
+➡️  [REQ] GET /src/hooks/use-speech-recognition.ts
+⬅️  [RES] GET /src/hooks/use-speech-recognition.ts - Status: 304 (3ms)
+➡️  [REQ] GET /src/assets/generated_images/ar_smart_glasses_with_holographic_display.png?import
+⬅️  [RES] GET /src/assets/generated_images/ar_smart_glasses_with_holographic_display.png?import - Status: 304 (4ms)
+➡️  [REQ] GET /src/assets/generated_images/realistic_ar_router_identification_pov.png?import
+⬅️  [RES] GET /src/assets/generated_images/realistic_ar_router_identification_pov.png?import - Status: 304 (6ms)
+➡️  [REQ] GET /src/assets/generated_images/realistic_rack_back_with_ar_overlay.png?import
+⬅️  [RES] GET /src/assets/generated_images/realistic_rack_back_with_ar_overlay.png?import - Status: 304 (4ms)
+➡️  [REQ] GET /src/assets/generated_images/realistic_cable_nightmare_with_ar_trace.png?import
+⬅️  [RES] GET /src/assets/generated_images/realistic_cable_nightmare_with_ar_trace.png?import - Status: 304 (3ms)
+➡️  [REQ] GET /src/components/ui/card.tsx
+⬅️  [RES] GET /src/components/ui/card.tsx - Status: 304 (3ms)
+➡️  [REQ] GET /src/components/ui/separator.tsx
+⬅️  [RES] GET /src/components/ui/separator.tsx - Status: 304 (4ms)
+➡️  [REQ] GET /src/hooks/use-silence-detection.ts
+⬅️  [RES] GET /src/hooks/use-silence-detection.ts - Status: 304 (3ms)
+➡️  [REQ] GET /src/components/ui/dropdown-menu.tsx
+⬅️  [RES] GET /src/components/ui/dropdown-menu.tsx - Status: 304 (2ms)
+➡️  [REQ] GET /src/lib/file-picker.ts
+⬅️  [RES] GET /src/lib/file-picker.ts - Status: 304 (4ms)
+➡️  [REQ] GET /src/lib/local-drive-store.ts
+⬅️  [RES] GET /src/lib/local-drive-store.ts - Status: 304 (6ms)
+➡️  [REQ] GET /src/components/ui/resizable.tsx
+⬅️  [RES] GET /src/components/ui/resizable.tsx - Status: 304 (2ms)
+➡️  [REQ] GET /src/assets/generated_images/watch_hero_banner_with_ai_features.png?import
+⬅️  [RES] GET /src/assets/generated_images/watch_hero_banner_with_ai_features.png?import - Status: 304 (1ms)
+➡️  [REQ] GET /src/assets/generated_images/smartwatch_with_ai_chat_interface.png?import
+⬅️  [RES] GET /src/assets/generated_images/smartwatch_with_ai_chat_interface.png?import - Status: 304 (4ms)
+➡️  [REQ] GET /src/assets/generated_images/watch_voice_command_interface.png?import
+⬅️  [RES] GET /src/assets/generated_images/watch_voice_command_interface.png?import - Status: 304 (1ms)
+➡️  [REQ] GET /src/assets/generated_images/watch_and_laptop_collaborative_editing.png?import
+⬅️  [RES] GET /src/assets/generated_images/watch_and_laptop_collaborative_editing.png?import - Status: 304 (1ms)
+➡️  [REQ] GET /src/components/rag/TraceList.tsx
+⬅️  [RES] GET /src/components/rag/TraceList.tsx - Status: 304 (4ms)
+➡️  [REQ] GET /src/components/rag/MetricsDashboard.tsx
+⬅️  [RES] GET /src/components/rag/MetricsDashboard.tsx - Status: 304 (4ms)
+➡️  [REQ] GET /src/components/ui/avatar.tsx
+⬅️  [RES] GET /src/components/ui/avatar.tsx - Status: 304 (4ms)
+➡️  [REQ] GET /src/components/rag/SourceCitation.tsx
+⬅️  [RES] GET /src/components/rag/SourceCitation.tsx - Status: 304 (3ms)
+➡️  [REQ] GET /src/hooks/use-app-session.ts
+⬅️  [RES] GET /src/hooks/use-app-session.ts - Status: 304 (2ms)
+➡️  [REQ] GET /src/hooks/use-voice.ts
+⬅️  [RES] GET /src/hooks/use-voice.ts - Status: 304 (2ms)
+➡️  [REQ] GET /api/auth/user
+⬅️  [RES] GET /user - Status: 401 (5ms)
+➡️  [REQ] GET /favicon.png
+⬅️  [RES] GET /favicon.png - Status: 304 (4ms)
+➡️  [REQ] GET /favicon.png
+⬅️  [RES] GET /favicon.png - Status: 304 (3ms)
+➡️  [REQ] GET /api/auth/google
+⬅️  [RES] GET /google - Status: 302 (3ms)
