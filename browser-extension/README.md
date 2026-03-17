@@ -29,7 +29,7 @@ AI-powered browser assistant with voice, screen capture, and automation capabili
 
 1. Click the Meowstik extension icon
 2. Go to Settings tab
-3. Enter your server URL (default: `wss://meowstik.replit.app`)
+3. Enter your server URL (default: `wss://your-app-url.com`)
 4. Click "Connect"
 
 ## Keyboard Shortcuts

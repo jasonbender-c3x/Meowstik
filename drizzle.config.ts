@@ -9,6 +9,7 @@ export default defineConfig({
   schema: "./shared/schema.ts",
   dialect: "postgresql",
   dbCredentials: {
-    url: process.env.DATABASE_URL,
+    url: process.env.DATABASE_URL!,
   },
+  driver: process.env.DATABASE_URL?.startsWith("file:") ? "pglite" : undefined,
 });

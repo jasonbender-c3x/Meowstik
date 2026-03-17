@@ -7,13 +7,12 @@
 4. [Roadmap: Local Database Backup](#4-roadmap-local-database-backup)
 5. [Connecting to Databases](#5-connecting-to-databases)
 6. [Secrets Management](#6-secrets-management)
-7. [Bypassing Replit Login](#7-bypassing-replit-login)
-8. [Required Stack for Local Dev](#8-required-stack-for-local-dev)
-9. [Self-Hosting](#9-self-hosting)
-10. [MCP Servers](#10-mcp-servers)
-11. [Chrome DevTools (Port 9222)](#11-chrome-devtools-port-9222)
-12. [Virtual Framebuffer & Streaming](#12-virtual-framebuffer--streaming)
-13. [Testing Twilio SMS Locally](#13-testing-twilio-sms-locally)
+7. [Required Stack for Local Dev](#7-required-stack-for-local-dev)
+8. [Self-Hosting](#8-self-hosting)
+9. [MCP Servers](#9-mcp-servers)
+10. [Chrome DevTools (Port 9222)](#10-chrome-devtools-port-9222)
+11. [Virtual Framebuffer & Streaming](#11-virtual-framebuffer--streaming)
+12. [Testing Twilio SMS Locally](#12-testing-twilio-sms-locally)
 
 ---
 
@@ -22,7 +21,7 @@
 ### Prerequisites
 - Node.js 20+ (`node --version`)
 - PostgreSQL 15+ (local or Docker)
-- npm or pnpm
+- pnpm (recommended) or npm
 
 ### Step-by-Step
 
@@ -31,8 +30,8 @@
 git clone https://github.com/YOUR_ORG/meowstik.git
 cd meowstik
 
-# 2. Install dependencies
-npm install
+# 2. Install dependencies (using pnpm)
+pnpm install
 
 # 3. Set up environment
 cp .env.example .env
@@ -57,10 +56,11 @@ docker run -d --name meowstik-db \
 npm run db:push
 
 # 7. Start the development server
-npm run dev
+pnpm run dev
 ```
 
 The app runs at `http://localhost:5000` with hot reload enabled.
+*Note: The `dev` script automatically clears port 5000 if it's in use.*
 
 ---
 
@@ -136,7 +136,7 @@ Create `.vscode/launch.json`:
 | RAG Debug | `/api/debug/rag/traces` | Retrieval pipeline traces |
 | API Request Logs | Server console | Middleware logs each request |
 | Browser Console | DevTools (F12) | Frontend errors and debug |
-| Workflow Logs | `/tmp/logs/` | Replit-specific (not local) |
+| Workflow Logs | `/tmp/logs/` | Standard Logs |
 
 ### Key Log Files in `logs/`
 
@@ -270,7 +270,7 @@ volumes:
 ### Remote/Managed Databases
 
 ```bash
-# Neon (used by Replit)
+# Neon (PostgreSQL Serverless)
 DATABASE_URL=postgresql://user:pass@ep-xxx.us-east-2.aws.neon.tech/meowstik?sslmode=require
 
 # Supabase
@@ -381,48 +381,9 @@ direnv allow
 
 ---
 
-## 7. Bypassing Replit Login
 
-For local development, bypass the Replit OAuth:
 
-### Option 1: Environment Flag
-
-```bash
-# .env
-BYPASS_AUTH=true
-```
-
-Update auth middleware:
-```typescript
-// server/middleware/auth.ts
-if (process.env.BYPASS_AUTH === 'true') {
-  req.user = { id: 'local-dev', email: 'dev@localhost' };
-  return next();
-}
-```
-
-### Option 2: Local Session
-
-```typescript
-// server/routes/auth.ts
-if (process.env.NODE_ENV === 'development' && process.env.BYPASS_AUTH) {
-  router.get('/api/auth/user', (req, res) => {
-    res.json({
-      id: 'local-dev-user',
-      email: 'developer@localhost',
-      name: 'Local Developer'
-    });
-  });
-}
-```
-
-### Option 3: Mock OAuth Flow
-
-Create a local login page that sets session directly without external OAuth.
-
----
-
-## 8. Required Stack for Local Dev
+## 7. Required Stack for Local Dev
 
 ### System Requirements
 
@@ -444,12 +405,12 @@ npm run db:studio  # Open Drizzle Studio
 npm test           # Run tests
 ```
 
-### Dockerfile Alternative to replit.nix
+### Dockerfile Alternative
 
 ```dockerfile
 FROM node:20-slim
 
-# System dependencies (replaces replit.nix packages)
+# System dependencies
 RUN apt-get update && apt-get install -y \
   chromium \
   xvfb \
@@ -506,7 +467,7 @@ Create `.devcontainer/devcontainer.json`:
 
 ---
 
-## 9. Self-Hosting
+## 8. Self-Hosting
 
 ### Docker Compose Production Stack
 
@@ -578,7 +539,7 @@ git pull && docker-compose -f docker-compose.prod.yml up -d --build
 
 ---
 
-## 10. MCP Servers
+## 9. MCP Servers
 
 MCP (Model Context Protocol) servers provide tool access to AI models.
 
@@ -630,7 +591,7 @@ FIGMA_ACCESS_TOKEN=xxx
 
 ---
 
-## 11. Chrome DevTools (Port 9222)
+## 10. Chrome DevTools (Port 9222)
 
 ### Starting Chrome with Remote Debugging
 
@@ -671,7 +632,7 @@ Never expose port 9222 to the internet - it allows full browser control.
 
 ---
 
-## 12. Virtual Framebuffer & Streaming
+## 11. Virtual Framebuffer & Streaming
 
 ### Xvfb Setup (Headless Display)
 
@@ -758,7 +719,7 @@ const stream = await navigator.mediaDevices.getDisplayMedia({
 
 ---
 
-## 13. Testing Twilio SMS Locally
+## 12. Testing Twilio SMS Locally
 
 ### Overview
 
@@ -960,7 +921,7 @@ This sends mock webhook data to your local server for testing.
 
 When deploying to production:
 
-1. Deploy to a permanent HTTPS domain (Replit, Vercel, Railway, etc.)
+1. Deploy to a permanent HTTPS domain (Vercel, Railway, etc.)
 2. Set `NODE_ENV=production` in environment variables
 3. Update Twilio webhook URL to production domain
 4. Signature validation will reject invalid requests (no bypass)

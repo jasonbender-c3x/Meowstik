@@ -20,7 +20,7 @@ import type { JobPayload } from "./job-queue";
 
 export interface WorkerConfig {
   name: string;
-  model: "gemini-3-flash-preview" | "gemini-3.1-pro-preview";
+  model: "gemini-2.5-pro" | "gemini-1.5-pro";
   maxConcurrency: number;
   heartbeatIntervalMs: number;
 }
@@ -34,7 +34,7 @@ export interface JobExecutionResult {
 
 const DEFAULT_CONFIG: WorkerConfig = {
   name: "agent-worker",
-  model: "gemini-3-flash-preview",
+  model: "gemini-2.5-pro",
   maxConcurrency: 1,
   heartbeatIntervalMs: 30000,
 };

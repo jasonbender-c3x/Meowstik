@@ -11,13 +11,6 @@ Look for files marked as "both modified" or "unmerged".
 
 ### Step 2: Quick Fix for Common Files
 
-**For .replit and replit.nix:**
-```bash
-# Keep your version (what's in Replit now)
-git checkout --ours .replit replit.nix
-git add .replit replit.nix
-```
-
 **For package-lock.json:**
 ```bash
 # Regenerate it
@@ -217,7 +210,6 @@ git remote -v
 ## 📚 More Resources
 
 - **Full Guide:** `docs/MERGE_CONFLICT_RESOLUTION.md`
-- **Replit Specific:** `docs/REPLIT_GIT_WORKFLOW.md`
 - **Check Conflicts:** `./scripts/check-merge-conflicts.sh`
 
 ---
@@ -241,7 +233,7 @@ git remote -v
    
    <footer>
    ```
-   Example: `fix: resolve merge conflict in .replit file`
+   Example: `fix: resolve merge conflict in package.json`
 
 2. **See what changed in a commit:**
    ```bash
@@ -304,24 +296,6 @@ git log -p -- filename
 
 ---
 
-## 📱 Quick Replit Commands
-
-```bash
-# In Replit Shell
-
-# Check if Replit can connect to GitHub
-git remote -v
-
-# See Replit's Git settings
-git config --list | grep user
-
-# Force reload from GitHub (DESTRUCTIVE)
-git fetch origin
-git reset --hard origin/main
-```
-
----
-
 **Remember:** When in doubt, check status first!
 ```bash
 git status
@@ -329,4 +303,3 @@ git status
 
 This card is a quick reference. For detailed explanations, see:
 - `docs/MERGE_CONFLICT_RESOLUTION.md`
-- `docs/REPLIT_GIT_WORKFLOW.md`

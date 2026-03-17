@@ -124,25 +124,21 @@ const ALL_TOOLS: ToolDef[] = [
   { name: "search", params: "query:string, scope?", category: "search" },
   { name: "web_search", params: "query:string, maxTokens?, searchRecency?, domains?", category: "search" },
   { name: "google_search", params: "query:string, maxResults?", category: "search" },
-  { name: "duckduckgo_search", params: "query:string, maxResults?", category: "search" },
-  { name: "browser_scrape", params: "url:string, selector?, waitFor?", category: "search" },
-  { name: "tavily_search", params: "query:string, searchDepth?, maxResults?", category: "search" },
-  { name: "tavily_qna", params: "query:string", category: "search" },
-  { name: "tavily_research", params: "query:string, topic?", category: "search" },
-  { name: "perplexity_search", params: "query:string, model?", category: "search" },
-  { name: "perplexity_quick", params: "query:string", category: "search" },
-  { name: "perplexity_research", params: "query:string", category: "search" },
-  { name: "perplexity_news", params: "query:string", category: "search" },
+  { name: "exa_search", params: "query:string, maxResults?, useAutoprompt?, type?", category: "search" },
   
   // === HTTP CLIENT (3) ===
   { name: "http_get", params: "url:string, headers?:object, params?:object, timeout?:number", category: "search" },
   { name: "http_post", params: "url:string, headers?:object, body:string|object, timeout?:number", category: "search" },
   { name: "http_put", params: "url:string, headers?:object, body:string|object, timeout?:number", category: "search" },
   
-  // === BROWSER (3) ===
-  { name: "browserbase_load", params: "url:string, waitFor?", category: "browser" },
-  { name: "browserbase_screenshot", params: "url:string, fullPage?", category: "browser" },
-  { name: "browserbase_action", params: "action:string, selector?, value?", category: "browser" },
+  // === BROWSER (7) ===
+  // Removed browserbase tools
+  { name: "puppeteer_navigate", params: "url:string", category: "browser" },
+  { name: "puppeteer_click", params: "selector:string", category: "browser" },
+  { name: "puppeteer_type", params: "selector:string, text:string", category: "browser" },
+  { name: "puppeteer_screenshot", params: "path:string", category: "browser" },
+  { name: "puppeteer_evaluate", params: "script:string", category: "browser" },
+  { name: "puppeteer_content", params: "(none)", category: "browser" },
   
   // === CONTACTS (6) ===
   { name: "contacts_list", params: "maxResults?:number", category: "contacts" },
@@ -235,7 +231,7 @@ const CATEGORY_KEYWORDS: Record<ToolCategory, string[]> = {
   sheets: ["sheet", "spreadsheet", "excel", "data", "table", "cell", "row", "column"],
   tasks: ["task", "todo", "to-do", "checklist", "reminder", "done", "complete"],
   github: ["github", "repo", "repository", "code", "commit", "pull request", "pr", "issue", "branch"],
-  search: ["search", "find", "look up", "google", "web", "internet", "research", "tavily", "perplexity"],
+  search: ["search", "find", "look up", "google", "web", "internet", "research", "exa"],
   file: ["file", "read", "write", "edit", "editor", "code", "save", "open", "terminal", "command", "shell", "run"],
   voice: [], // Removed - no longer used
   sms: ["sms", "text", "message", "phone", "call", "twilio"],

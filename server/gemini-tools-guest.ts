@@ -91,34 +91,23 @@ export const guestToolDeclarations: FunctionDeclaration[] = [
     }
   },
   {
-    name: "duckduckgo_search",
-    description: "Search the web using DuckDuckGo (privacy-focused, no API key needed)",
+    name: "exa_search",
+    description: "Search the web using Exa (neural search engine)",
     parametersJsonSchema: {
       type: "object",
       properties: {
         query: { type: "string", description: "Search query" },
-        maxResults: { type: "number", description: "Max results to return (default: 10)" }
+        maxResults: { type: "number", description: "Max results to return (default: 10)" },
+        useAutoprompt: { type: "boolean", description: "Whether to use autoprompt (default: true)" },
+        type: { type: "string", enum: ["neural", "keyword"], description: "Search type (default: neural)" }
       },
       required: ["query"]
     }
   },
-  // V2: Removed tavily_search and perplexity_search (paid APIs)
+  // V2: Removed duckduckgo_search, tavily_search and perplexity_search
   // Use web_search (free) instead
 
-  // ═══════════════════════════════════════════════════════════════════════════
-  // WEB SCRAPING (Read-only)
-  // ═══════════════════════════════════════════════════════════════════════════
-  {
-    name: "browser_scrape",
-    description: "Scrape content from a web page. Returns cleaned text content.",
-    parametersJsonSchema: {
-      type: "object",
-      properties: {
-        url: { type: "string", description: "URL to scrape" }
-      },
-      required: ["url"]
-    }
-  },
+
 
   // ═══════════════════════════════════════════════════════════════════════════
   // IMAGE GENERATION (Safe creative tools)
@@ -163,9 +152,10 @@ export const guestToolDeclarations: FunctionDeclaration[] = [
 
 // Tools to completely remove (not needed)
 const REMOVED_TOOLS = new Set([
-  // Remove Tavily/Perplexity search tools (not used)
+  // Remove Tavily/Perplexity/DuckDuckGo search tools (not used)
   "tavily_search", "tavily_qna", "tavily_research",
   "perplexity_search", "perplexity_quick", "perplexity_research", "perplexity_news",
+  "duckduckgo_search", "browserbase_load", "browserbase_screenshot", "browserbase_action"
 ]);
 
 /**

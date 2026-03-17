@@ -156,7 +156,7 @@ function sendCommand(ws: WebSocket, command: any): Promise<any> {
  */
 async function planTask(task: string): Promise<{ steps: any[] }> {
   const result = await genAI.models.generateContent({
-    model: "gemini-3-flash-preview-exp",
+    model: "gemini-2.5-pro",
     contents: [
       {
         role: "user",

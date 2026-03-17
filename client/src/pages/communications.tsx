@@ -1,6 +1,6 @@
 /**
- * Communications Page - Unified SMS, Calls, and Voicemail
- * Google Voice-style interface for Twilio integration
+ * Communications Page — Google Voice-style PWA using Twilio
+ * Features: SMS threads, call log, voicemail player, contacts
  */
 
 import { useState, useEffect, useRef } from "react";
@@ -8,8 +8,6 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Textarea } from "@/components/ui/textarea";
@@ -18,40 +16,41 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
   DialogFooter,
 } from "@/components/ui/dialog";
 import {
   MessageSquare,
   Phone,
   Voicemail,
+  Users,
   Send,
   Search,
-  ArrowLeft,
-  PhoneCall,
   PhoneIncoming,
   PhoneOutgoing,
   PhoneMissed,
   Play,
   Pause,
   Loader2,
-  User,
   Plus,
   Delete,
-  Grip,
+  ChevronLeft,
+  Clock,
+  Volume2,
 } from "lucide-react";
-import { Link } from "wouter";
 import { cn } from "@/lib/utils";
-import { formatDistanceToNow } from "date-fns";
+import { formatDistanceToNow, format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
+
+// ── Types ────────────────────────────────────────────────────────────────────
 
 interface Conversation {
   id: string;
   phoneNumber: string;
   contactName: string | null;
   lastMessage: string;
-  lastMessageAt: Date;
+  lastMessageAt: string;
   unreadCount: number;
+  lastDirection: "inbound" | "outbound";
 }
 
 interface Message {
@@ -60,11 +59,11 @@ interface Message {
   to: string;
   body: string;
   direction: "inbound" | "outbound";
-  createdAt: Date;
+  createdAt: string;
   status: string;
 }
 
-interface Call {
+interface CallRecord {
   id: string;
   callSid: string;
   direction: "inbound" | "outbound";
@@ -73,618 +72,1001 @@ interface Call {
   status: string;
   duration: number;
   recordingUrl: string | null;
-  createdAt: Date;
+  createdAt: string;
 }
 
 interface VoicemailItem {
   id: string;
   from: string;
+  to: string;
   recordingUrl: string;
   transcription: string | null;
   duration: number;
   heard: boolean;
-  createdAt: Date;
+  createdAt: string;
 }
 
-export default function CommunicationsPage() {
-  const [activeTab, setActiveTab] = useState("messages");
-  const [selectedConversation, setSelectedConversation] = useState<string | null>(null);
-  const [messageText, setMessageText] = useState("");
-  const [searchQuery, setSearchQuery] = useState("");
-  const [playingVoicemail, setPlayingVoicemail] = useState<string | null>(null);
-  
-  // New State for Dialpad and New Message
-  const [isDialpadOpen, setIsDialpadOpen] = useState(false);
-  const [dialpadNumber, setDialpadNumber] = useState("");
-  const [isNewMessageOpen, setIsNewMessageOpen] = useState(false);
-  const [newMessageNumber, setNewMessageNumber] = useState("");
-  const [newMessageBody, setNewMessageBody] = useState("");
+interface ContactInfo {
+  resourceName: string;
+  displayName: string;
+  emailAddresses?: Array<{ value: string }>;
+  phoneNumbers?: Array<{ value: string }>;
+}
 
-  const { toast } = useToast();
-  const queryClient = useQueryClient();
+// ── Helpers ──────────────────────────────────────────────────────────────────
+
+function formatPhone(phone: string): string {
+  const digits = phone.replace(/\D/g, "");
+  if (digits.length === 11 && digits.startsWith("1")) {
+    const d = digits.slice(1);
+    return `(${d.slice(0, 3)}) ${d.slice(3, 6)}-${d.slice(6)}`;
+  }
+  if (digits.length === 10) {
+    return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
+  }
+  return phone;
+}
+
+function formatDuration(secs: number): string {
+  if (!secs) return "0:00";
+  const m = Math.floor(secs / 60);
+  const s = secs % 60;
+  return `${m}:${String(s).padStart(2, "0")}`;
+}
+
+function initials(name: string | null, phone: string): string {
+  if (name) {
+    return name.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase();
+  }
+  const digits = phone.replace(/\D/g, "");
+  return digits.slice(-2);
+}
+
+function relativeTime(iso: string): string {
+  try {
+    return formatDistanceToNow(new Date(iso), { addSuffix: true });
+  } catch {
+    return "";
+  }
+}
+
+function callStatusLabel(status: string): string {
+  const map: Record<string, string> = {
+    completed: "Completed",
+    "no-answer": "No Answer",
+    "in-progress": "Active",
+    in_progress: "Active",
+    failed: "Failed",
+    busy: "Busy",
+    canceled: "Canceled",
+    ringing: "Ringing",
+  };
+  return map[status] ?? status;
+}
+
+// ── Dialpad Component ────────────────────────────────────────────────────────
+
+function Dialpad({
+  onDigit,
+  onCall,
+  value,
+  loading,
+}: {
+  onDigit: (d: string) => void;
+  onCall: () => void;
+  value: string;
+  loading?: boolean;
+}) {
+  const keys = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "*", "0", "#"];
+  return (
+    <div className="flex flex-col items-center gap-3 p-4">
+      <div className="text-2xl font-mono tracking-widest min-h-[2.5rem] text-center w-full px-2">
+        {value || <span className="text-muted-foreground text-lg">Enter number</span>}
+      </div>
+      <div className="grid grid-cols-3 gap-3">
+        {keys.map((k) => (
+          <button
+            key={k}
+            onClick={() => onDigit(k)}
+            className="w-14 h-14 rounded-full bg-muted hover:bg-muted/80 text-lg font-medium transition-colors"
+          >
+            {k}
+          </button>
+        ))}
+      </div>
+      <div className="flex gap-4 mt-2">
+        <button
+          onClick={() => onDigit("\b")}
+          className="w-14 h-14 rounded-full bg-muted hover:bg-muted/80 flex items-center justify-center"
+        >
+          <Delete className="h-5 w-5" />
+        </button>
+        <button
+          onClick={onCall}
+          disabled={!value || loading}
+          className="w-16 h-16 rounded-full bg-green-500 hover:bg-green-600 disabled:opacity-40 flex items-center justify-center text-white transition-colors"
+        >
+          {loading ? <Loader2 className="h-6 w-6 animate-spin" /> : <Phone className="h-6 w-6" />}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ── Audio Player ─────────────────────────────────────────────────────────────
+
+function AudioPlayer({ url, onPlay }: { url: string; onPlay?: () => void }) {
+  const [playing, setPlaying] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [duration, setDuration] = useState(0);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  // Fetch conversations
-  const { data: conversations = [], isLoading: loadingConversations } = useQuery<Conversation[]>({
+  useEffect(() => {
+    const audio = new Audio(url);
+    audioRef.current = audio;
+    audio.onloadedmetadata = () => setDuration(audio.duration);
+    audio.ontimeupdate = () =>
+      setProgress(audio.duration ? (audio.currentTime / audio.duration) * 100 : 0);
+    audio.onended = () => setPlaying(false);
+    return () => {
+      audio.pause();
+    };
+  }, [url]);
+
+  const toggle = () => {
+    const a = audioRef.current;
+    if (!a) return;
+    if (playing) {
+      a.pause();
+    } else {
+      a.play();
+      onPlay?.();
+    }
+    setPlaying(!playing);
+  };
+
+  return (
+    <div className="flex items-center gap-2 bg-muted/50 rounded-lg px-3 py-2">
+      <button
+        onClick={toggle}
+        className="flex-shrink-0 w-8 h-8 rounded-full bg-primary flex items-center justify-center text-primary-foreground"
+      >
+        {playing ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+      </button>
+      <div className="flex-1">
+        <div className="w-full h-1.5 bg-muted rounded-full overflow-hidden">
+          <div
+            className="h-full bg-primary rounded-full transition-all"
+            style={{ width: `${progress}%` }}
+          />
+        </div>
+      </div>
+      <span className="text-xs text-muted-foreground">{formatDuration(Math.round(duration))}</span>
+    </div>
+  );
+}
+
+// ── Main Page ─────────────────────────────────────────────────────────────────
+
+type Tab = "messages" | "calls" | "voicemail" | "contacts";
+
+export default function CommunicationsPage() {
+  const [activeTab, setActiveTab] = useState<Tab>("messages");
+  const [selectedConv, setSelectedConv] = useState<string | null>(null);
+  const [messageText, setMessageText] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [contactsSearch, setContactsSearch] = useState("");
+  const [showDialpad, setShowDialpad] = useState(false);
+  const [dialpadNumber, setDialpadNumber] = useState("");
+  const [showNewMessage, setShowNewMessage] = useState(false);
+  const [newMsgTo, setNewMsgTo] = useState("");
+  const [newMsgBody, setNewMsgBody] = useState("");
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  // ── Queries ────────────────────────────────────────────────────────────────
+
+  const { data: conversations = [], isLoading: loadingConvs } = useQuery<Conversation[]>({
     queryKey: ["/api/communications/conversations"],
-    refetchInterval: 5000, // Poll every 5 seconds
+    refetchInterval: 5000,
   });
 
-  // Fetch messages for selected conversation
   const { data: messages = [], isLoading: loadingMessages } = useQuery<Message[]>({
-    queryKey: ["/api/communications/conversations", selectedConversation, "messages"],
-    enabled: !!selectedConversation,
+    queryKey: ["/api/communications/conversations", selectedConv, "messages"],
+    queryFn: async () => {
+      if (!selectedConv) return [];
+      const res = await fetch(
+        `/api/communications/conversations/${encodeURIComponent(selectedConv)}/messages`
+      );
+      if (!res.ok) return [];
+      return res.json();
+    },
+    enabled: !!selectedConv,
+    refetchInterval: 3000,
   });
 
-  // Fetch calls
-  const { data: calls = [], isLoading: loadingCalls } = useQuery<Call[]>({
+  const { data: calls = [], isLoading: loadingCalls } = useQuery<CallRecord[]>({
     queryKey: ["/api/communications/calls"],
+    refetchInterval: 10000,
   });
 
-  // Fetch voicemails
   const { data: voicemails = [], isLoading: loadingVoicemails } = useQuery<VoicemailItem[]>({
     queryKey: ["/api/communications/voicemails"],
+    refetchInterval: 15000,
   });
 
-  // Send SMS mutation
-  const sendSMS = useMutation({
+  const { data: contacts = [], isLoading: loadingContacts } = useQuery<ContactInfo[]>({
+    queryKey: ["/api/communications/contacts", contactsSearch],
+    queryFn: async () => {
+      const url = contactsSearch
+        ? `/api/communications/contacts?q=${encodeURIComponent(contactsSearch)}`
+        : "/api/communications/contacts";
+      const res = await fetch(url);
+      if (!res.ok) return [];
+      return res.json();
+    },
+    refetchOnWindowFocus: false,
+  });
+
+  // ── Mutations ──────────────────────────────────────────────────────────────
+
+  const sendSMSMutation = useMutation({
     mutationFn: async ({ to, body }: { to: string; body: string }) => {
-      const response = await fetch("/api/communications/sms/send", {
+      const res = await fetch("/api/communications/sms/send", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ to, body }),
       });
-      if (!response.ok) throw new Error("Failed to send message");
-      return response.json();
+      if (!res.ok) throw new Error("Failed to send");
+      return res.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/communications/conversations"] });
+      if (selectedConv) {
+        queryClient.invalidateQueries({
+          queryKey: ["/api/communications/conversations", selectedConv, "messages"],
+        });
+      }
       setMessageText("");
-      toast({ title: "Message Sent", description: "Your SMS was delivered successfully" });
+      toast({ title: "Message sent" });
     },
-    onError: () => {
-      toast({ title: "Send Failed", description: "Could not send message", variant: "destructive" });
-    },
+    onError: () => toast({ title: "Failed to send message", variant: "destructive" }),
   });
 
-  // Mark voicemail as heard
-  const markVoicemailHeard = useMutation({
-    mutationFn: async (id: string) => {
-      const response = await fetch(`/api/communications/voicemails/${id}/heard`, {
-        method: "PUT",
-      });
-      if (!response.ok) throw new Error("Failed to mark as heard");
-      return response.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/communications/voicemails"] });
-    },
-  });
-
-  // Make a call mutation
-  const makeCall = useMutation({
+  const makeCallMutation = useMutation({
     mutationFn: async (to: string) => {
-      const response = await fetch("/api/communications/calls", {
+      const res = await fetch("/api/communications/calls", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ to }),
       });
-      if (!response.ok) throw new Error("Failed to initiate call");
-      return response.json();
+      if (!res.ok) throw new Error("Failed to initiate call");
+      return res.json();
     },
     onSuccess: () => {
-      setIsDialpadOpen(false);
-      setDialpadNumber("");
-      toast({ title: "Call Initiated", description: "Calling..." });
-      setActiveTab("calls");
       queryClient.invalidateQueries({ queryKey: ["/api/communications/calls"] });
+      setShowDialpad(false);
+      setDialpadNumber("");
+      toast({ title: "Call initiated", description: "Connecting via Meowstik…" });
     },
-    onError: () => {
-      toast({ title: "Call Failed", description: "Could not initiate call", variant: "destructive" });
-    },
+    onError: () => toast({ title: "Call failed", variant: "destructive" }),
   });
 
-  const handleSendMessage = () => {
-    if (!selectedConversation || !messageText.trim()) return;
-    
-    const conversation = conversations.find(c => c.id === selectedConversation);
-    if (!conversation) return;
+  const markHeardMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await fetch(`/api/communications/voicemails/${id}/heard`, { method: "PUT" });
+      if (!res.ok) throw new Error("Failed");
+      return res.json();
+    },
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: ["/api/communications/voicemails"] }),
+  });
 
-    sendSMS.mutate({
-      to: conversation.phoneNumber,
-      body: messageText,
-    });
-  };
+  // ── Effects ────────────────────────────────────────────────────────────────
 
-  const handlePlayVoicemail = (voicemail: VoicemailItem) => {
-    // If clicking the currently playing one, toggling off
-    if (playingVoicemail === voicemail.id) {
-      if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current = null;
-      }
-      setPlayingVoicemail(null);
-      return;
-    }
-    
-    // Stop previous if any
-    if (audioRef.current) {
-        audioRef.current.pause();
-    }
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
 
-    setPlayingVoicemail(voicemail.id);
-    if (!voicemail.heard) {
-      markVoicemailHeard.mutate(voicemail.id);
-    }
+  // ── Derived ────────────────────────────────────────────────────────────────
 
-    // Play new audio
-    const audio = new Audio(voicemail.recordingUrl);
-    audioRef.current = audio;
-    audio.play().catch(e => {
-        toast({ title: "Playback Failed", description: "Could not play audio", variant: "destructive" });
-        setPlayingVoicemail(null);
-    });
-    audio.onended = () => {
-        setPlayingVoicemail(null);
-        audioRef.current = null;
-    };
-  };
-
-  const filteredConversations = conversations.filter(conv =>
-    conv.contactName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    conv.phoneNumber.includes(searchQuery)
+  const filteredConvs = conversations.filter(
+    (c) =>
+      !searchQuery ||
+      c.phoneNumber.includes(searchQuery) ||
+      (c.contactName?.toLowerCase() ?? "").includes(searchQuery.toLowerCase())
   );
 
-  const getCallIcon = (call: Call) => {
-    if (call.direction === "inbound") {
-      return call.status === "completed" ? PhoneIncoming : PhoneMissed;
-    }
-    return PhoneOutgoing;
+  const unheardVoicemails = voicemails.filter((v) => !v.heard).length;
+  const unreadMessages = conversations.reduce((s, c) => s + c.unreadCount, 0);
+  const missedCalls = calls.filter(
+    (c) => c.direction === "inbound" && ["no-answer", "busy"].includes(c.status)
+  ).length;
+
+  const selectedConvData = conversations.find((c) => c.id === selectedConv);
+
+  // ── Handlers ───────────────────────────────────────────────────────────────
+
+  const handleSend = () => {
+    if (!messageText.trim() || !selectedConv) return;
+    sendSMSMutation.mutate({ to: selectedConv, body: messageText.trim() });
   };
 
-  const formatDuration = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  const handleNewMessage = () => {
+    if (!newMsgTo || !newMsgBody.trim()) return;
+    sendSMSMutation.mutate(
+      { to: newMsgTo, body: newMsgBody.trim() },
+      {
+        onSuccess: () => {
+          setShowNewMessage(false);
+          setNewMsgTo("");
+          setNewMsgBody("");
+        },
+      }
+    );
   };
+
+  const handleDialpadDigit = (d: string) => {
+    if (d === "\b") setDialpadNumber((prev) => prev.slice(0, -1));
+    else setDialpadNumber((prev) => prev + d);
+  };
+
+  const handleCallContact = (phone: string) => {
+    setDialpadNumber(phone);
+    setShowDialpad(true);
+  };
+
+  const handleTextContact = (phone: string) => {
+    setNewMsgTo(phone);
+    setShowNewMessage(true);
+    setActiveTab("messages");
+  };
+
+  // ── Badge helper ───────────────────────────────────────────────────────────
+
+  function BadgeCount({ n }: { n: number }) {
+    if (!n) return null;
+    return (
+      <Badge variant="destructive" className="h-4 min-w-[1rem] px-1 text-[10px]">
+        {n > 99 ? "99+" : n}
+      </Badge>
+    );
+  }
+
+  // ── Tab definitions ────────────────────────────────────────────────────────
+
+  const tabs: Array<{ key: Tab; Icon: React.ComponentType<{ className?: string }>; label: string; badge?: number }> = [
+    { key: "messages", Icon: MessageSquare, label: "Messages", badge: unreadMessages },
+    { key: "calls", Icon: Phone, label: "Calls", badge: missedCalls },
+    { key: "voicemail", Icon: Voicemail, label: "Voicemail", badge: unheardVoicemails },
+    { key: "contacts", Icon: Users, label: "Contacts" },
+  ];
+
+  // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
+    <div className="flex flex-col h-screen bg-background">
       {/* Header */}
-      <header className="border-b bg-card px-4 py-3">
-        <div className="flex items-center gap-4">
-          <Link href="/">
-            <Button variant="ghost" size="icon">
-              <ArrowLeft className="h-4 w-4" />
-            </Button>
-          </Link>
-          <div className="flex-1">
-            <h1 className="text-xl font-semibold flex items-center gap-2">
-              <Phone className="h-5 w-5 text-primary" />
-              Communications
-            </h1>
-            <p className="text-sm text-muted-foreground">
-              Messages, calls, and voicemail
-            </p>
-          </div>
-          
-          <div className="flex items-center gap-2">
-            <Dialog open={isDialpadOpen} onOpenChange={setIsDialpadOpen}>
-              <DialogTrigger asChild>
-                <Button variant="outline" className="gap-2">
-                  <Grip className="h-4 w-4" />
-                  <span className="hidden sm:inline">Keypad</span>
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="sm:max-w-xs">
-                <DialogHeader>
-                  <DialogTitle className="text-center">Make a Call</DialogTitle>
-                </DialogHeader>
-                <div className="flex flex-col items-center gap-4 py-4">
-                  <div className="flex items-center gap-2 w-full px-4">
-                    <Input 
-                      value={dialpadNumber} 
-                      onChange={(e) => setDialpadNumber(e.target.value)}
-                      className="text-center text-2xl font-mono h-12" 
-                      placeholder="(555) 555-5555"
-                    />
-                    <Button 
-                      variant="ghost" 
-                      size="icon" 
-                      onClick={() => setDialpadNumber(prev => prev.slice(0, -1))}
-                    >
-                      <Delete className="h-5 w-5" />
-                    </Button>
-                  </div>
-                  
-                  <div className="grid grid-cols-3 gap-4 w-full px-8">
-                    {[1, 2, 3, 4, 5, 6, 7, 8, 9, "*", 0, "#"].map((key) => (
-                      <Button
-                        key={key}
-                        variant="outline"
-                        className="h-16 w-16 text-xl rounded-full"
-                        onClick={() => setDialpadNumber(prev => prev + key)}
-                      >
-                        {key}
-                      </Button>
-                    ))}
-                  </div>
-                  
-                  <Button 
-                    size="lg" 
-                    className="rounded-full h-16 w-16 bg-green-600 hover:bg-green-700 mt-2"
-                    onClick={() => makeCall.mutate(dialpadNumber)}
-                    disabled={!dialpadNumber || makeCall.isPending}
-                  >
-                    {makeCall.isPending ? (
-                      <Loader2 className="h-8 w-8 animate-spin" />
-                    ) : (
-                      <PhoneCall className="h-8 w-8" />
-                    )}
-                  </Button>
-                </div>
-              </DialogContent>
-            </Dialog>
-
-            <Dialog open={isNewMessageOpen} onOpenChange={setIsNewMessageOpen}>
-              <DialogTrigger asChild>
-                <Button className="gap-2">
-                  <Plus className="h-4 w-4" />
-                  <span className="hidden sm:inline">New Message</span>
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>New Message</DialogTitle>
-                </DialogHeader>
-                <div className="space-y-4 py-4">
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">To:</label>
-                    <Input 
-                      placeholder="Phone number" 
-                      value={newMessageNumber}
-                      onChange={(e) => setNewMessageNumber(e.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Message:</label>
-                    <Textarea 
-                      placeholder="Type your message..." 
-                      value={newMessageBody}
-                      onChange={(e) => setNewMessageBody(e.target.value)}
-                      rows={4}
-                    />
-                  </div>
-                </div>
-                <DialogFooter>
-                  <Button 
-                    onClick={() => {
-                      sendSMS.mutate({ to: newMessageNumber, body: newMessageBody });
-                      setIsNewMessageOpen(false);
-                      setNewMessageNumber("");
-                      setNewMessageBody("");
-                    }}
-                    disabled={!newMessageNumber || !newMessageBody || sendSMS.isPending}
-                  >
-                    {sendSMS.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    Send Message
-                  </Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
-          </div>
+      <div className="flex items-center justify-between px-4 py-3 border-b bg-background z-10 flex-shrink-0">
+        <div className="flex items-center gap-2">
+          <Phone className="h-5 w-5 text-primary" />
+          <h1 className="text-lg font-semibold">Communications</h1>
         </div>
-      </header>
+        <div className="flex gap-2">
+          <Button size="sm" variant="outline" onClick={() => setShowNewMessage(true)}>
+            <MessageSquare className="h-4 w-4 sm:mr-1" />
+            <span className="hidden sm:inline">New Message</span>
+          </Button>
+          <Button size="sm" variant="outline" onClick={() => setShowDialpad(true)}>
+            <Phone className="h-4 w-4 sm:mr-1" />
+            <span className="hidden sm:inline">Call</span>
+          </Button>
+        </div>
+      </div>
 
-      {/* Main Content */}
-      <main className="flex-1 overflow-hidden flex">
-        <div className="flex-1 flex flex-col md:flex-row">
-          {/* Left Sidebar - Tabs */}
-          <div className="w-full md:w-80 border-r flex flex-col">
-            <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
-              <TabsList className="grid w-full grid-cols-3 rounded-none border-b">
-                <TabsTrigger value="messages" className="gap-2">
-                  <MessageSquare className="h-4 w-4" />
-                  <span className="hidden sm:inline">Messages</span>
-                  {conversations.filter(c => c.unreadCount > 0).length > 0 && (
-                    <Badge variant="destructive" className="ml-1 h-5 w-5 p-0 text-xs">
-                      {conversations.reduce((sum, c) => sum + c.unreadCount, 0)}
-                    </Badge>
-                  )}
-                </TabsTrigger>
-                <TabsTrigger value="calls" className="gap-2">
-                  <Phone className="h-4 w-4" />
-                  <span className="hidden sm:inline">Calls</span>
-                </TabsTrigger>
-                <TabsTrigger value="voicemail" className="gap-2">
-                  <Voicemail className="h-4 w-4" />
-                  <span className="hidden sm:inline">Voicemail</span>
-                  {voicemails.filter(v => !v.heard).length > 0 && (
-                    <Badge variant="destructive" className="ml-1 h-5 w-5 p-0 text-xs">
-                      {voicemails.filter(v => !v.heard).length}
-                    </Badge>
-                  )}
-                </TabsTrigger>
-              </TabsList>
+      {/* Tab bar */}
+      <div className="flex border-b bg-background flex-shrink-0">
+        {tabs.map(({ key, Icon, label, badge }) => (
+          <button
+            key={key}
+            onClick={() => {
+              setActiveTab(key);
+              if (key !== "messages") setSelectedConv(null);
+            }}
+            className={cn(
+              "flex-1 flex items-center justify-center gap-1.5 py-3 text-sm font-medium transition-colors border-b-2",
+              activeTab === key
+                ? "border-primary text-primary"
+                : "border-transparent text-muted-foreground hover:text-foreground"
+            )}
+          >
+            <Icon className="h-4 w-4" />
+            <span className="hidden sm:inline">{label}</span>
+            {badge && badge > 0 ? (
+              <Badge variant="destructive" className="h-4 min-w-[1rem] px-1 text-[10px]">
+                {badge > 99 ? "99+" : badge}
+              </Badge>
+            ) : null}
+          </button>
+        ))}
+      </div>
 
-              <div className="p-4 border-b">
+      {/* Content */}
+      <div className="flex flex-1 overflow-hidden">
+
+        {/* ══ MESSAGES ════════════════════════════════════════════════════════ */}
+        {activeTab === "messages" && (
+          <>
+            {/* Conversation list */}
+            <div
+              className={cn(
+                "w-full sm:w-80 border-r flex flex-col overflow-hidden flex-shrink-0",
+                selectedConv && "hidden sm:flex"
+              )}
+            >
+              <div className="p-3 border-b flex-shrink-0">
                 <div className="relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                   <Input
-                    placeholder="Search..."
+                    placeholder="Search conversations"
+                    className="pl-8"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-9"
                   />
                 </div>
               </div>
-
               <ScrollArea className="flex-1">
-                <TabsContent value="messages" className="m-0">
-                  {loadingConversations ? (
-                    <div className="flex items-center justify-center p-8">
-                      <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                    </div>
-                  ) : filteredConversations.length === 0 ? (
-                    <div className="p-8 text-center text-muted-foreground">
-                      <MessageSquare className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                      <p>No conversations yet</p>
-                    </div>
-                  ) : (
-                    filteredConversations.map((conv) => (
-                      <button
-                        key={conv.id}
-                        onClick={() => setSelectedConversation(conv.id)}
-                        className={cn(
-                          "w-full p-4 text-left border-b hover:bg-muted/50 transition-colors",
-                          selectedConversation === conv.id && "bg-muted"
-                        )}
-                      >
-                        <div className="flex items-start gap-3">
-                          <Avatar>
-                            <AvatarFallback>
-                              {conv.contactName?.charAt(0) || <User className="h-4 w-4" />}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center justify-between mb-1">
-                              <div className="font-medium truncate">
-                                {conv.contactName || conv.phoneNumber}
-                              </div>
-                              {conv.unreadCount > 0 && (
-                                <Badge variant="destructive" className="ml-2">
-                                  {conv.unreadCount}
-                                </Badge>
-                              )}
-                            </div>
-                            <div className="text-sm text-muted-foreground truncate">
-                              {conv.lastMessage}
-                            </div>
-                            <div className="text-xs text-muted-foreground mt-1">
-                              {formatDistanceToNow(new Date(conv.lastMessageAt), { addSuffix: true })}
-                            </div>
-                          </div>
-                        </div>
-                      </button>
-                    ))
-                  )}
-                </TabsContent>
-
-                <TabsContent value="calls" className="m-0">
-                  {loadingCalls ? (
-                    <div className="flex items-center justify-center p-8">
-                      <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                    </div>
-                  ) : calls.length === 0 ? (
-                    <div className="p-8 text-center text-muted-foreground">
-                      <Phone className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                      <p>No call history</p>
-                    </div>
-                  ) : (
-                    calls.map((call) => {
-                      const Icon = getCallIcon(call);
-                      return (
-                        <div key={call.id} className="p-4 border-b hover:bg-muted/50">
-                          <div className="flex items-start gap-3">
-                            <div className={cn(
-                              "p-2 rounded-full",
-                              call.direction === "inbound" && call.status === "completed" && "bg-green-500/10 text-green-600",
-                              call.direction === "inbound" && call.status !== "completed" && "bg-red-500/10 text-red-600",
-                              call.direction === "outbound" && "bg-blue-500/10 text-blue-600"
-                            )}>
-                              <Icon className="h-4 w-4" />
-                            </div>
-                            <div className="flex-1">
-                              <div className="font-medium">
-                                {call.direction === "inbound" ? call.from : call.to}
-                              </div>
-                              <div className="text-sm text-muted-foreground">
-                                {call.status === "completed" ? formatDuration(call.duration) : call.status}
-                              </div>
-                              <div className="text-xs text-muted-foreground">
-                                {formatDistanceToNow(new Date(call.createdAt), { addSuffix: true })}
-                              </div>
-                            </div>
-                            {call.recordingUrl && (
-                              <Button variant="ghost" size="sm">
-                                <Play className="h-4 w-4" />
-                              </Button>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })
-                  )}
-                </TabsContent>
-
-                <TabsContent value="voicemail" className="m-0">
-                  {loadingVoicemails ? (
-                    <div className="flex items-center justify-center p-8">
-                      <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                    </div>
-                  ) : voicemails.length === 0 ? (
-                    <div className="p-8 text-center text-muted-foreground">
-                      <Voicemail className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                      <p>No voicemails</p>
-                    </div>
-                  ) : (
-                    voicemails.map((vm) => (
-                      <div 
-                        key={vm.id} 
-                        className={cn(
-                          "p-4 border-b hover:bg-muted/50",
-                          !vm.heard && "bg-primary/5"
-                        )}
-                      >
-                        <div className="flex items-start gap-3">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handlePlayVoicemail(vm)}
-                          >
-                            {playingVoicemail === vm.id ? (
-                              <Pause className="h-4 w-4" />
-                            ) : (
-                              <Play className="h-4 w-4" />
-                            )}
-                          </Button>
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2 mb-1">
-                              <div className="font-medium">{vm.from}</div>
-                              {!vm.heard && (
-                                <Badge variant="default" className="text-xs">New</Badge>
-                              )}
-                            </div>
-                            {vm.transcription && (
-                              <div className="text-sm text-muted-foreground mb-2">
-                                "{vm.transcription}"
-                              </div>
-                            )}
-                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                              <span>{formatDuration(vm.duration)}</span>
-                              <span>•</span>
-                              <span>{formatDistanceToNow(new Date(vm.createdAt), { addSuffix: true })}</span>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </TabsContent>
-              </ScrollArea>
-            </Tabs>
-          </div>
-
-          {/* Right Content - Message Thread */}
-          <div className="flex-1 flex flex-col">
-            {activeTab === "messages" && selectedConversation ? (
-              <>
-                {/* Conversation Header */}
-                <div className="border-b p-4">
-                  <div className="flex items-center gap-3">
-                    <Avatar>
-                      <AvatarFallback>
-                        {conversations.find(c => c.id === selectedConversation)?.contactName?.charAt(0) || <User className="h-4 w-4" />}
+                {loadingConvs && (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                  </div>
+                )}
+                {!loadingConvs && filteredConvs.length === 0 && (
+                  <div className="flex flex-col items-center justify-center py-12 text-muted-foreground gap-2">
+                    <MessageSquare className="h-10 w-10 opacity-30" />
+                    <p className="text-sm">No conversations yet</p>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setShowNewMessage(true)}
+                    >
+                      <Plus className="h-4 w-4 mr-1" /> New Message
+                    </Button>
+                  </div>
+                )}
+                {filteredConvs.map((conv) => (
+                  <button
+                    key={conv.id}
+                    onClick={() => setSelectedConv(conv.id)}
+                    className={cn(
+                      "w-full flex items-start gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/50",
+                      selectedConv === conv.id && "bg-muted"
+                    )}
+                  >
+                    <Avatar className="h-10 w-10 flex-shrink-0">
+                      <AvatarFallback className="text-xs">
+                        {initials(conv.contactName, conv.phoneNumber)}
                       </AvatarFallback>
                     </Avatar>
-                    <div>
-                      <div className="font-semibold">
-                        {conversations.find(c => c.id === selectedConversation)?.contactName || 
-                         conversations.find(c => c.id === selectedConversation)?.phoneNumber}
-                      </div>
-                      <div className="text-sm text-muted-foreground">
-                        {conversations.find(c => c.id === selectedConversation)?.phoneNumber}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Messages */}
-                <ScrollArea className="flex-1 p-4">
-                  <div className="space-y-4">
-                    {loadingMessages ? (
-                      <div className="flex items-center justify-center p-8">
-                        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                      </div>
-                    ) : messages.length === 0 ? (
-                      <div className="text-center text-muted-foreground p-8">
-                        No messages yet. Start the conversation!
-                      </div>
-                    ) : (
-                      messages.map((message) => (
-                        <div
-                          key={message.id}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-1">
+                        <span
                           className={cn(
-                            "flex",
-                            message.direction === "outbound" && "justify-end"
+                            "text-sm truncate",
+                            conv.unreadCount > 0 ? "font-bold" : "font-medium"
                           )}
                         >
-                          <div
-                            className={cn(
-                              "max-w-[70%] rounded-lg p-3",
-                              message.direction === "outbound"
-                                ? "bg-primary text-primary-foreground"
-                                : "bg-muted"
-                            )}
+                          {conv.contactName ?? formatPhone(conv.phoneNumber)}
+                        </span>
+                        <span className="text-xs text-muted-foreground flex-shrink-0">
+                          {relativeTime(conv.lastMessageAt)}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between gap-1">
+                        <p className="text-xs text-muted-foreground truncate">
+                          {conv.lastDirection === "outbound" && (
+                            <span className="text-foreground/60">You: </span>
+                          )}
+                          {conv.lastMessage}
+                        </p>
+                        {conv.unreadCount > 0 && (
+                          <Badge
+                            variant="default"
+                            className="h-4 min-w-[1rem] px-1 text-[10px] flex-shrink-0"
                           >
-                            <div className="text-sm">{message.body}</div>
-                            <div className={cn(
-                              "text-xs mt-1",
-                              message.direction === "outbound"
-                                ? "text-primary-foreground/70"
-                                : "text-muted-foreground"
-                            )}>
-                              {formatDistanceToNow(new Date(message.createdAt), { addSuffix: true })}
+                            {conv.unreadCount}
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+                  </button>
+                ))}
+              </ScrollArea>
+            </div>
+
+            {/* Thread view */}
+            <div
+              className={cn(
+                "flex-1 flex flex-col overflow-hidden",
+                !selectedConv && "hidden sm:flex"
+              )}
+            >
+              {!selectedConv ? (
+                <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground gap-3">
+                  <MessageSquare className="h-14 w-14 opacity-20" />
+                  <p>Select a conversation</p>
+                  <Button variant="outline" onClick={() => setShowNewMessage(true)}>
+                    <Plus className="h-4 w-4 mr-2" /> New Message
+                  </Button>
+                </div>
+              ) : (
+                <>
+                  {/* Thread header */}
+                  <div className="flex items-center gap-3 px-4 py-3 border-b flex-shrink-0">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="sm:hidden"
+                      onClick={() => setSelectedConv(null)}
+                    >
+                      <ChevronLeft className="h-5 w-5" />
+                    </Button>
+                    <Avatar className="h-9 w-9 flex-shrink-0">
+                      <AvatarFallback className="text-xs">
+                        {initials(selectedConvData?.contactName ?? null, selectedConv)}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-sm">
+                        {selectedConvData?.contactName ?? formatPhone(selectedConv)}
+                      </p>
+                      <p className="text-xs text-muted-foreground">{formatPhone(selectedConv)}</p>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleCallContact(selectedConv)}
+                      title="Call"
+                    >
+                      <Phone className="h-4 w-4" />
+                    </Button>
+                  </div>
+
+                  {/* Messages */}
+                  <ScrollArea className="flex-1 px-4 py-3">
+                    {loadingMessages && (
+                      <div className="flex justify-center py-6">
+                        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                      </div>
+                    )}
+                    <div className="flex flex-col gap-2">
+                      {messages.map((msg, i) => {
+                        const isOut = msg.direction === "outbound";
+                        const showTime =
+                          i === 0 ||
+                          new Date(msg.createdAt).getTime() -
+                            new Date(messages[i - 1].createdAt).getTime() >
+                            300_000;
+                        return (
+                          <div key={msg.id}>
+                            {showTime && (
+                              <div className="flex justify-center my-2">
+                                <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
+                                  {format(new Date(msg.createdAt), "MMM d, h:mm a")}
+                                </span>
+                              </div>
+                            )}
+                            <div
+                              className={cn(
+                                "flex",
+                                isOut ? "justify-end" : "justify-start"
+                              )}
+                            >
+                              <div
+                                className={cn(
+                                  "max-w-[75%] px-3 py-2 rounded-2xl text-sm break-words",
+                                  isOut
+                                    ? "bg-primary text-primary-foreground rounded-br-sm"
+                                    : "bg-muted rounded-bl-sm"
+                                )}
+                              >
+                                {msg.body}
+                                <div
+                                  className={cn(
+                                    "text-[10px] mt-0.5 opacity-70 text-right",
+                                    !isOut && "text-muted-foreground"
+                                  )}
+                                >
+                                  {format(new Date(msg.createdAt), "h:mm a")}
+                                  {isOut && (
+                                    <span className="ml-1">
+                                      {msg.status === "failed" ? "✗" : "✓"}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      ))
-                    )}
-                  </div>
-                </ScrollArea>
+                        );
+                      })}
+                      <div ref={messagesEndRef} />
+                    </div>
+                  </ScrollArea>
 
-                {/* Message Input */}
-                <div className="border-t p-4">
-                  <div className="flex gap-2">
+                  {/* Compose bar */}
+                  <div className="border-t px-4 py-3 flex gap-2 flex-shrink-0">
                     <Textarea
+                      placeholder="Message…"
                       value={messageText}
                       onChange={(e) => setMessageText(e.target.value)}
-                      placeholder="Type a message..."
-                      className="resize-none"
-                      rows={2}
                       onKeyDown={(e) => {
                         if (e.key === "Enter" && !e.shiftKey) {
                           e.preventDefault();
-                          handleSendMessage();
+                          handleSend();
                         }
                       }}
+                      className="min-h-[40px] max-h-32 resize-none"
+                      rows={1}
                     />
                     <Button
-                      onClick={handleSendMessage}
-                      disabled={!messageText.trim() || sendSMS.isPending}
+                      onClick={handleSend}
+                      disabled={!messageText.trim() || sendSMSMutation.isPending}
                       size="icon"
-                      className="shrink-0"
+                      className="flex-shrink-0 self-end"
                     >
-                      {sendSMS.isPending ? (
+                      {sendSMSMutation.isPending ? (
                         <Loader2 className="h-4 w-4 animate-spin" />
                       ) : (
                         <Send className="h-4 w-4" />
                       )}
                     </Button>
                   </div>
+                </>
+              )}
+            </div>
+          </>
+        )}
+
+        {/* ══ CALLS ═══════════════════════════════════════════════════════════ */}
+        {activeTab === "calls" && (
+          <div className="flex-1 flex flex-col overflow-hidden">
+            <div className="px-4 py-3 border-b flex items-center justify-between flex-shrink-0">
+              <h2 className="font-semibold text-sm">Recent Calls</h2>
+              <Button size="sm" variant="outline" onClick={() => setShowDialpad(true)}>
+                <Phone className="h-4 w-4 mr-1" /> New Call
+              </Button>
+            </div>
+            <ScrollArea className="flex-1">
+              {loadingCalls && (
+                <div className="flex justify-center py-8">
+                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
                 </div>
-              </>
-            ) : (
-              <div className="flex-1 flex items-center justify-center text-muted-foreground">
-                <div className="text-center">
-                  <MessageSquare className="h-16 w-16 mx-auto mb-4 opacity-50" />
-                  <p>Select a conversation to start messaging</p>
+              )}
+              {!loadingCalls && calls.length === 0 && (
+                <div className="flex flex-col items-center justify-center py-12 text-muted-foreground gap-2">
+                  <Phone className="h-10 w-10 opacity-30" />
+                  <p className="text-sm">No call history</p>
                 </div>
-              </div>
-            )}
+              )}
+              {calls.map((call) => {
+                const isMissed =
+                  call.direction === "inbound" &&
+                  ["no-answer", "busy"].includes(call.status);
+                const Icon = isMissed
+                  ? PhoneMissed
+                  : call.direction === "inbound"
+                  ? PhoneIncoming
+                  : PhoneOutgoing;
+                const otherParty =
+                  call.direction === "outbound" ? call.to : call.from;
+
+                return (
+                  <div
+                    key={call.id}
+                    className="px-4 py-3 border-b hover:bg-muted/30 transition-colors"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div
+                        className={cn(
+                          "w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0",
+                          isMissed
+                            ? "bg-red-100 text-red-500 dark:bg-red-900/30"
+                            : "bg-muted text-muted-foreground"
+                        )}
+                      >
+                        <Icon className="h-5 w-5" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p
+                          className={cn(
+                            "text-sm font-medium",
+                            isMissed && "text-red-500"
+                          )}
+                        >
+                          {formatPhone(otherParty)}
+                        </p>
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <span>{callStatusLabel(call.status)}</span>
+                          {call.duration > 0 && (
+                            <>
+                              <span>·</span>
+                              <span>{formatDuration(call.duration)}</span>
+                            </>
+                          )}
+                          <span>·</span>
+                          <span>{relativeTime(call.createdAt)}</span>
+                        </div>
+                      </div>
+                      <div className="flex gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleCallContact(otherParty)}
+                          title="Call back"
+                        >
+                          <Phone className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleTextContact(otherParty)}
+                          title="Send message"
+                        >
+                          <MessageSquare className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                    {call.recordingUrl && (
+                      <div className="mt-2 pl-13">
+                        <AudioPlayer url={call.recordingUrl} />
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </ScrollArea>
           </div>
-        </div>
-      </main>
+        )}
+
+        {/* ══ VOICEMAIL ════════════════════════════════════════════════════════ */}
+        {activeTab === "voicemail" && (
+          <div className="flex-1 flex flex-col overflow-hidden">
+            <div className="px-4 py-3 border-b flex-shrink-0">
+              <h2 className="font-semibold text-sm flex items-center gap-2">
+                Voicemail
+                {unheardVoicemails > 0 && (
+                  <Badge variant="destructive" className="text-[10px]">
+                    {unheardVoicemails} new
+                  </Badge>
+                )}
+              </h2>
+            </div>
+            <ScrollArea className="flex-1">
+              {loadingVoicemails && (
+                <div className="flex justify-center py-8">
+                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                </div>
+              )}
+              {!loadingVoicemails && voicemails.length === 0 && (
+                <div className="flex flex-col items-center justify-center py-12 text-muted-foreground gap-2">
+                  <Voicemail className="h-10 w-10 opacity-30" />
+                  <p className="text-sm">No voicemails</p>
+                </div>
+              )}
+              {voicemails.map((vm) => (
+                <div
+                  key={vm.id}
+                  className={cn(
+                    "px-4 py-4 border-b transition-colors",
+                    !vm.heard && "bg-blue-50/50 dark:bg-blue-900/10"
+                  )}
+                >
+                  <div className="flex items-start gap-3">
+                    <div
+                      className={cn(
+                        "w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0",
+                        !vm.heard
+                          ? "bg-primary text-primary-foreground"
+                          : "bg-muted text-muted-foreground"
+                      )}
+                    >
+                      <Volume2 className="h-5 w-5" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between">
+                        <p
+                          className={cn(
+                            "text-sm",
+                            !vm.heard ? "font-bold" : "font-medium"
+                          )}
+                        >
+                          {formatPhone(vm.from)}
+                        </p>
+                        <span className="text-xs text-muted-foreground">
+                          {relativeTime(vm.createdAt)}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground mb-2">
+                        <Clock className="h-3 w-3" />
+                        <span>{formatDuration(vm.duration)}</span>
+                        {!vm.heard && (
+                          <Badge variant="secondary" className="text-[10px] h-4">
+                            New
+                          </Badge>
+                        )}
+                      </div>
+                      <AudioPlayer
+                        url={vm.recordingUrl}
+                        onPlay={() => {
+                          if (!vm.heard) markHeardMutation.mutate(vm.id);
+                        }}
+                      />
+                      {vm.transcription && (
+                        <p className="mt-2 text-xs text-muted-foreground italic border-l-2 border-muted pl-2">
+                          &ldquo;{vm.transcription}&rdquo;
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex gap-2 mt-2 ml-13">
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => handleCallContact(vm.from)}
+                    >
+                      <Phone className="h-3 w-3 mr-1" /> Call back
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => handleTextContact(vm.from)}
+                    >
+                      <MessageSquare className="h-3 w-3 mr-1" /> Text
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </ScrollArea>
+          </div>
+        )}
+
+        {/* ══ CONTACTS ════════════════════════════════════════════════════════ */}
+        {activeTab === "contacts" && (
+          <div className="flex-1 flex flex-col overflow-hidden">
+            <div className="p-3 border-b flex-shrink-0">
+              <div className="relative">
+                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search contacts"
+                  className="pl-8"
+                  value={contactsSearch}
+                  onChange={(e) => setContactsSearch(e.target.value)}
+                />
+              </div>
+            </div>
+            <ScrollArea className="flex-1">
+              {loadingContacts && (
+                <div className="flex justify-center py-8">
+                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                </div>
+              )}
+              {!loadingContacts && contacts.length === 0 && (
+                <div className="flex flex-col items-center justify-center py-12 text-muted-foreground gap-2">
+                  <Users className="h-10 w-10 opacity-30" />
+                  <p className="text-sm">
+                    {contactsSearch ? "No contacts found" : "No contacts available"}
+                  </p>
+                  {!contactsSearch && (
+                    <p className="text-xs text-center max-w-xs opacity-70">
+                      Connect Google Contacts in Settings to see your contacts here.
+                    </p>
+                  )}
+                </div>
+              )}
+              {contacts.map((contact) => {
+                const phone = contact.phoneNumbers?.[0]?.value ?? null;
+                return (
+                  <div
+                    key={contact.resourceName}
+                    className="flex items-center gap-3 px-4 py-3 border-b hover:bg-muted/30 transition-colors"
+                  >
+                    <Avatar className="h-10 w-10 flex-shrink-0">
+                      <AvatarFallback className="text-xs">
+                        {initials(contact.displayName, phone ?? "")}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate">{contact.displayName}</p>
+                      {phone && (
+                        <p className="text-xs text-muted-foreground">{formatPhone(phone)}</p>
+                      )}
+                      {contact.emailAddresses?.[0] && (
+                        <p className="text-xs text-muted-foreground truncate">
+                          {contact.emailAddresses[0].value}
+                        </p>
+                      )}
+                    </div>
+                    {phone && (
+                      <div className="flex gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleCallContact(phone)}
+                          title={`Call ${contact.displayName}`}
+                        >
+                          <Phone className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleTextContact(phone)}
+                          title={`Text ${contact.displayName}`}
+                        >
+                          <MessageSquare className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </ScrollArea>
+          </div>
+        )}
+      </div>
+
+      {/* ── Dialpad dialog ─────────────────────────────────────────────────── */}
+      <Dialog open={showDialpad} onOpenChange={setShowDialpad}>
+        <DialogContent className="sm:max-w-xs">
+          <DialogHeader>
+            <DialogTitle>Make a Call</DialogTitle>
+          </DialogHeader>
+          <Dialpad
+            value={dialpadNumber}
+            onDigit={handleDialpadDigit}
+            onCall={() => makeCallMutation.mutate(dialpadNumber)}
+            loading={makeCallMutation.isPending}
+          />
+        </DialogContent>
+      </Dialog>
+
+      {/* ── New message dialog ──────────────────────────────────────────────── */}
+      <Dialog open={showNewMessage} onOpenChange={setShowNewMessage}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>New Message</DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col gap-3 py-2">
+            <Input
+              placeholder="To: +1 (555) 000-0000"
+              value={newMsgTo}
+              onChange={(e) => setNewMsgTo(e.target.value)}
+            />
+            <Textarea
+              placeholder="Message"
+              value={newMsgBody}
+              onChange={(e) => setNewMsgBody(e.target.value)}
+              rows={3}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowNewMessage(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleNewMessage}
+              disabled={!newMsgTo || !newMsgBody.trim() || sendSMSMutation.isPending}
+            >
+              {sendSMSMutation.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-1" />
+              ) : (
+                <Send className="h-4 w-4 mr-1" />
+              )}
+              Send
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

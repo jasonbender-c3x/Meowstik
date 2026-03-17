@@ -107,11 +107,15 @@ export async function getUncachableGoogleDriveClient() {
  * @see https://developers.google.com/drive/api/v3/search-files
  */
 export async function listDriveFiles(query?: string, pageSize = 20) {
+  console.log("[GoogleDrive] listDriveFiles started");
   try {
     // Get authenticated Drive client
+    console.log("[GoogleDrive] getting client...");
     const drive = await getUncachableGoogleDriveClient();
+    console.log("[GoogleDrive] client got.");
     
     // Execute files.list API call
+    console.log("[GoogleDrive] calling files.list API...");
     const response = await drive.files.list({
       pageSize,  // Limit number of results
       // Specify which fields to return (reduces response size)

@@ -59,6 +59,10 @@ These are independent applications that connect to the Server to receive instruc
     *   **Role**: Context-aware browser companion.
     *   **Capabilities**: Reading active tabs, manipulating DOM, side-panel chat.
     *   **Use Case**: "Summarize this article" or "Fill out this form."
+*   **`vscode-extension/`** *(VS Code Extension)*:
+    *   **Role**: Integrated coding assistant.
+    *   **Capabilities**: Bidirectional file syncing, terminal execution, voice coding.
+    *   **Use Case**: "Write a new component" or "Debug this error."
 *   **`local-agent/`** *(Playwright)*:
     *   **Role**: Headless background worker.
     *   **Capabilities**: Navigating web pages invisibly to perform tasks without interrupting the user.
@@ -112,7 +116,10 @@ Since there are many moving parts, the standard dev loop focuses on the Core:
 *   **Browserless System**: [BROWSERLESS_README.md](BROWSERLESS_README.md)
 *   **SSH / Operating System**: [CHIMERA_PHASE1_COMPLETE.md](CHIMERA_PHASE1_COMPLETE.md)
 *   **Desktop Hardware**: [HARDWARE_IMPLEMENTATION_SUMMARY.md](HARDWARE_IMPLEMENTATION_SUMMARY.md)
+*   **Desktop App & Computer Use**: [docs/DESKTOP_APP.md](docs/DESKTOP_APP.md)
 *   **GitHub Copilot MCP Setup**: [docs/copilot/GITHUB_MCP_SETUP.md](docs/copilot/GITHUB_MCP_SETUP.md)
+*   **Search Architecture**: [docs/SEARCH_API.md](docs/SEARCH_API.md) (Gemini Grounding)
+*   **VS Code Integration**: [docs/VSCODE_INTEGRATION.md](docs/VSCODE_INTEGRATION.md)
 
 ---
 

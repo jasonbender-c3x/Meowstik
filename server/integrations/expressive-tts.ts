@@ -17,6 +17,8 @@ import { google, Auth } from "googleapis";
 import { getAuthenticatedClient, isAuthenticated } from "./google-auth";
 import * as fs from "fs";
 import * as path from "path";
+import { VoiceStyle, VOICE_STYLE_MAPPING } from "../../shared/voice-styles.js";
+import { parseVoiceStyle } from "../services/style-parser.js";
 
 export interface TTSResponse {
   success: boolean;
@@ -131,21 +133,37 @@ export async function generateSingleSpeakerAudio(
       const auth = serviceAuth || await getAuthenticatedClient();
       const tts = google.texttospeech({ version: "v1", auth: auth as any });
       
-      const response = await tts.text.synthesize({
-        requestBody: {
-          input: { text },
-          voice: {
-            languageCode: voiceConfig.languageCode,
-            name: voiceConfig.name,
-            ssmlGender: voiceConfig.ssmlGender as any
-          },
-          audioConfig: {
-            audioEncoding: "MP3",
-            speakingRate: 1.0,
-            pitch: 0,
-            effectsProfileId: ["headphone-class-device"]
-          }
+      const { style, cleanText } = parseVoiceStyle(text);
+  const styleParams = VOICE_STYLE_MAPPING[style]?.google || VOICE_STYLE_MAPPING[VoiceStyle.Neutral].google;
+  
+  // Use cleanText (without style tags) for TTS input
+  console.log(`[TTS] Generating audio with Google Cloud TTS (${authMethod}), voice: ${voiceConfig.name}, style: ${style}`);
+
+      const requestBody: any = {
+        input: {},
+        voice: {
+          languageCode: voiceConfig.languageCode,
+          name: voiceConfig.name,
+          ssmlGender: voiceConfig.ssmlGender as any
+        },
+        audioConfig: {
+          audioEncoding: "MP3",
+          speakingRate: parseFloat(styleParams.rate || "1.0"),
+          pitch: parseFloat((styleParams.pitch || "0st").replace("st", "")) || 0,
+          volumeGainDb: styleParams.volume ? parseFloat(styleParams.volume.replace("dB", "")) : 0,
+          effectsProfileId: ["headphone-class-device"]
         }
+      };
+
+      // Use SSML if emphasis is needed, or just plain text otherwise
+      // Google TTS applies rate/pitch via audioConfig globally, but SSML prosody is more granular.
+      // For now, we'll stick to global audioConfig changes for simplicity unless SSML is required.
+      // However, pitch in audioConfig is semitones, rate is multiplier.
+      
+      requestBody.input.text = cleanText;
+
+      const response = await tts.text.synthesize({
+        requestBody
       });
 
       const audioContent = response.data.audioContent;

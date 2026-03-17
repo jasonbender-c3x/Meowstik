@@ -34,15 +34,6 @@ import {
   toolTasks,
   type ToolTask,
   type InsertToolTask,
-  documentChunks,
-  type DocumentChunk,
-  type InsertDocumentChunk,
-  ragTraces,
-  type RagTrace,
-  type InsertRagTrace,
-  ragMetricsHourly,
-  ragChunkLineage,
-  type RagChunkLineage,
   triggers,
   type Trigger,
   type InsertTrigger,
@@ -74,12 +65,15 @@ import {
   voicemails,
   type Voicemail,
   type InsertVoicemail,
+  smsMessages,
+  type SmsMessage,
+  type InsertSmsMessage,
   userAgents,
   type UserAgent,
   type InsertUserAgent
 } from "@shared/schema";
 import { db, pool } from "./db";
-import { eq, desc, and, ne, sql, inArray } from "drizzle-orm";
+import { eq, desc, and, ne, sql, inArray, or } from "drizzle-orm";
 // import session from "express-session";
 
 export class DatabaseStorage {
@@ -291,8 +285,10 @@ export class DatabaseStorage {
 
   // Google OAuth Tokens
   async getGoogleTokens(id: string = 'default'): Promise<GoogleOAuthTokens | undefined> {
+    console.log("[Storage] getGoogleTokens called for id:", id);
     try {
       const [tokens] = await db.select().from(googleOAuthTokens).where(eq(googleOAuthTokens.id, id));
+      console.log("[Storage] getGoogleTokens result:", tokens ? "Found" : "Not Found");
       return tokens;
     } catch (e) {
       console.error("❌ getGoogleTokens Error:", e);
@@ -306,6 +302,12 @@ export class DatabaseStorage {
     return saved;
   }
 
+  async updateCallConversation(callSid: string, updates: Partial<CallConversation>): Promise<void> {
+    await db.update(callConversations)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(callConversations.callSid, callSid));
+  }
+
   async getRecentCallConversations(limit: number = 20): Promise<CallConversation[]> {
     return await db.select().from(callConversations).orderBy(desc(callConversations.createdAt)).limit(limit);
   }
@@ -314,8 +316,65 @@ export class DatabaseStorage {
     return await db.select().from(voicemails).orderBy(desc(voicemails.createdAt)).limit(limit);
   }
 
-  async markVoicemailAsHeard(id: number): Promise<void> {
-    await db.update(voicemails).set({ heard: true }).where(eq(voicemails.id, id));
+  async markVoicemailAsHeard(id: string): Promise<Voicemail | null> {
+    const [updated] = await db.update(voicemails)
+      .set({ heard: true, heardAt: new Date(), updatedAt: new Date() })
+      .where(eq(voicemails.id, id))
+      .returning();
+    return updated ?? null;
+  }
+
+  async insertVoicemail(vm: InsertVoicemail): Promise<Voicemail> {
+    const [saved] = await db.insert(voicemails).values(vm).returning();
+    return saved;
+  }
+
+  // ---- SMS ----
+
+  async insertSmsMessage(msg: InsertSmsMessage): Promise<SmsMessage> {
+    const [saved] = await db.insert(smsMessages).values(msg).returning();
+    return saved;
+  }
+
+  /** Returns all SMS messages where from or to matches phoneNumber, oldest first */
+  async getSmsMessagesForNumber(phoneNumber: string, limit = 100): Promise<SmsMessage[]> {
+    return await db.select().from(smsMessages)
+      .where(or(eq(smsMessages.from, phoneNumber), eq(smsMessages.to, phoneNumber)))
+      .orderBy(desc(smsMessages.createdAt))
+      .limit(limit)
+      .then(rows => rows.reverse());
+  }
+
+  /** Returns the most-recent SMS per unique phone number (for conversation list) */
+  async getSmsConversations(): Promise<{ phoneNumber: string; lastMessage: SmsMessage; unreadCount: number }[]> {
+    const ourNumber = process.env.TWILIO_PHONE_NUMBER || "";
+    const all = await db.select().from(smsMessages)
+      .orderBy(desc(smsMessages.createdAt))
+      .limit(500);
+
+    const map = new Map<string, { lastMessage: SmsMessage; unreadCount: number }>();
+    for (const msg of all) {
+      const phone = msg.from === ourNumber ? msg.to : msg.from;
+      if (!map.has(phone)) {
+        map.set(phone, { lastMessage: msg, unreadCount: 0 });
+      }
+      // Count unread: inbound messages not yet processed
+      if (msg.direction === "inbound" && !msg.processed) {
+        map.get(phone)!.unreadCount++;
+      }
+    }
+
+    return Array.from(map.entries()).map(([phoneNumber, data]) => ({
+      phoneNumber,
+      lastMessage: data.lastMessage,
+      unreadCount: data.unreadCount,
+    }));
+  }
+
+  async markSmsProcessed(messageSid: string): Promise<void> {
+    await db.update(smsMessages)
+      .set({ processed: true, processedAt: new Date() })
+      .where(eq(smsMessages.messageSid, messageSid));
   }
 
   async saveGoogleTokens(tokens: InsertGoogleOAuthTokens): Promise<void> {
@@ -453,12 +512,19 @@ export class DatabaseStorage {
   }
 
   async getRecentLlmInteractions(limit: number = 50, userId?: string | null): Promise<LlmInteraction[]> {
-    let query = db.select().from(llmInteractions).orderBy(desc(llmInteractions.createdAt)).limit(limit);
-    if (userId !== undefined) {
-      // @ts-ignore
-      query = query.where(eq(llmInteractions.userId, userId));
+    if (userId !== undefined && userId !== null) {
+      return await db
+        .select()
+        .from(llmInteractions)
+        .where(eq(llmInteractions.userId, userId))
+        .orderBy(desc(llmInteractions.createdAt))
+        .limit(limit);
     }
-    return await query;
+    return await db
+      .select()
+      .from(llmInteractions)
+      .orderBy(desc(llmInteractions.createdAt))
+      .limit(limit);
   }
 
   async getLlmInteractionStats() {
@@ -543,42 +609,7 @@ export class DatabaseStorage {
     return updated;
   }
 
-  // Document Chunks (RAG)
-  async createDocumentChunk(chunk: InsertDocumentChunk): Promise<DocumentChunk> {
-    const [saved] = await db.insert(documentChunks).values(chunk).returning();
-    return saved;
-  }
 
-  async getDocumentChunksByFile(fileId: string): Promise<DocumentChunk[]> {
-    return await db.select().from(documentChunks).where(eq(documentChunks.fileId, fileId));
-  }
-
-  async getAllDocumentChunks(limit: number = 100): Promise<DocumentChunk[]> {
-    return await db.select().from(documentChunks).limit(limit);
-  }
-
-  // RAG Traceability
-  async createRagTraces(trace: InsertRagTrace): Promise<RagTrace> {
-    const [saved] = await db.insert(ragTraces).values(trace).returning();
-    return saved;
-  }
-
-  async getRagTraces(limit: number = 50): Promise<RagTrace[]> {
-    return await db.select().from(ragTraces).orderBy(desc(ragTraces.timestamp)).limit(limit);
-  }
-
-  async getRagTracesByTraceId(traceId: string): Promise<RagTrace[]> {
-    return await db.select().from(ragTraces).where(eq(ragTraces.traceId, traceId));
-  }
-
-  async getRagMetrics(): Promise<any> {
-    return await db.select().from(ragMetricsHourly).orderBy(desc(ragMetricsHourly.hourStart)).limit(24);
-  }
-
-  async getChunkLineage(chunkId: string): Promise<RagChunkLineage | undefined> {
-    const [lineage] = await db.select().from(ragChunkLineage).where(eq(ragChunkLineage.chunkId, chunkId));
-    return lineage;
-  }
 
   // Triggers
   async createTrigger(trigger: InsertTrigger): Promise<Trigger> {

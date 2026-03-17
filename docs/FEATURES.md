@@ -8,7 +8,7 @@ A next-generation AI chat interface with integrated Google Workspace services, c
 
 1. [AI-Powered Chat Interface](#1-ai-powered-chat-interface)
 2. [Google Workspace Integration](#2-google-workspace-integration)
-3. [Code Editor & Live Preview](#3-code-editor--live-preview)
+3. [Code Editor & VS Code Integration](#3-code-editor--vs-code-integration)
 4. [Voice Interaction](#4-voice-interaction)
 5. [Document Processing (RAG)](#5-document-processing-rag)
 6. [Terminal Access](#6-terminal-access)
@@ -27,6 +27,7 @@ A next-generation AI chat interface with integrated Google Workspace services, c
 | **Gemini AI Engine** | Powered by Google's Generative AI (Gemini) for intelligent, context-aware conversations |
 | **Real-time Streaming** | Responses stream word-by-word using Server-Sent Events (SSE) for a natural conversation feel |
 | **Persistent History** | All conversations are saved to a PostgreSQL database and accessible across sessions |
+| **Web Search Grounding** | Real-time internet access via Gemini Search for up-to-date answers with citations |
 | **Markdown Rendering** | Full markdown support including headings, lists, code blocks, tables, and formatting |
 | **Quick-Start Prompts** | Suggested conversation starters help new users get started quickly |
 | **Environment Awareness** | AI is aware of its execution environment (production/local) and hostname for context-aware decisions |
@@ -152,9 +153,9 @@ Meowstik connects directly to your Google account, allowing the AI to help you m
 
 ---
 
-## 3. Code Editor & Live Preview
+## 3. Code Editor & VS Code Integration
 
-A full-featured development environment built into Meowstik.
+A full-featured development environment built into Meowstik, with seamless VS Code connectivity.
 
 ### Monaco Editor Features
 
@@ -200,11 +201,43 @@ Simulate how your code looks on different devices:
 | **Tablet** | 768px | iPad/tablet view |
 | **Desktop** | Full width | Standard desktop view |
 
+### VS Code Integration (New)
+
+Connect Meowstik directly to your local VS Code environment for a powerful bidirectional workflow.
+
+| Feature | Description |
+|---------|-------------|
+| **Bidirectional Sync** | Chat interface can read and write files in your open VS Code project |
+| **Command Execution** | Run terminal commands directly from the chat |
+| **Voice Coding** | Dictate code changes and see them applied instantly in your editor |
+| **Context Awareness** | AI understands your current file context and project structure |
+
+**Setup:**
+1.  Install the **Meowstik VS Code Extension** (located in `vscode-extension/`).
+2.  Start the Desktop App (which runs the server on port 5000).
+3.  Load the extension in VS Code (Run `pnpm run compile` then F5 to debug, or package it).
+4.  The extension connects automatically to `ws://localhost:5000`.
+
+See [VSCODE_INTEGRATION.md](VSCODE_INTEGRATION.md) for full details.
+
 ---
 
 ## 4. Voice Interaction
 
 Hands-free communication with the AI assistant.
+
+### Expressive Voice (New)
+
+Meowstik uses "Stage Directions" to add emotion to its voice. The AI automatically inserts style tags (e.g., `[style: cheerful]`) which are processed by the TTS engine to modulate pitch, rate, and stability.
+
+**Supported Styles:**
+- `[style: neutral]` or `neutral:` - Professional, balanced (default)
+- `[style: cheerful]` or `cheerful:` - Enthusiastic, higher pitch
+- `[style: sad]` or `sad:` - Empathetic, slower pace
+- `[style: angry]` or `angry:` - Stern, serious tone
+- `[style: fearful]` or `fearful:` - Cautious, uncertain
+- `[style: surprised]` or `surprised:` - Dynamic, varied pitch
+- `[style: empathy]` or `empathetic:` - Warm, reassuring tone
 
 ### Speech-to-Text (Voice Input)
 
@@ -221,7 +254,8 @@ Hands-free communication with the AI assistant.
 | Feature | Description |
 |---------|-------------|
 | **Read Aloud** | AI responses can be spoken out loud |
-| **Natural Voice** | Uses browser's speech synthesis for natural-sounding output |
+| **Natural Voice** | Uses Google Cloud TTS or ElevenLabs for high-quality audio |
+| **Expressive Styling** | Applies emotional tone based on context |
 | **Pause/Resume** | Control playback as needed |
 | **Per-Message Control** | Choose which messages to hear |
 

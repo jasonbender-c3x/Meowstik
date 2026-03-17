@@ -13,7 +13,7 @@ import imageRouter from "./image";
 import pythonRouter from "./python";
 import playwrightRouter from "./playwright";
 // import webScraperRouter from "./web-scraper";
-import knowledgeIngestionRouter from "./knowledge-ingestion";
+
 import statusRouter from "./status";
 import feedbackRouter from "./feedback";
 import evolutionRouter from "./evolution";
@@ -29,7 +29,7 @@ import collabRouter from "./collab";
 import jobsRouter from "./jobs";
 import { twilioRouter } from "./twilio";
 import communicationsRouter from "./communications";
-import ragDebugRouter from "./rag-debug";
+
 import orchestratorRouter from "./orchestrator";
 import databaseAdminRouter from "./database-admin";
 import brandingRouter from "./branding";
@@ -56,7 +56,7 @@ export function createApiRouter(): Router {
   router.use("/python", pythonRouter);
   router.use("/playwright", playwrightRouter);
   // router.use("/web", webScraperRouter);
-  router.use("/knowledge", knowledgeIngestionRouter);
+
   router.use("/status", statusRouter);
   router.use("/feedback", feedbackRouter);
   router.use("/evolution", evolutionRouter);
@@ -72,7 +72,7 @@ export function createApiRouter(): Router {
   router.use("/jobs", jobsRouter);
   router.use("/twilio", twilioRouter);
   router.use("/communications", communicationsRouter);
-  router.use("/debug/rag", ragDebugRouter);
+
   router.use("/orchestrator", orchestratorRouter);
   router.use("/database", databaseAdminRouter);
   router.use("/branding", brandingRouter);

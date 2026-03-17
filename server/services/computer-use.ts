@@ -18,6 +18,7 @@
  */
 
 import { GoogleGenAI, type FunctionDeclaration } from "@google/genai";
+import { desktopService } from "./desktop-service.js";
 
 const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
 
@@ -115,14 +116,26 @@ const computerUseTools: FunctionDeclaration[] = [
       },
       required: ["delay"]
     }
+  },
+  {
+    name: "computer_open",
+    description: "Open an application or run a command",
+    parametersJsonSchema: {
+      type: "object",
+      properties: {
+        app: { type: "string", description: "Name of application or command to run (e.g. 'google-chrome', 'gedit', 'openoffice')" }
+      },
+      required: ["app"]
+    }
   }
 ];
 
 export interface ComputerAction {
-  type: 'click' | 'type' | 'scroll' | 'move' | 'key' | 'screenshot' | 'wait';
+  type: 'click' | 'type' | 'scroll' | 'move' | 'key' | 'screenshot' | 'wait' | 'open';
   target?: { x: number; y: number } | string;
   text?: string;
   key?: string;
+  app?: string;
   modifiers?: string[]; // Add modifiers to the interface
   direction?: 'up' | 'down' | 'left' | 'right';
   amount?: number;
@@ -156,6 +169,84 @@ interface VisionAnalysis {
 export class ComputerUseService {
   private actionHistory: Array<{ action: ComputerAction; timestamp: Date; result?: any }> = [];
   private maxHistorySize = 50;
+
+  /**
+   * Execute an action locally on the server machine
+   */
+  async executeLocalAction(action: ComputerAction) {
+      console.log('🤖 [ComputerUse] Executing local action:', action);
+      
+      try {
+          switch (action.type) {
+              case 'click':
+                  if (typeof action.target === 'object') {
+                      await desktopService.performAction({ 
+                          type: 'click', 
+                          x: action.target.x, 
+                          y: action.target.y,
+                          button: action.button
+                      });
+                  }
+                  break;
+                  
+              case 'type':
+                  if (action.text) {
+                      await desktopService.performAction({ 
+                          type: 'type', 
+                          text: action.text 
+                      });
+                  }
+                  break;
+
+              case 'key':
+                  if (action.key) {
+                      await desktopService.performAction({
+                          type: 'key',
+                          key: action.key,
+                          modifiers: action.modifiers
+                      });
+                  }
+                  break;
+
+              case 'open':
+                  if (action.app) {
+                      await desktopService.performAction({
+                          type: 'open',
+                          app: action.app
+                      });
+                  }
+                  break;
+                  
+              case 'move':
+                  if (typeof action.target === 'object') {
+                      await desktopService.performAction({ 
+                          type: 'move', 
+                          x: action.target.x, 
+                          y: action.target.y 
+                      });
+                  }
+                  break;
+                  
+              case 'screenshot':
+                  const snapshot = desktopService.getSnapshot();
+                  if (snapshot) {
+                      return { 
+                          success: true, 
+                          screenshot: snapshot.toString('base64'),
+                          mimeType: "image/jpeg" 
+                      };
+                  } else {
+                      return { success: false, error: "No snapshot available" };
+                  }
+                  break;
+          }
+          
+          return { success: true };
+      } catch (error: any) {
+          console.error('❌ [ComputerUse] Local action failed:', error);
+          return { success: false, error: error.message };
+      }
+  }
 
   /**
    * Analyze a screenshot using Gemini Vision to understand the current state

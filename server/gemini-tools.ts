@@ -11,7 +11,7 @@
  * - write: Output to chat window
  * - log: Append to named log file
  * - say: HD voice output
- * - ssh: Persistent 2-way connection (TODO)
+ * - ssh: Persistent 2-way connection
  * 
  * Legacy aliases maintained for backward compatibility.
  */
@@ -59,7 +59,7 @@ export const geminiFunctionDeclarations: FunctionDeclaration[] = [
   },
   {
     name: "write",
-    description: "Send markdown content to the chat window. NON-TERMINATING - call end_turn when finished.",
+    description: "Send markdown content to the chat window. NON-TERMINATING",
     parametersJsonSchema: {
       type: "object",
       properties: {
@@ -69,18 +69,18 @@ export const geminiFunctionDeclarations: FunctionDeclaration[] = [
     }
   },
   {
-    name: "send_chat",
-    description: "ALIAS for write. Send markdown content to the chat window. NON-TERMINATING.",
+    name: "end_chat",
+    description: "TERMINATES Chat.",
     parametersJsonSchema: {
       type: "object",
       properties: {
-        content: { type: "string", description: "Markdown content to display" }
+        content: { type: "string", description: "End chat." }
       },
       required: ["content"]
     }
   },
   {
-    name: "log",
+    name: "append",
     description: "Append content to a named log file in ~/workspace/logs/{name}.md",
     parametersJsonSchema: {
       type: "object",
@@ -91,24 +91,9 @@ export const geminiFunctionDeclarations: FunctionDeclaration[] = [
       required: ["name", "content"]
     }
   },
-  // say is already defined below with correct name
-  // ssh: TODO - implement persistent WebSocket connection
-
-  // ═══════════════════════════════════════════════════════════════════════════
-  // LEGACY ALIASES (backward compatibility - route to core primitives)
-  // Note: send_chat removed - use write instead
-  // ═══════════════════════════════════════════════════════════════════════════
-  {
-    name: "end_turn",
-    description: "Terminate your turn in the interactive agentic loop and return control to the user. This is the ONLY way to end your turn - call this when you have completed your response.",
-    parametersJsonSchema: {
-      type: "object",
-      properties: {}
-    }
-  },
   {
     name: "say",
-    description: "Generate HD voice audio output. NON-BLOCKING and NON-TERMINATING - speech generation happens concurrently with other operations. Use alongside or before send_chat. Must call end_turn to finish your turn.",
+    description: "Generate HD voice audio output. NON-BLOCKING and NON-TERMINATING - speech generation happens concurrently with other operations. Use alongside or before end_chat. Must call end_turn to finish your turn.",
     parametersJsonSchema: {
       type: "object",
       properties: {
@@ -588,7 +573,7 @@ export const geminiFunctionDeclarations: FunctionDeclaration[] = [
   // ═══════════════════════════════════════════════════════════════════════════
   {
     name: "web_search",
-    description: "Search the web for information",
+    description: "Search the web for information (using Google or Exa)",
     parametersJsonSchema: {
       type: "object",
       properties: {
@@ -599,19 +584,90 @@ export const geminiFunctionDeclarations: FunctionDeclaration[] = [
     }
   },
   {
-    name: "browser_scrape",
-    description: "Scrape content from a webpage using Playwright",
+    name: "exa_search",
+    description: "Search the web using Exa (neural search engine)",
     parametersJsonSchema: {
       type: "object",
       properties: {
-        url: { type: "string", description: "URL to scrape" },
-        selector: { type: "string", description: "CSS selector for content (optional)" }
+        query: { type: "string", description: "Search query" },
+        maxResults: { type: "number", description: "Max results to return (default: 10)" },
+        useAutoprompt: { type: "boolean", description: "Whether to use autoprompt (default: true)" },
+        type: { type: "string", enum: ["neural", "keyword"], description: "Search type (default: neural)" }
+      },
+      required: ["query"]
+    }
+  },
+  // ═══════════════════════════════════════════════════════════════════════════
+  // BROWSER AUTOMATION (PUPPETEER)
+  // ═══════════════════════════════════════════════════════════════════════════
+  {
+    name: "puppeteer_navigate",
+    description: "Navigate to a URL in the browser",
+    parametersJsonSchema: {
+      type: "object",
+      properties: {
+        url: { type: "string", description: "The URL to navigate to" },
+        timeout: { type: "number", description: "Navigation timeout in ms (default: 30000)" }
       },
       required: ["url"]
     }
   },
-
-  // ═══════════════════════════════════════════════════════════════════════════
+  {
+    name: "puppeteer_click",
+    description: "Click an element on the current page",
+    parametersJsonSchema: {
+      type: "object",
+      properties: {
+        selector: { type: "string", description: "CSS selector of the element to click" },
+        timeout: { type: "number", description: "Wait timeout in ms (default: 5000)" }
+      },
+      required: ["selector"]
+    }
+  },
+  {
+    name: "puppeteer_type",
+    description: "Type text into an input field",
+    parametersJsonSchema: {
+      type: "object",
+      properties: {
+        selector: { type: "string", description: "CSS selector of the input field" },
+        text: { type: "string", description: "Text to type" },
+        delay: { type: "number", description: "Delay between keystrokes in ms (default: 0)" }
+      },
+      required: ["selector", "text"]
+    }
+  },
+  {
+    name: "puppeteer_screenshot",
+    description: "Take a screenshot of the current page",
+    parametersJsonSchema: {
+      type: "object",
+      properties: {
+        fullPage: { type: "boolean", description: "Capture full scrollable page (default: false)" }
+      }
+    }
+  },
+  {
+    name: "puppeteer_evaluate",
+    description: "Execute JavaScript in the page context",
+    parametersJsonSchema: {
+      type: "object",
+      properties: {
+        script: { type: "string", description: "JavaScript code to execute" }
+      },
+      required: ["script"]
+    }
+  },
+  {
+    name: "puppeteer_content",
+    description: "Get the content of the current page",
+    parametersJsonSchema: {
+      type: "object",
+      properties: {
+        format: { type: "string", enum: ["html", "text"], description: "Output format (default: html)" }
+      }
+    }
+  },
   // HTTP METHODS (for API calls including GitHub API)
   // ═══════════════════════════════════════════════════════════════════════════
   {
@@ -705,15 +761,39 @@ export const geminiFunctionDeclarations: FunctionDeclaration[] = [
   },
   {
     name: "call_make",
-    description: "Make a phone call via Twilio",
+    description: `Place a phone call on Jason's behalf using Meowstik as the voice AI on the call.
+
+WHEN TO USE: Any time Jason asks you to call someone ("call my mother", "get John on the line", "call Dr. Smith and ask about my appointment").
+
+HOW IT WORKS:
+- Provide contact_name OR to (phone number). If you give contact_name, the number is looked up in Google Contacts automatically.
+- Provide a detailed objective describing the FULL MISSION for the call — what to say, what to ask, what information to get back.
+- Meowstik will call the person, handle the ENTIRE conversation including small talk, complete the mission, and TEXT JASON THE RESULT when done.
+- You do NOT need to stay on the call. Meowstik handles it.
+
+OBJECTIVE TIPS:
+- Be thorough. Include: what to say, what to ask, what info to collect, any context the AI needs.
+- Example: "Call mom. Tell her we're planning to visit Sunday. Ask her what time works best and what we should bring. Make small talk if she wants to chat. When done, text Jason: the time she said and what to bring."`,
     parametersJsonSchema: {
       type: "object",
       properties: {
-        to: { type: "string", description: "Recipient phone number (E.164 format)" },
-        message: { type: "string", description: "Message to speak on the call (optional)" },
-        twimlUrl: { type: "string", description: "Custom TwiML URL (optional)" }
-      },
-      required: ["to"]
+        contact_name: {
+          type: "string",
+          description: "Name of the person to call as they appear in contacts (e.g., 'mom', 'John Smith', 'Dr. Wilson'). Used to auto-look up their number. Leave blank if providing 'to' directly."
+        },
+        to: {
+          type: "string",
+          description: "Phone number in E.164 format (e.g., +15551234567). Optional if contact_name is provided."
+        },
+        objective: {
+          type: "string",
+          description: "Complete mission for the call. Describe: what to say, what to ask, what info to collect, how to handle small talk, and what to report back to Jason when done. Be thorough — this drives the entire conversation."
+        },
+        message: {
+          type: "string",
+          description: "One-way TTS message to speak and hang up (optional, for simple announcements only)"
+        }
+      }
     }
   },
   {
@@ -798,31 +878,7 @@ export const geminiFunctionDeclarations: FunctionDeclaration[] = [
     }
   },
 
-  // ═══════════════════════════════════════════════════════════════════════════
-  // BROWSERBASE
-  // ═══════════════════════════════════════════════════════════════════════════
-  {
-    name: "browserbase_load",
-    description: "Load a URL in a Browserbase headless browser session",
-    parametersJsonSchema: {
-      type: "object",
-      properties: {
-        url: { type: "string", description: "URL to load" }
-      },
-      required: ["url"]
-    }
-  },
-  {
-    name: "browserbase_screenshot",
-    description: "Take a screenshot of the current Browserbase session",
-    parametersJsonSchema: {
-      type: "object",
-      properties: {
-        sessionId: { type: "string", description: "Browserbase session ID" }
-      },
-      required: ["sessionId"]
-    }
-  },
+
 
   // ═══════════════════════════════════════════════════════════════════════════
   // COMPUTER USE (PROJECT GHOST)

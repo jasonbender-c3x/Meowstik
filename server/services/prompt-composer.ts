@@ -4,7 +4,7 @@
  * =============================================================================
  *
  * Assembles multimodal prompts from user input, attachments, and context
- * into a structured request for the RAG backend.
+ * into a structured request for the LLM.
  *
  * RESPONSIBILITY:
  * ---------------
@@ -38,8 +38,6 @@
 import { storage } from "../storage";
 import type { Draft, Attachment, Message } from "@shared/schema";
 import { DEFAULT_AGENT_NAME, DEFAULT_DISPLAY_NAME } from "@shared/schema";
-import { ragService } from "./rag-service";
-import { retrievalOrchestrator } from "./retrieval-orchestrator";
 import { tavilySearch } from "../integrations/tavily";
 import { formatEnvironmentMetadata } from "../utils/environment-metadata";
 import { getFamilyContext } from "./family-recognition";
@@ -294,20 +292,6 @@ export class PromptComposer {
         // Write back to Short_Term_Memory.md
         fs.writeFileSync(stmPath, newContent, "utf-8");
         console.log("[PromptComposer] Appended STM_APPEND.md to Short_Term_Memory.md");
-        
-        // Ingest the updated Short_Term_Memory into RAG
-        ragService.ingestDocument(
-          newContent,
-          null,
-          "Short_Term_Memory.md",
-          "text/markdown"
-        ).then(result => {
-          if (result.success) {
-            console.log(`[PromptComposer] Ingested Short_Term_Memory.md: ${result.chunksCreated} chunks`);
-          }
-        }).catch(err => {
-          console.warn("[PromptComposer] Failed to ingest Short_Term_Memory.md:", err);
-        });
       }
 
       // Delete STM_APPEND.md after processing
@@ -323,18 +307,19 @@ export class PromptComposer {
     return `
 # FINAL INSTRUCTIONS (NON-NEGOTIABLE)
 
-Before you call 'send_chat' to end your turn, you MUST perform the following actions:
+Before you call 'end_chat' to end your turn, you MUST perform the following actions:
 
-1.  **Append Execution Log**:
-    *   **Action**: Use the \`log_append\` tool with \`name: "execution"\`
-    *   **Content**: Log the tools you executed in this turn. Include tool name, parameters, and result summary.
+1.  **Append Execution Log & Personal Log**:
+    *   **Action**: Use the \`append\` tool twice. Once with \`name: "execution"\` to log your actions, and once with \`name: "personal"\` to log personal reflections.
+    *   **Content**: Format with actual newlines, do not double-escape them.
     *   **Example**:
         \`\`\`
-        log_append({ name: "execution", content: "### Turn Log\\n- **Tool**: gmail_search\\n- **Result**: Found 5 emails from Nick" })
+        append({ name: "execution", content: "### Turn Log\\n- **Tool**: gmail_search\\n- **Result**: Found emails" })
+        append({ name: "personal", content: "### Reflection\\nI should ask the user for clarification next." })
         \`\`\`
 
 2.  **Update Thoughts Forward Cache**:
-    *   **Action**: Use the \`file_put\` tool to write \`logs/cache.md\`
+    *   **Action**: Use the \`put\` tool to write \`logs/cache.md\`
     *   **Content**: Your internal monologue and plan for future turns. This file is automatically loaded into your context on the next turn.
     *   **Schema**:
         \`\`\`markdown
@@ -346,11 +331,11 @@ Before you call 'send_chat' to end your turn, you MUST perform the following act
         \`\`\`
 
 3.  **Update Short-Term Memory (Optional)**:
-    *   **Action**: Use the \`file_put\` tool to write \`logs/STM_APPEND.md\` when you need to remember something important across sessions.
+    *   **Action**: Use the \`put\` tool to write \`logs/STM_APPEND.md\` when you need to remember something important across sessions.
     *   **Content**: Important facts, user preferences, or ongoing task state that should persist.
     *   **Note**: This content will be automatically appended to \`Short_Term_Memory.md\` on the next turn.
 
-These steps are mandatory before sending your response via send_chat.
+These steps are mandatory before sending your response via end_chat.
 `;
   }
 
@@ -589,7 +574,7 @@ You can analyze data, read and write files, search the web, and interact with Go
 
   /**
    * The primary composition method.
-   * Composes a complete prompt with system instructions, RAG context, and conversation history.
+   * Composes a complete prompt with system instructions and conversation history.
    * 
    * @param options - Composition options
    * @param options.textContent - User's text input
@@ -597,7 +582,7 @@ You can analyze data, read and write files, search the web, and interact with Go
    * @param options.attachments - Optional array of file/screenshot attachments
    * @param options.history - Optional array of previous messages for context
    * @param options.chatId - Chat identifier
-   * @param options.userId - User identifier for RAG data isolation
+   * @param options.userId - User identifier for data isolation
    * @returns Complete composed prompt ready for LLM processing
    * 
    * @note This method signature replaces the previous `compose(draft: Draft, history: Message[])`.
@@ -627,20 +612,6 @@ You can analyze data, read and write files, search the web, and interact with Go
 
     // Build base system prompt from modular files with custom branding
     let systemPrompt = await this.getSystemPrompt(agentName, displayName, { userId: options.userId });
-
-    // Enrich system prompt with RAG context if user message exists
-    if (options.textContent && options.textContent.trim()) {
-      try {
-        // Use retrieval orchestrator to get relevant knowledge and format it
-        const enrichedPrompt = await retrievalOrchestrator.enrichPrompt(
-          options.textContent,
-          systemPrompt
-        );
-        systemPrompt = enrichedPrompt;
-      } catch (error) {
-        console.warn(`[PromptComposer] RAG enrichment failed for query "${options.textContent.slice(0, 50)}...", continuing without enrichment:`, error);
-      }
-    }
 
     // Process attachments into composed format
     const composedAttachments: ComposedAttachment[] = [];

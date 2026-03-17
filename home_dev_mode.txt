@@ -1,1 +1,0 @@
-HOME_DEV_MODE=true

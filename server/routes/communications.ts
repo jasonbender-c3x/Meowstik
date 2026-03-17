@@ -1,140 +1,103 @@
 /**
- * Communications API Routes
- * Unified endpoint for SMS, Calls, and Voicemail
+ * Communications API Routes — SMS, Calls, Voicemail, Contacts
+ * Uses Drizzle ORM directly; no Knex/storage.db usage.
  */
 
 import { Router, Request, Response } from "express";
-import { storage } from "../storage";
-import * as twilioIntegration from "../integrations/twilio";
+import { db } from "../db.js";
+import { smsMessages, callConversations, voicemails } from "@shared/schema";
+import { eq, or, desc, asc } from "drizzle-orm";
+import { storage } from "../storage.js";
+import * as twilioIntegration from "../integrations/twilio.js";
 
 export const communicationsRouter = Router();
+
+// ============================================================================
+// Helpers
+// ============================================================================
+
+function normalizePhone(raw: string): string {
+  let p = raw.replace(/[^\d+]/g, "");
+  if (!p.startsWith("+")) {
+    p = p.length === 10 ? `+1${p}` : `+${p}`;
+  }
+  return p;
+}
+
+async function lookupContactName(phoneNumber: string): Promise<string | null> {
+  try {
+    const { searchContacts } = await import("../integrations/google-contacts.js");
+    const contacts = await searchContacts(phoneNumber, 5);
+    for (const c of contacts) {
+      for (const phone of c.phoneNumbers ?? []) {
+        const n = phone.value.replace(/[^\d+]/g, "");
+        const s = phoneNumber.replace(/[^\d+]/g, "");
+        if (n === s || n.slice(-10) === s.slice(-10)) {
+          return c.displayName ?? null;
+        }
+      }
+    }
+  } catch {
+    // Google Contacts not configured — fine
+  }
+  return null;
+}
 
 // ============================================================================
 // SMS / Conversations
 // ============================================================================
 
-/**
- * GET /api/communications/conversations
- * List all conversations with unread counts
- */
-communicationsRouter.get("/conversations", async (req: Request, res: Response) => {
+/** GET /api/communications/conversations */
+communicationsRouter.get("/conversations", async (_req: Request, res: Response) => {
   try {
-    const userId = req.user?.id;
-    if (!userId) {
-      return res.status(401).json({ error: "Unauthorized" });
-    }
+    const convData = await storage.getSmsConversations();
 
-    // Get all SMS messages grouped by phone number
-    const messages = await storage.db
-      .select("*")
-      .from("sms_messages")
-      .where({ user_id: userId })
-      .orderBy("created_at", "desc");
-
-    // Group by phone number to create conversations
-    const conversationsMap = new Map();
-    
-    for (const msg of messages) {
-      const phoneNumber = msg.direction === "inbound" ? msg.from_number : msg.to_number;
-      
-      if (!conversationsMap.has(phoneNumber)) {
-        conversationsMap.set(phoneNumber, {
-          id: phoneNumber,
-          phoneNumber,
+    // Enrich with contact names in parallel (2-second timeout)
+    const enriched = await Promise.race([
+      Promise.all(
+        convData.map(async (c) => ({
+          id: c.phoneNumber,
+          phoneNumber: c.phoneNumber,
+          contactName: await lookupContactName(c.phoneNumber),
+          lastMessage: c.lastMessage.body,
+          lastMessageAt: c.lastMessage.createdAt,
+          unreadCount: c.unreadCount,
+          lastDirection: c.lastMessage.direction,
+        }))
+      ),
+      new Promise<typeof convData>((resolve) =>
+        setTimeout(() => resolve(convData.map(c => ({
+          id: c.phoneNumber,
+          phoneNumber: c.phoneNumber,
           contactName: null,
-          lastMessage: msg.body,
-          lastMessageAt: msg.created_at,
-          unreadCount: msg.direction === "inbound" && !msg.read_at ? 1 : 0,
-        });
-      } else {
-        const conv = conversationsMap.get(phoneNumber);
-        if (msg.direction === "inbound" && !msg.read_at) {
-          conv.unreadCount++;
-        }
-      }
-    }
+          lastMessage: c.lastMessage.body,
+          lastMessageAt: c.lastMessage.createdAt,
+          unreadCount: c.unreadCount,
+          lastDirection: c.lastMessage.direction,
+        }))), 2000)
+      ),
+    ]);
 
-    const conversations = Array.from(conversationsMap.values());
-    
-    // Lookup contact names from Google Contacts (async, non-blocking)
-    // Import once for all lookups
-    try {
-      const { searchContacts } = await import("../integrations/google-contacts");
-      
-      // We do this in parallel for better performance
-      const lookupPromises = conversations.map(async (conv) => {
-        try {
-          const contacts = await searchContacts(conv.phoneNumber, 5);
-          
-          // Find matching contact by phone number
-          for (const contact of contacts) {
-            if (contact.phoneNumbers) {
-              for (const phone of contact.phoneNumbers) {
-                const normalizedContact = phone.value.replace(/[^\d+]/g, '');
-                const normalizedSearch = conv.phoneNumber.replace(/[^\d+]/g, '');
-                
-                if (normalizedContact === normalizedSearch || 
-                    normalizedContact.endsWith(normalizedSearch.slice(-10))) {
-                  conv.contactName = contact.displayName;
-                  return;
-                }
-              }
-            }
-          }
-        } catch (error: any) {
-          // Silently fail contact lookup for individual conversation - not critical
-          console.warn('[Communications] Failed to lookup contact for', conv.phoneNumber, ':', error.message);
-        }
-      });
-      
-      // Wait for all lookups to complete (with timeout)
-      await Promise.race([
-        Promise.all(lookupPromises),
-        new Promise(resolve => setTimeout(resolve, 2000)) // 2 second timeout
-      ]);
-    } catch (error: any) {
-      // Silently fail if Google Contacts not available
-      console.warn('[Communications] Google Contacts integration not available:', error.message);
-    }
-    
-    res.json(conversations);
+    res.json(enriched);
   } catch (error) {
     console.error("[Communications] Error fetching conversations:", error);
     res.status(500).json({ error: "Failed to fetch conversations" });
   }
 });
 
-/**
- * GET /api/communications/conversations/:phoneNumber/messages
- * Get messages for a specific conversation
- */
+/** GET /api/communications/conversations/:phoneNumber/messages */
 communicationsRouter.get("/conversations/:phoneNumber/messages", async (req: Request, res: Response) => {
   try {
-    const userId = req.user?.id;
-    if (!userId) {
-      return res.status(401).json({ error: "Unauthorized" });
-    }
-
     const { phoneNumber } = req.params;
-    
-    const messages = await storage.db
-      .select("*")
-      .from("sms_messages")
-      .where({ user_id: userId })
-      .where(function() {
-        this.where({ from_number: phoneNumber }).orWhere({ to_number: phoneNumber });
-      })
-      .orderBy("created_at", "asc")
-      .limit(100);
-
-    res.json(messages.map(msg => ({
-      id: msg.id,
-      from: msg.from_number,
-      to: msg.to_number,
-      body: msg.body,
-      direction: msg.direction,
-      createdAt: msg.created_at,
-      status: msg.status,
+    const messages = await storage.getSmsMessagesForNumber(phoneNumber, 100);
+    res.json(messages.map(m => ({
+      id: m.id,
+      from: m.from,
+      to: m.to,
+      body: m.body,
+      direction: m.direction,
+      createdAt: m.createdAt,
+      status: m.status,
     })));
   } catch (error) {
     console.error("[Communications] Error fetching messages:", error);
@@ -142,38 +105,30 @@ communicationsRouter.get("/conversations/:phoneNumber/messages", async (req: Req
   }
 });
 
-/**
- * POST /api/communications/sms/send
- * Send an SMS message
- */
+/** POST /api/communications/sms/send */
 communicationsRouter.post("/sms/send", async (req: Request, res: Response) => {
   try {
-    const userId = req.user?.id;
-    if (!userId) {
-      return res.status(401).json({ error: "Unauthorized" });
-    }
-
-    const { to, body } = req.body;
-    
+    let { to, body } = req.body as { to: string; body: string };
     if (!to || !body) {
       return res.status(400).json({ error: "Missing required fields: to, body" });
     }
 
-    // Send via Twilio
+    to = normalizePhone(to);
+    const ourNumber = process.env.TWILIO_PHONE_NUMBER || "unknown";
+    const accountSid = process.env.TWILIO_ACCOUNT_SID || "unknown";
+
     const result = await twilioIntegration.sendSMS(to, body);
 
-    // Store in database
-    await storage.db.insert({
-      id: crypto.randomUUID(),
-      user_id: userId,
-      message_sid: result.sid,
-      from_number: process.env.TWILIO_PHONE_NUMBER,
-      to_number: to,
+    await storage.insertSmsMessage({
+      messageSid: result.sid || `outbound-${Date.now()}`,
+      accountSid,
+      from: ourNumber,
+      to,
       body,
       direction: "outbound",
-      status: result.status,
-      created_at: new Date(),
-    }).into("sms_messages");
+      status: result.status || "sent",
+      processed: true,
+    });
 
     res.json({ success: true, messageSid: result.sid });
   } catch (error) {
@@ -186,87 +141,60 @@ communicationsRouter.post("/sms/send", async (req: Request, res: Response) => {
 // Calls
 // ============================================================================
 
-/**
- * GET /api/communications/calls
- * List call history
- */
+/** GET /api/communications/calls */
 communicationsRouter.get("/calls", async (req: Request, res: Response) => {
   try {
-    const userId = req.user?.id;
-    if (!userId) {
-      return res.status(401).json({ error: "Unauthorized" });
-    }
-
-    const limit = req.query.limit ? parseInt(req.query.limit as string) : 20;
-    
-    // Get recent call conversations from database
+    const limit = req.query.limit ? parseInt(req.query.limit as string) : 50;
     const calls = await storage.getRecentCallConversations(limit);
-    
-    // Format for frontend
-    const formattedCalls = calls.map(call => ({
-      id: call.id,
-      callSid: call.callSid,
-      direction: call.fromNumber === process.env.TWILIO_PHONE_NUMBER ? "outbound" : "inbound",
-      from: call.fromNumber,
-      to: call.toNumber,
-      status: call.status,
-      duration: call.duration || 0,
-      recordingUrl: null, // TODO: Add recording support
-      createdAt: call.startedAt,
+    const ourNumber = process.env.TWILIO_PHONE_NUMBER || "";
+
+    const formatted = calls.map((c) => ({
+      id: c.id,
+      callSid: c.callSid,
+      direction: c.fromNumber === ourNumber ? "outbound" : "inbound",
+      from: c.fromNumber,
+      to: c.toNumber,
+      status: c.status,
+      duration: c.duration ?? 0,
+      recordingUrl: c.recordingUrl ?? null,
+      createdAt: c.startedAt ?? c.createdAt,
     }));
-    
-    res.json(formattedCalls);
+
+    res.json(formatted);
   } catch (error) {
     console.error("[Communications] Error fetching calls:", error);
     res.status(500).json({ error: "Failed to fetch calls" });
   }
 });
 
-/**
- * POST /api/communications/calls
- * Initiate an outbound call
- */
+/** POST /api/communications/calls */
 communicationsRouter.post("/calls", async (req: Request, res: Response) => {
   try {
-    const userId = req.user?.id;
-    if (!userId) {
-      return res.status(401).json({ error: "Unauthorized" });
-    }
+    let { to, message, twimlUrl } = req.body as { to: string; message?: string; twimlUrl?: string };
 
-    const { to, message, twimlUrl } = req.body;
-    
-    if (!to) {
-      return res.status(400).json({ error: "Missing required field: to" });
-    }
+    if (!to) return res.status(400).json({ error: "Missing required field: to" });
+    to = normalizePhone(to);
 
-    // Initiate call via Twilio
+    const defaultTwimlUrl = `${process.env.BASE_URL || `https://${req.get("host")}`}/api/twilio/voice`;
+
     let call;
     if (message) {
-      // Use simple message TTS
       call = await twilioIntegration.makeCallWithMessage(to, message);
     } else if (twimlUrl) {
-      // Use custom TwiML
       call = await twilioIntegration.makeCall(to, twimlUrl);
     } else {
-      // Use default voice webhook
-      const defaultTwimlUrl = `${process.env.BASE_URL || 'https://' + req.get('host')}/api/twilio/webhooks/voice`;
       call = await twilioIntegration.makeCall(to, defaultTwimlUrl);
     }
 
-    // Create call conversation record
     await storage.insertCallConversation({
       callSid: call.sid,
-      fromNumber: call.from,
-      toNumber: call.to,
+      fromNumber: call.from || process.env.TWILIO_PHONE_NUMBER || "unknown",
+      toNumber: call.to || to,
       status: "in_progress",
       turnCount: 0,
     });
 
-    res.json({ 
-      success: true, 
-      callSid: call.sid,
-      status: call.status 
-    });
+    res.json({ success: true, callSid: call.sid, status: call.status });
   } catch (error) {
     console.error("[Communications] Error initiating call:", error);
     res.status(500).json({ error: "Failed to initiate call" });
@@ -277,64 +205,60 @@ communicationsRouter.post("/calls", async (req: Request, res: Response) => {
 // Voicemail
 // ============================================================================
 
-/**
- * GET /api/communications/voicemails
- * List voicemails
- */
+/** GET /api/communications/voicemails */
 communicationsRouter.get("/voicemails", async (req: Request, res: Response) => {
   try {
-    const userId = req.user?.id;
-    if (!userId) {
-      return res.status(401).json({ error: "Unauthorized" });
-    }
-
     const limit = req.query.limit ? parseInt(req.query.limit as string) : 20;
-    
-    // Get recent voicemails from database
-    const voicemails = await storage.getRecentVoicemails(limit);
-    
-    // Format for frontend
-    const formattedVoicemails = voicemails.map(vm => ({
-      id: vm.id,
-      from: vm.fromNumber,
-      recordingUrl: vm.recordingUrl,
-      transcription: vm.transcription,
-      duration: vm.duration || 0,
-      heard: vm.heard,
-      createdAt: vm.createdAt,
-    }));
-    
-    res.json(formattedVoicemails);
+    const vms = await storage.getRecentVoicemails(limit);
+
+    res.json(vms.map((v) => ({
+      id: v.id,
+      from: v.fromNumber,
+      to: v.toNumber,
+      recordingUrl: v.recordingUrl,
+      transcription: v.transcription ?? null,
+      duration: v.duration ?? 0,
+      heard: v.heard,
+      createdAt: v.createdAt,
+    })));
   } catch (error) {
     console.error("[Communications] Error fetching voicemails:", error);
     res.status(500).json({ error: "Failed to fetch voicemails" });
   }
 });
 
-/**
- * PUT /api/communications/voicemails/:id/heard
- * Mark voicemail as heard
- */
+/** PUT /api/communications/voicemails/:id/heard */
 communicationsRouter.put("/voicemails/:id/heard", async (req: Request, res: Response) => {
   try {
-    const userId = req.user?.id;
-    if (!userId) {
-      return res.status(401).json({ error: "Unauthorized" });
-    }
-
     const { id } = req.params;
-
-    // Mark voicemail as heard
     const updated = await storage.markVoicemailAsHeard(id);
-    
-    if (!updated) {
-      return res.status(404).json({ error: "Voicemail not found" });
-    }
-    
+    if (!updated) return res.status(404).json({ error: "Voicemail not found" });
     res.json({ success: true, voicemail: updated });
   } catch (error) {
-    console.error("[Communications] Error marking voicemail:", error);
-    res.status(500).json({ error: "Failed to mark voicemail" });
+    console.error("[Communications] Error marking voicemail heard:", error);
+    res.status(500).json({ error: "Failed to mark voicemail as heard" });
+  }
+});
+
+// ============================================================================
+// Contacts
+// ============================================================================
+
+/** GET /api/communications/contacts */
+communicationsRouter.get("/contacts", async (req: Request, res: Response) => {
+  try {
+    const query = (req.query.q as string) || "";
+    const pageSize = req.query.pageSize ? parseInt(req.query.pageSize as string) : 50;
+
+    const { searchContacts, listContacts } = await import("../integrations/google-contacts.js");
+    const contacts = query
+      ? await searchContacts(query, pageSize)
+      : (await listContacts(pageSize)).contacts;
+
+    res.json(contacts);
+  } catch (error: any) {
+    console.error("[Communications] Error fetching contacts:", error);
+    res.json([]);
   }
 });
 

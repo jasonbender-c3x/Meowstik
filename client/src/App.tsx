@@ -90,7 +90,7 @@ import DebugPage from "@/pages/debug";
 import SettingsPage from "@/pages/settings";
 import PythonSandboxPage from "@/pages/python-sandbox";
 import WebSearchPage from "@/pages/web-search";
-import KnowledgeIngestionPage from "@/pages/knowledge-ingestion";
+
 import MarkdownPlaygroundPage from "@/pages/markdown-playground";
 import EvolutionPage from "@/pages/evolution";
 import TaskQueuePage from "@/pages/task-queue";
@@ -108,7 +108,7 @@ import DocsPage from "@/pages/docs";
 import AgentSettingsPage from "@/pages/agent-settings";
 import LandingPage from "@/pages/landing";
 import InstallPage from "@/pages/install";
-import RagDebugPage from "@/pages/rag-debug";
+
 import LoginPage from "@/pages/login";
 import AudioSettingsPage from "@/pages/audio-settings";
 import VoiceLabPage from "@/pages/voice-lab";
@@ -229,9 +229,7 @@ function Router() {
         {() => <ProtectedRoute><WebSearchPage /></ProtectedRoute>}
       </Route>
       
-      <Route path="/knowledge">
-        {() => <ProtectedRoute><KnowledgeIngestionPage /></ProtectedRoute>}
-      </Route>
+
 
       <Route path="/markdown">
         {() => <ProtectedRoute><MarkdownPlaygroundPage /></ProtectedRoute>}
@@ -293,9 +291,7 @@ function Router() {
         {() => <ProtectedRoute><AgentSettingsPage /></ProtectedRoute>}
       </Route>
       
-      <Route path="/rag-debug">
-        {() => <ProtectedRoute><RagDebugPage /></ProtectedRoute>}
-      </Route>
+
       
       <Route component={NotFound} />
     </Switch>

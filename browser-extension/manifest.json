@@ -12,7 +12,8 @@
     "contextMenus",
     "notifications",
     "clipboardRead",
-    "clipboardWrite"
+    "clipboardWrite",
+    "sidePanel"
   ],
   "host_permissions": [
     "<all_urls>"
@@ -21,8 +22,10 @@
     "service_worker": "background/service-worker.js",
     "type": "module"
   },
+  "side_panel": {
+    "default_path": "side_panel/index.html"
+  },
   "action": {
-    "default_popup": "popup/popup.html",
     "default_icon": {
       "16": "icons/icon16.png",
       "32": "icons/icon32.png",

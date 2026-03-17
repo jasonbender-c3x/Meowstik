@@ -162,6 +162,7 @@ export async function makeCall(to: string, twimlUrl: string): Promise<{
     url: twimlUrl,
     from: twilioPhoneNumber,
     to,
+    record: true,
   });
 
   return {
@@ -194,6 +195,7 @@ export async function makeCallWithMessage(to: string, message: string): Promise<
     twiml,
     from: twilioPhoneNumber,
     to,
+    record: true,
   });
 
   return {
@@ -270,6 +272,64 @@ function escapeXml(text: string): string {
     .replace(/'/g, "&apos;");
 }
 
+/**
+ * Add a participant to a named Twilio Conference by dialing them out.
+ * The called party joins the conference when they answer.
+ */
+export async function callToConference(
+  to: string,
+  conferenceName: string,
+  baseUrl: string,
+): Promise<{ sid: string; status: string; to: string; from: string }> {
+  if (!twilioPhoneNumber) throw new Error("TWILIO_PHONE_NUMBER not configured");
+  const conferenceUrl = `${baseUrl}/api/twilio/conference/twiml?name=${encodeURIComponent(conferenceName)}`;
+  const call = await getClient().calls.create({
+    url: conferenceUrl,
+    from: twilioPhoneNumber,
+    to,
+    record: true,
+  });
+  return { sid: call.sid, status: call.status, to: call.to, from: call.from };
+}
+
+/**
+ * Dial a number with a spoken greeting, then place them into a conference room.
+ * Used by Meowstik to "get someone on the line" for the owner.
+ */
+export async function callWithGreetingToConference(
+  to: string,
+  conferenceName: string,
+  greetingText: string,
+  baseUrl: string,
+): Promise<{ sid: string; status: string; to: string; from: string }> {
+  if (!twilioPhoneNumber) throw new Error("TWILIO_PHONE_NUMBER not configured");
+  const safeGreeting = escapeXml(greetingText);
+  const twiml = `<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  <Say voice="Polly.Joanna">${safeGreeting}</Say>
+  <Dial>
+    <Conference beep="false" startConferenceOnEnter="false" endConferenceOnExit="false"
+      waitUrl="https://twimlets.com/holdmusic?Bucket=com.twilio.music.classical">
+      ${escapeXml(conferenceName)}
+    </Conference>
+  </Dial>
+</Response>`;
+  const call = await getClient().calls.create({
+    twiml,
+    from: twilioPhoneNumber,
+    to,
+    record: true,
+  });
+  return { sid: call.sid, status: call.status, to: call.to, from: call.from };
+}
+
+/**
+ * Update a live call with new TwiML (used to redirect a call into a conference).
+ */
+export async function redirectCall(callSid: string, twimlUrl: string): Promise<void> {
+  await getClient().calls(callSid).update({ url: twimlUrl, method: "POST" });
+}
+
 export default {
   isConfigured,
   getPhoneNumber,
@@ -282,4 +342,7 @@ export default {
   getCalls,
   getBalance,
   validateWebhookSignature,
+  callToConference,
+  callWithGreetingToConference,
+  redirectCall,
 };

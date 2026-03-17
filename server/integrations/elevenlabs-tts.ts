@@ -12,6 +12,8 @@
  */
 
 import { ElevenLabsClient } from "@elevenlabs/elevenlabs-js";
+import { VoiceStyle, VOICE_STYLE_MAPPING } from "../../shared/voice-styles.js";
+import { parseVoiceStyle } from "../services/style-parser.js";
 
 export interface TTSResponse {
   success: boolean;
@@ -165,15 +167,21 @@ export async function generateSingleSpeakerAudio(
 
       console.log(`[ElevenLabs] Generating audio with voice: ${voice} (${voiceConfig.voiceId})`);
 
+      // Parse style from text (e.g. "[style: cheerful] Hello")
+      const { style, cleanText } = parseVoiceStyle(text);
+      const styleParams = VOICE_STYLE_MAPPING[style]?.elevenlabs || VOICE_STYLE_MAPPING[VoiceStyle.Neutral].elevenlabs;
+      
+      console.log(`[ElevenLabs] Style: ${style}, Stability: ${styleParams.stability}, Style Exaggeration: ${styleParams.style}`);
+
       // Generate audio using ElevenLabs API
       const audioStream = await client.textToSpeech.convert(voiceConfig.voiceId, {
-        text: text,
+        text: cleanText,
         model_id: "eleven_turbo_v2_5", // Fast, high-quality model
         voice_settings: {
-          stability: 0.5,
-          similarity_boost: 0.75,
-          style: 0.0,
-          use_speaker_boost: true
+          stability: styleParams.stability,
+          similarity_boost: styleParams.similarity_boost,
+          style: styleParams.style,
+          use_speaker_boost: styleParams.use_speaker_boost !== false
         }
       });
 

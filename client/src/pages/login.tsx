@@ -5,10 +5,10 @@ import { Cat, ShieldCheck, Zap, Loader2 } from "lucide-react";
 
 /**
  * [💭 Analysis] 
- * Sovereign Login Page - System Revision 3.5.8
+ * Sovereign Login Page - System Revision 3.5.9
  * PATH: client/src/pages/login.tsx
  * FIX: Removed react-icons import that was crashing Vite.
- * FIX: Replaced Replit button with Sovereign Google/Dev buttons.
+ * FIX: Replaced button with Sovereign Google/Dev buttons.
  */
 
 // Custom Google Icon SVG for dependency-free rendering
@@ -78,7 +78,7 @@ export default function AuthPage() {
           </Button>
           
           <p className="text-center text-[9px] text-slate-600 font-mono uppercase tracking-widest">
-            Sovereign Identity Layer // Replit Purged
+            Sovereign Identity Layer
           </p>
         </CardContent>
       </Card>

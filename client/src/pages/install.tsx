@@ -289,7 +289,7 @@ export default function InstallPage() {
                           <Button
                             variant="outline"
                             size="icon"
-                            onClick={() => copyToClipboard("npx meowstik-agent --token YOUR_TOKEN --server wss://your-app.replit.app", "npx")}
+                            onClick={() => copyToClipboard("npx meowstik-agent --token YOUR_TOKEN --server wss://your-app.com", "npx")}
                             data-testid="button-copy-npx"
                           >
                             {copiedCommand === "npx" ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}

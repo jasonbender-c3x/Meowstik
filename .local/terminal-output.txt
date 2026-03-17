@@ -1,0 +1,11 @@
+
+[2026-03-13T06:27:18.184Z]
+$ printf 'alpha\n'; sleep 1; printf 'beta\n' >&2
+
+[2026-03-13T06:27:19.284Z]
+alpha
+
+
+[2026-03-13T06:27:19.284Z]
+[STDERR] beta
+

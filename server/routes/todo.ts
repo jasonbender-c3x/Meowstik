@@ -31,13 +31,9 @@ const router = Router();
 
 /**
  * Helper to get user ID from request
- * In production, this would come from authenticated session
- * For now, we use a fallback or query parameter
  */
 function getUserId(req: Request): string {
-  // TODO: Replace with actual authentication
-  // For now, use query parameter or default to 'guest'
-  return (req.query.userId as string) || req.body?.userId || "guest";
+  return (req as any).authStatus?.userId || "guest";
 }
 
 /**

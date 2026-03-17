@@ -58,16 +58,15 @@ export const GUEST_USER_ID = "guest";
  */
 export const DEFAULT_AGENT_NAME = "Meowstik";
 export const DEFAULT_DISPLAY_NAME = "Meowstik AI";
-export const DEFAULT_BRAND_COLOR = "#4285f4";
+export const DEFAULT_BRAND_COLOR = "#3B82F6";
 
 // =============================================================================
-// REPLIT AUTH TABLES
-// (IMPORTANT) These tables are mandatory for Replit Auth, don't drop them.
+// AUTH TABLES
 // =============================================================================
 
 /**
  * SESSION STORAGE TABLE
- * Required for Replit Auth - stores user sessions
+ * Stores user sessions
  */
 export const sessions = pgTable(
   "sessions",
@@ -81,7 +80,7 @@ export const sessions = pgTable(
 
 /**
  * USER STORAGE TABLE
- * Required for Replit Auth - stores user profiles
+ * Stores user profiles
  */
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -490,7 +489,7 @@ export type Draft = typeof drafts.$inferSelect;
  * - "api_call": External API requests
  * - "file_create": Create new text file
  * - "file_replace": Replace existing file content
- * - "file_append": Append to existing file
+ * - "append": Append to existing file
  * - "binary_create": Create binary file from base64
  * - "search": Search operations
  * - "autoexec": Execute script with elevated permissions
@@ -703,14 +702,14 @@ export const ToolTypes = {
   WRITE: "write",             // Output to chat window
   LOG: "log",                 // Append to log file
   SAY: "say",                 // HD voice output
-  // SSH: "ssh",              // TODO: persistent 2-way connection
+  // SSH: "ssh",              // Persistent 2-way connection
   
   // ==========================================================================
   // LEGACY NAMES (maintained for backward compatibility)
   // ==========================================================================
   // Core operations
   API_CALL: "api_call",
-  FILE_INGEST: "file_ingest", 
+ 
   FILE_UPLOAD: "file_upload",
   SEARCH: "search",
   WEB_SEARCH: "web_search",
@@ -775,10 +774,10 @@ export const ToolTypes = {
   PERPLEXITY_RESEARCH: "perplexity_research",
   PERPLEXITY_NEWS: "perplexity_news",
   
-  // Browserbase operations
-  BROWSERBASE_LOAD: "browserbase_load",
-  BROWSERBASE_SCREENSHOT: "browserbase_screenshot",
-  BROWSERBASE_ACTION: "browserbase_action",
+  // Browserbase operations (REMOVED)
+  // BROWSERBASE_LOAD: "browserbase_load",
+  // BROWSERBASE_SCREENSHOT: "browserbase_screenshot",
+  // BROWSERBASE_ACTION: "browserbase_action",
   
   // GitHub operations
   GITHUB_REPOS: "github_repos",
@@ -807,14 +806,14 @@ export const ToolTypes = {
   DEBUG_ECHO: "debug_echo",
   
   // Chat output - primary tool for sending content to chat window (non-terminating)
-  SEND_CHAT: "send_chat",
+  SEND_CHAT: "end_chat",
   
   // Turn control - terminates the interactive agentic loop (ONLY way to end turn)
   END_TURN: "end_turn",
   
   // File operations
-  FILE_GET: "file_get",
-  FILE_PUT: "file_put",
+  FILE_GET: "get",
+  FILE_PUT: "put",
   
   // Twilio SMS/Voice operations
   SMS_SEND: "sms_send",
@@ -853,28 +852,28 @@ export const toolCallSchema = z.object({
     // These short names are the preferred interface; legacy names below are aliases
     // ==========================================================================
     "terminal",  // Non-interactive shell command (alias: terminal_execute)
-    "get",       // Read file or URL (alias: file_get)
-    "put",       // Write file (alias: file_put)
-    "write",     // Output to chat window (alias: send_chat)
-    "log",       // Append to log file (alias: log_append)
+    "get",       // Read file or URL (alias: get)
+    "put",       // Write file (alias: put)
+    "write",     // Output to chat window (alias: end_chat)
+    "log",       // Append to log file (alias: append)
     "say",       // HD voice output (no alias needed)
-    // ssh: TODO - persistent 2-way connection
+    // ssh: persistent 2-way connection
     
     // ==========================================================================
     // LEGACY NAMES (maintained for backward compatibility)
     // ==========================================================================
     // Core
-    "api_call", "file_ingest", "search", "web_search", "custom",
+
     // Chat output - primary tool for sending content to chat window
-    "send_chat",
+    "end_chat",
     // Turn control - terminates the agentic loop
     "end_turn",
     // Browser control - open URLs in new tabs
     "open_url",
     // File operations
-    "file_get", "file_put",
+    "get", "put",
     // Log operations
-    "log_append",
+    "append",
     // Search & Scraping
     "google_search", "duckduckgo_search", "browser_scrape",
     // Gmail
@@ -896,7 +895,7 @@ export const toolCallSchema = z.object({
     // Perplexity AI search
     "perplexity_search", "perplexity_quick", "perplexity_research", "perplexity_news",
     // Browserbase
-    "browserbase_load", "browserbase_screenshot", "browserbase_action",
+    // "browserbase_load", "browserbase_screenshot", "browserbase_action",
     // GitHub
     "github_repos", "github_repo_get", "github_repo_search", "github_contents", 
     "github_file_read", "github_code_search", "github_issues", "github_issue_get",
@@ -929,7 +928,7 @@ export type ToolCall = z.infer<typeof toolCallSchema>;
  * The primary tool for sending content to the chat window
  * 
  * IMPORTANT: This is NON-TERMINATING - calling this does not end your turn.
- * You can call send_chat multiple times within a single turn to provide
+ * You can call end_chat multiple times within a single turn to provide
  * incremental updates as you work through multi-step operations.
  * 
  * Always explicitly call end_turn when you're ready to return control to the user.
@@ -1250,7 +1249,7 @@ export type AutoexecScript = z.infer<typeof autoexecSchema>;
 
 /**
  * Complete Structured LLM Response Schema
- * LLM returns toolCalls array - all output goes through tools (send_chat, say, file_put, etc.)
+ * LLM returns toolCalls array - all output goes through tools (end_chat, say, put, etc.)
  */
 export const structuredLLMResponseSchema = z.object({
   toolCalls: z.array(toolCallSchema).optional().default([]),
@@ -1277,23 +1276,12 @@ export type StructuredLLMResponse = z.infer<typeof structuredLLMResponseSchema>;
  * 3. Chunks are stored with their embeddings for later retrieval
  * 4. On query, relevant chunks are found via vector similarity search
  */
-export const documentChunks = pgTable("document_chunks", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  documentId: varchar("document_id").notNull(),
-  attachmentId: varchar("attachment_id").references(() => attachments.id, { onDelete: "cascade" }),
-  chunkIndex: integer("chunk_index").notNull(),
-  content: text("content").notNull(),
-  embedding: jsonb("embedding"),
-  metadata: jsonb("metadata"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+// Document Chunks table removed
+// export const documentChunks = pgTable("document_chunks", { ... });
 
-export const insertDocumentChunkSchema = createInsertSchema(documentChunks).omit({
-  id: true,
-  createdAt: true,
-});
-export type InsertDocumentChunk = z.infer<typeof insertDocumentChunkSchema>;
-export type DocumentChunk = typeof documentChunks.$inferSelect;
+// export const insertDocumentChunkSchema = ...;
+// export type InsertDocumentChunk = ...;
+// export type DocumentChunk = ...;
 
 // =============================================================================
 // GOOGLE OAUTH TOKENS
@@ -1397,13 +1385,13 @@ export function parseStructuredResponse(response: string): StructuredLLMResponse
 
 /**
  * Create a fallback structured response when LLM returns plain text
- * Plain text is converted to a send_chat tool call
+ * Plain text is converted to a end_chat tool call
  */
 export function createFallbackResponse(plainText: string): StructuredLLMResponse {
   return {
     toolCalls: [{
       id: "fallback_chat",
-      type: "send_chat" as const,
+      type: "end_chat" as const,
       operation: "respond",
       parameters: { content: plainText },
       priority: 0,
@@ -1427,263 +1415,48 @@ export function isStructuredResponse(response: string): boolean {
 // LOG PARSER TABLES
 // =============================================================================
 
-export const conversationSources = pgTable("conversation_sources", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  sourceType: text("source_type").notNull(),
-  sourceId: text("source_id").notNull(),
-  title: text("title").notNull(),
-  participants: text("participants").array(),
-  messageCount: integer("message_count").default(0),
-  dateStart: timestamp("date_start"),
-  dateEnd: timestamp("date_end"),
-  status: text("status").default("pending").notNull(),
-  content: text("content"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
+// Conversation Sources and Ingestion Jobs tables removed
+// export const conversationSources = pgTable("conversation_sources", { ... });
+// export const insertConversationSourceSchema = ...;
+// export type InsertConversationSource = ...;
 
-export const insertConversationSourceSchema = createInsertSchema(conversationSources).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-});
-export type InsertConversationSource = z.infer<typeof insertConversationSourceSchema>;
-export type ConversationSource = typeof conversationSources.$inferSelect;
+// export const ingestionJobs = pgTable("ingestion_jobs", { ... });
+// export const insertIngestionJobSchema = ...;
+// export type InsertIngestionJob = ...;
 
-export const ingestionJobs = pgTable("ingestion_jobs", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  sourceId: varchar("source_id").references(() => conversationSources.id, { onDelete: "cascade" }),
-  sourceName: text("source_name").notNull(),
-  status: text("status").default("pending").notNull(),
-  progress: integer("progress").default(0),
-  messagesProcessed: integer("messages_processed").default(0),
-  totalMessages: integer("total_messages").default(0),
-  error: text("error"),
-  startedAt: timestamp("started_at"),
-  completedAt: timestamp("completed_at"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-});
 
-export const insertIngestionJobSchema = createInsertSchema(ingestionJobs).omit({
-  id: true,
-  createdAt: true,
-});
-export type InsertIngestionJob = z.infer<typeof insertIngestionJobSchema>;
-export type IngestionJob = typeof ingestionJobs.$inferSelect;
-
-export const extractedKnowledge = pgTable("extracted_knowledge", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  sourceId: varchar("source_id").references(() => conversationSources.id, { onDelete: "cascade" }),
-  jobId: varchar("job_id").references(() => ingestionJobs.id, { onDelete: "cascade" }),
-  bucket: text("bucket").notNull(),
-  section: text("section"),
-  content: text("content").notNull(),
-  confidence: integer("confidence").default(100),
-  metadata: jsonb("metadata"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-});
-
-export const insertExtractedKnowledgeSchema = createInsertSchema(extractedKnowledge).omit({
-  id: true,
-  createdAt: true,
-});
-export type InsertExtractedKnowledge = z.infer<typeof insertExtractedKnowledgeSchema>;
-export type ExtractedKnowledge = typeof extractedKnowledge.$inferSelect;
+// Extracted Knowledge table removed
+// export const extractedKnowledge = pgTable("extracted_knowledge", { ... });
+// export const insertExtractedKnowledgeSchema = ...;
+// export type InsertExtractedKnowledge = ...;
 
 // =============================================================================
 // KNOWLEDGE PIPELINE TABLES (Multimodal Ingestion/Retrieval)
 // =============================================================================
 
-/**
- * EVIDENCE TABLE
- * Normalized multimodal input envelope - the common format for all ingested content
- * Supports: text, images, audio, documents, emails, conversations
- */
-export const evidence = pgTable("evidence", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  
-  // Source tracking
-  sourceType: text("source_type").notNull(), // gmail, drive, upload, screenshot, audio, chat
-  sourceId: text("source_id"), // External ID from source system
-  sourceUrl: text("source_url"), // Original URL/path if available
-  
-  // Content modality
-  modality: text("modality").notNull(), // text, image, audio, document, email, conversation
-  mimeType: text("mime_type"),
-  
-  // Normalized content
-  title: text("title"),
-  rawContent: text("raw_content"), // Original content (text or base64)
-  extractedText: text("extracted_text"), // Text extracted from any modality (OCR, ASR, etc.)
-  summary: text("summary"), // AI-generated summary
-  
-  // Metadata
-  author: text("author"),
-  participants: text("participants").array(),
-  language: text("language").default("en"),
-  wordCount: integer("word_count"),
-  
-  // User isolation - CRITICAL for data privacy
-  // Note: Uses ON DELETE SET NULL to preserve guest data when users are deleted
-  userId: varchar("user_id").references(() => users.id, { onDelete: "set null" }),
-  isGuest: boolean("is_guest").default(false).notNull(),
-  
-  // Temporal
-  contentDate: timestamp("content_date"), // When the content was originally created
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
-  
-  // Processing status
-  status: text("status").default("pending").notNull(), // pending, processing, indexed, failed
-  processingError: text("processing_error"),
-  
-  // Domain routing
-  bucket: text("bucket"), // PERSONAL_LIFE, CREATOR, PROJECTS
-  confidence: integer("confidence").default(0), // Routing confidence 0-100
-});
 
-export const insertEvidenceSchema = createInsertSchema(evidence).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-});
-export type InsertEvidence = z.infer<typeof insertEvidenceSchema>;
-export type Evidence = typeof evidence.$inferSelect;
 
-/**
- * ENTITIES TABLE
- * Recognized entities extracted from content (people, places, concepts, etc.)
- */
-export const entities = pgTable("entities", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  
-  // Entity identification
-  name: text("name").notNull(), // Canonical name
-  type: text("type").notNull(), // person, place, organization, concept, project, technology
-  aliases: text("aliases").array(), // Alternative names/spellings
-  
-  // Description and context
-  description: text("description"),
-  
-  // Linking
-  externalIds: jsonb("external_ids"), // {linkedin: "...", github: "...", etc.}
-  
-  // Statistics
-  mentionCount: integer("mention_count").default(0),
-  lastMentioned: timestamp("last_mentioned"),
-  
-  // Metadata
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
+// Entities and Entity Mentions tables removed
+// export const entities = pgTable("entities", { ... });
+// export const insertEntitySchema = ...;
+// export type InsertEntity = ...;
 
-export const insertEntitySchema = createInsertSchema(entities).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-});
-export type InsertEntity = z.infer<typeof insertEntitySchema>;
-export type Entity = typeof entities.$inferSelect;
+// export const entityMentions = pgTable("entity_mentions", { ... });
+// export const insertEntityMentionSchema = ...;
+// export type InsertEntityMention = ...;
 
-/**
- * ENTITY_MENTIONS TABLE
- * Links entities to the evidence/knowledge where they appear
- */
-export const entityMentions = pgTable("entity_mentions", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  
-  entityId: varchar("entity_id").references(() => entities.id, { onDelete: "cascade" }).notNull(),
-  evidenceId: varchar("evidence_id").references(() => evidence.id, { onDelete: "cascade" }),
-  knowledgeId: varchar("knowledge_id").references(() => extractedKnowledge.id, { onDelete: "cascade" }),
-  
-  // Context
-  mentionText: text("mention_text"), // The exact text that matched
-  context: text("context"), // Surrounding text for context
-  sentiment: text("sentiment"), // positive, negative, neutral
-  
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-});
 
-export const insertEntityMentionSchema = createInsertSchema(entityMentions).omit({
-  id: true,
-  createdAt: true,
-});
-export type InsertEntityMention = z.infer<typeof insertEntityMentionSchema>;
-export type EntityMention = typeof entityMentions.$inferSelect;
+// Knowledge Embeddings table removed
+// export const knowledgeEmbeddings = pgTable("knowledge_embeddings", { ... });
+// export const insertKnowledgeEmbeddingSchema = ...;
+// export type InsertKnowledgeEmbedding = ...;
 
-/**
- * KNOWLEDGE_EMBEDDINGS TABLE
- * Vector embeddings for semantic search (pgvector compatible)
- */
-export const knowledgeEmbeddings = pgTable("knowledge_embeddings", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  
-  // Link to source
-  evidenceId: varchar("evidence_id").references(() => evidence.id, { onDelete: "cascade" }),
-  knowledgeId: varchar("knowledge_id").references(() => extractedKnowledge.id, { onDelete: "cascade" }),
-  chunkId: varchar("chunk_id").references(() => documentChunks.id, { onDelete: "cascade" }),
-  
-  // The text that was embedded
-  content: text("content").notNull(),
-  
-  // Vector embedding stored as JSON array (can migrate to pgvector later)
-  embedding: jsonb("embedding"),
-  embeddingModel: text("embedding_model").default("text-embedding-004"),
-  dimensions: integer("dimensions").default(768),
-  
-  // Metadata for filtering
-  bucket: text("bucket"),
-  modality: text("modality"),
-  sourceType: text("source_type"),
-  
-  // User isolation - CRITICAL for data privacy
-  // Note: Uses ON DELETE SET NULL to preserve guest data when users are deleted
-  userId: varchar("user_id").references(() => users.id, { onDelete: "set null" }),
-  isGuest: boolean("is_guest").default(false).notNull(),
-  
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-});
 
-export const insertKnowledgeEmbeddingSchema = createInsertSchema(knowledgeEmbeddings).omit({
-  id: true,
-  createdAt: true,
-});
-export type InsertKnowledgeEmbedding = z.infer<typeof insertKnowledgeEmbeddingSchema>;
-export type KnowledgeEmbedding = typeof knowledgeEmbeddings.$inferSelect;
 
-/**
- * CROSS_REFERENCES TABLE
- * Links between related knowledge items across buckets
- */
-export const crossReferences = pgTable("cross_references", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  
-  // Source and target
-  sourceType: text("source_type").notNull(), // evidence, knowledge, entity
-  sourceId: varchar("source_id").notNull(),
-  targetType: text("target_type").notNull(),
-  targetId: varchar("target_id").notNull(),
-  
-  // Relationship
-  relationshipType: text("relationship_type").notNull(), // related_to, derived_from, mentions, etc.
-  strength: integer("strength").default(50), // 0-100
-  
-  // Context
-  reason: text("reason"), // Why this link exists
-  
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-});
 
-export const insertCrossReferenceSchema = createInsertSchema(crossReferences).omit({
-  id: true,
-  createdAt: true,
-});
-export type InsertCrossReference = z.infer<typeof insertCrossReferenceSchema>;
-export type CrossReference = typeof crossReferences.$inferSelect;
 
-// =============================================================================
-// KERNEL SYSTEM (Self-Evolving AI Persistent Memory)
-// =============================================================================
+
+
 
 /**
  * KERNELS TABLE
@@ -1703,91 +1476,9 @@ export type CrossReference = typeof crossReferences.$inferSelect;
  * The kernel is injected into the system prompt at the start of each session,
  * allowing the AI to maintain continuity across conversations.
  */
-export const kernels = pgTable("kernels", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  
-  // Versioning
-  version: text("version").notNull(), // Semantic version like "9.31"
-  parentId: varchar("parent_id"), // Previous kernel ID for evolution tracking (self-reference)
-  
-  // User association (each user can have their own kernel)
-  userId: varchar("user_id").references(() => users.id, { onDelete: "cascade" }),
-  
-  // Content sections (stored as markdown text)
-  coreDirectives: text("core_directives").notNull(), // The immutable core rules
-  personality: text("personality"), // Communication style and traits
-  learnedBehaviors: text("learned_behaviors"), // Patterns discovered through interaction
-  userPreferences: text("user_preferences"), // Remembered user preferences
-  
-  // Structured data (for programmatic access)
-  toolConfig: jsonb("tool_config"), // Which tools are enabled/disabled
-  bucketWeights: jsonb("bucket_weights"), // Priority weights for knowledge buckets
-  
-  // Status
-  status: text("status").default("active").notNull(), // active, archived, draft
-  
-  // Evolution tracking
-  evolutionReason: text("evolution_reason"), // Why this version was created
-  changeLog: text("change_log"), // Human-readable changes from parent
-  
-  // Timestamps
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
 
-export const insertKernelSchema = createInsertSchema(kernels).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-});
-export type InsertKernel = z.infer<typeof insertKernelSchema>;
-export type Kernel = typeof kernels.$inferSelect;
 
-/**
- * KERNEL_EVOLUTIONS TABLE
- * -----------------------
- * Tracks individual learning events that may lead to kernel updates.
- * Each evolution represents a detected pattern or insight that the AI
- * learned during a conversation.
- * 
- * Evolutions are queued and reviewed before being incorporated into
- * the next kernel version, ensuring controlled evolution.
- */
-export const kernelEvolutions = pgTable("kernel_evolutions", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  
-  // Link to kernel and conversation
-  kernelId: varchar("kernel_id").references(() => kernels.id, { onDelete: "cascade" }).notNull(),
-  chatId: varchar("chat_id").references(() => chats.id, { onDelete: "cascade" }),
-  messageId: varchar("message_id").references(() => messages.id, { onDelete: "cascade" }),
-  
-  // Evolution details
-  evolutionType: text("evolution_type").notNull(), // preference, pattern, correction, insight
-  targetSection: text("target_section").notNull(), // coreDirectives, personality, learnedBehaviors, userPreferences
-  
-  // Content
-  observation: text("observation").notNull(), // What was observed
-  proposedChange: text("proposed_change").notNull(), // Suggested update to kernel
-  rationale: text("rationale"), // Why this change is beneficial
-  
-  // Review status
-  status: text("status").default("pending").notNull(), // pending, approved, rejected, applied
-  reviewedAt: timestamp("reviewed_at"),
-  appliedToVersion: varchar("applied_to_version"), // Which kernel version incorporated this
-  
-  // Confidence
-  confidence: integer("confidence").default(50), // 0-100
-  
-  // Timestamps
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-});
 
-export const insertKernelEvolutionSchema = createInsertSchema(kernelEvolutions).omit({
-  id: true,
-  createdAt: true,
-});
-export type InsertKernelEvolution = z.infer<typeof insertKernelEvolutionSchema>;
-export type KernelEvolution = typeof kernelEvolutions.$inferSelect;
 
 // =============================================================================
 // TASK QUEUE SYSTEM - AI batch processing queue
@@ -2524,7 +2215,7 @@ export const sshHosts = pgTable("ssh_hosts", {
   port: integer("port").default(22).notNull(),
   username: text("username").notNull(),
   
-  // Authentication - references a Replit secret by name
+  // Authentication - references a secret or env var by name
   keySecretName: text("key_secret_name"), // Name of secret storing private key
   passwordSecretName: text("password_secret_name"), // Alternative: password auth
   
@@ -2561,7 +2252,7 @@ export const sshKeys = pgTable("ssh_keys", {
   
   name: text("name").notNull().unique(), // Key pair name
   publicKey: text("public_key").notNull(), // The public key content
-  privateKeySecretName: text("private_key_secret_name").notNull(), // Reference to Replit secret
+  privateKeySecretName: text("private_key_secret_name").notNull(), // Reference to secret/env var
   
   keyType: text("key_type").default("ed25519").notNull(), // ed25519, rsa, etc.
   fingerprint: text("fingerprint"), // SSH key fingerprint
@@ -2773,232 +2464,13 @@ export const insertVoicemailSchema = createInsertSchema(voicemails).omit({
 export type InsertVoicemail = z.infer<typeof insertVoicemailSchema>;
 export type Voicemail = typeof voicemails.$inferSelect;
 
-// =============================================================================
-// RAG TRACEABILITY SYSTEM
-// =============================================================================
-/**
- * RAG_TRACES TABLE
- * ----------------
- * Comprehensive tracing for RAG pipeline operations (ingestion and queries).
- * Enables debugging, performance analysis, and audit trails.
- */
-export const ragTraces = pgTable("rag_traces", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  
-  // Trace identification
-  traceId: varchar("trace_id", { length: 255 }).notNull(),
-  traceType: varchar("trace_type", { length: 50 }).notNull(), // 'ingestion' | 'query'
-  
-  // Timing
-  timestamp: timestamp("timestamp").notNull().defaultNow(),
-  durationMs: integer("duration_ms"),
-  
-  // Stage
-  stage: varchar("stage", { length: 50 }).notNull(),
-  
-  // Content references
-  documentId: varchar("document_id", { length: 255 }),
-  chunkIds: text("chunk_ids").array(),
-  messageId: varchar("message_id", { length: 255 }),
-  chatId: varchar("chat_id", { length: 255 }),
-  userId: varchar("user_id", { length: 255 }),
-  
-  // Query details
-  queryText: text("query_text"),
-  queryLength: integer("query_length"),
-  
-  // Ingestion details
-  filename: varchar("filename", { length: 500 }),
-  contentType: varchar("content_type", { length: 100 }),
-  contentLength: integer("content_length"),
-  
-  // Chunking details
-  chunksCreated: integer("chunks_created"),
-  chunksFiltered: integer("chunks_filtered"),
-  chunkingStrategy: varchar("chunking_strategy", { length: 50 }),
-  
-  // Embedding details
-  embeddingModel: varchar("embedding_model", { length: 100 }),
-  embeddingDimensions: integer("embedding_dimensions"),
-  
-  // Search/retrieval details
-  searchResults: integer("search_results"),
-  threshold: varchar("threshold", { length: 20 }), // Store as string to avoid float precision issues
-  topK: integer("top_k"),
-  scores: text("scores").array(), // Store as string array
-  
-  // Context injection
-  tokensUsed: integer("tokens_used"),
-  sourcesCount: integer("sources_count"),
-  contextLength: integer("context_length"),
-  
-  // Error tracking
-  errorMessage: text("error_message"),
-  errorStage: varchar("error_stage", { length: 50 }),
-  
-  // Metadata
-  metadata: jsonb("metadata"),
-  
-  // Timestamps
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-}, (table) => [
-  index("idx_rag_traces_trace_id").on(table.traceId),
-  index("idx_rag_traces_timestamp").on(table.timestamp),
-  index("idx_rag_traces_type_stage").on(table.traceType, table.stage),
-]);
 
-export const insertRagTraceSchema = createInsertSchema(ragTraces).omit({
-  id: true,
-  createdAt: true,
-});
-export type InsertRagTrace = z.infer<typeof insertRagTraceSchema>;
-export type RagTrace = typeof ragTraces.$inferSelect;
 
-/**
- * RAG_CHUNK_LINEAGE TABLE
- * -----------------------
- * Track chunk lifecycle from creation to retrieval.
- * Enables understanding of chunk usage and quality metrics.
- */
-export const ragChunkLineage = pgTable("rag_chunk_lineage", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  
-  // Chunk identification
-  chunkId: varchar("chunk_id", { length: 255 }).notNull().unique(),
-  documentId: varchar("document_id", { length: 255 }).notNull(),
-  
-  // Source tracking
-  sourceType: varchar("source_type", { length: 100 }).notNull(),
-  sourceId: varchar("source_id", { length: 255 }).notNull(),
-  filename: varchar("filename", { length: 500 }),
-  
-  // Ingestion metadata
-  ingestedAt: timestamp("ingested_at").notNull().defaultNow(),
-  ingestionTraceId: varchar("ingestion_trace_id", { length: 255 }),
-  
-  // Chunk details
-  contentPreview: text("content_preview"),
-  contentLength: integer("content_length"),
-  chunkIndex: integer("chunk_index"),
-  
-  // Vector metadata
-  embeddingModel: varchar("embedding_model", { length: 100 }),
-  vectorStore: varchar("vector_store", { length: 100 }),
-  
-  // Usage tracking
-  retrievalCount: integer("retrieval_count").default(0),
-  lastRetrievedAt: timestamp("last_retrieved_at"),
-  avgSimilarityScore: varchar("avg_similarity_score", { length: 20 }),
-  
-  // Quality metrics
-  importanceScore: varchar("importance_score", { length: 20 }),
-  isVerified: boolean("is_verified").default(false),
-  
-  // Metadata
-  tags: text("tags").array(),
-  metadata: jsonb("metadata"),
-  
-  // Timestamps
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-  updatedAt: timestamp("updated_at").notNull().defaultNow(),
-}, (table) => [
-  index("idx_chunk_lineage_document").on(table.documentId),
-  index("idx_chunk_lineage_source").on(table.sourceType, table.sourceId),
-]);
 
-export const insertRagChunkLineageSchema = createInsertSchema(ragChunkLineage).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-});
-export type InsertRagChunkLineage = z.infer<typeof insertRagChunkLineageSchema>;
-export type RagChunkLineage = typeof ragChunkLineage.$inferSelect;
 
-/**
- * RAG_RETRIEVAL_RESULTS TABLE
- * ---------------------------
- * Detailed tracking of query results.
- * Links queries to retrieved chunks with scores and feedback.
- */
-export const ragRetrievalResults = pgTable("rag_retrieval_results", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  
-  // Query identification
-  traceId: varchar("trace_id", { length: 255 }).notNull(),
-  queryText: text("query_text").notNull(),
-  userId: varchar("user_id", { length: 255 }),
-  chatId: varchar("chat_id", { length: 255 }),
-  
-  // Result details
-  chunkId: varchar("chunk_id", { length: 255 }).notNull(),
-  similarityScore: varchar("similarity_score", { length: 20 }).notNull(),
-  rank: integer("rank").notNull(),
-  
-  // Context inclusion
-  includedInContext: boolean("included_in_context").default(false),
-  contextPosition: integer("context_position"),
-  
-  // Quality feedback
-  wasRelevant: boolean("was_relevant"),
-  feedbackSource: varchar("feedback_source", { length: 50 }),
-  
-  // Timestamps
-  retrievedAt: timestamp("retrieved_at").notNull().defaultNow(),
-}, (table) => [
-  index("idx_retrieval_trace").on(table.traceId),
-  index("idx_retrieval_chunk").on(table.chunkId),
-]);
 
-export const insertRagRetrievalResultSchema = createInsertSchema(ragRetrievalResults).omit({
-  id: true,
-  retrievedAt: true,
-});
-export type InsertRagRetrievalResult = z.infer<typeof insertRagRetrievalResultSchema>;
-export type RagRetrievalResult = typeof ragRetrievalResults.$inferSelect;
 
-/**
- * RAG_METRICS_HOURLY TABLE
- * ------------------------
- * Pre-aggregated performance metrics for efficient analytics.
- * Updated via scheduled job every hour.
- */
-export const ragMetricsHourly = pgTable("rag_metrics_hourly", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  
-  // Time bucket
-  hourStart: timestamp("hour_start").notNull().unique(),
-  
-  // Ingestion metrics
-  documentsIngested: integer("documents_ingested").default(0),
-  chunksCreated: integer("chunks_created").default(0),
-  chunksFiltered: integer("chunks_filtered").default(0),
-  avgIngestionDurationMs: integer("avg_ingestion_duration_ms"),
-  
-  // Query metrics
-  queriesProcessed: integer("queries_processed").default(0),
-  avgQueryDurationMs: integer("avg_query_duration_ms"),
-  avgSearchResults: integer("avg_search_results"),
-  avgContextTokens: integer("avg_context_tokens"),
-  
-  // Quality metrics
-  avgSimilarityScore: varchar("avg_similarity_score", { length: 20 }),
-  emptyResultCount: integer("empty_result_count").default(0),
-  errorCount: integer("error_count").default(0),
-  
-  // Cost tracking
-  embeddingApiCalls: integer("embedding_api_calls").default(0),
-  vectorSearchOperations: integer("vector_search_operations").default(0),
-  
-  // Timestamps
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-});
 
-export const insertRagMetricsHourlySchema = createInsertSchema(ragMetricsHourly).omit({
-  id: true,
-  createdAt: true,
-});
-export type InsertRagMetricsHourly = z.infer<typeof insertRagMetricsHourlySchema>;
-export type RagMetricsHourly = typeof ragMetricsHourly.$inferSelect;
 
 // =============================================================================
 // LLM INTERACTION CAPTURE TABLE
@@ -3073,12 +2545,7 @@ export const llmInteractions = pgTable("llm_interactions", {
    */
   attachments: jsonb("attachments").$type<Array<{ type: string; filename?: string; mimeType?: string; size?: number }>>(),
   
-  /**
-   * RAG context injected into the prompt
-   * Documents/chunks retrieved from vector store
-   */
-  ragContext: jsonb("rag_context").$type<Array<{ source: string; content: string; score?: number; metadata?: Record<string, unknown> }>>(),
-  
+
   /**
    * Files injected into the prompt
    */

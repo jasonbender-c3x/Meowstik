@@ -81,10 +81,19 @@ export default function LivePage() {
   const workletNodeRef = useRef<AudioWorkletNode | null>(null);
   const userSpeechBufferRef = useRef<string[]>([]);
   const speechRecognitionRef = useRef<any>(null);
+  // Ref mirror of connectionState so WebSocket callbacks always see the current value
+  const connectionStateRef = useRef<ConnectionState>("disconnected");
+  // Ref to startListening so ws.onopen can call the latest version without a circular dep
+  const startListeningRef = useRef<(() => Promise<void>) | null>(null);
+
+  // Keep connectionStateRef in sync so WS callbacks always have the latest value
+  useEffect(() => {
+    connectionStateRef.current = connectionState;
+  }, [connectionState]);
 
   const addTranscriptEntry = useCallback((speaker: "user" | "ai", text: string) => {
     const entry: TranscriptEntry = {
-      id: crypto.randomUUID(),
+      id: generateUUID(),
       speaker,
       text,
       timestamp: new Date(),
@@ -179,13 +188,24 @@ export default function LivePage() {
     { threshold: vadSensitivity, silenceDuration: 800, speechDuration: 200 }
   );
 
+  // Simple UUID v4 generator fallback
+  const generateUUID = () => {
+    if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+      return crypto.randomUUID();
+    }
+    return '10000000-1000-4000-8000-100000000000'.replace(/[018]/g, c =>
+      (+c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> +c / 4).toString(16)
+    );
+  };
+
   const connect = useCallback(async () => {
     setConnectionState("connecting");
     setError(null);
 
     try {
-      const sessionId = crypto.randomUUID();
+      const sessionId = generateUUID();
       sessionIdRef.current = sessionId;
+      console.log("[Live] Connecting with session ID:", sessionId);
 
       const response = await fetch("/api/live/session", {
         method: "POST",
@@ -209,11 +229,12 @@ export default function LivePage() {
       ws.onopen = () => {
         console.log("[Live] WebSocket connected");
         setConnectionState("connected");
+        connectionStateRef.current = "connected";
         
         // Auto-start listening in continuous mode
         if (continuousMode) {
           setTimeout(() => {
-            startListening().catch(err => {
+            startListeningRef.current?.().catch((err: Error) => {
               console.error("[Live] Failed to auto-start listening:", err);
             });
           }, 100);
@@ -246,12 +267,15 @@ export default function LivePage() {
         console.error("[Live] WebSocket error:", err);
         setError("Connection error");
         setConnectionState("error");
+        connectionStateRef.current = "error";
       };
 
       ws.onclose = () => {
         console.log("[Live] WebSocket closed");
-        if (connectionState === "connected") {
+        // Use ref to avoid stale closure — state captured at callback creation time
+        if (connectionStateRef.current === "connected" || connectionStateRef.current === "connecting") {
           setConnectionState("disconnected");
+          connectionStateRef.current = "disconnected";
         }
       };
 
@@ -260,7 +284,7 @@ export default function LivePage() {
       setError(err instanceof Error ? err.message : "Failed to connect");
       setConnectionState("error");
     }
-  }, [selectedVoice, addTranscriptEntry, connectionState, continuousMode]);
+  }, [selectedVoice, addTranscriptEntry, continuousMode]);
 
   const disconnect = useCallback(async () => {
     stopListening();
@@ -303,7 +327,8 @@ export default function LivePage() {
   }, []);
 
   const startListening = useCallback(async () => {
-    if (connectionState !== "connected") return;
+    // Use ref to avoid stale closure — connectionState captured at callback creation may be outdated
+    if (connectionStateRef.current !== "connected") return;
 
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
@@ -318,6 +343,7 @@ export default function LivePage() {
       streamRef.current = stream;
 
       audioContextRef.current = new AudioContext({ sampleRate: 16000 });
+      console.log(`[Live] AudioContext created with sampleRate: ${audioContextRef.current.sampleRate}`);
       
       // Load the AudioWorklet processor
       try {
@@ -341,12 +367,18 @@ export default function LivePage() {
           const pcmBuffer = event.data;
           const uint8Array = new Uint8Array(pcmBuffer);
           
-          // Convert to base64 for transmission
+          // Optimized Base64 conversion
           let binaryString = "";
           const len = uint8Array.byteLength;
-          for (let i = 0; i < len; i++) {
-            binaryString += String.fromCharCode(uint8Array[i]);
+          const CHUNK_SIZE = 0x8000; // 32KB chunks to avoid stack overflow
+          
+          for (let i = 0; i < len; i += CHUNK_SIZE) {
+            binaryString += String.fromCharCode.apply(
+              null,
+              uint8Array.subarray(i, Math.min(i + CHUNK_SIZE, len)) as unknown as number[]
+            );
           }
+          
           const base64 = btoa(binaryString);
           
           wsRef.current.send(JSON.stringify({
@@ -374,7 +406,12 @@ export default function LivePage() {
       console.error("[Live] Failed to start listening:", err);
       setError("Microphone access denied");
     }
-  }, [connectionState, continuousMode, vad]);
+  }, [continuousMode, vad]);
+
+  // Keep startListeningRef in sync so ws.onopen always has the latest version
+  useEffect(() => {
+    startListeningRef.current = startListening;
+  }, [startListening]);
 
   const stopListening = useCallback(() => {
     // Stop VAD
@@ -400,6 +437,7 @@ export default function LivePage() {
     try {
       if (!playbackContextRef.current || playbackContextRef.current.state === "closed") {
         playbackContextRef.current = new AudioContext({ sampleRate: 24000 });
+        nextStartTimeRef.current = playbackContextRef.current.currentTime + 0.1; // Start with 100ms buffer
       }
       
       const audioContext = playbackContextRef.current;
@@ -421,7 +459,18 @@ export default function LivePage() {
       const source = audioContext.createBufferSource();
       source.buffer = audioBuffer;
       source.connect(audioContext.destination);
-      source.start();
+      
+      // Scheduler Logic (Jitter Buffer)
+      const currentTime = audioContext.currentTime;
+      // If we've fallen behind (underrun), reset nextStartTime to now + small buffer
+      if (nextStartTimeRef.current < currentTime) {
+        nextStartTimeRef.current = currentTime + 0.05; // 50ms catch-up buffer
+      }
+      
+      source.start(nextStartTimeRef.current);
+      
+      // Advance nextStartTime by the duration of this chunk
+      nextStartTimeRef.current += audioBuffer.duration;
       
       source.onended = () => {
         const index = audioQueueRef.current.indexOf(source);

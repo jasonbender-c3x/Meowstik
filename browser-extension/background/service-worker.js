@@ -9,7 +9,7 @@
  * - Keyboard shortcuts
  */
 
-const DEFAULT_SERVER_URL = 'ws://localhost:5001';
+const DEFAULT_SERVER_URL = 'ws://localhost:5000';
 
 class BackgroundService {
   constructor() {
@@ -29,6 +29,12 @@ class BackgroundService {
     this.setupCommandListeners();
     this.setupContextMenus();
     
+    // Configure Side Panel behavior
+    if (chrome.sidePanel) {
+      chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true })
+        .catch((error) => console.error(error));
+    }
+
     if (this.settings.autoConnect) {
       this.connect();
     }

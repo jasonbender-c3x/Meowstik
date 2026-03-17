@@ -60,10 +60,12 @@ import { Button } from "@/components/ui/button";
  * - Lightbulb: Icon for brainstorming prompt
  * - Code2: Icon for coding/debug prompt
  */
-import { Menu, Sparkles, Compass, Lightbulb, Code2, Volume2, VolumeX, ChevronLeft, ChevronRight, PawPrint, Moon, Fish, Heart, Zap, BookOpen, AlertTriangle, Link, Mail, Calendar, FileText, Github } from "lucide-react";
+import { Menu, Sparkles, Compass, Lightbulb, Code2, Volume2, VolumeX, ChevronLeft, ChevronRight, PawPrint, Moon, Fish, Heart, Zap, BookOpen, AlertTriangle, Link, Mail, Calendar, FileText, Github, PanelRight, PanelRightClose, Terminal } from "lucide-react";
 import { VerbositySlider } from "@/components/ui/verbosity-slider";
 import { LocalDriveButton } from "@/components/ui/local-drive-button";
 import { useLocation } from "wouter";
+import { ResizablePanel, ResizablePanelGroup, ResizableHandle } from "@/components/ui/resizable";
+import { SideWorkbench } from "@/components/ide/side-workbench";
 
 /**
  * Framer Motion - Animation library
@@ -229,6 +231,9 @@ export default function Home() {
    */
   const [errorCount, setErrorCount] = useState(0);
   const [, navigate] = useLocation();
+  const [isWorkbenchOpen, setIsWorkbenchOpen] = useState(true);
+  const [workbenchTab, setWorkbenchTab] = useState<"editor" | "terminal">("editor");
+  const [isDesktopViewport, setIsDesktopViewport] = useState(false);
 
   // ===========================================================================
   // EFFECTS (Side Effects)
@@ -240,6 +245,18 @@ export default function Home() {
    */
   useEffect(() => {
     loadChats(true); // Auto-select default chat on initial load
+  }, []);
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia("(min-width: 1024px)");
+    setIsDesktopViewport(mediaQuery.matches);
+
+    const handleChange = (event: MediaQueryListEvent) => {
+      setIsDesktopViewport(event.matches);
+    };
+
+    mediaQuery.addEventListener("change", handleChange);
+    return () => mediaQuery.removeEventListener("change", handleChange);
   }, []);
 
   /**
@@ -772,8 +789,10 @@ export default function Home() {
                         localStorage.setItem("meowstik-editor-llm-code", result.content);
                         localStorage.setItem("meowstik-editor-llm-language", language);
                         localStorage.setItem("meowstik-editor-llm-filename", filename);
-                        console.log(`[Chat] File saved to editor canvas: ${filename}, navigating to /editor`);
-                        navigate("/editor");
+                        window.dispatchEvent(new CustomEvent("meowstik-editor-llm-update"));
+                        setIsWorkbenchOpen(true);
+                        setWorkbenchTab("editor");
+                        console.log(`[Chat] File saved to editor canvas: ${filename}`);
                       }
                     }
                   }
@@ -1038,107 +1057,133 @@ export default function Home() {
       />
 
       {/* Main Content Area */}
-      <div className="flex-1 flex flex-col h-full relative">
-        
-        {/* 
-         * Mobile Header
-         * Only visible on screens smaller than lg breakpoint
-         * Contains hamburger menu to open sidebar
-         */}
-        <div className="flex items-center justify-between p-4 lg:hidden sticky top-0 bg-background/80 backdrop-blur-md z-30">
-          <div className="flex items-center">
-            <Button variant="ghost" size="icon" onClick={() => setIsSidebarOpen(true)}>
-              <Menu className="h-6 w-6" />
-            </Button>
-            <span className="ml-3 font-display font-semibold text-lg">Meowstik</span>
-          </div>
-          <div className="flex items-center gap-1">
-            {/* Local Drive Access - grants folder access for file operations */}
-            <LocalDriveButton />
-            {/* Mobile Error Indicator - shows when there are API errors */}
-            {errorCount > 0 && (
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                onClick={() => navigate("/debug?tab=errors")}
-                className="rounded-full h-11 w-11 ring-2 ring-red-400 shadow-[0_0_12px_rgba(248,113,113,0.6)]"
-                data-testid="button-error-indicator-mobile"
-                title={`${errorCount} API error(s) - click to view`}
-              >
-                <AlertTriangle className="h-6 w-6 text-red-400" />
-              </Button>
-            )}
-            {/* Mobile Verbosity Slider - controls voice output level */}
-            {isTTSSupported && (
-              <VerbositySlider />
-            )}
-          </div>
-        </div>
+      <div className="flex-1 h-full overflow-hidden">
+        <ResizablePanelGroup direction="horizontal" className="h-full">
+          <ResizablePanel defaultSize={isDesktopViewport && isWorkbenchOpen ? 58 : 100} minSize={35}>
+            <div className="flex h-full flex-col relative">
+              
+              {/* 
+               * Mobile Header
+               * Only visible on screens smaller than lg breakpoint
+               * Contains hamburger menu to open sidebar
+               */}
+              <div className="flex items-center justify-between p-4 lg:hidden sticky top-0 bg-background/80 backdrop-blur-md z-30">
+                <div className="flex items-center">
+                  <Button variant="ghost" size="icon" onClick={() => setIsSidebarOpen(true)}>
+                    <Menu className="h-6 w-6" />
+                  </Button>
+                  <span className="ml-3 font-display font-semibold text-lg">Meowstik</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <LocalDriveButton />
+                  {errorCount > 0 && (
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      onClick={() => navigate("/debug?tab=errors")}
+                      className="rounded-full h-11 w-11 ring-2 ring-red-400 shadow-[0_0_12px_rgba(248,113,113,0.6)]"
+                      data-testid="button-error-indicator-mobile"
+                      title={`${errorCount} API error(s) - click to view`}
+                    >
+                      <AlertTriangle className="h-6 w-6 text-red-400" />
+                    </Button>
+                  )}
+                  {isTTSSupported && (
+                    <VerbositySlider />
+                  )}
+                </div>
+              </div>
 
-        {/* 
-         * Desktop Header Controls
-         * Positioned in top-right corner on large screens
-         * Contains TTS toggle and user avatar
-         */}
-        <div className="hidden lg:flex absolute top-4 right-4 z-30 gap-2 items-center">
-            {/* Local Drive Access - grants folder access for file operations */}
-            <LocalDriveButton />
-            
-            {/* Error Indicator - shows when there are API errors */}
-            {errorCount > 0 && (
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                onClick={() => navigate("/debug?tab=errors")}
-                className="rounded-full h-11 w-11 ring-2 ring-red-400 shadow-[0_0_12px_rgba(248,113,113,0.6)]"
-                data-testid="button-error-indicator"
-                title={`${errorCount} API error(s) - click to view`}
-              >
-                <AlertTriangle className="h-6 w-6 text-red-400" />
-              </Button>
-            )}
-            {/* Verbosity Slider - controls voice output level */}
-            {isTTSSupported && (
-              <VerbositySlider />
-            )}
-            
-            {/* User Avatar / Login Button */}
-            {isAuthenticated ? (
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                className="rounded-full"
-                onClick={() => window.location.href = "/api/logout"}
-                title={`Logged in as ${user?.firstName || user?.email || "User"} - Click to logout`}
-                data-testid="button-user-avatar"
-              >
-                {user?.profileImageUrl ? (
-                  <img src={user.profileImageUrl} alt="Profile" className="w-7 h-7 rounded-full" />
-                ) : (
-                  <span className="w-7 h-7 bg-primary text-primary-foreground rounded-full flex items-center justify-center text-xs font-bold">{userInitials}</span>
-                )}
-              </Button>
-            ) : (
-              <Button 
-                variant="default" 
-                size="sm" 
-                className="rounded-full"
-                onClick={() => window.location.href = "/api/login"}
-                data-testid="button-login"
-              >
-                Login
-              </Button>
-            )}
-        </div>
+              {/* Desktop Header Controls */}
+              <div className="hidden lg:flex absolute top-4 right-4 z-30 gap-2 items-center">
+                  <div className="flex items-center gap-1 rounded-full border bg-background/80 p-1 backdrop-blur">
+                    <Button
+                      variant={isWorkbenchOpen && workbenchTab === "editor" ? "secondary" : "ghost"}
+                      size="icon"
+                      className="h-9 w-9 rounded-full"
+                      onClick={() => {
+                        setIsWorkbenchOpen(true);
+                        setWorkbenchTab("editor");
+                      }}
+                      data-testid="button-open-editor-pane"
+                      title="Open editor pane"
+                    >
+                      <Code2 className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant={isWorkbenchOpen && workbenchTab === "terminal" ? "secondary" : "ghost"}
+                      size="icon"
+                      className="h-9 w-9 rounded-full"
+                      onClick={() => {
+                        setIsWorkbenchOpen(true);
+                        setWorkbenchTab("terminal");
+                      }}
+                      data-testid="button-open-terminal-pane"
+                      title="Open terminal pane"
+                    >
+                      <Terminal className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-9 w-9 rounded-full"
+                      onClick={() => setIsWorkbenchOpen((previous) => !previous)}
+                      data-testid="button-toggle-workbench"
+                      title={isWorkbenchOpen ? "Collapse workbench" : "Expand workbench"}
+                    >
+                      {isWorkbenchOpen ? <PanelRightClose className="h-4 w-4" /> : <PanelRight className="h-4 w-4" />}
+                    </Button>
+                  </div>
 
-        {/* 
-         * Chat Area (Scrollable)
-         * Contains either:
-         * - Welcome screen (when no messages)
-         * - Message list (when chat has messages)
-         */}
-        <div className="flex-1 overflow-y-auto scroll-smooth">
-          {messages.length === 0 ? (
+                  <LocalDriveButton />
+                  
+                  {errorCount > 0 && (
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      onClick={() => navigate("/debug?tab=errors")}
+                      className="rounded-full h-11 w-11 ring-2 ring-red-400 shadow-[0_0_12px_rgba(248,113,113,0.6)]"
+                      data-testid="button-error-indicator"
+                      title={`${errorCount} API error(s) - click to view`}
+                    >
+                      <AlertTriangle className="h-6 w-6 text-red-400" />
+                    </Button>
+                  )}
+
+                  {isTTSSupported && (
+                    <VerbositySlider />
+                  )}
+                  
+                  {isAuthenticated ? (
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="rounded-full"
+                      onClick={() => window.location.href = "/api/logout"}
+                      title={`Logged in as ${user?.firstName || user?.email || "User"} - Click to logout`}
+                      data-testid="button-user-avatar"
+                    >
+                      {user?.profileImageUrl ? (
+                        <img src={user.profileImageUrl} alt="Profile" className="w-7 h-7 rounded-full" />
+                      ) : (
+                        <span className="w-7 h-7 bg-primary text-primary-foreground rounded-full flex items-center justify-center text-xs font-bold">{userInitials}</span>
+                      )}
+                    </Button>
+                  ) : (
+                    <Button 
+                      variant="default" 
+                      size="sm" 
+                      className="rounded-full"
+                      onClick={() => window.location.href = "/api/login"}
+                      data-testid="button-login"
+                    >
+                      Login
+                    </Button>
+                  )}
+              </div>
+
+              <div className="flex-1 overflow-y-auto scroll-smooth">
+                {messages.length === 0 ? (
             // =================================================================
             // WELCOME SCREEN (Empty State)
             // Shown when no messages exist in current chat
@@ -1191,7 +1236,7 @@ export default function Home() {
                 © {new Date().getFullYear()} Jason Bender
               </div>
             </div>
-          ) : (
+                ) : (
             // =================================================================
             // MESSAGES LIST
             // Renders all messages in the current chat
@@ -1252,22 +1297,34 @@ export default function Home() {
               {/* Scroll anchor - auto-scroll target */}
               <div ref={scrollRef} className="h-4" />
             </div>
-          )}
-        </div>
+                )}
+              </div>
 
-        {/* 
-         * Input Area (Fixed at bottom)
-         * Contains text input, send button, and optional voice input
-         * Gradient fade effect at top blends with chat area
-         */}
-        <div className="w-full bg-gradient-to-t from-background via-background to-transparent pt-4 pb-2 px-4 z-20">
-          <ChatInputArea 
-            onSend={handleSendMessage} 
-            isLoading={isLoading}
-            promptHistory={messages.filter(m => m.role === 'user').map(m => m.content)}
-            onStop={handleStopGeneration}
-          />
-        </div>
+              <div className="w-full bg-gradient-to-t from-background via-background to-transparent pt-4 pb-2 px-4 z-20">
+                <ChatInputArea 
+                  onSend={handleSendMessage} 
+                  isLoading={isLoading}
+                  promptHistory={messages.filter(m => m.role === 'user').map(m => m.content)}
+                  onStop={handleStopGeneration}
+                />
+              </div>
+            </div>
+          </ResizablePanel>
+
+          {isDesktopViewport && isWorkbenchOpen && (
+            <>
+              <ResizableHandle withHandle />
+              <ResizablePanel defaultSize={42} minSize={24} maxSize={58}>
+                <SideWorkbench
+                  activeTab={workbenchTab}
+                  onActiveTabChange={setWorkbenchTab}
+                  onCollapse={() => setIsWorkbenchOpen(false)}
+                  onSendToChat={(message) => handleSendMessage(message, [])}
+                />
+              </ResizablePanel>
+            </>
+          )}
+        </ResizablePanelGroup>
       </div>
     </div>
   );

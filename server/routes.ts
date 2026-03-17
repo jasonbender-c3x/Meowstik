@@ -72,7 +72,7 @@ import { storage } from "./storage";
  * RAG service for processing document attachments.
  * Chunks and vectorizes documents for retrieval augmented generation.
  */
-import { ragService } from "./services/rag-service";
+// import { ragService } from "./services/rag-service";
 
 /**
  * Zod validation schemas for request body validation.
@@ -94,7 +94,7 @@ import { getToolDeclarations } from "./gemini-tools-guest";
  * Assembles core directives, personality, tools, and RAG context.
  */
 import { promptComposer } from "./services/prompt-composer";
-import { ragDispatcher } from "./services/rag-dispatcher";
+import { toolDispatcher } from "./services/tool-dispatcher";
 import { type ToolCall } from "@shared/schema";
 import { recognizeFamilyMember } from "./services/family-recognition";
 
@@ -517,23 +517,22 @@ export async function registerRoutes(
         console.log(`[family] Session personalized for: ${familyMember.name}`);
       }
 
-      // Ingest user message for RAG recall (async, don't block)
-      // Pass userId for data isolation - guests use "guest" bucket
-      ragService
-        .ingestMessage(
-          userMessage.content,
-          req.params.id,
-          savedMessage.id,
-          "user",
-          undefined,
-          userId,
-        )
-        .catch((error) => {
-          console.error(
-            `[RAG] Failed to ingest user message ${savedMessage.id}:`,
-            error,
-          );
-        });
+      // RAG processing removed
+      // ragService
+      //   .ingestMessage(
+      //     userMessage.content,
+      //     req.params.id,
+      //     savedMessage.id,
+      //     "user",
+      //     undefined,
+      //     userId,
+      //   )
+      //   .catch((error) => {
+      //     console.error(
+      //       `[RAG] Failed to ingest user message ${savedMessage.id}:`,
+      //       error,
+      //     );
+      //   });
 
       // ─────────────────────────────────────────────────────────────────────
       // STEP 1.5: Process and save any attachments
@@ -595,11 +594,10 @@ export async function registerRoutes(
           continue;
         }
 
-        // Process for RAG (chunking and vectorization) asynchronously
-        // Only text-based files will be ingested
-        ragService.processAttachment(savedAttachment).catch((error) => {
-          console.error(`RAG processing failed for ${att.filename}:`, error);
-        });
+        // RAG processing removed per user request
+        // ragService.processAttachment(savedAttachment).catch((error) => {
+        //   console.error(`RAG processing failed for ${att.filename}:`, error);
+        // });
       }
 
       // ─────────────────────────────────────────────────────────────────────
@@ -710,7 +708,7 @@ export async function registerRoutes(
         attachments: savedAttachments,
         history: chatMessages,
         chatId: req.params.id,
-        userId: userId, // Pass userId for data isolation in RAG context
+        // userId: userId, // Pass userId for data isolation in RAG context
       });
       
       // Add voice/verbosity instructions based on mode
@@ -825,11 +823,11 @@ The user has MUTE mode enabled. Minimize all output.
         userParts.push({ text: "" });
       }
 
-      // Determine model based on user preference: "pro" = gemini-3.1-pro-preview, "flash" = gemini-3-flash-preview
+      // Determine model based on user preference: "pro" = gemini-2.5-pro, "flash" = gemini-3-flash-preview
       const modelMode =
         req.body.model === "flash"
           ? "gemini-3-flash-preview"
-          : "gemini-3.1-pro-preview";
+          : "gemini-2.5-pro";
       console.log(
         `[Routes] Using model: ${modelMode} (mode: ${req.body.model || "pro"})`,
       );
@@ -880,7 +878,6 @@ The user has MUTE mode enabled. Minimize all output.
           size: a.size || 0,
           mimeType: a.mimeType,
         })),
-        ragContext: modifiedPrompt.ragContext,
         model: modelMode,
         totalInputTokensEstimate,
       });
@@ -919,13 +916,12 @@ The user has MUTE mode enabled. Minimize all output.
         result?: unknown;
         error?: string;
       }> = [];
-      let usageMetadata:
-        | {
-            promptTokenCount?: number;
-            candidatesTokenCount?: number;
-            totalTokenCount?: number;
-          }
-        | undefined;
+      // Track cumulative usage across multiple turns/tool calls
+      const usageMetadata = {
+        promptTokenCount: 0,
+        candidatesTokenCount: 0,
+        totalTokenCount: 0,
+      };
 
       // Collect function calls from response chunks
       const collectedFunctionCalls: FunctionCall[] = [];
@@ -1008,6 +1004,7 @@ The user has MUTE mode enabled. Minimize all output.
         return { sentences, remainder };
       };
       
+      let initialTurnUsage: typeof usageMetadata | undefined;
       for await (const chunk of result) {
         // FIX: Explicitly capture "Thinking" content from Gemini 2.0 Flash Thinking
         // Check for thought parts in the chunk candidates
@@ -1059,8 +1056,14 @@ The user has MUTE mode enabled. Minimize all output.
 
         // Capture usage metadata from the final chunk
         if (chunk.usageMetadata) {
-          usageMetadata = chunk.usageMetadata;
+          initialTurnUsage = chunk.usageMetadata as any;
         }
+      }
+
+      if (initialTurnUsage) {
+        usageMetadata.promptTokenCount += initialTurnUsage.promptTokenCount || 0;
+        usageMetadata.candidatesTokenCount += initialTurnUsage.candidatesTokenCount || 0;
+        usageMetadata.totalTokenCount += initialTurnUsage.totalTokenCount || 0;
       }
       
       // Flush remaining TTS buffer after stream ends
@@ -1102,7 +1105,7 @@ The user has MUTE mode enabled. Minimize all output.
       let agenticHistory = [...history, { role: "user", parts: userParts }];
       
       // Set SSE response for real-time tool call events
-      ragDispatcher.setSseResponse(res);
+      toolDispatcher.setSseResponse(res);
       
       // Helper function to execute tools and return results
       const executeToolsAndGetResults = async (
@@ -1117,7 +1120,7 @@ The user has MUTE mode enabled. Minimize all output.
           console.log(`[Routes] Executing tool call: ${toolCall.type} (${toolCall.id})`);
           try {
             // Pass chatId for tool call logging
-            const toolResult = await ragDispatcher.executeToolCall(toolCall, messageId, req.params.id);
+            const toolResult = await toolDispatcher.executeToolCall(toolCall, messageId, req.params.id);
             results.push({
               toolId: toolResult.toolId,
               type: toolResult.type,
@@ -1350,6 +1353,7 @@ The user has MUTE mode enabled. Minimize all output.
           let loopResponse = "";
           const loopFunctionCalls: FunctionCall[] = [];
           let loopParsedResponse: { toolCalls?: ToolCall[] } | null = null;
+          let loopTurnUsage: typeof usageMetadata | undefined;
           
           for await (const chunk of loopResult) {
             const text = chunk.text || "";
@@ -1361,8 +1365,14 @@ The user has MUTE mode enabled. Minimize all output.
             }
             
             if (chunk.usageMetadata) {
-              usageMetadata = chunk.usageMetadata;
+              loopTurnUsage = chunk.usageMetadata as any;
             }
+          }
+
+          if (loopTurnUsage) {
+             usageMetadata.promptTokenCount += loopTurnUsage.promptTokenCount || 0;
+             usageMetadata.candidatesTokenCount += loopTurnUsage.candidatesTokenCount || 0;
+             usageMetadata.totalTokenCount += loopTurnUsage.totalTokenCount || 0;
           }
           
           fullResponse += `\n\n[Turn ${loopIteration}]\n${loopResponse}`;
@@ -1466,22 +1476,22 @@ The user has MUTE mode enabled. Minimize all output.
       });
 
       // Ingest AI response for RAG recall (async, don't block)
-      // Use same userId from earlier in the request for consistency
-      ragService
-        .ingestMessage(
-          finalContent,
-          req.params.id,
-          savedAiMessage.id,
-          "ai",
-          undefined,
-          userId,
-        )
-        .catch((error) => {
-          console.error(
-            `[RAG] Failed to ingest AI message ${savedAiMessage.id}:`,
-            error,
-          );
-        });
+      // RAG processing removed
+      // ragService
+      //   .ingestMessage(
+      //     finalContent,
+      //     req.params.id,
+      //     savedAiMessage.id,
+      //     "ai",
+      //     undefined,
+      //     userId,
+      //   )
+      //   .catch((error) => {
+      //     console.error(
+      //       `[RAG] Failed to ingest AI message ${savedAiMessage.id}:`,
+      //       error,
+      //     );
+      //   });
 
       // Log to LLM debug buffer for debugging
       try {

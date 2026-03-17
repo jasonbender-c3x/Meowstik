@@ -7,7 +7,7 @@ import crypto from "crypto";
 
 /**
  * [💭 Analysis] 
- * Sovereign Identity Layer - Revision 4.1.6
+ * Sovereign Identity Layer - Revision 4.1.7
  * PATH: server/homeDevAuth.ts
  * FIX: Polymorphic Middleware Signature. `createHomeDevSession` now safely
  * acts as both a factory `app.use(createHomeDevSession())` AND a direct

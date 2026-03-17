@@ -56,6 +56,7 @@ export default function DebugPage() {
   const [interactions, setInteractions] = useState<LLMInteraction[]>([]);
   const [selectedInteraction, setSelectedInteraction] = useState<LLMInteraction | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [dbError, setDbError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [detailTab, setDetailTab] = useState<"inputs" | "system" | "outputs" | "orchestration">("inputs");
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
@@ -88,6 +89,7 @@ export default function DebugPage() {
 
   const loadInteractions = useCallback(async () => {
     setIsLoading(true);
+    setDbError(null);
     try {
       const endpoint = dataSource === "persistent" 
         ? '/api/debug/llm/persistent' 
@@ -96,9 +98,15 @@ export default function DebugPage() {
       if (response.ok) {
         const data = await response.json();
         setInteractions(data);
+      } else {
+        const err = await response.json().catch(() => ({ error: `HTTP ${response.status}` }));
+        setDbError(err.error || `HTTP ${response.status}`);
+        setInteractions([]);
       }
     } catch (error) {
       console.error('Failed to load LLM interactions:', error);
+      setDbError(error instanceof Error ? error.message : 'Network error');
+      setInteractions([]);
     } finally {
       setIsLoading(false);
     }
@@ -238,7 +246,19 @@ export default function DebugPage() {
 
           <ScrollArea className="flex-1">
             <div className="p-2 space-y-2">
-              {filteredInteractions.length === 0 ? (
+              {dbError ? (
+                <div className="text-center py-12 px-4">
+                  <AlertCircle className="h-12 w-12 mx-auto mb-4 text-destructive opacity-70" />
+                  <p className="text-sm font-medium text-destructive">Database error</p>
+                  <p className="text-xs text-muted-foreground mt-2 break-all">{dbError}</p>
+                  <button
+                    onClick={loadInteractions}
+                    className="mt-3 text-xs text-primary underline"
+                  >
+                    Retry
+                  </button>
+                </div>
+              ) : filteredInteractions.length === 0 ? (
                 <div className="text-center py-12 px-4">
                   <Brain className="h-12 w-12 mx-auto mb-4 opacity-50 text-muted-foreground" />
                   <p className="text-sm text-muted-foreground">

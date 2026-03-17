@@ -46,7 +46,7 @@ export async function checkSSHAvailability(): Promise<{
     return {
       available: false,
       sshKeygen: false,
-      message: `SSH tools not found. Please ensure OpenSSH is installed (e.g., via replit.nix with pkgs.openssh)`
+      message: `SSH tools not found. Please ensure OpenSSH is installed on your system.`
     };
   }
 }
@@ -76,7 +76,7 @@ function classifyError(error: any, context: 'keygen' | 'connection' | 'execution
   // Command not found errors
   if (lowerMsg.includes('command not found') || lowerMsg.includes('enoent')) {
     if (context === 'keygen') {
-      return `SSH tool not available on this system. OpenSSH tools must be installed at ${SSH_KEYGEN_PATH}. Try using Replit Deployments instead, or ensure OpenSSH is properly installed.`;
+      return `SSH tool not available on this system. OpenSSH tools must be installed at ${SSH_KEYGEN_PATH}.`;
     }
     return 'SSH command not found. Ensure SSH tools are properly installed on the system.';
   }
@@ -99,13 +99,13 @@ function classifyError(error: any, context: 'keygen' | 'connection' | 'execution
   // Key format errors
   if ((lowerMsg.includes('ssh key') || lowerMsg.includes('private key') || lowerMsg.includes('public key')) && 
       (lowerMsg.includes('invalid') || lowerMsg.includes('format') || lowerMsg.includes('corrupt'))) {
-    return 'Invalid SSH key format. Please ensure:\n  • The private key is properly formatted\n  • The key is not corrupted\n  • The key matches the expected type (e.g., ed25519, RSA)\n  • The key is stored correctly in Replit Secrets';
+    return 'Invalid SSH key format. Please ensure:\n  • The private key is properly formatted\n  • The key is not corrupted\n  • The key matches the expected type (e.g., ed25519, RSA)\n  • The key is stored correctly in environment variables';
   }
 
   // Authentication errors (general)
   if (lowerMsg.includes('authentication failed') || lowerMsg.includes('auth failed') || 
       lowerMsg.includes('authentication error')) {
-    return 'Authentication failed. Please verify:\n  • Your credentials (SSH key or password) are correct\n  • The authentication method is supported by the server\n  • The key is properly configured in Replit Secrets';
+    return 'Authentication failed. Please verify:\n  • Your credentials (SSH key or password) are correct\n  • The authentication method is supported by the server\n  • The key is properly configured in environment variables';
   }
 
   // Network errors
@@ -167,7 +167,7 @@ interface KeyGenResult {
 /**
  * Generate a new SSH key pair
  * Returns public key for user to add to authorized_keys
- * Private key must be stored by user as a Replit secret
+ * Private key must be stored by user as an environment variable
  */
 export async function generateSshKey(name: string, comment?: string): Promise<KeyGenResult & { privateKey: string; instructions: string }> {
   const tmpDir = '/tmp/ssh-keygen-' + crypto.randomBytes(8).toString('hex');
@@ -176,7 +176,7 @@ export async function generateSshKey(name: string, comment?: string): Promise<Ke
   fs.mkdirSync(tmpDir, { mode: 0o700 });
   
   const keyPath = path.join(tmpDir, 'key');
-  const commentStr = comment || `meowstik-${name}@replit`;
+  const commentStr = comment || `meowstik-${name}`;
   
   // Generate ed25519 key (most secure and compact)
   try {
@@ -325,7 +325,7 @@ export async function connectSsh(alias: string): Promise<{ success: boolean; mes
     if (host.keySecretName) {
       privateKey = process.env[host.keySecretName];
       if (!privateKey) {
-        throw new Error(`Private key secret "${host.keySecretName}" not found. Add it to Replit Secrets.`);
+        throw new Error(`Private key secret "${host.keySecretName}" not found. Add it to your environment variables.`);
       }
     }
     

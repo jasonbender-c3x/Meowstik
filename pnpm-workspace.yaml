@@ -1,8 +1,10 @@
 packages:
   - browser-extension
+  - vscode-extension
   - desktop-agent
   - desktop-app
   - local-agent
+  - servers/*
   - workspace/*
 
 onlyBuiltDependencies:

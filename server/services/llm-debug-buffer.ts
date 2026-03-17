@@ -31,8 +31,7 @@ export interface LLMInteraction {
   conversationHistory: Array<{ role: string; content: string }>;
   attachments: Array<{ type: string; filename?: string; mimeType?: string; content?: string; size?: number }>;
   
-  // RAG Context
-  ragContext?: Array<{ source: string; content: string; score?: number; metadata?: Record<string, unknown> }>;
+
   injectedFiles?: Array<{ filename: string; content: string; mimeType?: string }>;
   injectedJson?: Array<{ name: string; data: unknown }>;
   
@@ -127,7 +126,7 @@ class LLMDebugBuffer {
         userMessage: interaction.userMessage,
         conversationHistory: interaction.conversationHistory,
         attachments: sanitizedAttachments,
-        ragContext: interaction.ragContext,
+
         injectedFiles: interaction.injectedFiles,
         injectedJson: interaction.injectedJson,
         rawResponse: interaction.rawResponse,

@@ -152,7 +152,6 @@ export interface LoggedInput {
   userMessage: string;
   conversationHistory: Array<{ role: string; content: string }>;
   attachments: Array<{ type: string; filename: string; size: number; mimeType?: string }>;
-  ragContext?: Array<{ source: string; content: string; score?: number }>;
   model: string;
   totalInputTokensEstimate: number;
 }
@@ -201,11 +200,6 @@ class IOLogger {
       role: msg.role,
       content: redactCredentials(msg.content)
     }));
-    const redactedRagContext = data.ragContext?.map(ctx => ({
-      source: ctx.source,
-      content: redactCredentials(ctx.content),
-      score: ctx.score
-    }));
 
     const breakdown = data.systemPromptBreakdown;
     const breakdownSection = breakdown ? `
@@ -243,18 +237,7 @@ ${data.attachments.map((att, idx) => `
 `).join('\n')}
 ` : '';
 
-    const ragSection = redactedRagContext && redactedRagContext.length > 0 ? `
-## RAG Context (${redactedRagContext.length} chunks)
-
-${redactedRagContext.map((ctx, idx) => `
-### Chunk ${idx + 1} - Score: ${ctx.score?.toFixed(3) || 'N/A'}
-**Source:** ${ctx.source}
-
-\`\`\`
-${ctx.content}
-\`\`\`
-`).join('\n')}
-` : '';
+    // RAG Section removed
 
     const content = `# LLM INPUT LOG
 **⚠️ SECURITY NOTE: All credentials have been redacted for security ⚠️**
@@ -287,7 +270,6 @@ ${redactedUserMessage}
 
 ${historySection}
 ${attachmentsSection}
-${ragSection}
 
 ---
 

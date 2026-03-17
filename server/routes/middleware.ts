@@ -191,24 +191,10 @@ export const checkAuthStatus: RequestHandler = async (req: Request, _res: Respon
   let user = req.user as any;
   
   // In home dev mode, auto-authenticate with default developer user
-  // We also check for malformed user objects (missing claims) to fix broken sessions
-  if (isHomeDevMode() && (!req.isAuthenticated?.() || !user?.claims?.sub)) {
+  if (isHomeDevMode() && (!req.isAuthenticated?.() || !user?.id)) {
     try {
-      const devSession = await createHomeDevSession();
-      if (devSession) {
-        // Match the structure expected by Replit Auth (user.claims)
-        user = {
-          claims: devSession.claims,
-          access_token: "home-dev-token",
-          refresh_token: "home-dev-refresh-token",
-          expires_at: devSession.expires_at
-        };
-        
-        req.user = user;
-        // Mark session as authenticated (simulate passport authentication)
-        (req as any).session = (req as any).session || {};
-        (req as any).session.passport = { user };
-      }
+      const devUser = await createHomeDevSession(req, _res, next);
+      // The middleware handles attachment, we just continue
     } catch (error) {
       console.error("Failed to create home dev session:", error);
     }

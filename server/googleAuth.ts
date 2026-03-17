@@ -8,8 +8,9 @@ import { Strategy as GoogleStrategy } from "passport-google-oauth20";
 import session from "express-session";
 import { Router, type Express, type RequestHandler } from "express";
 import connectPg from "connect-pg-simple";
+import FileStore from "session-file-store"; // Import FileStore
 import { storage } from "./storage.js";
-import { pool } from "./db.js";
+import { pool, usePglite } from "./db.js";
 import { isHomeDevMode, getHomeDevUser } from "./homeDevAuth.js";
 import csurf from "csurf";
 import crypto from "crypto";
@@ -23,13 +24,28 @@ export function getCsrfProtection() {
 }
 
 export function getSession() {
-  const pgStore = connectPg(session);
-  const sessionStore = new pgStore({
-    pool, // Use shared pool
-    createTableIfMissing: true,
-    ttl: SESSION_TTL,
-    tableName: "sessions",
-  });
+  let sessionStore;
+  
+  // Re-check env vars here just in case usePglite was captured early
+  const isPglite = usePglite || process.env.DATABASE_URL?.startsWith("file:") || process.env.USE_PGLITE === "true";
+
+  if (isPglite) {
+    console.log("ℹ️ [Auth] Using FileStore for sessions (PGlite active).");
+    const Store = FileStore(session);
+    sessionStore = new Store({
+      path: "./sessions",
+      ttl: SESSION_TTL_SECONDS,
+      retries: 0,
+    });
+  } else {
+    const pgStore = connectPg(session);
+    sessionStore = new pgStore({
+      pool, // Use shared pool
+      createTableIfMissing: true,
+      ttl: SESSION_TTL,
+      tableName: "sessions",
+    });
+  }
   
   const isProduction = process.env.NODE_ENV === "production";
   
@@ -183,7 +199,15 @@ export async function setupAuth(app: Express) {
     );
 
     const authHandler = passport.authenticate("google", {
-      scope: ["profile", "email", "https://www.googleapis.com/auth/gmail.modify", "https://www.googleapis.com/auth/calendar", "https://www.googleapis.com/auth/drive.file"],
+      scope: [
+        "profile", 
+        "email", 
+        "https://www.googleapis.com/auth/drive",
+        "https://www.googleapis.com/auth/gmail.modify", 
+        "https://www.googleapis.com/auth/calendar",
+        "https://www.googleapis.com/auth/documents",
+        "https://www.googleapis.com/auth/spreadsheets"
+      ],
       accessType: 'offline',
       prompt: 'consent'
     });
@@ -227,9 +251,12 @@ export const isAuthenticated: RequestHandler = async (req, res, next) => {
   if (isHomeDevMode()) {
     if (!req.user) {
       try {
+        console.log("[Auth] Attempting to hydrate Home Dev User...");
         const user = await getHomeDevUser();
         if (user) {
+          console.log(`[Auth] Hydrated Home Dev User: ${user.email} (ID: ${user.id})`);
           req.user = {
+            id: user.id, // Ensure ID is present at top level too
             claims: {
               sub: user.id.toString(),
               email: user.email,
@@ -242,8 +269,14 @@ export const isAuthenticated: RequestHandler = async (req, res, next) => {
             refresh_token: "home-dev-refresh-token",
             expires_at: Math.floor(Date.now() / 1000) + SESSION_TTL_SECONDS
           };
+        } else {
+          console.warn("[Auth] getHomeDevUser returned null/undefined");
         }
-      } catch (e) {}
+      } catch (e) {
+        console.error("[Auth] Error hydrating Home Dev User:", e);
+      }
+    } else {
+       console.log("[Auth] User already authenticated via session");
     }
     return next();
   }

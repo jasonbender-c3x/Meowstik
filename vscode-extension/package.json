@@ -1,0 +1,52 @@
+{
+  "name": "meowstik-vscode",
+  "displayName": "Meowstik VS Code",
+  "description": "Bi-directional interface for Meowstik",
+  "version": "0.0.1",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "meowstik.connect",
+        "title": "Meowstik: Connect to Server"
+      },
+      {
+        "command": "meowstik.disconnect",
+        "title": "Meowstik: Disconnect"
+      }
+    ],
+    "configuration": {
+      "title": "Meowstik",
+      "properties": {
+        "meowstik.serverUrl": {
+          "type": "string",
+          "default": "ws://localhost:5000/api/vscode/connect",
+          "description": "URL of the Meowstik server WebSocket endpoint"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run package",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "package": "tsc -p ./"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.85.0",
+    "@types/node": "^18.0.0",
+    "typescript": "^5.3.3"
+  },
+  "dependencies": {
+    "ws": "^8.16.0"
+  }
+}

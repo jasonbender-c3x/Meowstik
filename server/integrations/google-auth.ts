@@ -4,7 +4,10 @@
  */
 
 import { google, Auth } from 'googleapis';
-import { storage } from '../storage';
+console.log("[GoogleAuth] Googleapis imported");
+// Lazy import storage to prevent module loading hangs/cycles
+// import { storage } from '../storage';
+console.log("[GoogleAuth] Storage import skipped (lazy)");
 
 const SCOPES = [
   'https://www.googleapis.com/auth/gmail.readonly',
@@ -88,6 +91,9 @@ export async function initializeFromDatabase(): Promise<void> {
   
   initializationPromise = (async () => {
     try {
+      // Lazy import storage to prevent module loading hangs/cycles
+      const { storage } = await import('../storage');
+      
       // Use default ID for global OAuth tokens
       const dbTokens = await storage.getGoogleTokens('default');
       if (dbTokens && dbTokens.accessToken) {
@@ -153,6 +159,8 @@ export async function handleCallback(code: string): Promise<Auth.Credentials> {
   client.setCredentials(tokens);
   cachedTokens = tokens;
   
+  const { storage } = await import('../storage');
+  
   await storage.saveGoogleTokens({
     id: 'default',
     accessToken: tokens.access_token || null,
@@ -206,6 +214,8 @@ export async function refreshTokensIfNeeded(): Promise<void> {
       }
       oauth2Client.setCredentials(cachedTokens);
       
+      const { storage } = await import('../storage');
+      
       await storage.saveGoogleTokens({
         id: 'default',
         accessToken: credentials.access_token || null,
@@ -238,6 +248,7 @@ export async function revokeAccess(): Promise<void> {
   oauth2Client = null;
   initialized = false;
   initializationPromise = null;
+  const { storage } = await import('../storage');
   await storage.deleteGoogleTokens();
   console.log('Revoked Google access and cleared tokens');
 }

@@ -1,10 +1,9 @@
 import { Router } from "express";
-import { spawn } from "child_process";
 import * as fs from "fs";
 import * as path from "path";
 import { z } from "zod";
 import { getTrafficLog } from "../websocket-terminal";
-import { broadcastToTerminals } from "../services/ssh-service";
+import { broadcastToTerminals, executeLocalCommand } from "../services/ssh-service";
 
 const router = Router();
 
@@ -67,32 +66,7 @@ router.post("/execute", async (req, res) => {
     console.log(`[Terminal] Executing: ${trimmedCommand}`);
     appendToOutputFile(`$ ${trimmedCommand}`);
 
-    const result = await new Promise<{ stdout: string; stderr: string; exitCode: number }>((resolve) => {
-      const proc = spawn("bash", ["-c", trimmedCommand], {
-        cwd: process.cwd(),
-        env: { ...process.env },
-        timeout: 120000
-      });
-
-      let stdout = "";
-      let stderr = "";
-
-      proc.stdout.on("data", (data) => {
-        stdout += data.toString();
-      });
-
-      proc.stderr.on("data", (data) => {
-        stderr += data.toString();
-      });
-
-      proc.on("close", (code) => {
-        resolve({ stdout, stderr, exitCode: code || 0 });
-      });
-
-      proc.on("error", (err) => {
-        resolve({ stdout: "", stderr: err.message, exitCode: 1 });
-      });
-    });
+    const result = await executeLocalCommand(trimmedCommand);
 
     if (result.stdout) {
       appendToOutputFile(result.stdout);

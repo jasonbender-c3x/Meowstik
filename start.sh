@@ -97,7 +97,7 @@ echo ""
 echo "  1) Development mode (recommended)"
 echo "     - Hot reload on file changes"
 echo "     - Detailed error messages"
-echo "     - Requires 2 terminals"
+echo "     - Single terminal"
 echo ""
 echo "  2) Production mode"
 echo "     - Builds and runs optimized version"
@@ -110,21 +110,10 @@ case $choice in
         echo ""
         echo "Starting development mode..."
         echo ""
-        echo -e "${YELLOW}⚠ You need to run these in TWO SEPARATE TERMINALS:${NC}"
+        echo "Running: npm run dev"
+        echo " - This starts both backend and frontend (Vite middleware)"
         echo ""
-        echo -e "${GREEN}Terminal 1 (Backend):${NC}"
-        echo "  npm run dev"
-        echo ""
-        echo -e "${GREEN}Terminal 2 (Frontend):${NC}"
-        echo "  npm run dev:client"
-        echo ""
-        echo "Or press Ctrl+C and run this script with --dev to start backend now"
-        echo ""
-        
-        if [ "$1" = "--dev" ]; then
-            echo "Starting backend server..."
-            npm run dev
-        fi
+        npm run dev
         ;;
     2)
         echo ""

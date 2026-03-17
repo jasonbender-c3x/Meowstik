@@ -10,7 +10,7 @@
  * ---------
  * 1. Recursive file discovery
  * 2. Code entity extraction (AST-lite parsing)
- * 3. RAG ingestion for semantic search
+ * 3. [DEPRECATED] RAG ingestion (Removed)
  * 4. Glossary generation
  * 5. Documentation synthesis
  * =============================================================================
@@ -18,8 +18,6 @@
 
 import * as fs from "fs";
 import * as path from "path";
-import { ragService } from "./rag-service";
-import { embeddingService } from "./embedding-service";
 
 // Supported file extensions for code analysis
 const CODE_EXTENSIONS = new Set([
@@ -168,24 +166,6 @@ export class CodebaseAnalyzer {
           const errorMsg = `Error analyzing ${filePath}: ${err instanceof Error ? err.message : String(err)}`;
           errors.push(errorMsg);
           this.updateProgress({ errors: [...this.progress.errors, errorMsg] });
-        }
-      }
-
-      // Phase 3: RAG Ingestion (skip for external codebases)
-      let totalChunks = 0;
-      if (!skipIngestion) {
-        this.updateProgress({ phase: "ingestion" });
-        for (const file of files) {
-          try {
-            const result = await this.ingestFile(file);
-            if (result) {
-              totalChunks += result.chunksCreated;
-              this.updateProgress({ chunksIngested: totalChunks });
-            }
-          } catch (err) {
-            const errorMsg = `Error ingesting ${file.relativePath}: ${err instanceof Error ? err.message : String(err)}`;
-            errors.push(errorMsg);
-          }
         }
       }
 
@@ -1647,29 +1627,9 @@ export class CodebaseAnalyzer {
     return keywords.has(name);
   }
 
-  /**
-   * Ingest a file into RAG for semantic search
+  /*
+   * RAG Ingestion Removed
    */
-  private async ingestFile(file: FileAnalysis): Promise<{ chunksCreated: number } | null> {
-    try {
-      const content = await fs.promises.readFile(file.path, "utf-8");
-      
-      // Create a structured document for ingestion
-      const structuredContent = this.createStructuredContent(file, content);
-      
-      const result = await ragService.ingestDocument(
-        structuredContent,
-        `codebase-${file.relativePath.replace(/[/\\]/g, "-")}`,
-        file.relativePath,
-        this.getMimeType(file.extension)
-      );
-
-      return { chunksCreated: result.chunksCreated };
-    } catch (err) {
-      console.error(`Failed to ingest ${file.relativePath}:`, err);
-      return null;
-    }
-  }
 
   /**
    * Create structured content with entity metadata for better RAG
