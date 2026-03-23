@@ -1,3 +1,4 @@
+
 import { db } from "../db"; 
 import { eq } from "drizzle-orm";
 import { users } from "@shared/schema";
@@ -47,3 +48,5 @@ export class AgentRegistry {
 }
 
 export const agentRegistry = new AgentRegistry();
+
+

@@ -1,3 +1,4 @@
+
 import { Button } from "@/components/ui/button";
 import { Loader2, Monitor, Mic, StopCircle, Video } from "lucide-react";
 import { useState, useRef } from "react";
@@ -123,3 +124,6 @@ export function ScreenRecorder() {
     </Button>
   );
 }
+
+
+

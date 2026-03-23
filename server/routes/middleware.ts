@@ -1,3 +1,4 @@
+
 import type { Request, Response, NextFunction, RequestHandler } from "express";
 import { logBuffer } from "../services/log-buffer";
 import { isHomeDevMode, createHomeDevSession } from "../homeDevAuth";
@@ -212,3 +213,6 @@ export const checkAuthStatus: RequestHandler = async (req: Request, _res: Respon
   
   next();
 };
+
+
+

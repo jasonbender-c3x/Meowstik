@@ -1,3 +1,4 @@
+
 import { Router, Request, Response, NextFunction } from "express";
 import { searchWeb, scrapeUrl, searchAndScrape } from "../integrations/web-scraper";
 
@@ -67,3 +68,6 @@ router.post("/search-and-scrape", async (req: Request, res: Response, next: Next
 });
 
 export default router;
+
+
+

@@ -1,3 +1,4 @@
+
 /**
  * Gemini Function Calling Tool Declarations - GUEST MODE
  * 
@@ -181,3 +182,6 @@ export function getToolDeclarations(isAuthenticated: boolean): FunctionDeclarati
     return guestToolDeclarations;
   }
 }
+
+
+

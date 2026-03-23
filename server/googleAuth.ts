@@ -7,10 +7,9 @@ import passport from "passport";
 import { Strategy as GoogleStrategy } from "passport-google-oauth20";
 import session from "express-session";
 import { Router, type Express, type RequestHandler } from "express";
-import connectPg from "connect-pg-simple";
-import FileStore from "session-file-store"; // Import FileStore
+import FileStoreFactory from "session-file-store"; // Import FileStore
 import { storage } from "./storage.js";
-import { pool, usePglite } from "./db.js";
+// import { pool } from "./db.js"; // Not needed for file store
 import { isHomeDevMode, getHomeDevUser } from "./homeDevAuth.js";
 import csurf from "csurf";
 import crypto from "crypto";
@@ -19,39 +18,22 @@ import crypto from "crypto";
 const SESSION_TTL = 7 * 24 * 60 * 60 * 1000;
 const SESSION_TTL_SECONDS = 7 * 24 * 60 * 60;
 
+const FileStore = FileStoreFactory(session);
+
 export function getCsrfProtection() {
   return csurf({ cookie: false });
 }
 
 export function getSession() {
-  let sessionStore;
+  console.log("ℹ️ [Auth] Using FileStore for sessions (No Postgres).");
   
-  // Re-check env vars here just in case usePglite was captured early
-  const isPglite = usePglite || process.env.DATABASE_URL?.startsWith("file:") || process.env.USE_PGLITE === "true";
-
-  if (isPglite) {
-    console.log("ℹ️ [Auth] Using FileStore for sessions (PGlite active).");
-    const Store = FileStore(session);
-    sessionStore = new Store({
-      path: "./sessions",
-      ttl: SESSION_TTL_SECONDS,
-      retries: 0,
-    });
-  } else {
-    const pgStore = connectPg(session);
-    sessionStore = new pgStore({
-      pool, // Use shared pool
-      createTableIfMissing: true,
-      ttl: SESSION_TTL,
-      tableName: "sessions",
-    });
-  }
+  const sessionStore = new FileStore({
+    path: "./sessions",
+    ttl: SESSION_TTL_SECONDS,
+    retries: 0,
+  });
   
   const isProduction = process.env.NODE_ENV === "production";
-  
-  if (isProduction && !process.env.SESSION_SECRET) {
-    throw new Error("SESSION_SECRET environment variable must be set in production");
-  }
   
   return session({
     secret: process.env.SESSION_SECRET || "meowstik-dev-secret-change-in-production",
@@ -201,36 +183,37 @@ export async function setupAuth(app: Express) {
     const authHandler = passport.authenticate("google", {
       scope: [
         "profile", 
-        "email", 
-        "https://www.googleapis.com/auth/drive",
-        "https://www.googleapis.com/auth/gmail.modify", 
-        "https://www.googleapis.com/auth/calendar",
-        "https://www.googleapis.com/auth/documents",
-        "https://www.googleapis.com/auth/spreadsheets"
+        "email"
       ],
       accessType: 'offline',
       prompt: 'consent'
     });
 
     // Mount handlers on the router
-    authRouter.get("/google", authHandler);
+    authRouter.get("/google", (req, res, next) => {
+      console.log("[Auth] Starting Google OAuth flow...");
+      authHandler(req, res, next);
+    });
+    
     authRouter.get("/google/callback", 
       passport.authenticate("google", { failureRedirect: "/login" }),
-      (req, res) => { res.redirect("/"); }
+      (req, res) => { 
+        console.log("[Auth] Google OAuth callback success, redirecting to /");
+        res.redirect("/"); 
+      }
     );
     
-    authRouter.get("/user", isAuthenticated, async (req: any, res) => {
-      try {
-        const userId = req.user.id || req.user.claims?.sub || req.user.googleId;
-        const user = await storage.getUser(userId);
-        res.json(user);
-      } catch (error) {
-        res.status(500).json({ message: "Failed to fetch user" });
+    // API endpoint to get current user
+    authRouter.get("/user", (req, res) => {
+      if (req.isAuthenticated()) {
+         return res.json(req.user);
       }
+      res.status(401).json({ error: "Not authenticated" });
     });
 
-    authRouter.get("/logout", (req, res) => {
+    authRouter.get("/logout", (req, res, next) => {
       req.logout((err) => {
+        if (err) { return next(err); }
         req.session.destroy(() => {
           res.redirect("/login");
         });
@@ -243,43 +226,11 @@ export async function setupAuth(app: Express) {
   }
 }
 
-export const isAuthenticated: RequestHandler = async (req, res, next) => {
-  if (req.isAuthenticated() && (req.user as any)?.claims?.sub) {
-     return next();
-  }
-
-  if (isHomeDevMode()) {
-    if (!req.user) {
-      try {
-        console.log("[Auth] Attempting to hydrate Home Dev User...");
-        const user = await getHomeDevUser();
-        if (user) {
-          console.log(`[Auth] Hydrated Home Dev User: ${user.email} (ID: ${user.id})`);
-          req.user = {
-            id: user.id, // Ensure ID is present at top level too
-            claims: {
-              sub: user.id.toString(),
-              email: user.email,
-              first_name: user.displayName || "Developer",
-              last_name: "",
-              profile_image_url: user.avatarUrl || "",
-              exp: Math.floor(Date.now() / 1000) + SESSION_TTL_SECONDS
-            },
-            access_token: "home-dev-token",
-            refresh_token: "home-dev-refresh-token",
-            expires_at: Math.floor(Date.now() / 1000) + SESSION_TTL_SECONDS
-          };
-        } else {
-          console.warn("[Auth] getHomeDevUser returned null/undefined");
-        }
-      } catch (e) {
-        console.error("[Auth] Error hydrating Home Dev User:", e);
-      }
-    } else {
-       console.log("[Auth] User already authenticated via session");
-    }
+// Export a dummy middleware for now if needed by other files, 
+// or update imports to use passport.authenticate directly.
+export const isAuthenticated: RequestHandler = (req, res, next) => {
+  if (req.isAuthenticated()) {
     return next();
   }
-
-  return res.status(401).json({ message: "Unauthorized" });
+  res.status(401).json({ message: "Unauthorized" });
 };

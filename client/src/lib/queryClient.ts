@@ -1,3 +1,4 @@
+
 /**
  * ╔══════════════════════════════════════════════════════════════════════════════╗
  * ║                   QUERYCLIENT.TS - REACT QUERY CONFIGURATION                  ║
@@ -220,3 +221,6 @@ export const queryClient = new QueryClient({
     },
   },
 });
+
+
+

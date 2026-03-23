@@ -1,3 +1,4 @@
+
 /**
  * =============================================================================
  * DATABASE ADAPTER INTERFACE
@@ -280,3 +281,6 @@ export function parseConnectionString(connectionString: string): ConnectionConfi
     throw new Error(`Invalid connection string: ${connectionString}`);
   }
 }
+
+
+

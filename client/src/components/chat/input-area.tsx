@@ -1,3 +1,4 @@
+
 /**
  * ╔══════════════════════════════════════════════════════════════════════════════╗
  * ║                    INPUT-AREA.TSX - CHAT INPUT COMPONENT                      ║
@@ -1129,3 +1130,6 @@ export function ChatInputArea({ onSend, isLoading, promptHistory = [], onStop }:
     </div>
   );
 }
+
+
+

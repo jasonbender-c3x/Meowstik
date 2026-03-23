@@ -1,3 +1,4 @@
+
 /**
  * Authentication Manager - Handles Google authentication for NotebookLM
  */
@@ -197,3 +198,6 @@ export class AuthManager {
     }
   }
 }
+
+
+

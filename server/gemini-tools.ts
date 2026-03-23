@@ -1,3 +1,4 @@
+
 /**
  * Gemini Function Calling Tool Declarations
  * 
@@ -543,32 +544,7 @@ export const geminiFunctionDeclarations: FunctionDeclaration[] = [
     }
   },
 
-  // ═══════════════════════════════════════════════════════════════════════════
-  // V2 CORE PRIMITIVE: SSH
-  // Unified SSH primitive that replaces 9 individual ssh_* tools
-  // ═══════════════════════════════════════════════════════════════════════════
-  {
-    name: "ssh",
-    description: "[V2 CORE PRIMITIVE] Persistent 2-way SSH connection. " +
-      "Actions: 'connect' (establish connection), 'exec' (run command), 'disconnect' (close), 'status' (list active). " +
-      "If connected, just provide host and command to execute. Auto-connects if not connected. " +
-      "Example: ssh({ host: 'myserver', command: 'ls -la' })",
-    parametersJsonSchema: {
-      type: "object",
-      properties: {
-        host: { type: "string", description: "Host alias (configured via ssh_host_add)" },
-        command: { type: "string", description: "Command to execute (for 'exec' action)" },
-        action: { 
-          type: "string", 
-          enum: ["connect", "exec", "disconnect", "status"],
-          description: "Action to perform (default: 'exec' if command provided, 'status' otherwise)" 
-        }
-      },
-      required: []
-    }
-  },
-
-  // ═══════════════════════════════════════════════════════════════════════════
+   // ═══════════════════════════════════════════════════════════════════════════
   // WEB SEARCH
   // ═══════════════════════════════════════════════════════════════════════════
   {
@@ -808,82 +784,23 @@ OBJECTIVE TIPS:
   },
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // ARDUINO / HARDWARE IoT
+  // HARDWARE CONTROL (STUBS)
   // ═══════════════════════════════════════════════════════════════════════════
   {
-    name: "arduino_list_boards",
-    description: "List all connected Arduino boards. Detects USB-connected boards and shows port, board name, and FQBN.",
-    parametersJsonSchema: {
-      type: "object",
-      properties: {}
-    }
-  },
-  {
-    name: "arduino_compile",
-    description: "Compile an Arduino sketch (.ino file) for a specific board.",
+    name: "set_mood_light",
+    description: "Set the color/status of the HP Mood Lighting device (USB ID 03f0:150c). Currently a stub.",
     parametersJsonSchema: {
       type: "object",
       properties: {
-        sketchPath: { type: "string", description: "Path to the .ino file or sketch directory" },
-        fqbn: { type: "string", description: "Fully Qualified Board Name (e.g., 'arduino:avr:uno', 'arduino:avr:mega')" }
-      },
-      required: ["sketchPath", "fqbn"]
+        color: { type: "string", description: "Color name (red, green, blue, off) or hex code" },
+        status: { type: "string", enum: ["on", "off", "blink"], description: "Light status" }
+      }
     }
   },
-  {
-    name: "arduino_upload",
-    description: "Upload a compiled sketch to a connected Arduino board.",
-    parametersJsonSchema: {
-      type: "object",
-      properties: {
-        sketchPath: { type: "string", description: "Path to the .ino file or sketch directory" },
-        fqbn: { type: "string", description: "Fully Qualified Board Name (e.g., 'arduino:avr:uno')" },
-        port: { type: "string", description: "Serial port (e.g., '/dev/ttyUSB0', 'COM3')" }
-      },
-      required: ["sketchPath", "fqbn", "port"]
-    }
-  },
-  {
-    name: "arduino_create_sketch",
-    description: "Create a new Arduino sketch with the given code.",
-    parametersJsonSchema: {
-      type: "object",
-      properties: {
-        name: { type: "string", description: "Name of the sketch (will create directory and .ino file)" },
-        code: { type: "string", description: "Arduino C++ code for the sketch" }
-      },
-      required: ["name", "code"]
-    }
-  },
-  {
-    name: "arduino_install_library",
-    description: "Install an Arduino library by name.",
-    parametersJsonSchema: {
-      type: "object",
-      properties: {
-        libraryName: { type: "string", description: "Name of the library to install (e.g., 'Servo', 'FastLED')" }
-      },
-      required: ["libraryName"]
-    }
-  },
-  {
-    name: "arduino_search_libraries",
-    description: "Search for Arduino libraries by keyword.",
-    parametersJsonSchema: {
-      type: "object",
-      properties: {
-        query: { type: "string", description: "Search query for library name or keyword" }
-      },
-      required: ["query"]
-    }
-  },
-
-
-
+  
   // ═══════════════════════════════════════════════════════════════════════════
   // COMPUTER USE (PROJECT GHOST)
   // Hands-free desktop control via Gemini Computer Use API
-  // ═══════════════════════════════════════════════════════════════════════════
   {
     name: "computer_click",
     description: "Click at a specific coordinate on the user's desktop screen. Use after analyzing a screenshot to find element positions.",
@@ -1056,6 +973,72 @@ OBJECTIVE TIPS:
       },
       required: ["table", "where"]
     }
+  },
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // TODO LIST MANAGEMENT
+  // ═══════════════════════════════════════════════════════════════════════════
+  {
+    name: "todo_list",
+    description: "Get all active to-do items from the persistent list.",
+    parametersJsonSchema: {
+      type: "object",
+      properties: {
+        includeCompleted: { type: "boolean", description: "Whether to include completed items" }
+      }
+    }
+  },
+  {
+    name: "todo_add",
+    description: "Add a new item to the persistent to-do list.",
+    parametersJsonSchema: {
+      type: "object",
+      properties: {
+        title: { type: "string", description: "Title of the task" },
+        description: { type: "string", description: "Detailed description (optional)" },
+        priority: { type: "number", description: "Priority level (0-10, 10 is highest)" },
+        category: { type: "string", description: "Category (e.g., bug, feature, research)" },
+        tags: { type: "array", items: { type: "string" }, description: "Tags for categorization" }
+      },
+      required: ["title"]
+    }
+  },
+  {
+    name: "todo_update",
+    description: "Update an existing to-do item.",
+    parametersJsonSchema: {
+      type: "object",
+      properties: {
+        id: { type: "string", description: "ID of the todo item" },
+        title: { type: "string", description: "New title" },
+        description: { type: "string", description: "New description" },
+        status: { type: "string", enum: ["pending", "in_progress", "completed", "blocked", "cancelled"], description: "New status" },
+        priority: { type: "number", description: "New priority" }
+      },
+      required: ["id"]
+    }
+  },
+  {
+    name: "todo_complete",
+    description: "Mark a to-do item as completed.",
+    parametersJsonSchema: {
+      type: "object",
+      properties: {
+        id: { type: "string", description: "ID of the todo item" }
+      },
+      required: ["id"]
+    }
+  },
+  {
+    name: "todo_remove",
+    description: "Permanently remove a to-do item.",
+    parametersJsonSchema: {
+      type: "object",
+      properties: {
+        id: { type: "string", description: "ID of the todo item" }
+      },
+      required: ["id"]
+    }
   }
 ];
 
@@ -1076,3 +1059,6 @@ export function getToolDeclarations(toolNames?: string[]): FunctionDeclaration[]
 export function getAllToolNames(): string[] {
   return geminiFunctionDeclarations.map(tool => tool.name).filter((name): name is string => !!name);
 }
+
+
+

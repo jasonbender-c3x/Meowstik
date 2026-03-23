@@ -1,3 +1,4 @@
+
 /**
  * =============================================================================
  * GENERIC DATABASE ABSTRACTION TYPES
@@ -116,3 +117,6 @@ export interface IDatabaseAdapter {
   import(options: ImportOptions): Promise<void>;
   getType(): DatabaseType;
 }
+
+
+

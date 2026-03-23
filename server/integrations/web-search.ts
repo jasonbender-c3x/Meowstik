@@ -1,3 +1,4 @@
+
 /**
  * ╔═══════════════════════════════════════════════════════════════════════════╗
  * ║                     WEB SEARCH INTEGRATION MODULE                          ║
@@ -357,3 +358,6 @@ export function formatSearchResult(result: WebSearchResult): string {
 
   return result.content;
 }
+
+
+

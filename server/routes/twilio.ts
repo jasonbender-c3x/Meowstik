@@ -1,3 +1,4 @@
+
 /**
  * Twilio Webhook Routes
  *
@@ -96,20 +97,126 @@ twilioRouter.post("/voice", async (req, res) => {
     }
   }
 
-  // Connect to Meowstik via Media Stream → Gemini Live
+  // Inbound call -> Place directly into a Conference
+  // This allows us to add the owner (Jason) later as a third leg
+  const conferenceName = CallSid || `conf-${Date.now()}`;
+  
+  // 1. Put the Caller into the Conference
+  const dial = response.dial();
+  dial.conference(conferenceName, {
+    startConferenceOnEnter: true,
+    endConferenceOnExit: true, // If caller hangs up, end it all? Or keep agent/owner?
+    waitUrl: "", // No hold music initially, just silence so they hear the agent
+    statusCallbackEvent: ['start', 'end', 'join', 'leave', 'mute', 'hold'],
+    statusCallback: `https://${host}/api/twilio/conference-status`,
+  });
+
+  // 2. ASYNC: Add the "Agent" leg (Gemini Live)
+  // We make a loopback call to our own /api/twilio/agent-leg endpoint
+  // which executes the <Connect><Stream> TwiML
+  const protocol = req.protocol || "https";
+  const baseUrl = `${protocol}://${host}`;
+  
+  // Trigger the agent leg immediately
+  (async () => {
+    try {
+      const client = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
+      
+      // Call into the conference as the "Agent"
+      await client.calls.create({
+        url: `${baseUrl}/api/twilio/agent-leg?confName=${encodeURIComponent(conferenceName)}&direction=${direction}&from=${encodeURIComponent(From)}`,
+        to: process.env.TWILIO_PHONE_NUMBER!, // Call ourselves (loopback)
+        from: process.env.TWILIO_PHONE_NUMBER!,
+      });
+      log(`🤖 [Twilio] Agent leg initiated for conference ${conferenceName}`);
+
+      // 3. ASYNC: Add the "Owner" leg (You) - Muted initially
+      if (!isFromOwner && ownerPhone) {
+        await client.calls.create({
+          url: `${baseUrl}/api/twilio/owner-leg?confName=${encodeURIComponent(conferenceName)}`,
+          to: ownerPhone,
+          from: process.env.TWILIO_PHONE_NUMBER!,
+        });
+        log(`👤 [Twilio] Owner leg initiated (muted) for conference ${conferenceName}`);
+      }
+    } catch (err) {
+      log(`❌ [Twilio] Failed to initiate conference legs: ${err}`);
+    }
+  })();
+
+  res.type("text/xml");
+  res.send(response.toString());
+});
+
+// ── Agent Leg Endpoint (The AI Voice) ─────────────────────────────────────────
+twilioRouter.post("/agent-leg", (req, res) => {
+  const { confName, direction, from } = req.query;
+  const response = new VoiceResponse();
+  const host = req.headers.host;
+
+  // 1. Connect to Gemini Live Stream
   const connect = response.connect();
   const stream = connect.stream({
     url: `wss://${host}/streams/twilio`,
     name: "Meowstik_Live_Voice",
   });
-
   stream.parameter({ name: "direction", value: direction });
-  stream.parameter({ name: "fromNumber", value: From || "unknown" });
-  if (context) {
-    stream.parameter({ name: "context", value: context });
-  }
+  stream.parameter({ name: "fromNumber", value: from || "unknown" });
+  
+  // 2. Join the Conference (so the stream audio goes there)
+  // Wait... <Connect> and <Dial><Conference> are mutually exclusive TwiML verbs.
+  // The Agent Leg needs to be a SIP trunk or we need to Stream *on* the conference participant?
+  
+  // CORRECT APPROACH FOR AGENT IN CONFERENCE:
+  // We can't use <Stream> *inside* a Conference easily with standard TwiML.
+  // The Stream replaces the call audio.
+  
+  // Strategy: The "Agent Leg" call connects to the Stream.
+  // But how does that audio get into the Conference?
+  // TwiML <Connect> streams the *call's* audio to/from a WebSocket.
+  // If the call is *also* in a Conference, TwiML doesn't support both.
+  
+  // Workaround: The "Agent" call *is* the Stream. We need a way to bridge it.
+  // Actually, standard practice for "AI in Conference":
+  // The Agent call executes <Dial><Conference>.
+  // The *Stream* is attached to that call via <Start><Stream>?
+  // <Start> allows async streaming while TwiML continues (to Dial).
+  
+  const start = response.start();
+  const s = start.stream({
+    url: `wss://${host}/streams/twilio`,
+    name: "Meowstik_Live_Voice",
+    track: "both_tracks"
+  });
+  s.parameter({ name: "direction", value: direction });
+  s.parameter({ name: "fromNumber", value: from });
+  
+  const dial = response.dial();
+  dial.conference(String(confName), {
+    startConferenceOnEnter: false,
+    endConferenceOnExit: false,
+    beep: "false" // Silent entry
+  });
 
-  response.pause({ length: 30 });
+  res.type("text/xml");
+  res.send(response.toString());
+});
+
+// ── Owner Leg Endpoint (You) ──────────────────────────────────────────────────
+twilioRouter.post("/owner-leg", (req, res) => {
+  const { confName } = req.query;
+  const response = new VoiceResponse();
+  
+  const dial = response.dial();
+  dial.conference(String(confName), {
+    startConferenceOnEnter: false,
+    endConferenceOnExit: false,
+    muted: true, // Start MUTED (listening mode)
+    beep: "false"
+  });
+
+  res.type("text/xml");
+  res.send(response.toString());
 
   res.type("text/xml");
   res.send(response.toString());
@@ -438,3 +545,6 @@ async function handleOwnerCallCommand(
 }
 
 export default twilioRouter;
+
+
+

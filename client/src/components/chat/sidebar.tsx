@@ -1,3 +1,4 @@
+
 /**
  * ╔══════════════════════════════════════════════════════════════════════════════╗
  * ║                       SIDEBAR.TSX - CHAT HISTORY SIDEBAR                      ║
@@ -1031,3 +1032,6 @@ export function Sidebar({ isOpen, setIsOpen, onNewChat, chats, currentChatId, on
     </>
   );
 }
+
+
+

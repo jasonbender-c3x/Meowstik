@@ -1,3 +1,4 @@
+
 import { 
   users, 
   type User, 
@@ -268,14 +269,14 @@ export class DatabaseStorage {
   async pruneOldToolCallLogs(chatId: string, keepLimit: number = 50): Promise<void> {
     try {
       // Find logs to delete (those beyond the keepLimit)
+      // SQLite requires LIMIT with OFFSET, so we fetch all IDs and slice in JS
       const logs = await db.select({ id: toolCallLogs.id })
         .from(toolCallLogs)
         .where(eq(toolCallLogs.chatId, chatId))
-        .orderBy(desc(toolCallLogs.createdAt))
-        .offset(keepLimit);
+        .orderBy(desc(toolCallLogs.createdAt));
 
-      if (logs.length > 0) {
-        const idsToDelete = logs.map(l => l.id);
+      if (logs.length > keepLimit) {
+        const idsToDelete = logs.slice(keepLimit).map(l => l.id);
         await db.delete(toolCallLogs).where(inArray(toolCallLogs.id, idsToDelete));
       }
     } catch (e) {
@@ -884,3 +885,6 @@ export class DatabaseStorage {
 }
 
 export const storage = new DatabaseStorage();
+
+
+

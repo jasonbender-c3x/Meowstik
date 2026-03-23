@@ -1,3 +1,4 @@
+
 /**
  * ╔═══════════════════════════════════════════════════════════════════════════╗
  * ║                    GEMINI LIVE API INTEGRATION                            ║
@@ -424,8 +425,19 @@ export async function* receiveResponses(
                           }
                       }
                   } else if (msg.toolCall) {
-                       // Handle tool calls
-                       // ...
+                      // Handle tool calls
+                      const { functionCalls } = msg.toolCall;
+                      if (functionCalls) {
+                          for (const call of functionCalls) {
+                              yield {
+                                  type: "functionCall",
+                                  functionCall: {
+                                      name: call.name,
+                                      args: call.args
+                                  }
+                              };
+                          }
+                      }
                   }
               }
           }
@@ -654,3 +666,6 @@ export const AVAILABLE_VOICES = [
   { value: "Orus", label: "Orus - Authoritative Male", gender: "male" },
   { value: "Zephyr", label: "Zephyr - Gentle Neutral", gender: "neutral" },
 ] as const;
+
+
+

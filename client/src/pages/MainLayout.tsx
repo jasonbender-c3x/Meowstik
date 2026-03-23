@@ -1,3 +1,4 @@
+
 import { Switch, Route } from "wouter";
 import { TTSProvider } from "@/contexts/tts-context";
 import Home from "@/pages/home";
@@ -78,3 +79,6 @@ export default function MainLayout() {
     </TTSProvider>
   );
 }
+
+
+

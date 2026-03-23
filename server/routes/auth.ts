@@ -1,3 +1,4 @@
+
 import { Router } from "express";
 import { authRouter as googleAuthRouter } from "../googleAuth.js";
 
@@ -14,8 +15,9 @@ import { authRouter as googleAuthRouter } from "../googleAuth.js";
 export const authRouter = Router();
 
 // Mount the Google Auth routes
-// These will be available at /api/auth/google, /api/auth/google/callback, etc.
 authRouter.use("/", googleAuthRouter);
 
 export { setupAuth } from "../googleAuth.js";
 export default authRouter;
+
+

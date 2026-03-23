@@ -1,3 +1,4 @@
+
 import { Router } from "express";
 import { chromium, Browser, BrowserContext, Page } from "playwright";
 import { z } from "zod";
@@ -142,8 +143,15 @@ router.post("/navigate", async (req, res) => {
 
 const clickSchema = z.object({
   sessionId: z.string(),
-  selector: z.string().min(1, "Selector required"),
+  selector: z.string().optional(),
+  x: z.number().optional(),
+  y: z.number().optional(),
+  button: z.enum(["left", "right", "middle"]).default("left"),
+  modifiers: z.array(z.enum(["Alt", "Control", "Meta", "Shift"])).optional(),
+  clickCount: z.number().default(1),
   timeout: z.number().min(1000).max(30000).default(10000)
+}).refine(data => data.selector || (data.x !== undefined && data.y !== undefined), {
+  message: "Either selector or x,y coordinates are required"
 });
 
 router.post("/click", async (req, res) => {
@@ -153,19 +161,27 @@ router.post("/click", async (req, res) => {
       return res.status(400).json({ success: false, error: parsed.error.errors[0]?.message });
     }
     
-    const { sessionId, selector, timeout } = parsed.data;
+    const { sessionId, selector, x, y, button, modifiers, clickCount, timeout } = parsed.data;
     const session = await getValidSession(sessionId);
     if (!session) {
       return res.status(400).json({ success: false, error: "Session not found or expired. Navigate first." });
     }
     
-    await session.page.click(selector, { timeout });
-    
-    res.json({
-      success: true,
-      sessionId,
-      message: `Clicked element: ${selector}`
-    });
+    if (selector) {
+      await session.page.click(selector, { button, modifiers, clickCount, timeout });
+      res.json({
+        success: true,
+        sessionId,
+        message: `Clicked element: ${selector}`
+      });
+    } else if (x !== undefined && y !== undefined) {
+      await session.page.mouse.click(x, y, { button, modifiers, clickCount });
+      res.json({
+        success: true,
+        sessionId,
+        message: `Clicked at ${x},${y}`
+      });
+    }
   } catch (error) {
     console.error("[Playwright] Click error:", error);
     res.json({ success: false, error: error instanceof Error ? error.message : "Click failed" });
@@ -174,8 +190,10 @@ router.post("/click", async (req, res) => {
 
 const typeSchema = z.object({
   sessionId: z.string(),
-  selector: z.string().min(1, "Selector required"),
-  text: z.string(),
+  selector: z.string().optional(),
+  text: z.string().optional(),
+  key: z.string().optional(),
+  modifiers: z.array(z.enum(["Alt", "Control", "Meta", "Shift"])).optional(),
   timeout: z.number().min(1000).max(30000).default(10000)
 });
 
@@ -186,22 +204,67 @@ router.post("/type", async (req, res) => {
       return res.status(400).json({ success: false, error: parsed.error.errors[0]?.message });
     }
     
-    const { sessionId, selector, text, timeout } = parsed.data;
+    const { sessionId, selector, text, key, modifiers, timeout } = parsed.data;
     const session = await getValidSession(sessionId);
     if (!session) {
       return res.status(400).json({ success: false, error: "Session not found or expired. Navigate first." });
     }
     
-    await session.page.fill(selector, text, { timeout });
-    
-    res.json({
-      success: true,
-      sessionId,
-      message: `Typed "${text}" into ${selector}`
-    });
+    if (selector && text) {
+      await session.page.fill(selector, text, { timeout });
+      res.json({ success: true, sessionId, message: `Typed "${text}" into ${selector}` });
+    } else if (key) {
+      // Handle keyboard shortcuts (e.g., Alt+Tab)
+      const keyCombo = modifiers ? [...modifiers, key].join('+') : key;
+      await session.page.keyboard.press(keyCombo);
+      res.json({ success: true, sessionId, message: `Pressed ${keyCombo}` });
+    } else if (text) {
+      // Just type text into current focus
+      await session.page.keyboard.type(text);
+      res.json({ success: true, sessionId, message: `Typed "${text}"` });
+    } else {
+       return res.status(400).json({ success: false, error: "Either text, key, or selector+text required" });
+    }
   } catch (error) {
     console.error("[Playwright] Type error:", error);
     res.json({ success: false, error: error instanceof Error ? error.message : "Type failed" });
+  }
+});
+
+const keyEventSchema = z.object({
+  sessionId: z.string(),
+  key: z.string(),
+});
+
+router.post("/keyDown", async (req, res) => {
+  try {
+    const parsed = keyEventSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ error: parsed.error.errors[0]?.message });
+    
+    const { sessionId, key } = parsed.data;
+    const session = await getValidSession(sessionId);
+    if (!session) return res.status(400).json({ error: "Session not found" });
+    
+    await session.page.keyboard.down(key);
+    res.json({ success: true, sessionId, message: `Key down: ${key}` });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.post("/keyUp", async (req, res) => {
+  try {
+    const parsed = keyEventSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ error: parsed.error.errors[0]?.message });
+    
+    const { sessionId, key } = parsed.data;
+    const session = await getValidSession(sessionId);
+    if (!session) return res.status(400).json({ error: "Session not found" });
+    
+    await session.page.keyboard.up(key);
+    res.json({ success: true, sessionId, message: `Key up: ${key}` });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
   }
 });
 
@@ -346,6 +409,61 @@ router.post("/getText", async (req, res) => {
   }
 });
 
+const touchSchema = z.object({
+  sessionId: z.string(),
+  x: z.number(),
+  y: z.number(),
+});
+
+router.post("/touch", async (req, res) => {
+  try {
+    const parsed = touchSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ success: false, error: parsed.error.errors[0]?.message });
+    }
+    
+    const { sessionId, x, y } = parsed.data;
+    const session = await getValidSession(sessionId);
+    if (!session) {
+      return res.status(400).json({ success: false, error: "Session not found or expired. Navigate first." });
+    }
+    
+    // Playwright supports touch via tap or by emulating touchscreens
+    // For simplicity, we'll assume the page has touch emulation enabled or use mouse tap as fallback
+    try {
+      await session.page.touchscreen.tap(x, y);
+      res.json({ success: true, sessionId, message: `Tapped at ${x},${y}` });
+    } catch (e) {
+      // Fallback to mouse click if touchscreen not enabled
+      await session.page.mouse.click(x, y);
+      res.json({ success: true, sessionId, message: `Clicked (fallback) at ${x},${y}` });
+    }
+  } catch (error) {
+    console.error("[Playwright] Touch error:", error);
+    res.json({ success: false, error: error instanceof Error ? error.message : "Touch failed" });
+  }
+});
+
+router.get("/framebuffer/:sessionId", async (req, res) => {
+  try {
+    const { sessionId } = req.params;
+    const session = await getValidSession(sessionId);
+    if (!session) {
+      return res.status(404).json({ error: "Session not found" });
+    }
+
+    const buffer = await session.page.screenshot({ type: "jpeg", quality: 50 });
+    res.writeHead(200, {
+      "Content-Type": "image/jpeg",
+      "Content-Length": buffer.length
+    });
+    res.end(buffer);
+  } catch (error) {
+    console.error("[Playwright] Framebuffer error:", error);
+    res.status(500).json({ error: "Failed to capture framebuffer" });
+  }
+});
+
 router.post("/close", async (req, res) => {
   try {
     const { sessionId } = req.body;
@@ -387,3 +505,6 @@ router.delete("/sessions", async (_req, res) => {
 });
 
 export default router;
+
+
+

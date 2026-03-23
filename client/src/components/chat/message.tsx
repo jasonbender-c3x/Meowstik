@@ -1,3 +1,4 @@
+
 /**
  * ╔══════════════════════════════════════════════════════════════════════════════╗
  * ║                    MESSAGE.TSX - CHAT MESSAGE COMPONENT                       ║
@@ -702,3 +703,6 @@ export function ChatMessage({ role, content, isThinking, metadata, createdAt, id
     </motion.div>
   );
 }
+
+
+

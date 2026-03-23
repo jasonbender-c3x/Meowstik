@@ -1,3 +1,4 @@
+
 import { createContext, useContext, ReactNode } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import type { User } from "@shared/schema";
@@ -27,3 +28,6 @@ export function useAuthContext() {
   }
   return context;
 }
+
+
+

@@ -1,0 +1,43 @@
+id: gcp-deploy-cloud-run
+name: "Deploy to GCP Cloud Run (Free Tier)"
+description: "Deploy a container image to Google Cloud Run using the Free Tier settings"
+steps:
+  - id: check-login
+    goal: "Verify user is logged into Google Cloud Console"
+    description: "Look for the user avatar or project selector in the top right"
+    validation_criteria: "User avatar or project name visible"
+    
+  - id: nav-cloud-run
+    goal: "Navigate to Cloud Run dashboard"
+    description: "Click on the navigation menu or search for 'Cloud Run'"
+    action_type: "click"
+    
+  - id: create-service-init
+    goal: "Click the 'Create Service' button"
+    description: "Find and click the primary action button to create a new service"
+    action_type: "click"
+    requires_confirmation: true
+    
+  - id: config-container
+    goal: "Enter container image URL"
+    description: "Type the container image URL into the image field"
+    action_type: "type"
+    parameters:
+      text: "{container_image}"
+      
+  - id: config-region
+    goal: "Select a low-cost region"
+    description: "Choose a Tier 1 region like us-central1 for free tier eligibility"
+    action_type: "click"
+    
+  - id: config-auth
+    goal: "Allow unauthenticated invocations"
+    description: "Select 'Allow unauthenticated invocations' so the public can access it"
+    action_type: "click"
+    requires_confirmation: true
+    
+  - id: deploy-submit
+    goal: "Click 'Create' to deploy"
+    description: "Click the final Create button at the bottom of the form"
+    action_type: "click"
+    requires_confirmation: true

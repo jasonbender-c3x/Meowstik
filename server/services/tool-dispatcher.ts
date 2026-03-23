@@ -1,3 +1,4 @@
+
 /**
  * =============================================================================
  * MEOWSTIC CHAT - RAG DISPATCHER SERVICE
@@ -778,7 +779,127 @@ export class ToolDispatcher {
         case "db_insert":
           result = await this.executeDbInsert(toolCall);
           break;
-        case "db_delete":
+        case "todo_list":
+        try {
+          const { storage } = await import("../storage");
+          // Default to 'guest' or find a way to pass userId context
+          const userId = "guest"; 
+          const includeCompleted = toolCall.args.includeCompleted === true;
+          
+          const todos = await storage.getTodoItems(userId, includeCompleted);
+          
+          return {
+            type: "todo_list",
+            status: "success",
+            message: `Found ${todos.length} todo items.`,
+            data: todos,
+            timestamp: new Date()
+          };
+        } catch (error: any) {
+          return {
+            type: "todo_list",
+            status: "error",
+            message: `Failed to list todos: ${error.message}`,
+            timestamp: new Date()
+          };
+        }
+
+      case "todo_add":
+        try {
+          const { storage } = await import("../storage");
+          const userId = "guest";
+          
+          const todo = await storage.createTodoItem({
+            userId,
+            title: toolCall.args.title,
+            description: toolCall.args.description,
+            priority: toolCall.args.priority,
+            category: toolCall.args.category,
+            tags: toolCall.args.tags
+          });
+          
+          return {
+            type: "todo_add",
+            status: "success",
+            message: `Added todo: ${todo.title}`,
+            data: todo,
+            timestamp: new Date()
+          };
+        } catch (error: any) {
+          return {
+            type: "todo_add",
+            status: "error",
+            message: `Failed to add todo: ${error.message}`,
+            timestamp: new Date()
+          };
+        }
+
+      case "todo_update":
+        try {
+          const { storage } = await import("../storage");
+          const updates = { ...toolCall.args };
+          delete updates.id; // Remove ID from updates object
+          
+          const todo = await storage.updateTodoItem(toolCall.args.id, updates);
+          
+          return {
+            type: "todo_update",
+            status: "success",
+            message: `Updated todo: ${todo.title}`,
+            data: todo,
+            timestamp: new Date()
+          };
+        } catch (error: any) {
+          return {
+            type: "todo_update",
+            status: "error",
+            message: `Failed to update todo: ${error.message}`,
+            timestamp: new Date()
+          };
+        }
+
+      case "todo_complete":
+        try {
+          const { storage } = await import("../storage");
+          const todo = await storage.completeTodoItem(toolCall.args.id);
+          
+          return {
+            type: "todo_complete",
+            status: "success",
+            message: `Completed todo: ${todo.title}`,
+            data: todo,
+            timestamp: new Date()
+          };
+        } catch (error: any) {
+          return {
+            type: "todo_complete",
+            status: "error",
+            message: `Failed to complete todo: ${error.message}`,
+            timestamp: new Date()
+          };
+        }
+
+      case "todo_remove":
+        try {
+          const { storage } = await import("../storage");
+          const success = await storage.deleteTodoItem(toolCall.args.id);
+          
+          return {
+            type: "todo_remove",
+            status: success ? "success" : "error",
+            message: success ? "Todo item removed." : "Todo item not found.",
+            timestamp: new Date()
+          };
+        } catch (error: any) {
+          return {
+            type: "todo_remove",
+            status: "error",
+            message: `Failed to remove todo: ${error.message}`,
+            timestamp: new Date()
+          };
+        }
+
+      case "db_delete":
           result = await this.executeDbDelete(toolCall);
           break;
         // Codebase Analysis Tools
@@ -1082,6 +1203,18 @@ export class ToolDispatcher {
         }
       }
 
+      // --- COGNITIVE ARCHITECTURE: EXECUTION LOG ---
+      try {
+        const timestamp = new Date().toISOString();
+        const argsStr = JSON.stringify(toolCall.parameters || {}).replace(/[\n\r]/g, " ").slice(0, 100);
+        const resStr = JSON.stringify(result || {}).replace(/[\n\r]/g, " ").slice(0, 150);
+        const logEntry = `| ${timestamp} | **${toolCall.type}** | \`${argsStr}\` | ${resStr} |\n`;
+        await fs.appendFile(path.join(process.cwd(), "logs", "execution_log.md"), logEntry);
+      } catch (e) {
+        console.warn("[ToolDispatcher] Failed to write to execution_log.md:", e);
+      }
+      // ---------------------------------------------
+
       return {
         toolId: toolCall.id,
         type: toolCall.type,
@@ -1122,6 +1255,17 @@ export class ToolDispatcher {
         }
       }
       
+      // --- COGNITIVE ARCHITECTURE: EXECUTION LOG (FAILURE) ---
+      try {
+        const timestamp = new Date().toISOString();
+        const argsStr = JSON.stringify(toolCall.parameters || {}).replace(/[\n\r]/g, " ").slice(0, 100);
+        const logEntry = `| ${timestamp} | **${toolCall.type}** | \`${argsStr}\` | **ERROR**: ${error.message} |\n`;
+        await fs.appendFile(path.join(process.cwd(), "logs", "execution_log.md"), logEntry);
+      } catch (e) {
+        console.warn("[ToolDispatcher] Failed to write to execution_log.md:", e);
+      }
+      // ---------------------------------------------
+
       return {
         toolId: toolCall.id,
         type: toolCall.type,
@@ -2001,23 +2145,7 @@ export class ToolDispatcher {
     if (parsed.target === 'editor') {
       console.log(`[RAGDispatcher] Writing to editor canvas: ${actualPath}`);
       
-      // Auto-ingest into RAG if content is text-based
-      const mimeType = params.mimeType || this.detectMimeType(actualPath);
-      let ingestResult = null;
-      if (chunkingService.supportsTextExtraction(mimeType)) {
-        try {
-          ingestResult = await ragService.ingestDocument(
-            params.content,
-            null, // No attachment record for editor-based ingestion
-            path.basename(actualPath),
-            mimeType
-          );
-          console.log(`[RAGDispatcher] Auto-ingested editor file: ${actualPath}, chunks: ${ingestResult.chunksCreated}`);
-        } catch (error) {
-          console.warn(`[RAGDispatcher] Failed to auto-ingest editor file:`, error);
-        }
-      }
-      
+      // Auto-ingest removed in V2
       return {
         type: 'file_put',
         path: actualPath,
@@ -2083,23 +2211,7 @@ export class ToolDispatcher {
         }
       }
 
-      // Auto-ingest into RAG if content is text-based
-      const mimeType = params.mimeType || this.detectMimeType(sanitizedPath);
-      let ingestResult = null;
-      if (chunkingService.supportsTextExtraction(mimeType)) {
-        try {
-          ingestResult = await ragService.ingestDocument(
-            params.content,
-            null, // No attachment record for file-based ingestion
-            path.basename(sanitizedPath),
-            mimeType
-          );
-          console.log(`[RAGDispatcher] Auto-ingested file: ${sanitizedPath}, chunks: ${ingestResult.chunksCreated}`);
-        } catch (error) {
-          console.warn(`[RAGDispatcher] Failed to auto-ingest file:`, error);
-        }
-      }
-
+      // Auto-ingest removed in V2
       return {
         type: 'file_put',
         path: sanitizedPath,
@@ -3596,3 +3708,6 @@ export class ToolDispatcher {
 }
 
 export const toolDispatcher = new ToolDispatcher();
+
+
+

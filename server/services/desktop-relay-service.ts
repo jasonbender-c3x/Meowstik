@@ -1,3 +1,4 @@
+
 /**
  * Desktop Relay Service
  * 
@@ -56,14 +57,15 @@ interface ScreenFrame {
 }
 
 interface InputEvent {
-  type: 'mouse' | 'keyboard';
-  action: 'move' | 'click' | 'scroll' | 'keydown' | 'keyup' | 'type';
+  type: 'mouse' | 'keyboard' | 'touch'; // Added touch
+  action: 'move' | 'click' | 'scroll' | 'keydown' | 'keyup' | 'type' | 'press' | 'tap'; // Added press/tap
   x?: number;
   y?: number;
   button?: 'left' | 'right' | 'middle';
   key?: string;
   text?: string;
   delta?: number;
+  modifiers?: string[]; // Added modifiers support
   source: 'user' | 'ai';
 }
 
@@ -372,3 +374,6 @@ class DesktopRelayService {
 }
 
 export const desktopRelayService = new DesktopRelayService();
+
+
+

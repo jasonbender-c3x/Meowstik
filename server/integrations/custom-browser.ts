@@ -1,3 +1,4 @@
+
 /**
  * ╔══════════════════════════════════════════════════════════════════════════════╗
  * ║  CUSTOM SELF-HOSTED BROWSER INTEGRATION                                      ║
@@ -497,3 +498,6 @@ export default {
   batchScrape,
   executeBrowserAction,
 };
+
+
+

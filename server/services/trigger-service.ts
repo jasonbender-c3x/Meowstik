@@ -1,3 +1,4 @@
+
 /**
  * =============================================================================
  * TRIGGER SERVICE
@@ -261,3 +262,6 @@ class TriggerService {
 
 // Export singleton
 export const triggerService = new TriggerService();
+
+
+

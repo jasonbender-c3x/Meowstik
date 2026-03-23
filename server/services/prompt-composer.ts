@@ -1,3 +1,4 @@
+
 /**
  * =============================================================================
  * MEOWSTIC CHAT - PROMPT COMPOSER SERVICE
@@ -102,6 +103,7 @@ export class PromptComposer {
   private shortTermMemory: string = "";
   private cache: string = "";
   private todoList: string = "";
+  private executionLog: string = "";
   private promptsLoaded: boolean = false;
 
   constructor() {
@@ -182,6 +184,22 @@ export class PromptComposer {
     } catch (error) {
       console.warn("Could not load logs/todo.md. This is expected if no to-dos exist yet.");
       this.todoList = "";
+    }
+
+    // Load execution_log.md (tail last 20 lines)
+    try {
+      const logPath = path.join(logsDir, "execution_log.md");
+      if (fs.existsSync(logPath)) {
+        const content = fs.readFileSync(logPath, "utf-8");
+        const lines = content.split("\n").filter(l => l.trim());
+        const lastLines = lines.slice(-20);
+        this.executionLog = lastLines.join("\n");
+      } else {
+        this.executionLog = "";
+      }
+    } catch (error) {
+      console.warn("Could not load execution_log.md", error);
+      this.executionLog = "";
     }
 
     this.promptsLoaded = true;
@@ -309,26 +327,20 @@ export class PromptComposer {
 
 Before you call 'end_chat' to end your turn, you MUST perform the following actions:
 
-1.  **Append Execution Log & Personal Log**:
-    *   **Action**: Use the \`append\` tool twice. Once with \`name: "execution"\` to log your actions, and once with \`name: "personal"\` to log personal reflections.
-    *   **Content**: Format with actual newlines, do not double-escape them.
-    *   **Example**:
-        \`\`\`
-        append({ name: "execution", content: "### Turn Log\\n- **Tool**: gmail_search\\n- **Result**: Found emails" })
-        append({ name: "personal", content: "### Reflection\\nI should ask the user for clarification next." })
-        \`\`\`
-
-2.  **Update Thoughts Forward Cache**:
+1.  **Update Thoughts Forward Cache (<thoughts_forward>)**:
     *   **Action**: Use the \`put\` tool to write \`logs/cache.md\`
-    *   **Content**: Your internal monologue and plan for future turns. This file is automatically loaded into your context on the next turn.
+    *   **Content**: Your internal monologue, analysis of the current situation, and plan for future turns. This file is automatically loaded into your context on the next turn.
     *   **Schema**:
         \`\`\`markdown
         ### Thought & Cache
-
         **Reflection**: Brief analysis of this turn's performance and user intent.
         **Next Step**: Primary goal for the next interaction.
         **Anticipated Needs**: Information or tools you might need next.
         \`\`\`
+
+2.  **Append Execution Log & Personal Log (Optional)**:
+    *   **Action**: Use the \`append\` tool with \`name: "personal"\` to log personal reflections or user preferences to your permanent diary.
+    *   **Note**: Your tool executions are now *automatically* logged to \`execution_log.md\`. You do NOT need to manually log tool calls anymore.
 
 3.  **Update Short-Term Memory (Optional)**:
     *   **Action**: Use the \`put\` tool to write \`logs/STM_APPEND.md\` when you need to remember something important across sessions.
@@ -419,6 +431,11 @@ These steps are mandatory before sending your response via end_chat.
       }
       
       components.push(truncatedMemory);
+    }
+
+    // Conditionally include Execution Log (Objective Truth)
+    if (this.executionLog && this.executionLog.trim()) {
+      components.push(`# Recent Execution History (Objective Truth)\n| Timestamp | Tool | Args | Result |\n|---|---|---|---|\n${this.executionLog}`);
     }
 
     // Conditionally include to-do list
@@ -669,3 +686,6 @@ You can analyze data, read and write files, search the web, and interact with Go
 }
 
 export const promptComposer = new PromptComposer();
+
+
+

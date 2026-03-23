@@ -1,3 +1,4 @@
+
 /**
  * ╔═══════════════════════════════════════════════════════════════════════════╗
  * ║                        API ROUTES CONFIGURATION                           ║
@@ -154,12 +155,15 @@ export async function registerRoutes(
   // Sets up session management and OAuth flow with Google as the identity provider
   // ═════════════════════════════════════════════════════════════════════════
   const { setupAuth, isAuthenticated } = await import("./googleAuth");
-  console.log("[Routes] Calling setupAuth...");
-  await setupAuth(app);
-  console.log("[Routes] setupAuth completed.");
+  // console.log("[Routes] Calling setupAuth...");
+  // await setupAuth(app); // REMOVED: Already called in server/index.ts
+  // console.log("[Routes] setupAuth completed.");
+  console.log("[Routes] Google Auth module imported.");
   
   // Import authentication status middleware
+  console.log("[Routes] Importing auth middleware...");
   const { checkAuthStatus } = await import("./routes/middleware");
+  console.log("[Routes] Auth middleware imported.");
   
   // Apply authentication check to all routes (non-blocking)
   // This determines auth status but doesn't block guest access
@@ -2364,6 +2368,10 @@ ${summary}`,
   // ═════════════════════════════════════════════════════════════════════════
 
   app.use("/api", createApiRouter());
+  
+  // Playbook routes (Project Ghost)
+  const { default: playbookRouter } = await import("./routes/playbooks");
+  app.use("/api/playbooks", playbookRouter);
   app.use("/api/diag", diagRouter);
 
   // ═════════════════════════════════════════════════════════════════════════
@@ -2373,3 +2381,6 @@ ${summary}`,
 
   return httpServer;
 }
+
+
+

@@ -1,3 +1,4 @@
+
 /**
  * Browser Manager - Manages Playwright browser lifecycle
  */
@@ -166,3 +167,6 @@ export class BrowserManager {
     return this.page !== null;
   }
 }
+
+
+

@@ -1,3 +1,4 @@
+
 /**
  * =============================================================================
  * XML FILE ADAPTER
@@ -428,3 +429,6 @@ export class XMLAdapter implements IDatabaseAdapter {
     writeFileSync(path, xml, 'utf-8');
   }
 }
+
+
+

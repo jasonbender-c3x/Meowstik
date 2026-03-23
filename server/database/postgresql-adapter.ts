@@ -1,3 +1,4 @@
+
 /**
  * =============================================================================
  * POSTGRESQL DATABASE ADAPTER
@@ -395,3 +396,6 @@ export class PostgreSQLAdapter implements IDatabaseAdapter {
     return `INSERT INTO "${tableName}" (${columns.map(c => `"${c}"`).join(', ')})\nVALUES\n  ${values}\nON CONFLICT DO NOTHING;`;
   }
 }
+
+
+

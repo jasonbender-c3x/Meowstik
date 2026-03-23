@@ -1,3 +1,4 @@
+
 /**
  * =============================================================================
  * STATE MANAGER SERVICE
@@ -467,3 +468,6 @@ class StateManagerService {
 
 export const stateManager = new StateManagerService();
 export default stateManager;
+
+
+

@@ -1,3 +1,4 @@
+
 import './load-env.js'; 
 import { exec } from "child_process";
 import { promisify } from "util";
@@ -51,7 +52,7 @@ app.use(express.urlencoded({ extended: false }));
 console.log("⏳ [Boot] Setting up Auth...");
 console.log(`🔑 [Auth] Using Google Client ID: ${process.env.GOOGLE_CLIENT_ID?.substring(0, 10)}...`);
 console.log(`🌐 [Auth] Using Redirect URI: ${process.env.GOOGLE_REDIRECT_URI}`);
-// setupAuth(app); // REMOVED: Called inside registerRoutes to avoid duplicate session middleware
+setupAuth(app); 
 
 // Health Check Route (To verify the backend independently)
 app.get("/api/health", (req, res) => {
@@ -96,35 +97,49 @@ async function startServer() {
   // Kill any process on the port before starting
   try {
     const execAsync = promisify(exec);
+    
+    // Screen Recording Check (User Request)
+    try {
+        const { stdout: pgrepOut } = await execAsync("pgrep -f ffmpeg");
+        if (pgrepOut) {
+            console.log("🎥 [Boot] Screen recording process found (ffmpeg).");
+        } else {
+             // User requested to "start it if not found", but we don't have the explicit command.
+             // We'll log a clear warning so they can provide the command or we can find it later.
+             console.log("⚠️  [Boot] Screen recording process (ffmpeg) NOT found.");
+             // Placeholder for start command:
+             // await execAsync("nohup ffmpeg -f x11grab ... &"); 
+        }
+    } catch (e) {
+        console.log("⚠️  [Boot] Screen recording process (ffmpeg) NOT found.");
+    }
+
     const { stdout } = await execAsync(`lsof -t -i:${PORT}`);
     if (stdout) {
       const pids = stdout.trim().split('\n');
       for (const pid of pids) {
-          // Avoid killing self if restart happens (unlikely in this flow but good practice)
           if (parseInt(pid) !== process.pid) {
             console.log(`⚠️  [Boot] Killing process ${pid} on port ${PORT}...`);
             try {
-              const { stdout: ppidOut } = await execAsync(`ps -o ppid= -p ${pid}`);
-              const ppid = parseInt(ppidOut.trim());
-              if (ppid > 1) {
-                 const { stdout: pcmd } = await execAsync(`ps -p ${ppid} -o comm=`);
-                 const cmd = pcmd.trim();
-                 // Kill parent if it's node/npm/pnpm/tsx to stop restarts
-                 if (cmd.includes('node') || cmd.includes('npm') || cmd.includes('pnpm') || cmd.includes('tsx')) {
-                    console.log(`⚠️  [Boot] Killing parent process ${ppid} (${cmd})...`);
-                    await execAsync(`kill -9 ${ppid}`);
-                 }
-              }
+                await execAsync(`kill -9 ${pid}`);
             } catch (e) {
-              // Ignore parent lookup errors
+                console.log(`⚠️  [Boot] Failed to kill process ${pid}:`, e);
             }
-            await execAsync(`kill -9 ${pid}`);
           }
       }
     }
   } catch (e) {
     // lsof returns exit code 1 if no process found
   }
+
+  server.on('error', (e: any) => {
+    if (e.code === 'EADDRINUSE') {
+      console.error(`❌ [Boot] Port ${PORT} is already in use!`);
+    } else {
+      console.error('❌ [Boot] Server error:', e);
+    }
+    process.exit(1);
+  });
 
   server.listen(PORT, "0.0.0.0", async () => {
     // Start Desktop Capture (if explicitly enabled)
@@ -162,3 +177,6 @@ async function startServer() {
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
     startServer();
 }
+
+
+

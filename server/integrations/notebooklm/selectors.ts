@@ -1,3 +1,4 @@
+
 /**
  * Selector Configuration and Utilities
  */
@@ -238,3 +239,6 @@ export async function extractTextContent(
   const text = await element.textContent();
   return text?.trim() || '';
 }
+
+
+

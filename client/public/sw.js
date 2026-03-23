@@ -1,3 +1,4 @@
+
 const CACHE_NAME = 'meowstik-v1';
 const STATIC_ASSETS = [
   '/',
@@ -46,3 +47,6 @@ self.addEventListener('fetch', (event) => {
       })
   );
 });
+
+
+

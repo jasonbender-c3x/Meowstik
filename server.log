@@ -1,0 +1,720 @@
+nohup: ignoring input
+
+> meowstik-core@1.0.0 dev /home/runner/Meowstik
+> tsx server/index.ts
+
+✅ [Env] .env file loaded and variables overridden.
+🚀 [Env] GOOGLE_CLIENT_ID: 188476922299-qmfibap676nuuqs2hbj5q97j2etdfupu.apps.googleusercontent.com
+🚀 [Env] GOOGLE_REDIRECT_URI: http://localhost:5000/api/auth/google/callback
+[db] Using SQLite at: /home/runner/Meowstik/data/meowstik.db
+Could not load logs/Short_Term_Memory.md. This is expected if the file hasn't been created yet.
+Could not load logs/todo.md. This is expected if no to-dos exist yet.
+[GoogleAuth] Googleapis imported
+[GoogleAuth] Storage import skipped (lazy)
+🖥️ [DesktopService] Initialized
+⏳ [Boot] Setting up Auth...
+🔑 [Auth] Using Google Client ID: 1884769222...
+🌐 [Auth] Using Redirect URI: http://localhost:5000/api/auth/google/callback
+[twilio] Twilio WebSocket server initialized at /streams/twilio
+[Extension WS] WebSocket server initialized
+[VSCode WS] WebSocket server initialized
+[Live WS] WebSocket server initialized
+[Terminal WS] WebSocket server initialized with interactive shell support
+⏳ [Boot] Registering API Routes...
+[Routes] registerRoutes entry. app defined? true
+[Routes] Calling setupAuth...
+ℹ️ [Auth] Using FileStore for sessions (No Postgres).
+✅ [Google Auth] OAuth strategy registered
+[Routes] setupAuth completed.
+✅ [Boot] API Routes Registered.
+⏳ [Boot] Starting Vite Middleware (This can take 5-10 seconds)...
+✅ [Boot] Vite Middleware Online.
+
+========================================
+🚀 MEOWSTIK CORE ONLINE: http://localhost:5000
+========================================
+
+⏳ [Boot] Pinging Database...
+[db] Mock pool query called - implementation may need review for SQLite compatibility
+✅ [Boot] Database Link Established
+✅ [Mood] Light set to SUCCESS (Green)
+➡️  [REQ] HEAD /
+⬅️  [RES] HEAD / - Status: 200 (420ms)
+➡️  [REQ] GET /landing
+⬅️  [RES] GET / - Status: 200 (1139ms)
+➡️  [REQ] GET /sw.js
+⬅️  [RES] GET /sw.js - Status: 304 (397ms)
+➡️  [REQ] GET /landing
+⬅️  [RES] GET / - Status: 200 (290ms)
+➡️  [REQ] GET /src/main.tsx
+➡️  [REQ] GET /@vite/client
+⬅️  [RES] GET /src/main.tsx - Status: 200 (674ms)
+⬅️  [RES] GET /@vite/client - Status: 200 (630ms)
+➡️  [REQ] GET /@react-refresh
+➡️  [REQ] GET /@fs/home/runner/Meowstik/node_modules/.vite/deps/react_jsx-dev-runtime.js?v=c6cc5668
+➡️  [REQ] GET /@fs/home/runner/Meowstik/node_modules/.vite/deps/react-dom_client.js?v=c6cc5668
+➡️  [REQ] GET /@fs/home/runner/Meowstik/node_modules/.pnpm/vite@6.4.1_@types+node@20.19.37_jiti@1.21.7_tsx@4.21.0_yaml@2.8.3/node_modules/vite/dist/client/env.mjs
+➡️  [REQ] GET /src/index.css
+➡️  [REQ] GET /manifest.json
+➡️  [REQ] GET /src/App.tsx
+⬅️  [RES] GET /manifest.json - Status: 200 (42ms)
+⬅️  [RES] GET /@react-refresh - Status: 200 (284ms)
+⬅️  [RES] GET /@fs/home/runner/Meowstik/node_modules/.vite/deps/react_jsx-dev-runtime.js?v=c6cc5668 - Status: 200 (341ms)
+⬅️  [RES] GET /@fs/home/runner/Meowstik/node_modules/.vite/deps/react-dom_client.js?v=c6cc5668 - Status: 200 (444ms)
+⬅️  [RES] GET /@fs/home/runner/Meowstik/node_modules/.pnpm/vite@6.4.1_@types+node@20.19.37_jiti@1.21.7_tsx@4.21.0_yaml@2.8.3/node_modules/vite/dist/client/env.mjs - Status: 200 (752ms)
+➡️  [REQ] GET /@fs/home/runner/Meowstik/node_modules/.vite/deps/chunk-WOOG5QLI.js?v=c6cc5668
+➡️  [REQ] GET /@fs/home/runner/Meowstik/node_modules/.vite/deps/chunk-VPFTZ3AL.js?v=c6cc5668
+⬅️  [RES] GET /src/index.css - Status: 200 (874ms)
+⬅️  [RES] GET /src/App.tsx - Status: 200 (1145ms)
+⬅️  [RES] GET /@fs/home/runner/Meowstik/node_modules/.vite/deps/chunk-WOOG5QLI.js?v=c6cc5668 - Status: 200 (606ms)
+➡️  [REQ] GET /@fs/home/runner/Meowstik/node_modules/.vite/deps/wouter.js?v=c6cc5668
+➡️  [REQ] GET /@fs/home/runner/Meowstik/node_modules/.vite/deps/@tanstack_react-query.js?v=c6cc5668
+➡️  [REQ] GET /src/lib/queryClient.ts
+➡️  [REQ] GET /src/components/ui/toaster.tsx
+➡️  [REQ] GET /src/pages/not-found.tsx
+⬅️  [RES] GET /@fs/home/runner/Meowstik/node_modules/.vite/deps/chunk-VPFTZ3AL.js?v=c6cc5668 - Status: 200 (849ms)
+➡️  [REQ] GET /src/components/ui/tooltip.tsx
+⬅️  [RES] GET /@fs/home/runner/Meowstik/node_modules/.vite/deps/wouter.js?v=c6cc5668 - Status: 200 (434ms)
+⬅️  [RES] GET /@fs/home/runner/Meowstik/node_modules/.vite/deps/@tanstack_react-query.js?v=c6cc5668 - Status: 200 (426ms)
+➡️  [REQ] GET /src/pages/preview.tsx
+⬅️  [RES] GET /src/lib/queryClient.ts - Status: 200 (554ms)
+⬅️  [RES] GET /src/components/ui/toaster.tsx - Status: 200 (463ms)
+➡️  [REQ] GET /src/pages/home.tsx
+⬅️  [RES] GET /src/pages/not-found.tsx - Status: 200 (578ms)
+➡️  [REQ] GET /src/pages/editor.tsx
+⬅️  [RES] GET /src/components/ui/tooltip.tsx - Status: 200 (613ms)
+⬅️  [RES] GET /src/pages/preview.tsx - Status: 200 (452ms)
+➡️  [REQ] GET /src/pages/help.tsx
+⬅️  [RES] GET /src/pages/home.tsx - Status: 200 (334ms)
+➡️  [REQ] GET /src/pages/google-services.tsx
+⬅️  [RES] GET /src/pages/editor.tsx - Status: 200 (339ms)
+➡️  [REQ] GET /src/pages/terminal.tsx
+⬅️  [RES] GET /src/pages/help.tsx - Status: 200 (382ms)
+⬅️  [RES] GET /src/pages/google-services.tsx - Status: 200 (377ms)
+➡️  [REQ] GET /src/pages/music-generation.tsx
+⬅️  [RES] GET /src/pages/terminal.tsx - Status: 200 (357ms)
+⬅️  [RES] GET /src/pages/music-generation.tsx - Status: 200 (93ms)
+➡️  [REQ] GET /src/pages/debug.tsx
+➡️  [REQ] GET /src/pages/image-generation.tsx
+➡️  [REQ] GET /src/pages/settings.tsx
+➡️  [REQ] GET /src/pages/python-sandbox.tsx
+➡️  [REQ] GET /src/pages/web-search.tsx
+➡️  [REQ] GET /src/pages/markdown-playground.tsx
+⬅️  [RES] GET /src/pages/debug.tsx - Status: 200 (177ms)
+➡️  [REQ] GET /src/pages/evolution.tsx
+⬅️  [RES] GET /src/pages/image-generation.tsx - Status: 200 (252ms)
+➡️  [REQ] GET /src/pages/task-queue.tsx
+⬅️  [RES] GET /src/pages/settings.tsx - Status: 200 (298ms)
+➡️  [REQ] GET /src/pages/schedules.tsx
+⬅️  [RES] GET /src/pages/python-sandbox.tsx - Status: 200 (318ms)
+➡️  [REQ] GET /src/pages/browser.tsx
+⬅️  [RES] GET /src/pages/web-search.tsx - Status: 200 (365ms)
+➡️  [REQ] GET /src/pages/live.tsx
+⬅️  [RES] GET /src/pages/markdown-playground.tsx - Status: 200 (441ms)
+➡️  [REQ] GET /src/pages/database-explorer.tsx
+⬅️  [RES] GET /src/pages/evolution.tsx - Status: 200 (366ms)
+➡️  [REQ] GET /src/pages/watch.tsx
+⬅️  [RES] GET /src/pages/task-queue.tsx - Status: 200 (325ms)
+➡️  [REQ] GET /src/pages/collaborate.tsx
+⬅️  [RES] GET /src/pages/schedules.tsx - Status: 200 (338ms)
+➡️  [REQ] GET /src/pages/glasses.tsx
+⬅️  [RES] GET /src/pages/browser.tsx - Status: 200 (358ms)
+➡️  [REQ] GET /src/pages/proposal-desktop-collaboration.tsx
+⬅️  [RES] GET /src/pages/live.tsx - Status: 200 (354ms)
+➡️  [REQ] GET /src/pages/workspace.tsx
+⬅️  [RES] GET /src/pages/database-explorer.tsx - Status: 200 (353ms)
+➡️  [REQ] GET /src/pages/vision.tsx
+⬅️  [RES] GET /src/pages/watch.tsx - Status: 200 (322ms)
+➡️  [REQ] GET /src/pages/agent-settings.tsx
+⬅️  [RES] GET /src/pages/collaborate.tsx - Status: 200 (350ms)
+➡️  [REQ] GET /src/pages/landing.tsx
+⬅️  [RES] GET /src/pages/glasses.tsx - Status: 200 (346ms)
+➡️  [REQ] GET /src/pages/docs.tsx
+⬅️  [RES] GET /src/pages/proposal-desktop-collaboration.tsx - Status: 200 (351ms)
+➡️  [REQ] GET /src/pages/audio-settings.tsx
+⬅️  [RES] GET /src/pages/workspace.tsx - Status: 200 (365ms)
+➡️  [REQ] GET /src/pages/install.tsx
+⬅️  [RES] GET /src/pages/vision.tsx - Status: 200 (335ms)
+➡️  [REQ] GET /src/pages/login.tsx
+⬅️  [RES] GET /src/pages/agent-settings.tsx - Status: 200 (353ms)
+➡️  [REQ] GET /src/pages/voice-lab.tsx
+⬅️  [RES] GET /src/pages/landing.tsx - Status: 200 (327ms)
+➡️  [REQ] GET /src/pages/sound-settings.tsx
+⬅️  [RES] GET /src/pages/docs.tsx - Status: 200 (319ms)
+➡️  [REQ] GET /src/pages/communications.tsx
+⬅️  [RES] GET /src/pages/audio-settings.tsx - Status: 200 (368ms)
+➡️  [REQ] GET /src/contexts/tts-context.tsx
+⬅️  [RES] GET /src/pages/install.tsx - Status: 200 (359ms)
+➡️  [REQ] GET /src/contexts/AuthContext.tsx
+⬅️  [RES] GET /src/pages/login.tsx - Status: 200 (352ms)
+➡️  [REQ] GET /src/contexts/LocalDriveContext.tsx
+⬅️  [RES] GET /src/pages/voice-lab.tsx - Status: 200 (336ms)
+➡️  [REQ] GET /src/components/protected-route.tsx
+⬅️  [RES] GET /src/pages/sound-settings.tsx - Status: 200 (333ms)
+➡️  [REQ] GET /@fs/home/runner/Meowstik/node_modules/.vite/deps/chunk-DFBNYL7W.js?v=c6cc5668
+⬅️  [RES] GET /src/pages/communications.tsx - Status: 200 (343ms)
+➡️  [REQ] GET /@fs/home/runner/Meowstik/node_modules/.vite/deps/chunk-DFGYZGKZ.js?v=c6cc5668
+⬅️  [RES] GET /src/contexts/tts-context.tsx - Status: 200 (283ms)
+➡️  [REQ] GET /@fs/home/runner/Meowstik/node_modules/.vite/deps/chunk-J3OJDICX.js?v=c6cc5668
+⬅️  [RES] GET /src/contexts/AuthContext.tsx - Status: 200 (280ms)
+➡️  [REQ] GET /src/hooks/use-toast.ts
+⬅️  [RES] GET /src/contexts/LocalDriveContext.tsx - Status: 200 (280ms)
+➡️  [REQ] GET /src/components/ui/toast.tsx
+⬅️  [RES] GET /src/components/protected-route.tsx - Status: 200 (295ms)
+➡️  [REQ] GET /src/components/ui/button.tsx
+⬅️  [RES] GET /@fs/home/runner/Meowstik/node_modules/.vite/deps/chunk-DFBNYL7W.js?v=c6cc5668 - Status: 200 (280ms)
+➡️  [REQ] GET /@fs/home/runner/Meowstik/node_modules/.vite/deps/lucide-react.js?v=c6cc5668
+⬅️  [RES] GET /@fs/home/runner/Meowstik/node_modules/.vite/deps/chunk-DFGYZGKZ.js?v=c6cc5668 - Status: 200 (270ms)
+➡️  [REQ] GET /@fs/home/runner/Meowstik/node_modules/.vite/deps/@radix-ui_react-tooltip.js?v=c6cc5668
+⬅️  [RES] GET /@fs/home/runner/Meowstik/node_modules/.vite/deps/chunk-J3OJDICX.js?v=c6cc5668 - Status: 200 (280ms)
+➡️  [REQ] GET /@fs/home/runner/Meowstik/node_modules/.vite/deps/react.js?v=c6cc5668
+⬅️  [RES] GET /src/hooks/use-toast.ts - Status: 200 (321ms)
+➡️  [REQ] GET /src/lib/utils.ts
+⬅️  [RES] GET /src/components/ui/toast.tsx - Status: 200 (327ms)
+➡️  [REQ] GET /src/components/ui/scroll-area.tsx
+⬅️  [RES] GET /src/components/ui/button.tsx - Status: 200 (334ms)
+➡️  [REQ] GET /src/components/ui/badge.tsx
+⬅️  [RES] GET /@fs/home/runner/Meowstik/node_modules/.vite/deps/lucide-react.js?v=c6cc5668 - Status: 200 (361ms)
+➡️  [REQ] GET /src/components/ui/collapsible.tsx
+⬅️  [RES] GET /@fs/home/runner/Meowstik/node_modules/.vite/deps/@radix-ui_react-tooltip.js?v=c6cc5668 - Status: 200 (550ms)
+➡️  [REQ] GET /@fs/home/runner/Meowstik/node_modules/.vite/deps/@monaco-editor_react.js?v=c6cc5668
+⬅️  [RES] GET /@fs/home/runner/Meowstik/node_modules/.vite/deps/react.js?v=c6cc5668 - Status: 200 (630ms)
+➡️  [REQ] GET /src/components/ui/select.tsx
+⬅️  [RES] GET /src/lib/utils.ts - Status: 200 (609ms)
+➡️  [REQ] GET /src/components/ui/input.tsx
+⬅️  [RES] GET /src/components/ui/scroll-area.tsx - Status: 200 (624ms)
+➡️  [REQ] GET /src/components/chat/sidebar.tsx
+⬅️  [RES] GET /src/components/ui/badge.tsx - Status: 200 (628ms)
+➡️  [REQ] GET /src/components/ui/verbosity-slider.tsx
+⬅️  [RES] GET /src/components/ui/collapsible.tsx - Status: 200 (644ms)
+➡️  [REQ] GET /src/components/chat/message.tsx
+⬅️  [RES] GET /@fs/home/runner/Meowstik/node_modules/.vite/deps/@monaco-editor_react.js?v=c6cc5668 - Status: 200 (516ms)
+➡️  [REQ] GET /src/components/ui/local-drive-button.tsx
+⬅️  [RES] GET /src/components/ui/select.tsx - Status: 200 (439ms)
+➡️  [REQ] GET /src/components/chat/input-area.tsx
+⬅️  [RES] GET /src/components/ui/input.tsx - Status: 200 (463ms)
+➡️  [REQ] GET /src/components/ui/resizable.tsx
+⬅️  [RES] GET /src/components/chat/sidebar.tsx - Status: 200 (435ms)
+➡️  [REQ] GET /src/components/ide/side-workbench.tsx
+⬅️  [RES] GET /src/components/ui/verbosity-slider.tsx - Status: 200 (438ms)
+➡️  [REQ] GET /@fs/home/runner/Meowstik/node_modules/.vite/deps/framer-motion.js?v=c6cc5668
+⬅️  [RES] GET /src/components/chat/message.tsx - Status: 200 (446ms)
+➡️  [REQ] GET /src/hooks/useAuth.ts
+⬅️  [RES] GET /src/components/ui/local-drive-button.tsx - Status: 200 (396ms)
+➡️  [REQ] GET /src/components/ui/label.tsx
+⬅️  [RES] GET /src/components/chat/input-area.tsx - Status: 200 (373ms)
+➡️  [REQ] GET /src/assets/generated_images/cute_cat_logo_icon.png?import
+⬅️  [RES] GET /src/components/ui/resizable.tsx - Status: 200 (325ms)
+➡️  [REQ] GET /@fs/home/runner/Meowstik/node_modules/.vite/deps/@xterm_xterm.js?v=c6cc5668
+⬅️  [RES] GET /src/components/ide/side-workbench.tsx - Status: 200 (339ms)
+➡️  [REQ] GET /@fs/home/runner/Meowstik/node_modules/.vite/deps/@xterm_addon-fit.js?v=c6cc5668
+⬅️  [RES] GET /@fs/home/runner/Meowstik/node_modules/.vite/deps/framer-motion.js?v=c6cc5668 - Status: 200 (345ms)
+➡️  [REQ] GET /src/components/ui/slider.tsx
+⬅️  [RES] GET /src/hooks/useAuth.ts - Status: 200 (304ms)
+➡️  [REQ] GET /@fs/home/runner/Meowstik/node_modules/.vite/deps/@xterm_addon-web-links.js?v=c6cc5668
+⬅️  [RES] GET /src/components/ui/label.tsx - Status: 200 (302ms)
+➡️  [REQ] GET /src/components/ui/tabs.tsx
+⬅️  [RES] GET /src/assets/generated_images/cute_cat_logo_icon.png?import - Status: 200 (321ms)
+➡️  [REQ] GET /@fs/home/runner/Meowstik/node_modules/.pnpm/@xterm+xterm@6.0.0/node_modules/@xterm/xterm/css/xterm.css
+⬅️  [RES] GET /@fs/home/runner/Meowstik/node_modules/.vite/deps/@xterm_xterm.js?v=c6cc5668 - Status: 200 (341ms)
+➡️  [REQ] GET /src/components/ui/textarea.tsx
+⬅️  [RES] GET /@fs/home/runner/Meowstik/node_modules/.vite/deps/@xterm_addon-fit.js?v=c6cc5668 - Status: 200 (364ms)
+➡️  [REQ] GET /src/components/ui/switch.tsx
+⬅️  [RES] GET /src/components/ui/slider.tsx - Status: 200 (344ms)
+➡️  [REQ] GET /src/components/ui/enhanced-markdown.tsx
+⬅️  [RES] GET /@fs/home/runner/Meowstik/node_modules/.vite/deps/@xterm_addon-web-links.js?v=c6cc5668 - Status: 200 (339ms)
+➡️  [REQ] GET /src/components/ui/feedback-panel.tsx
+⬅️  [RES] GET /src/components/ui/tabs.tsx - Status: 200 (336ms)
+➡️  [REQ] GET /src/components/ui/checkbox.tsx
+⬅️  [RES] GET /@fs/home/runner/Meowstik/node_modules/.pnpm/@xterm+xterm@6.0.0/node_modules/@xterm/xterm/css/xterm.css - Status: 200 (320ms)
+➡️  [REQ] GET /src/components/ui/dialog.tsx
+⬅️  [RES] GET /src/components/ui/textarea.tsx - Status: 200 (302ms)
+➡️  [REQ] GET /src/components/ui/dropdown-menu.tsx
+⬅️  [RES] GET /src/components/ui/switch.tsx - Status: 200 (265ms)
+➡️  [REQ] GET /src/hooks/use-voice-activity-detection.ts
+⬅️  [RES] GET /src/components/ui/enhanced-markdown.tsx - Status: 200 (269ms)
+➡️  [REQ] GET /src/hooks/use-speech-recognition.ts
+⬅️  [RES] GET /src/components/ui/feedback-panel.tsx - Status: 200 (263ms)
+➡️  [REQ] GET /src/assets/generated_images/watch_hero_banner_with_ai_features.png?import
+⬅️  [RES] GET /src/components/ui/checkbox.tsx - Status: 200 (258ms)
+➡️  [REQ] GET /src/assets/generated_images/smartwatch_with_ai_chat_interface.png?import
+⬅️  [RES] GET /src/components/ui/dialog.tsx - Status: 200 (256ms)
+➡️  [REQ] GET /src/assets/generated_images/watch_voice_command_interface.png?import
+⬅️  [RES] GET /src/components/ui/dropdown-menu.tsx - Status: 200 (262ms)
+➡️  [REQ] GET /src/assets/generated_images/watch_and_laptop_collaborative_editing.png?import
+⬅️  [RES] GET /src/hooks/use-voice-activity-detection.ts - Status: 200 (357ms)
+➡️  [REQ] GET /src/assets/generated_images/ar_smart_glasses_with_holographic_display.png?import
+⬅️  [RES] GET /src/hooks/use-speech-recognition.ts - Status: 200 (445ms)
+➡️  [REQ] GET /src/components/ui/card.tsx
+⬅️  [RES] GET /src/assets/generated_images/watch_hero_banner_with_ai_features.png?import - Status: 200 (487ms)
+➡️  [REQ] GET /src/components/ui/separator.tsx
+⬅️  [RES] GET /src/assets/generated_images/smartwatch_with_ai_chat_interface.png?import - Status: 200 (538ms)
+➡️  [REQ] GET /src/components/ui/progress.tsx
+⬅️  [RES] GET /src/assets/generated_images/watch_voice_command_interface.png?import - Status: 200 (546ms)
+➡️  [REQ] GET /src/hooks/use-silence-detection.ts
+⬅️  [RES] GET /src/assets/generated_images/watch_and_laptop_collaborative_editing.png?import - Status: 200 (529ms)
+➡️  [REQ] GET /src/assets/generated_images/realistic_ar_router_identification_pov.png?import
+⬅️  [RES] GET /src/assets/generated_images/ar_smart_glasses_with_holographic_display.png?import - Status: 200 (428ms)
+➡️  [REQ] GET /src/assets/generated_images/realistic_rack_back_with_ar_overlay.png?import
+⬅️  [RES] GET /src/components/ui/card.tsx - Status: 200 (333ms)
+➡️  [REQ] GET /src/assets/generated_images/realistic_cable_nightmare_with_ar_trace.png?import
+⬅️  [RES] GET /src/components/ui/separator.tsx - Status: 200 (312ms)
+➡️  [REQ] GET /@fs/home/runner/Meowstik/node_modules/.vite/deps/react-markdown.js?v=c6cc5668
+⬅️  [RES] GET /src/components/ui/progress.tsx - Status: 200 (258ms)
+➡️  [REQ] GET /@fs/home/runner/Meowstik/node_modules/.vite/deps/remark-gfm.js?v=c6cc5668
+⬅️  [RES] GET /src/hooks/use-silence-detection.ts - Status: 200 (264ms)
+➡️  [REQ] GET /@fs/home/runner/Meowstik/node_modules/.vite/deps/date-fns.js?v=c6cc5668
+⬅️  [RES] GET /src/assets/generated_images/realistic_ar_router_identification_pov.png?import - Status: 200 (293ms)
+➡️  [REQ] GET /src/components/ui/avatar.tsx
+⬅️  [RES] GET /src/assets/generated_images/realistic_rack_back_with_ar_overlay.png?import - Status: 200 (291ms)
+➡️  [REQ] GET /src/lib/file-picker.ts
+⬅️  [RES] GET /src/assets/generated_images/realistic_cable_nightmare_with_ar_trace.png?import - Status: 200 (291ms)
+➡️  [REQ] GET /src/lib/local-drive-store.ts
+⬅️  [RES] GET /@fs/home/runner/Meowstik/node_modules/.vite/deps/react-markdown.js?v=c6cc5668 - Status: 200 (298ms)
+➡️  [REQ] GET /@fs/home/runner/Meowstik/node_modules/.vite/deps/@radix-ui_react-toast.js?v=c6cc5668
+⬅️  [RES] GET /@fs/home/runner/Meowstik/node_modules/.vite/deps/remark-gfm.js?v=c6cc5668 - Status: 200 (342ms)
+➡️  [REQ] GET /@fs/home/runner/Meowstik/node_modules/.vite/deps/class-variance-authority.js?v=c6cc5668
+⬅️  [RES] GET /@fs/home/runner/Meowstik/node_modules/.vite/deps/date-fns.js?v=c6cc5668 - Status: 200 (351ms)
+➡️  [REQ] GET /@fs/home/runner/Meowstik/node_modules/.vite/deps/@radix-ui_react-slot.js?v=c6cc5668
+⬅️  [RES] GET /src/components/ui/avatar.tsx - Status: 200 (375ms)
+➡️  [REQ] GET /@fs/home/runner/Meowstik/node_modules/.vite/deps/chunk-KBQHVLYD.js?v=c6cc5668
+⬅️  [RES] GET /src/lib/file-picker.ts - Status: 200 (406ms)
+➡️  [REQ] GET /@fs/home/runner/Meowstik/node_modules/.vite/deps/chunk-NGEZV33J.js?v=c6cc5668
+⬅️  [RES] GET /src/lib/local-drive-store.ts - Status: 200 (410ms)
+➡️  [REQ] GET /@fs/home/runner/Meowstik/node_modules/.vite/deps/chunk-H36MEM2Y.js?v=c6cc5668
+⬅️  [RES] GET /@fs/home/runner/Meowstik/node_modules/.vite/deps/@radix-ui_react-toast.js?v=c6cc5668 - Status: 200 (401ms)
+➡️  [REQ] GET /@fs/home/runner/Meowstik/node_modules/.vite/deps/chunk-XWE3UH35.js?v=c6cc5668
+⬅️  [RES] GET /@fs/home/runner/Meowstik/node_modules/.vite/deps/class-variance-authority.js?v=c6cc5668 - Status: 200 (391ms)
+➡️  [REQ] GET /@fs/home/runner/Meowstik/node_modules/.vite/deps/chunk-VPNFI7IS.js?v=c6cc5668
+⬅️  [RES] GET /@fs/home/runner/Meowstik/node_modules/.vite/deps/@radix-ui_react-slot.js?v=c6cc5668 - Status: 200 (369ms)
+➡️  [REQ] GET /@fs/home/runner/Meowstik/node_modules/.vite/deps/chunk-7XHCZFEE.js?v=c6cc5668
+⬅️  [RES] GET /@fs/home/runner/Meowstik/node_modules/.vite/deps/chunk-KBQHVLYD.js?v=c6cc5668 - Status: 200 (323ms)
+➡️  [REQ] GET /@fs/home/runner/Meowstik/node_modules/.vite/deps/chunk-5EST5B6Q.js?v=c6cc5668
+⬅️  [RES] GET /@fs/home/runner/Meowstik/node_modules/.vite/deps/chunk-NGEZV33J.js?v=c6cc5668 - Status: 200 (299ms)
+➡️  [REQ] GET /@fs/home/runner/Meowstik/node_modules/.vite/deps/chunk-IO3EV4FZ.js?v=c6cc5668
+⬅️  [RES] GET /@fs/home/runner/Meowstik/node_modules/.vite/deps/chunk-H36MEM2Y.js?v=c6cc5668 - Status: 200 (283ms)
+➡️  [REQ] GET /@fs/home/runner/Meowstik/node_modules/.vite/deps/chunk-37HYZEDM.js?v=c6cc5668
+⬅️  [RES] GET /@fs/home/runner/Meowstik/node_modules/.vite/deps/chunk-XWE3UH35.js?v=c6cc5668 - Status: 200 (289ms)
+➡️  [REQ] GET /@fs/home/runner/Meowstik/node_modules/.vite/deps/chunk-3DJTLIDL.js?v=c6cc5668
+⬅️  [RES] GET /@fs/home/runner/Meowstik/node_modules/.vite/deps/chunk-VPNFI7IS.js?v=c6cc5668 - Status: 200 (249ms)
+➡️  [REQ] GET /@fs/home/runner/Meowstik/node_modules/.vite/deps/chunk-O4Q5S7ZW.js?v=c6cc5668
+⬅️  [RES] GET /@fs/home/runner/Meowstik/node_modules/.vite/deps/chunk-7XHCZFEE.js?v=c6cc5668 - Status: 200 (250ms)
+➡️  [REQ] GET /@fs/home/runner/Meowstik/node_modules/.vite/deps/clsx.js?v=c6cc5668
+⬅️  [RES] GET /@fs/home/runner/Meowstik/node_modules/.vite/deps/chunk-5EST5B6Q.js?v=c6cc5668 - Status: 200 (239ms)
+➡️  [REQ] GET /@fs/home/runner/Meowstik/node_modules/.vite/deps/tailwind-merge.js?v=c6cc5668
+⬅️  [RES] GET /@fs/home/runner/Meowstik/node_modules/.vite/deps/chunk-IO3EV4FZ.js?v=c6cc5668 - Status: 200 (242ms)
+➡️  [REQ] GET /@fs/home/runner/Meowstik/node_modules/.vite/deps/@radix-ui_react-scroll-area.js?v=c6cc5668
+⬅️  [RES] GET /@fs/home/runner/Meowstik/node_modules/.vite/deps/chunk-37HYZEDM.js?v=c6cc5668 - Status: 200 (250ms)
+➡️  [REQ] GET /@fs/home/runner/Meowstik/node_modules/.vite/deps/@radix-ui_react-collapsible.js?v=c6cc5668
+⬅️  [RES] GET /@fs/home/runner/Meowstik/node_modules/.vite/deps/chunk-3DJTLIDL.js?v=c6cc5668 - Status: 200 (250ms)
+➡️  [REQ] GET /@fs/home/runner/Meowstik/node_modules/.vite/deps/@radix-ui_react-select.js?v=c6cc5668
+⬅️  [RES] GET /@fs/home/runner/Meowstik/node_modules/.vite/deps/chunk-O4Q5S7ZW.js?v=c6cc5668 - Status: 200 (251ms)
+➡️  [REQ] GET /src/hooks/use-app-session.ts
+⬅️  [RES] GET /@fs/home/runner/Meowstik/node_modules/.vite/deps/clsx.js?v=c6cc5668 - Status: 200 (252ms)
+➡️  [REQ] GET /src/hooks/use-voice.ts
+⬅️  [RES] GET /@fs/home/runner/Meowstik/node_modules/.vite/deps/tailwind-merge.js?v=c6cc5668 - Status: 200 (242ms)
+➡️  [REQ] GET /@fs/home/runner/Meowstik/node_modules/.vite/deps/react-resizable-panels.js?v=c6cc5668
+⬅️  [RES] GET /@fs/home/runner/Meowstik/node_modules/.vite/deps/@radix-ui_react-scroll-area.js?v=c6cc5668 - Status: 200 (252ms)
+➡️  [REQ] GET /src/components/ide/screen-recorder.tsx
+⬅️  [RES] GET /@fs/home/runner/Meowstik/node_modules/.vite/deps/@radix-ui_react-collapsible.js?v=c6cc5668 - Status: 200 (285ms)
+➡️  [REQ] GET /@fs/home/runner/Meowstik/node_modules/.vite/deps/@radix-ui_react-label.js?v=c6cc5668
+⬅️  [RES] GET /@fs/home/runner/Meowstik/node_modules/.vite/deps/@radix-ui_react-select.js?v=c6cc5668 - Status: 200 (283ms)
+➡️  [REQ] GET /@fs/home/runner/Meowstik/node_modules/.vite/deps/@radix-ui_react-slider.js?v=c6cc5668
+⬅️  [RES] GET /src/hooks/use-app-session.ts - Status: 200 (300ms)
+➡️  [REQ] GET /@fs/home/runner/Meowstik/node_modules/.vite/deps/@radix-ui_react-tabs.js?v=c6cc5668
+⬅️  [RES] GET /src/hooks/use-voice.ts - Status: 200 (300ms)
+➡️  [REQ] GET /@fs/home/runner/Meowstik/node_modules/.vite/deps/@radix-ui_react-switch.js?v=c6cc5668
+⬅️  [RES] GET /@fs/home/runner/Meowstik/node_modules/.vite/deps/react-resizable-panels.js?v=c6cc5668 - Status: 200 (311ms)
+➡️  [REQ] GET /@fs/home/runner/Meowstik/node_modules/.vite/deps/@radix-ui_react-checkbox.js?v=c6cc5668
+⬅️  [RES] GET /src/components/ide/screen-recorder.tsx - Status: 200 (307ms)
+➡️  [REQ] GET /@fs/home/runner/Meowstik/node_modules/.vite/deps/@radix-ui_react-dialog.js?v=c6cc5668
+⬅️  [RES] GET /@fs/home/runner/Meowstik/node_modules/.vite/deps/@radix-ui_react-label.js?v=c6cc5668 - Status: 200 (326ms)
+➡️  [REQ] GET /@fs/home/runner/Meowstik/node_modules/.vite/deps/@radix-ui_react-dropdown-menu.js?v=c6cc5668
+⬅️  [RES] GET /@fs/home/runner/Meowstik/node_modules/.vite/deps/@radix-ui_react-slider.js?v=c6cc5668 - Status: 200 (423ms)
+➡️  [REQ] GET /@fs/home/runner/Meowstik/node_modules/.vite/deps/@radix-ui_react-separator.js?v=c6cc5668
+⬅️  [RES] GET /@fs/home/runner/Meowstik/node_modules/.vite/deps/@radix-ui_react-tabs.js?v=c6cc5668 - Status: 200 (414ms)
+➡️  [REQ] GET /@fs/home/runner/Meowstik/node_modules/.vite/deps/@radix-ui_react-progress.js?v=c6cc5668
+⬅️  [RES] GET /@fs/home/runner/Meowstik/node_modules/.vite/deps/@radix-ui_react-switch.js?v=c6cc5668 - Status: 200 (421ms)
+➡️  [REQ] GET /@fs/home/runner/Meowstik/node_modules/.vite/deps/chunk-MKELFBFS.js?v=c6cc5668
+⬅️  [RES] GET /@fs/home/runner/Meowstik/node_modules/.vite/deps/@radix-ui_react-checkbox.js?v=c6cc5668 - Status: 200 (431ms)
+➡️  [REQ] GET /@fs/home/runner/Meowstik/node_modules/.vite/deps/@radix-ui_react-avatar.js?v=c6cc5668
+⬅️  [RES] GET /@fs/home/runner/Meowstik/node_modules/.vite/deps/@radix-ui_react-dialog.js?v=c6cc5668 - Status: 200 (465ms)
+➡️  [REQ] GET /@fs/home/runner/Meowstik/node_modules/.vite/deps/chunk-DEX2RCYB.js?v=c6cc5668
+⬅️  [RES] GET /@fs/home/runner/Meowstik/node_modules/.vite/deps/@radix-ui_react-dropdown-menu.js?v=c6cc5668 - Status: 200 (443ms)
+➡️  [REQ] GET /@fs/home/runner/Meowstik/node_modules/.vite/deps/chunk-G6YZYVSS.js?v=c6cc5668
+⬅️  [RES] GET /@fs/home/runner/Meowstik/node_modules/.vite/deps/@radix-ui_react-separator.js?v=c6cc5668 - Status: 200 (377ms)
+➡️  [REQ] GET /@fs/home/runner/Meowstik/node_modules/.vite/deps/chunk-67TDT6LU.js?v=c6cc5668
+⬅️  [RES] GET /@fs/home/runner/Meowstik/node_modules/.vite/deps/@radix-ui_react-progress.js?v=c6cc5668 - Status: 200 (382ms)
+➡️  [REQ] GET /@fs/home/runner/Meowstik/node_modules/.vite/deps/chunk-QSHREGVI.js?v=c6cc5668
+⬅️  [RES] GET /@fs/home/runner/Meowstik/node_modules/.vite/deps/chunk-MKELFBFS.js?v=c6cc5668 - Status: 200 (375ms)
+➡️  [REQ] GET /@fs/home/runner/Meowstik/node_modules/.vite/deps/chunk-OHDMWRTB.js?v=c6cc5668
+⬅️  [RES] GET /@fs/home/runner/Meowstik/node_modules/.vite/deps/@radix-ui_react-avatar.js?v=c6cc5668 - Status: 200 (364ms)
+➡️  [REQ] GET /@fs/home/runner/Meowstik/node_modules/.vite/deps/chunk-BO2HM52I.js?v=c6cc5668
+⬅️  [RES] GET /@fs/home/runner/Meowstik/node_modules/.vite/deps/chunk-DEX2RCYB.js?v=c6cc5668 - Status: 200 (325ms)
+➡️  [REQ] GET /@fs/home/runner/Meowstik/node_modules/.vite/deps/chunk-O4Z4DAH2.js?v=c6cc5668
+⬅️  [RES] GET /@fs/home/runner/Meowstik/node_modules/.vite/deps/chunk-G6YZYVSS.js?v=c6cc5668 - Status: 200 (302ms)
+➡️  [REQ] GET /@fs/home/runner/Meowstik/node_modules/.vite/deps/sonner.js?v=c6cc5668
+⬅️  [RES] GET /@fs/home/runner/Meowstik/node_modules/.vite/deps/chunk-67TDT6LU.js?v=c6cc5668 - Status: 200 (281ms)
+➡️  [REQ] GET /@fs/home/runner/Meowstik/node_modules/.vite/deps/chunk-MFHW4GD5.js?v=c6cc5668
+⬅️  [RES] GET /@fs/home/runner/Meowstik/node_modules/.vite/deps/chunk-QSHREGVI.js?v=c6cc5668 - Status: 200 (334ms)
+➡️  [REQ] GET /@fs/home/runner/Meowstik/node_modules/.vite/deps/chunk-IQ5GTBOR.js?v=c6cc5668
+⬅️  [RES] GET /@fs/home/runner/Meowstik/node_modules/.vite/deps/chunk-OHDMWRTB.js?v=c6cc5668 - Status: 200 (338ms)
+➡️  [REQ] GET /@fs/home/runner/Meowstik/node_modules/.vite/deps/chunk-Y7CV3RF4.js?v=c6cc5668
+⬅️  [RES] GET /@fs/home/runner/Meowstik/node_modules/.vite/deps/chunk-BO2HM52I.js?v=c6cc5668 - Status: 200 (349ms)
+⬅️  [RES] GET /@fs/home/runner/Meowstik/node_modules/.vite/deps/chunk-O4Z4DAH2.js?v=c6cc5668 - Status: 200 (340ms)
+⬅️  [RES] GET /@fs/home/runner/Meowstik/node_modules/.vite/deps/sonner.js?v=c6cc5668 - Status: 200 (337ms)
+⬅️  [RES] GET /@fs/home/runner/Meowstik/node_modules/.vite/deps/chunk-MFHW4GD5.js?v=c6cc5668 - Status: 200 (327ms)
+⬅️  [RES] GET /@fs/home/runner/Meowstik/node_modules/.vite/deps/chunk-IQ5GTBOR.js?v=c6cc5668 - Status: 200 (253ms)
+⬅️  [RES] GET /@fs/home/runner/Meowstik/node_modules/.vite/deps/chunk-Y7CV3RF4.js?v=c6cc5668 - Status: 200 (247ms)
+➡️  [REQ] GET /api/auth/user
+➡️  [REQ] GET /src/assets/generated_images/cute_cat_logo_icon.png
+⬅️  [RES] GET /api/auth/user - Status: 200 (382ms)
+⬅️  [RES] GET /src/assets/generated_images/cute_cat_logo_icon.png - Status: 200 (377ms)
+➡️  [REQ] GET /favicon.png
+➡️  [REQ] GET /favicon.png
+⬅️  [RES] GET /favicon.png - Status: 304 (120ms)
+⬅️  [RES] GET /favicon.png - Status: 200 (190ms)
+➡️  [REQ] GET /api/status
+➡️  [REQ] GET /api/chats
+⬅️  [RES] GET /api/chats - Status: 304 (188ms)
+[Terminal WS] Client connected
+➡️  [REQ] GET /api/chats/mth_nNWZuPhS-_hOu7iww?limit=30
+[GET /api/chats/mth_nNWZuPhS-_hOu7iww] Fetched 2 messages, limit: 30, before: undefined
+[GET /api/chats/mth_nNWZuPhS-_hOu7iww] Message IDs: [
+  {
+    id: 'Y_2g2GlMgNaZU9pDqXOvy',
+    role: 'user',
+    createdAt: +058192-11-27T14:43:20.000Z
+  },
+  {
+    id: 'NdFyvACi0fEWmnAFzhKZb',
+    role: 'ai',
+    createdAt: +058192-11-29T17:50:00.000Z
+  }
+]
+[GET /api/chats/mth_nNWZuPhS-_hOu7iww] Returning 2 messages, hasMore: false
+⬅️  [RES] GET /api/chats/mth_nNWZuPhS-_hOu7iww?limit=30 - Status: 200 (615ms)
+➡️  [REQ] GET /api/status
+⬅️  [RES] GET / - Status: 200 (3680ms)
+⬅️  [RES] GET / - Status: 200 (470ms)
+➡️  [REQ] GET /api/status
+⬅️  [RES] GET / - Status: 200 (54ms)
+➡️  [REQ] GET /api/status
+⬅️  [RES] GET / - Status: 200 (56ms)
+➡️  [REQ] GET /api/status
+⬅️  [RES] GET / - Status: 200 (77ms)
+➡️  [REQ] GET /api/status
+⬅️  [RES] GET / - Status: 200 (53ms)
+➡️  [REQ] GET /api/status
+⬅️  [RES] GET / - Status: 200 (88ms)
+➡️  [REQ] GET /api/status
+⬅️  [RES] GET / - Status: 200 (79ms)
+➡️  [REQ] GET /api/status
+⬅️  [RES] GET / - Status: 200 (57ms)
+➡️  [REQ] GET /api/status
+⬅️  [RES] GET / - Status: 200 (81ms)
+➡️  [REQ] GET /api/status
+⬅️  [RES] GET / - Status: 200 (51ms)
+➡️  [REQ] GET /api/status
+⬅️  [RES] GET / - Status: 200 (69ms)
+➡️  [REQ] GET /api/status
+⬅️  [RES] GET / - Status: 200 (173ms)
+➡️  [REQ] GET /api/status
+⬅️  [RES] GET / - Status: 200 (98ms)
+➡️  [REQ] GET /api/status
+⬅️  [RES] GET / - Status: 200 (94ms)
+➡️  [REQ] GET /api/status
+⬅️  [RES] GET / - Status: 200 (92ms)
+➡️  [REQ] GET /api/status
+➡️  [REQ] GET /api/status
+⬅️  [RES] GET / - Status: 200 (121ms)
+⬅️  [RES] GET / - Status: 200 (78ms)
+➡️  [REQ] GET /api/status
+⬅️  [RES] GET / - Status: 200 (91ms)
+➡️  [REQ] GET /api/status
+⬅️  [RES] GET / - Status: 200 (75ms)
+➡️  [REQ] GET /api/status
+⬅️  [RES] GET / - Status: 200 (89ms)
+➡️  [REQ] GET /api/status
+⬅️  [RES] GET / - Status: 200 (81ms)
+6:05:40 PM [vite] vite.config.ts changed, restarting server...
+6:05:40 PM [vite] vite.config.ts changed, restarting server...
+6:05:40 PM [vite] server restarted.
+➡️  [REQ] GET /
+[Terminal WS] Client disconnected
+➡️  [REQ] GET /@vite/client
+➡️  [REQ] GET /src/main.tsx
+➡️  [REQ] GET /@react-refresh
+➡️  [REQ] GET /manifest.json
+⬅️  [RES] GET /manifest.json - Status: 304 (9ms)
+⬅️  [RES] GET / - Status: 200 (1616ms)
+⬅️  [RES] GET /src/main.tsx - Status: 304 (11600ms)
+➡️  [REQ] GET /src/App.tsx
+➡️  [REQ] GET /src/index.css
+⬅️  [RES] GET /@vite/client - Status: 200 (12769ms)
+➡️  [REQ] GET /@fs/home/runner/Meowstik/node_modules/.pnpm/vite@6.4.1_@types+node@20.19.37_jiti@1.21.7_tsx@4.21.0_yaml@2.8.3/node_modules/vite/dist/client/env.mjs
+⬅️  [RES] GET /@react-refresh - Status: 304 (12755ms)
+⬅️  [RES] GET /src/App.tsx - Status: 304 (951ms)
+⬅️  [RES] GET /src/index.css - Status: 304 (811ms)
+⬅️  [RES] GET /@fs/home/runner/Meowstik/node_modules/.pnpm/vite@6.4.1_@types+node@20.19.37_jiti@1.21.7_tsx@4.21.0_yaml@2.8.3/node_modules/vite/dist/client/env.mjs - Status: 304 (216ms)
+➡️  [REQ] GET /src/lib/queryClient.ts
+➡️  [REQ] GET /src/components/ui/toaster.tsx
+➡️  [REQ] GET /src/components/ui/tooltip.tsx
+➡️  [REQ] GET /src/pages/not-found.tsx
+➡️  [REQ] GET /src/pages/home.tsx
+➡️  [REQ] GET /src/pages/editor.tsx
+⬅️  [RES] GET /src/lib/queryClient.ts - Status: 304 (246ms)
+➡️  [REQ] GET /src/pages/preview.tsx
+⬅️  [RES] GET /src/components/ui/toaster.tsx - Status: 304 (313ms)
+➡️  [REQ] GET /src/pages/google-services.tsx
+⬅️  [RES] GET /src/components/ui/tooltip.tsx - Status: 304 (411ms)
+➡️  [REQ] GET /src/pages/help.tsx
+⬅️  [RES] GET /src/pages/not-found.tsx - Status: 304 (500ms)
+➡️  [REQ] GET /src/pages/music-generation.tsx
+⬅️  [RES] GET /src/pages/home.tsx - Status: 304 (641ms)
+➡️  [REQ] GET /src/pages/image-generation.tsx
+⬅️  [RES] GET /src/pages/editor.tsx - Status: 304 (808ms)
+➡️  [REQ] GET /src/pages/terminal.tsx
+⬅️  [RES] GET /src/pages/preview.tsx - Status: 304 (749ms)
+➡️  [REQ] GET /src/pages/debug.tsx
+⬅️  [RES] GET /src/pages/google-services.tsx - Status: 304 (786ms)
+➡️  [REQ] GET /src/pages/settings.tsx
+⬅️  [RES] GET /src/pages/help.tsx - Status: 304 (811ms)
+➡️  [REQ] GET /src/pages/python-sandbox.tsx
+⬅️  [RES] GET /src/pages/music-generation.tsx - Status: 304 (808ms)
+➡️  [REQ] GET /src/pages/web-search.tsx
+⬅️  [RES] GET /src/pages/image-generation.tsx - Status: 304 (762ms)
+➡️  [REQ] GET /src/pages/markdown-playground.tsx
+⬅️  [RES] GET /src/pages/terminal.tsx - Status: 304 (707ms)
+➡️  [REQ] GET /src/pages/evolution.tsx
+⬅️  [RES] GET /src/pages/debug.tsx - Status: 304 (719ms)
+➡️  [REQ] GET /src/pages/task-queue.tsx
+⬅️  [RES] GET /src/pages/settings.tsx - Status: 304 (735ms)
+➡️  [REQ] GET /src/pages/schedules.tsx
+⬅️  [RES] GET /src/pages/python-sandbox.tsx - Status: 304 (697ms)
+➡️  [REQ] GET /src/pages/browser.tsx
+⬅️  [RES] GET /src/pages/web-search.tsx - Status: 304 (630ms)
+➡️  [REQ] GET /src/pages/database-explorer.tsx
+⬅️  [RES] GET /src/pages/markdown-playground.tsx - Status: 304 (582ms)
+➡️  [REQ] GET /src/pages/live.tsx
+⬅️  [RES] GET /src/pages/evolution.tsx - Status: 304 (560ms)
+➡️  [REQ] GET /src/pages/watch.tsx
+⬅️  [RES] GET /src/pages/task-queue.tsx - Status: 304 (468ms)
+➡️  [REQ] GET /src/pages/glasses.tsx
+⬅️  [RES] GET /src/pages/schedules.tsx - Status: 304 (464ms)
+➡️  [REQ] GET /src/pages/collaborate.tsx
+⬅️  [RES] GET /src/pages/browser.tsx - Status: 304 (467ms)
+➡️  [REQ] GET /src/pages/proposal-desktop-collaboration.tsx
+⬅️  [RES] GET /src/pages/database-explorer.tsx - Status: 304 (480ms)
+➡️  [REQ] GET /src/pages/workspace.tsx
+⬅️  [RES] GET /src/pages/live.tsx - Status: 304 (488ms)
+➡️  [REQ] GET /src/pages/vision.tsx
+⬅️  [RES] GET /src/pages/watch.tsx - Status: 304 (508ms)
+➡️  [REQ] GET /src/pages/docs.tsx
+⬅️  [RES] GET /src/pages/glasses.tsx - Status: 304 (518ms)
+➡️  [REQ] GET /src/pages/agent-settings.tsx
+⬅️  [RES] GET /src/pages/collaborate.tsx - Status: 304 (448ms)
+➡️  [REQ] GET /src/pages/landing.tsx
+⬅️  [RES] GET /src/pages/proposal-desktop-collaboration.tsx - Status: 304 (391ms)
+➡️  [REQ] GET /src/pages/install.tsx
+⬅️  [RES] GET /src/pages/workspace.tsx - Status: 304 (419ms)
+➡️  [REQ] GET /src/pages/login.tsx
+⬅️  [RES] GET /src/pages/vision.tsx - Status: 304 (444ms)
+➡️  [REQ] GET /src/pages/audio-settings.tsx
+⬅️  [RES] GET /src/pages/docs.tsx - Status: 304 (396ms)
+➡️  [REQ] GET /src/pages/voice-lab.tsx
+⬅️  [RES] GET /src/pages/agent-settings.tsx - Status: 304 (403ms)
+➡️  [REQ] GET /src/pages/sound-settings.tsx
+⬅️  [RES] GET /src/pages/landing.tsx - Status: 304 (385ms)
+➡️  [REQ] GET /src/pages/communications.tsx
+⬅️  [RES] GET /src/pages/install.tsx - Status: 304 (439ms)
+➡️  [REQ] GET /src/contexts/tts-context.tsx
+⬅️  [RES] GET /src/pages/login.tsx - Status: 304 (482ms)
+➡️  [REQ] GET /src/contexts/LocalDriveContext.tsx
+⬅️  [RES] GET /src/pages/audio-settings.tsx - Status: 304 (476ms)
+➡️  [REQ] GET /src/contexts/AuthContext.tsx
+⬅️  [RES] GET /src/pages/voice-lab.tsx - Status: 304 (492ms)
+➡️  [REQ] GET /src/components/protected-route.tsx
+⬅️  [RES] GET /src/pages/sound-settings.tsx - Status: 304 (538ms)
+➡️  [REQ] GET /src/hooks/use-toast.ts
+⬅️  [RES] GET /src/pages/communications.tsx - Status: 304 (591ms)
+➡️  [REQ] GET /src/components/ui/toast.tsx
+⬅️  [RES] GET /src/contexts/tts-context.tsx - Status: 304 (718ms)
+➡️  [REQ] GET /src/lib/utils.ts
+⬅️  [RES] GET /src/contexts/LocalDriveContext.tsx - Status: 304 (769ms)
+➡️  [REQ] GET /src/components/ui/button.tsx
+⬅️  [RES] GET /src/contexts/AuthContext.tsx - Status: 304 (926ms)
+➡️  [REQ] GET /src/components/ui/select.tsx
+⬅️  [RES] GET /src/components/protected-route.tsx - Status: 304 (898ms)
+➡️  [REQ] GET /src/components/ui/input.tsx
+⬅️  [RES] GET /src/hooks/use-toast.ts - Status: 304 (821ms)
+➡️  [REQ] GET /src/components/chat/sidebar.tsx
+⬅️  [RES] GET /src/components/ui/toast.tsx - Status: 304 (779ms)
+➡️  [REQ] GET /src/components/chat/message.tsx
+⬅️  [RES] GET /src/lib/utils.ts - Status: 304 (658ms)
+➡️  [REQ] GET /src/components/chat/input-area.tsx
+⬅️  [RES] GET /src/components/ui/button.tsx - Status: 304 (620ms)
+➡️  [REQ] GET /src/components/ui/verbosity-slider.tsx
+⬅️  [RES] GET /src/components/ui/select.tsx - Status: 304 (446ms)
+➡️  [REQ] GET /src/components/ui/local-drive-button.tsx
+⬅️  [RES] GET /src/components/ui/input.tsx - Status: 304 (467ms)
+➡️  [REQ] GET /src/components/ui/resizable.tsx
+⬅️  [RES] GET /src/components/chat/sidebar.tsx - Status: 304 (508ms)
+➡️  [REQ] GET /src/components/ide/side-workbench.tsx
+⬅️  [RES] GET /src/components/chat/message.tsx - Status: 304 (630ms)
+➡️  [REQ] GET /src/assets/generated_images/cute_cat_logo_icon.png?import
+⬅️  [RES] GET /src/components/chat/input-area.tsx - Status: 304 (635ms)
+➡️  [REQ] GET /src/hooks/useAuth.ts
+⬅️  [RES] GET /src/components/ui/verbosity-slider.tsx - Status: 304 (584ms)
+➡️  [REQ] GET /src/components/ui/textarea.tsx
+⬅️  [RES] GET /src/components/ui/local-drive-button.tsx - Status: 304 (600ms)
+➡️  [REQ] GET /src/components/ui/tabs.tsx
+⬅️  [RES] GET /src/components/ui/resizable.tsx - Status: 304 (622ms)
+➡️  [REQ] GET /src/components/ui/scroll-area.tsx
+⬅️  [RES] GET /src/components/ide/side-workbench.tsx - Status: 304 (611ms)
+➡️  [REQ] GET /src/components/ui/badge.tsx
+⬅️  [RES] GET /src/assets/generated_images/cute_cat_logo_icon.png?import - Status: 304 (535ms)
+➡️  [REQ] GET /src/components/ui/collapsible.tsx
+⬅️  [RES] GET /src/hooks/useAuth.ts - Status: 304 (511ms)
+➡️  [REQ] GET /src/components/ui/label.tsx
+⬅️  [RES] GET /src/components/ui/textarea.tsx - Status: 304 (476ms)
+➡️  [REQ] GET /src/components/ui/slider.tsx
+⬅️  [RES] GET /src/components/ui/tabs.tsx - Status: 304 (485ms)
+➡️  [REQ] GET /@fs/home/runner/Meowstik/node_modules/.pnpm/@xterm+xterm@6.0.0/node_modules/@xterm/xterm/css/xterm.css
+⬅️  [RES] GET /src/components/ui/scroll-area.tsx - Status: 304 (492ms)
+➡️  [REQ] GET /src/components/ui/switch.tsx
+⬅️  [RES] GET /src/components/ui/badge.tsx - Status: 304 (516ms)
+➡️  [REQ] GET /src/components/ui/enhanced-markdown.tsx
+⬅️  [RES] GET /src/components/ui/collapsible.tsx - Status: 304 (533ms)
+➡️  [REQ] GET /src/components/ui/feedback-panel.tsx
+⬅️  [RES] GET /src/components/ui/label.tsx - Status: 304 (531ms)
+➡️  [REQ] GET /src/components/ui/checkbox.tsx
+⬅️  [RES] GET /src/components/ui/slider.tsx - Status: 304 (558ms)
+➡️  [REQ] GET /src/components/ui/dialog.tsx
+⬅️  [RES] GET /@fs/home/runner/Meowstik/node_modules/.pnpm/@xterm+xterm@6.0.0/node_modules/@xterm/xterm/css/xterm.css - Status: 304 (593ms)
+➡️  [REQ] GET /src/components/ui/dropdown-menu.tsx
+⬅️  [RES] GET /src/components/ui/switch.tsx - Status: 304 (566ms)
+➡️  [REQ] GET /src/hooks/use-voice-activity-detection.ts
+⬅️  [RES] GET /src/components/ui/enhanced-markdown.tsx - Status: 304 (542ms)
+➡️  [REQ] GET /src/hooks/use-speech-recognition.ts
+⬅️  [RES] GET /src/components/ui/feedback-panel.tsx - Status: 304 (508ms)
+➡️  [REQ] GET /src/assets/generated_images/watch_hero_banner_with_ai_features.png?import
+⬅️  [RES] GET /src/components/ui/checkbox.tsx - Status: 304 (517ms)
+➡️  [REQ] GET /src/assets/generated_images/smartwatch_with_ai_chat_interface.png?import
+⬅️  [RES] GET /src/components/ui/dialog.tsx - Status: 304 (528ms)
+➡️  [REQ] GET /src/assets/generated_images/watch_voice_command_interface.png?import
+⬅️  [RES] GET /src/components/ui/dropdown-menu.tsx - Status: 304 (510ms)
+➡️  [REQ] GET /src/assets/generated_images/watch_and_laptop_collaborative_editing.png?import
+⬅️  [RES] GET /src/hooks/use-voice-activity-detection.ts - Status: 304 (560ms)
+➡️  [REQ] GET /src/assets/generated_images/ar_smart_glasses_with_holographic_display.png?import
+⬅️  [RES] GET /src/hooks/use-speech-recognition.ts - Status: 304 (520ms)
+➡️  [REQ] GET /src/assets/generated_images/realistic_ar_router_identification_pov.png?import
+⬅️  [RES] GET /src/assets/generated_images/watch_hero_banner_with_ai_features.png?import - Status: 304 (522ms)
+➡️  [REQ] GET /src/assets/generated_images/realistic_rack_back_with_ar_overlay.png?import
+⬅️  [RES] GET /src/assets/generated_images/smartwatch_with_ai_chat_interface.png?import - Status: 304 (484ms)
+➡️  [REQ] GET /src/assets/generated_images/realistic_cable_nightmare_with_ar_trace.png?import
+⬅️  [RES] GET /src/assets/generated_images/watch_voice_command_interface.png?import - Status: 304 (493ms)
+➡️  [REQ] GET /src/components/ui/card.tsx
+⬅️  [RES] GET /src/assets/generated_images/watch_and_laptop_collaborative_editing.png?import - Status: 304 (437ms)
+➡️  [REQ] GET /src/components/ui/separator.tsx
+⬅️  [RES] GET /src/assets/generated_images/ar_smart_glasses_with_holographic_display.png?import - Status: 304 (386ms)
+➡️  [REQ] GET /src/components/ui/progress.tsx
+⬅️  [RES] GET /src/assets/generated_images/realistic_ar_router_identification_pov.png?import - Status: 304 (418ms)
+➡️  [REQ] GET /src/hooks/use-silence-detection.ts
+⬅️  [RES] GET /src/assets/generated_images/realistic_rack_back_with_ar_overlay.png?import - Status: 304 (411ms)
+➡️  [REQ] GET /src/components/ui/avatar.tsx
+⬅️  [RES] GET /src/assets/generated_images/realistic_cable_nightmare_with_ar_trace.png?import - Status: 304 (428ms)
+➡️  [REQ] GET /src/lib/file-picker.ts
+⬅️  [RES] GET /src/components/ui/card.tsx - Status: 304 (407ms)
+➡️  [REQ] GET /src/lib/local-drive-store.ts
+⬅️  [RES] GET /src/components/ui/separator.tsx - Status: 304 (404ms)
+➡️  [REQ] GET /src/hooks/use-app-session.ts
+⬅️  [RES] GET /src/components/ui/progress.tsx - Status: 304 (430ms)
+➡️  [REQ] GET /src/hooks/use-voice.ts
+⬅️  [RES] GET /src/hooks/use-silence-detection.ts - Status: 304 (421ms)
+➡️  [REQ] GET /src/components/ide/screen-recorder.tsx
+⬅️  [RES] GET /src/components/ui/avatar.tsx - Status: 304 (430ms)
+⬅️  [RES] GET /src/lib/file-picker.ts - Status: 304 (410ms)
+⬅️  [RES] GET /src/lib/local-drive-store.ts - Status: 304 (405ms)
+⬅️  [RES] GET /src/hooks/use-app-session.ts - Status: 304 (404ms)
+⬅️  [RES] GET /src/hooks/use-voice.ts - Status: 304 (379ms)
+⬅️  [RES] GET /src/components/ide/screen-recorder.tsx - Status: 304 (379ms)
+➡️  [REQ] GET /api/auth/user
+⬅️  [RES] GET /api/auth/user - Status: 304 (157ms)
+➡️  [REQ] GET /favicon.png
+⬅️  [RES] GET /favicon.png - Status: 304 (81ms)
+➡️  [REQ] GET /favicon.png
+⬅️  [RES] GET /favicon.png - Status: 304 (81ms)
+➡️  [REQ] GET /api/status
+➡️  [REQ] GET /api/status
+⬅️  [RES] GET / - Status: 200 (88ms)
+➡️  [REQ] GET /api/chats
+⬅️  [RES] GET / - Status: 200 (93ms)
+⬅️  [RES] GET /api/chats - Status: 304 (80ms)
+[Terminal WS] Client connected
+➡️  [REQ] GET /src/assets/generated_images/cute_cat_logo_icon.png
+⬅️  [RES] GET /src/assets/generated_images/cute_cat_logo_icon.png - Status: 304 (92ms)
+➡️  [REQ] GET /api/chats/mth_nNWZuPhS-_hOu7iww?limit=30
+[GET /api/chats/mth_nNWZuPhS-_hOu7iww] Fetched 2 messages, limit: 30, before: undefined
+[GET /api/chats/mth_nNWZuPhS-_hOu7iww] Message IDs: [
+  {
+    id: 'Y_2g2GlMgNaZU9pDqXOvy',
+    role: 'user',
+    createdAt: +058192-11-27T14:43:20.000Z
+  },
+  {
+    id: 'NdFyvACi0fEWmnAFzhKZb',
+    role: 'ai',
+    createdAt: +058192-11-29T17:50:00.000Z
+  }
+]
+[GET /api/chats/mth_nNWZuPhS-_hOu7iww] Returning 2 messages, hasMore: false
+⬅️  [RES] GET /api/chats/mth_nNWZuPhS-_hOu7iww?limit=30 - Status: 304 (220ms)
+➡️  [REQ] GET /sw.js
+⬅️  [RES] GET /sw.js - Status: 304 (79ms)
+➡️  [REQ] GET /api/status
+➡️  [REQ] GET /api/status
+⬅️  [RES] GET / - Status: 200 (116ms)
+⬅️  [RES] GET / - Status: 200 (106ms)
+➡️  [REQ] GET /api/status
+➡️  [REQ] GET /api/status
+⬅️  [RES] GET / - Status: 200 (129ms)
+⬅️  [RES] GET / - Status: 200 (167ms)
+➡️  [REQ] GET /api/status
+➡️  [REQ] GET /api/status
+⬅️  [RES] GET / - Status: 200 (130ms)
+⬅️  [RES] GET / - Status: 200 (91ms)
+➡️  [REQ] GET /api/status
+➡️  [REQ] GET /api/status
+⬅️  [RES] GET / - Status: 200 (135ms)
+⬅️  [RES] GET / - Status: 200 (216ms)
+➡️  [REQ] GET /api/status
+➡️  [REQ] GET /api/status
+⬅️  [RES] GET / - Status: 200 (120ms)
+⬅️  [RES] GET / - Status: 200 (203ms)
+➡️  [REQ] GET /api/status
+➡️  [REQ] GET /api/status
+⬅️  [RES] GET / - Status: 200 (102ms)
+⬅️  [RES] GET / - Status: 200 (160ms)
+6:09:27 PM [vite] vite.config.ts changed, restarting server...
+6:09:27 PM [vite] vite.config.ts changed, restarting server...
+failed to load config from /home/runner/Meowstik/vite.config.ts
+6:09:27 PM [vite] config must export or return an object.
+6:09:27 PM [vite] server restart failed
+➡️  [REQ] GET /api/status
+⬅️  [RES] GET / - Status: 200 (96ms)
+➡️  [REQ] GET /api/status
+⬅️  [RES] GET / - Status: 200 (75ms)
+➡️  [REQ] GET /api/status
+⬅️  [RES] GET / - Status: 200 (113ms)
+➡️  [REQ] GET /api/status
+⬅️  [RES] GET / - Status: 200 (223ms)
+➡️  [REQ] GET /api/status
+⬅️  [RES] GET / - Status: 200 (81ms)
+➡️  [REQ] GET /api/status
+⬅️  [RES] GET / - Status: 200 (97ms)
+➡️  [REQ] GET /api/status
+➡️  [REQ] GET /api/status
+⬅️  [RES] GET / - Status: 200 (113ms)
+⬅️  [RES] GET / - Status: 200 (87ms)
+ ELIFECYCLE  Command failed with exit code 137.
