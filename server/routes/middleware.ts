@@ -194,10 +194,11 @@ export const checkAuthStatus: RequestHandler = async (req: Request, _res: Respon
   // In home dev mode, auto-authenticate with default developer user
   if (isHomeDevMode() && (!req.isAuthenticated?.() || !user?.id)) {
     try {
-      const devUser = await createHomeDevSession(req, _res, next);
-      // The middleware handles attachment, we just continue
+      // createHomeDevSession is async and will call next() internally
+      return await createHomeDevSession(req, _res, next);
     } catch (error) {
       console.error("Failed to create home dev session:", error);
+      // If it fails, we fall through to the guest check
     }
   }
   

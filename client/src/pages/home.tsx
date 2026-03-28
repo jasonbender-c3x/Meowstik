@@ -66,7 +66,7 @@ import { VerbositySlider } from "@/components/ui/verbosity-slider";
 import { LocalDriveButton } from "@/components/ui/local-drive-button";
 import { useLocation } from "wouter";
 import { ResizablePanel, ResizablePanelGroup, ResizableHandle } from "@/components/ui/resizable";
-import { SideWorkbench } from "@/components/ide/side-workbench";
+import { Canvas } from "@/components/ide/side-workbench";
 
 /**
  * Framer Motion - Animation library
@@ -1316,7 +1316,7 @@ export default function Home() {
             <>
               <ResizableHandle withHandle />
               <ResizablePanel defaultSize={42} minSize={24} maxSize={58}>
-                <SideWorkbench
+                <Canvas
                   activeTab={workbenchTab}
                   onActiveTabChange={setWorkbenchTab}
                   onCollapse={() => setIsWorkbenchOpen(false)}

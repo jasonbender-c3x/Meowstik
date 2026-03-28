@@ -55,11 +55,10 @@ export function createHomeDevSession(req?: any, res?: any, next?: any) {
         const user = await getHomeDevUser();
         // Ensure req.login exists before calling it
         if (typeof reqObj.login === 'function') {
-          reqObj.login(user, (err: any) => {
+          return reqObj.login(user, (err: any) => {
             if (err) return nextFn(err);
             return nextFn();
           });
-          return;
         } else {
           // Fallback if Passport isn't fully mounted
           reqObj.user = user;

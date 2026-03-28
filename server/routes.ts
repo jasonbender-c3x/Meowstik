@@ -1157,8 +1157,8 @@ The user has MUTE mode enabled. Minimize all output.
               }
             }
             
-            // Check for end_turn - this terminates the agentic loop
-            if (toolCall.type === "end_turn" && toolResult.success) {
+            // Check for end_turn/end_chat - this terminates the agentic loop
+            if ((toolCall.type === "end_turn" || toolCall.type === "end_chat") && toolResult.success) {
               const endTurnResult = toolResult.result as { shouldEndTurn?: boolean };
               if (endTurnResult?.shouldEndTurn) {
                 endTurn = true;

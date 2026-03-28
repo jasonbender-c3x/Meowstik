@@ -72,6 +72,7 @@ async function startServer() {
   setupLiveWebSocket(server);
   setupTerminalWebSocket(server);
 
+  // --- REGISTER API ROUTES BEFORE MIDDLEWARE ---
   try {
     console.log("⏳ [Boot] Registering API Routes...");
     await registerRoutes(server, app);
@@ -80,6 +81,8 @@ async function startServer() {
     console.error("❌ [Boot] Failed to register routes:", e);
   }
 
+  // --- THEN SETUP VITE/STATIC MIDDLEWARE ---
+  // The vite/static middleware has a catch-all route ("*") that MUST come after API routes.
   if (app.get("env") === "development") {
     console.log("⏳ [Boot] Starting Vite Middleware (This can take 5-10 seconds)...");
     try {

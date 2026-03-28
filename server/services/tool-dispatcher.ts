@@ -102,7 +102,7 @@ export function expandTilde(filePath: string): string {
     return os.homedir();
   }
   
-  // Handle ~/path or ~\path (Unix and Windows)
+  // Handle ~/path or ~\\path (Unix and Windows)
   if (filePath.startsWith('~/') || filePath.startsWith('~' + path.sep)) {
     return path.join(os.homedir(), filePath.slice(2));
   }
@@ -767,6 +767,7 @@ export class ToolDispatcher {
           result = { content: sendChatParams?.content || "", success: true };
           break;
         case "end_turn":
+        case "end_chat": // Legacy alias
           // end_turn is the tool that terminates the agentic loop
           result = { success: true, shouldEndTurn: true };
           break;
@@ -780,126 +781,110 @@ export class ToolDispatcher {
           result = await this.executeDbInsert(toolCall);
           break;
         case "todo_list":
-        try {
-          const { storage } = await import("../storage");
-          // Default to 'guest' or find a way to pass userId context
-          const userId = "guest"; 
-          const includeCompleted = toolCall.args.includeCompleted === true;
-          
-          const todos = await storage.getTodoItems(userId, includeCompleted);
-          
-          return {
-            type: "todo_list",
-            status: "success",
-            message: `Found ${todos.length} todo items.`,
-            data: todos,
-            timestamp: new Date()
-          };
-        } catch (error: any) {
-          return {
-            type: "todo_list",
-            status: "error",
-            message: `Failed to list todos: ${error.message}`,
-            timestamp: new Date()
-          };
-        }
+          try {
+            const { storage } = await import("../storage");
+            const userId = "guest"; // FIXME: Pass real userId
+            const params = toolCall.parameters as { includeCompleted?: boolean };
+            const includeCompleted = params.includeCompleted === true;
+            
+            const todos = await storage.getTodoItems(userId, includeCompleted);
+            
+            result = {
+              type: "todo_list",
+              success: true,
+              message: `Found ${todos.length} todo items.`,
+              data: todos,
+            };
+          } catch (error: any) {
+            throw new Error(`Failed to list todos: ${error.message}`);
+          }
+          break;
 
-      case "todo_add":
-        try {
-          const { storage } = await import("../storage");
-          const userId = "guest";
-          
-          const todo = await storage.createTodoItem({
-            userId,
-            title: toolCall.args.title,
-            description: toolCall.args.description,
-            priority: toolCall.args.priority,
-            category: toolCall.args.category,
-            tags: toolCall.args.tags
-          });
-          
-          return {
-            type: "todo_add",
-            status: "success",
-            message: `Added todo: ${todo.title}`,
-            data: todo,
-            timestamp: new Date()
-          };
-        } catch (error: any) {
-          return {
-            type: "todo_add",
-            status: "error",
-            message: `Failed to add todo: ${error.message}`,
-            timestamp: new Date()
-          };
-        }
+        case "todo_add":
+          try {
+            const { storage } = await import("../storage");
+            const userId = "guest"; // FIXME: Pass real userId
+            const params = toolCall.parameters as {
+              title: string;
+              description?: string;
+              priority?: number;
+              category?: string;
+              tags?: string[];
+            };
 
-      case "todo_update":
-        try {
-          const { storage } = await import("../storage");
-          const updates = { ...toolCall.args };
-          delete updates.id; // Remove ID from updates object
-          
-          const todo = await storage.updateTodoItem(toolCall.args.id, updates);
-          
-          return {
-            type: "todo_update",
-            status: "success",
-            message: `Updated todo: ${todo.title}`,
-            data: todo,
-            timestamp: new Date()
-          };
-        } catch (error: any) {
-          return {
-            type: "todo_update",
-            status: "error",
-            message: `Failed to update todo: ${error.message}`,
-            timestamp: new Date()
-          };
-        }
+            const todo = await storage.createTodoItem({
+              userId,
+              title: params.title,
+              description: params.description,
+              priority: params.priority,
+              category: params.category,
+              tags: params.tags,
+            });
+            
+            result = {
+              type: "todo_add",
+              success: true,
+              message: `Added todo: ${todo.title}`,
+              data: todo,
+            };
+          } catch (error: any) {
+            throw new Error(`Failed to add todo: ${error.message}`);
+          }
+          break;
 
-      case "todo_complete":
-        try {
-          const { storage } = await import("../storage");
-          const todo = await storage.completeTodoItem(toolCall.args.id);
-          
-          return {
-            type: "todo_complete",
-            status: "success",
-            message: `Completed todo: ${todo.title}`,
-            data: todo,
-            timestamp: new Date()
-          };
-        } catch (error: any) {
-          return {
-            type: "todo_complete",
-            status: "error",
-            message: `Failed to complete todo: ${error.message}`,
-            timestamp: new Date()
-          };
-        }
+        case "todo_update":
+          try {
+            const { storage } = await import("../storage");
+            const params = toolCall.parameters as { id: string, [key: string]: any };
+            const { id, ...updates } = params;
+            
+            const todo = await storage.updateTodoItem(id, updates);
+            
+            result = {
+              type: "todo_update",
+              success: true,
+              message: `Updated todo: ${todo.title}`,
+              data: todo,
+            };
+          } catch (error: any) {
+            throw new Error(`Failed to update todo: ${error.message}`);
+          }
+          break;
 
-      case "todo_remove":
-        try {
-          const { storage } = await import("../storage");
-          const success = await storage.deleteTodoItem(toolCall.args.id);
-          
-          return {
-            type: "todo_remove",
-            status: success ? "success" : "error",
-            message: success ? "Todo item removed." : "Todo item not found.",
-            timestamp: new Date()
-          };
-        } catch (error: any) {
-          return {
-            type: "todo_remove",
-            status: "error",
-            message: `Failed to remove todo: ${error.message}`,
-            timestamp: new Date()
-          };
-        }
+        case "todo_complete":
+          try {
+            const { storage } = await import("../storage");
+            const params = toolCall.parameters as { id: string };
+            const todo = await storage.completeTodoItem(params.id);
+            
+            result = {
+              type: "todo_complete",
+              success: true,
+              message: `Completed todo: ${todo.title}`,
+              data: todo,
+            };
+          } catch (error: any) {
+            throw new Error(`Failed to complete todo: ${error.message}`);
+          }
+          break;
 
-      case "db_delete":
+        case "todo_remove":
+          try {
+            const { storage } = await import("../storage");
+            const params = toolCall.parameters as { id: string };
+            const success = await storage.deleteTodoItem(params.id);
+            
+            result = {
+              type: "todo_remove",
+              success: success,
+              message: success ? "Todo item removed." : "Todo item not found.",
+            };
+          } catch (error: any) {
+            throw new Error(`Failed to remove todo: ${error.message}`);
+          }
+          break;
+
+        case "db_delete":
           result = await this.executeDbDelete(toolCall);
           break;
         // Codebase Analysis Tools
@@ -1675,7 +1660,7 @@ export class ToolDispatcher {
    * Sanitize file paths to prevent directory traversal attacks
    */
   private sanitizePath(filePath: string, filename: string): string {
-    const cleanPath = filePath.replace(/\.\./g, "").replace(/^\/+/, "");
+    const cleanPath = filePath.replace(/\.\./g, "").replace(/^\/+/,"");
     const cleanFilename = path.basename(filename);
     return path.join(cleanPath, cleanFilename);
   }
@@ -2151,10 +2136,8 @@ export class ToolDispatcher {
         path: actualPath,
         destination: 'editor',
         content: params.content,
-        mimeType,
+        mimeType: params.mimeType,
         summary: params.summary,
-        ingested: ingestResult?.success || false,
-        chunksCreated: ingestResult?.chunksCreated || 0,
         message: `File saved to editor canvas: ${actualPath}. View at /editor`
       };
     }
@@ -2216,10 +2199,8 @@ export class ToolDispatcher {
         type: 'file_put',
         path: sanitizedPath,
         destination: 'server',
-        mimeType,
+        mimeType: params.mimeType,
         summary: params.summary,
-        ingested: ingestResult?.success || false,
-        chunksCreated: ingestResult?.chunksCreated || 0,
         message: `File written to: ${sanitizedPath}`
       };
     } catch (error: any) {
@@ -3708,6 +3689,5 @@ export class ToolDispatcher {
 }
 
 export const toolDispatcher = new ToolDispatcher();
-
 
 

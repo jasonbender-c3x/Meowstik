@@ -70,14 +70,11 @@ export const geminiFunctionDeclarations: FunctionDeclaration[] = [
     }
   },
   {
-    name: "end_chat",
-    description: "TERMINATES Chat.",
+    name: "end_turn",
+    description: "Terminate your turn in the interactive agentic loop and return control to the user. This is the ONLY way to end your turn - call this when you have completed your response.",
     parametersJsonSchema: {
       type: "object",
-      properties: {
-        content: { type: "string", description: "End chat." }
-      },
-      required: ["content"]
+      properties: {}
     }
   },
   {
@@ -94,7 +91,7 @@ export const geminiFunctionDeclarations: FunctionDeclaration[] = [
   },
   {
     name: "say",
-    description: "Generate HD voice audio output. NON-BLOCKING and NON-TERMINATING - speech generation happens concurrently with other operations. Use alongside or before end_chat. Must call end_turn to finish your turn.",
+    description: "Generate HD voice audio output. NON-BLOCKING and NON-TERMINATING - speech generation happens concurrently with other operations. Use alongside or before send_chat or write. Must call end_turn to finish your turn.",
     parametersJsonSchema: {
       type: "object",
       properties: {

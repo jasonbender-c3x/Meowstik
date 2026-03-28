@@ -325,7 +325,7 @@ export class PromptComposer {
     return `
 # FINAL INSTRUCTIONS (NON-NEGOTIABLE)
 
-Before you call 'end_chat' to end your turn, you MUST perform the following actions:
+Before you call 'end_turn' to end your turn, you MUST perform the following actions:
 
 1.  **Update Thoughts Forward Cache (<thoughts_forward>)**:
     *   **Action**: Use the \`put\` tool to write \`logs/cache.md\`
@@ -347,7 +347,7 @@ Before you call 'end_chat' to end your turn, you MUST perform the following acti
     *   **Content**: Important facts, user preferences, or ongoing task state that should persist.
     *   **Note**: This content will be automatically appended to \`Short_Term_Memory.md\` on the next turn.
 
-These steps are mandatory before sending your response via end_chat.
+These steps are mandatory before sending your response via end_turn.
 `;
   }
 

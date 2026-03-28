@@ -807,7 +807,7 @@ export const ToolTypes = {
   DEBUG_ECHO: "debug_echo",
   
   // Chat output - primary tool for sending content to chat window (non-terminating)
-  SEND_CHAT: "end_chat",
+  SEND_CHAT: "write",
   
   // Turn control - terminates the interactive agentic loop (ONLY way to end turn)
   END_TURN: "end_turn",
@@ -855,7 +855,7 @@ export const toolCallSchema = z.object({
     "terminal",  // Non-interactive shell command (alias: terminal_execute)
     "get",       // Read file or URL (alias: get)
     "put",       // Write file (alias: put)
-    "write",     // Output to chat window (alias: end_chat)
+    "write",     // Output to chat window (alias: send_chat)
     "log",       // Append to log file (alias: append)
     "say",       // HD voice output (no alias needed)
     // ssh: persistent 2-way connection
@@ -866,7 +866,7 @@ export const toolCallSchema = z.object({
     // Core
 
     // Chat output - primary tool for sending content to chat window
-    "end_chat",
+    "send_chat",
     // Turn control - terminates the agentic loop
     "end_turn",
     // Browser control - open URLs in new tabs
@@ -929,7 +929,7 @@ export type ToolCall = z.infer<typeof toolCallSchema>;
  * The primary tool for sending content to the chat window
  * 
  * IMPORTANT: This is NON-TERMINATING - calling this does not end your turn.
- * You can call end_chat multiple times within a single turn to provide
+ * You can call write multiple times within a single turn to provide
  * incremental updates as you work through multi-step operations.
  * 
  * Always explicitly call end_turn when you're ready to return control to the user.
@@ -1250,7 +1250,7 @@ export type AutoexecScript = z.infer<typeof autoexecSchema>;
 
 /**
  * Complete Structured LLM Response Schema
- * LLM returns toolCalls array - all output goes through tools (end_chat, say, put, etc.)
+ * LLM returns toolCalls array - all output goes through tools (write, say, put, etc.)
  */
 export const structuredLLMResponseSchema = z.object({
   toolCalls: z.array(toolCallSchema).optional().default([]),
@@ -1386,13 +1386,13 @@ export function parseStructuredResponse(response: string): StructuredLLMResponse
 
 /**
  * Create a fallback structured response when LLM returns plain text
- * Plain text is converted to a end_chat tool call
+ * Plain text is converted to a write tool call followed by implicit end_turn
  */
 export function createFallbackResponse(plainText: string): StructuredLLMResponse {
   return {
     toolCalls: [{
       id: "fallback_chat",
-      type: "end_chat" as const,
+      type: "write" as const,
       operation: "respond",
       parameters: { content: plainText },
       priority: 0,

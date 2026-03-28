@@ -867,7 +867,7 @@ export function ChatInputArea({ onSend, isLoading, promptHistory = [], onStop }:
   const hasContent = input.trim() || attachments.length > 0;
 
   return (
-    <div className="w-full max-w-4xl mx-auto p-4">
+    <div className="w-full max-w-4xl mx-auto px-2 pb-4">
       {/* Hidden file input for file uploads */}
       <input
         ref={fileInputRef}
@@ -879,254 +879,194 @@ export function ChatInputArea({ onSend, isLoading, promptHistory = [], onStop }:
         data-testid="input-file-upload"
       />
 
-      {/* 
-       * Input Container
-       * Rounded card with subtle border and focus effects
-       * Changes appearance when focused (border, shadow, background)
-       */}
-      <div className="relative group rounded-3xl bg-secondary/50 border border-transparent focus-within:border-primary/20 focus-within:bg-background focus-within:shadow-xl focus-within:shadow-primary/5 transition-all duration-300">
-        
-        {/* Attachment Preview Area */}
-        <AnimatePresence>
-          {attachments.length > 0 && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: "auto" }}
-              exit={{ opacity: 0, height: 0 }}
-              className="px-4 pt-3 flex flex-wrap gap-2"
-            >
-              {attachments.map((attachment) => (
-                <motion.div
-                  key={attachment.id}
-                  initial={{ opacity: 0, scale: 0.8 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.8 }}
-                  className="relative group/attachment"
-                  data-testid={`attachment-preview-${attachment.id}`}
-                >
-                  {attachment.preview ? (
-                    <div className="relative w-20 h-20 rounded-lg overflow-hidden border border-border bg-muted">
-                      <img
-                        src={attachment.preview}
-                        alt={attachment.filename}
-                        className="w-full h-full object-cover"
-                      />
-                      <button
-                        onClick={() => removeAttachment(attachment.id)}
-                        className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center opacity-0 group-hover/attachment:opacity-100 transition-opacity"
-                        data-testid={`button-remove-attachment-${attachment.id}`}
-                      >
-                        <X className="h-3 w-3" />
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="relative flex items-center gap-2 px-3 py-2 rounded-lg border border-border bg-muted">
-                      <Paperclip className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-sm truncate max-w-[100px]">{attachment.filename}</span>
-                      <button
-                        onClick={() => removeAttachment(attachment.id)}
-                        className="w-5 h-5 rounded-full hover:bg-destructive/10 flex items-center justify-center"
-                        data-testid={`button-remove-attachment-${attachment.id}`}
-                      >
-                        <X className="h-3 w-3" />
-                      </button>
-                    </div>
-                  )}
-                </motion.div>
-              ))}
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* Textarea Container - Padding around the input */}
-        <div className="px-4 pt-4 pb-14 relative">
-            {/* Ghost Text Overlay - Shows previous prompt when navigating history */}
-            <AnimatePresence>
-              {ghostText !== null && !input && (
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.15 }}
-                  className="absolute inset-0 px-4 pt-4 pb-14 pointer-events-none"
-                >
-                  <div className="text-base text-muted-foreground/50 whitespace-pre-wrap break-words">
-                    {ghostText}
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-
-            {/* 
-             * Native Textarea Element
-             * Using native for better control over resize behavior
-             * Styled to be invisible (transparent background, no border)
-             */}
-            <textarea
-              ref={textareaRef}
-              value={input}
-              onChange={(e) => {
-                setInput(e.target.value);
-                // Clear ghost text when user starts typing
-                if (ghostText !== null) {
-                  setGhostText(null);
-                  setHistoryIndex(-1);
-                }
-              }}
-              onKeyDown={handleKeyDown}
-              placeholder={ghostText !== null ? "" : "Ask Meowstik anything..."}
-              className="w-full bg-transparent border-none resize-none outline-none text-base max-h-[200px] min-h-[24px] placeholder:text-muted-foreground relative z-10"
-              rows={1}
-              data-testid="input-chat-message"
-            />
-        </div>
-
-        {/* 
-         * Bottom Action Bar
-         * Positioned absolutely at bottom of input container
-         * Contains attachment buttons (left) and send button (right)
-         */}
-        <div className="absolute bottom-2 left-2 right-2 flex justify-between items-center">
-            {/* Left Side: Action Buttons */}
-            <div className="flex gap-1 items-center">
-              {/* Tab Button - Lights up when ghost text is active */}
-              <AnimatePresence>
-                {ghostText !== null && (
-                  <motion.div
-                    initial={{ opacity: 0, scale: 0.8, width: 0 }}
-                    animate={{ opacity: 1, scale: 1, width: "auto" }}
-                    exit={{ opacity: 0, scale: 0.8, width: 0 }}
-                    transition={{ duration: 0.2 }}
-                  >
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={handleTabClick}
-                      className="h-7 px-2 rounded-md bg-primary/20 text-primary border border-primary/30 hover:bg-primary/30 transition-all font-mono text-xs font-medium"
-                      data-testid="button-tab-activate"
-                    >
-                      Tab ↵
-                    </Button>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-
-              {/* Auto-Screenshot Mode Toggle */}
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                onClick={() => setAutoScreenshotMode(!autoScreenshotMode)}
-                className={cn(
-                  "h-9 w-9 rounded-full transition-colors",
-                  autoScreenshotMode 
-                    ? "text-amber-500 bg-amber-500/20 ring-1 ring-amber-500/50" 
-                    : "text-muted-foreground hover:text-primary hover:bg-primary/10"
-                )}
-                data-testid="button-auto-screenshot"
-                title={autoScreenshotMode ? "Auto-screenshot ON (click to disable)" : "Enable auto-screenshot mode"}
+      <AnimatePresence>
+        {attachments.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 10 }}
+            className="flex flex-wrap gap-2 mb-3 px-2"
+          >
+            {attachments.map((attachment) => (
+              <motion.div
+                key={attachment.id}
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.8 }}
+                className="group relative flex items-center gap-2 p-1.5 bg-secondary/50 rounded-xl border border-border/50 text-xs animate-in zoom-in-95 duration-200"
+                data-testid={`attachment-preview-${attachment.id}`}
               >
-                <Monitor className="h-5 w-5" />
-              </Button>
-              
-              {/* File Attachment Button - uses enhanced picker when available */}
-              <Button 
-                variant="ghost" 
-                size="icon" 
+                {attachment.preview ? (
+                  <img src={attachment.preview} alt={attachment.filename} className="w-8 h-8 rounded-lg object-cover" />
+                ) : (
+                  <div className="w-8 h-8 rounded-lg bg-background flex items-center justify-center">
+                    <Paperclip className="h-4 w-4 text-muted-foreground" />
+                  </div>
+                )}
+                <span className="max-w-[120px] truncate text-muted-foreground font-medium px-1">
+                  {attachment.filename}
+                </span>
+                <button
+                  onClick={() => removeAttachment(attachment.id)}
+                  className="p-1 hover:bg-background rounded-full transition-colors text-muted-foreground hover:text-foreground"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </motion.div>
+            ))}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <div className="relative group">
+        {/* Main input container - Gemini-style pill */}
+        <div className={cn(
+          "relative flex flex-col w-full rounded-[28px] border bg-muted/30 hover:bg-muted/50 focus-within:bg-background transition-all duration-300 shadow-sm focus-within:shadow-md focus-within:ring-1 focus-within:ring-primary/20",
+          isLoading && "opacity-80 pointer-events-none"
+        )}>
+          {/* Ghost Text Overlay - Shows previous prompt when navigating history */}
+          <AnimatePresence>
+            {ghostText !== null && !input && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.15 }}
+                className="absolute inset-0 px-6 py-4 pointer-events-none z-0"
+              >
+                <div className="text-base text-muted-foreground/50 whitespace-pre-wrap break-words">
+                  {ghostText}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Textarea */}
+          <textarea
+            ref={textareaRef}
+            value={input}
+            onChange={(e) => {
+              setInput(e.target.value);
+              // Clear ghost text when user starts typing
+              if (ghostText !== null) {
+                setGhostText(null);
+                setHistoryIndex(-1);
+              }
+            }}
+            onKeyDown={handleKeyDown}
+            placeholder={ghostText !== null ? "" : "Ask Meowstik anything..."}
+            className="w-full px-6 py-4 bg-transparent border-none focus:ring-0 resize-none text-base min-h-[56px] max-h-[400px] scrollbar-thin overflow-y-auto relative z-10 outline-none"
+            rows={1}
+            disabled={isLoading}
+            data-testid="input-chat-message"
+          />
+
+          {/* Action Bar (inside the pill) */}
+          <div className="flex items-center justify-between px-3 pb-3 relative z-20">
+            <div className="flex items-center gap-1">
+              <Button
+                variant="ghost"
+                size="icon"
                 onClick={isFileSystemAccessSupported() ? handleEnhancedFilePicker : () => fileInputRef.current?.click()}
-                className="h-9 w-9 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+                className="h-10 w-10 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
                 data-testid="button-file-attach"
                 title="Attach files"
               >
                 <Paperclip className="h-5 w-5" />
               </Button>
               
-              {/* Directory/Folder Picker Button */}
               <Button 
                 variant="ghost" 
                 size="icon" 
                 onClick={handleDirectoryPicker}
-                className="h-9 w-9 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+                className="h-10 w-10 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
                 data-testid="button-folder-attach"
                 title="Attach entire folder"
               >
                 <Folder className="h-5 w-5" />
               </Button>
-              
-              {/* Voice Input Button - toggles speech-to-text */}
-              <Button 
-                variant="ghost" 
-                size="icon" 
+
+              <Button
+                variant={isListening ? "secondary" : "ghost"}
+                size="icon"
                 onClick={handleMicClick}
                 className={cn(
-                  "h-9 w-9 rounded-full transition-colors",
+                  "h-10 w-10 rounded-full transition-all duration-300",
                   isListening 
-                    ? "text-red-500 bg-red-100 hover:bg-red-200 animate-pulse" 
+                    ? "text-red-500 bg-red-500/10 hover:bg-red-500/20 animate-pulse" 
                     : "text-muted-foreground hover:text-primary hover:bg-primary/10"
                 )}
                 data-testid="button-voice-input"
+                title={isListening ? "Stop listening" : "Voice input"}
               >
                 {isListening ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
               </Button>
+
+              <Button
+                variant={autoScreenshotMode ? "secondary" : "ghost"}
+                size="icon"
+                onClick={() => setAutoScreenshotMode(!autoScreenshotMode)}
+                className={cn(
+                  "h-10 w-10 rounded-full transition-all duration-300",
+                  autoScreenshotMode 
+                    ? "text-amber-500 bg-amber-500/10 hover:bg-amber-500/20 ring-1 ring-amber-500/20" 
+                    : "text-muted-foreground hover:text-primary hover:bg-primary/10"
+                )}
+                title={autoScreenshotMode ? "Auto-screenshot: ON" : "Auto-screenshot: OFF"}
+              >
+                <Monitor className="h-5 w-5" />
+              </Button>
             </div>
 
-            {/* Button group for send actions */}
-            <div className="flex gap-2">
-              {/* 
-               * Screenshot + Send Button
-               * Captures screenshot and sends with message
-               */}
+            <div className="flex items-center gap-2">
               <Button 
                 onClick={handleScreenshotSend}
                 disabled={isLoading}
+                variant="ghost"
                 size="icon"
-                className="h-9 w-9 rounded-full transition-colors text-muted-foreground hover:text-primary hover:bg-primary/10"
+                className="h-10 w-10 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
                 data-testid="button-screenshot-send"
                 title="Capture screenshot and send"
               >
-                {isLoading ? (
-                  <Sparkles className="h-5 w-5 animate-pulse" />
-                ) : (
-                  <Camera className="h-4 w-4" />
-                )}
+                <Camera className="h-5 w-5" />
               </Button>
 
-              {/* 
-               * Send/Stop Button
-               * Changes appearance based on:
-               * - Loading: Red stop button to cancel request
-               * - No content: Muted/disabled style
-               * - Has content: Primary color with shadow
-               */}
               {isLoading && onStop ? (
-                <Button 
+                <Button
                   onClick={onStop}
                   size="icon"
-                  className="h-9 w-9 rounded-full bg-red-500 text-white hover:bg-red-600 shadow-lg shadow-red-500/25 transition-all duration-300 animate-pulse"
-                  data-testid="button-stop"
+                  className="h-10 w-10 rounded-full bg-red-500 text-white hover:bg-red-600 shadow-lg shadow-red-500/20"
                   title="Stop generation"
                 >
-                  <PawPrint className="h-4 w-4" />
+                  <X className="h-5 w-5" />
                 </Button>
               ) : (
-                <Button 
+                <Button
                   onClick={handleSend}
-                  disabled={!hasContent || isLoading}
+                  disabled={(!input.trim() && attachments.length === 0) || isLoading}
                   size="icon"
                   className={cn(
-                      "h-9 w-9 rounded-full transition-all duration-300",
-                      hasContent 
-                      ? "bg-primary text-primary-foreground shadow-lg shadow-primary/25 hover:bg-primary/90" 
-                      : "bg-muted text-muted-foreground"
+                    "h-10 w-10 rounded-full transition-all duration-300",
+                    input.trim() || attachments.length > 0
+                      ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20 scale-100"
+                      : "bg-muted text-muted-foreground scale-95 opacity-50"
                   )}
                   data-testid="button-send"
                 >
-                  <Send className="h-4 w-4 ml-0.5" />
+                  <Send className="h-5 w-5 ml-0.5" />
                 </Button>
               )}
             </div>
+          </div>
+        </div>
+
+        {/* Disclaimer / Status footer */}
+        <div className="mt-3 text-center px-4">
+          <p className="text-[10px] md:text-xs text-muted-foreground/60 select-none">
+            Meowstik may display inaccurate info, so double-check its responses. 🐾
+          </p>
         </div>
       </div>
-      
     </div>
   );
 }
