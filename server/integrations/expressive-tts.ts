@@ -35,15 +35,19 @@ export interface TTSResponse {
  */
 export const DEFAULT_TTS_VOICE = "Kore";
 
-const AVAILABLE_VOICES: Record<string, { languageCode: string; name: string; ssmlGender: string }> = {
-  "Kore": { languageCode: "en-US", name: "en-US-Neural2-C", ssmlGender: "FEMALE" },
-  "Puck": { languageCode: "en-US", name: "en-US-Neural2-D", ssmlGender: "MALE" },
-  "Charon": { languageCode: "en-US", name: "en-US-Neural2-A", ssmlGender: "MALE" },
-  "Fenrir": { languageCode: "en-US", name: "en-US-Neural2-J", ssmlGender: "MALE" },
-  "Aoede": { languageCode: "en-US", name: "en-US-Neural2-E", ssmlGender: "FEMALE" },
-  "Leda": { languageCode: "en-US", name: "en-US-Neural2-F", ssmlGender: "FEMALE" },
-  "Orus": { languageCode: "en-US", name: "en-US-Neural2-I", ssmlGender: "MALE" },
-  "Zephyr": { languageCode: "en-US", name: "en-US-Neural2-H", ssmlGender: "FEMALE" },
+// Chirp 3 HD voices — Google's highest quality neural voices (2025)
+// Do not support SSML prosody; style is conveyed via natural language in the text.
+const AVAILABLE_VOICES: Record<string, { languageCode: string; name: string; note: string }> = {
+  "Kore":    { languageCode: "en-US", name: "en-US-Chirp3-HD-Kore",    note: "Female · American · Natural" },
+  "Puck":    { languageCode: "en-US", name: "en-US-Chirp3-HD-Puck",    note: "Male · American · Upbeat" },
+  "Charon":  { languageCode: "en-US", name: "en-US-Chirp3-HD-Charon",  note: "Male · American · Informative" },
+  "Fenrir":  { languageCode: "en-US", name: "en-US-Chirp3-HD-Fenrir",  note: "Male · American · Excitable" },
+  "Aoede":   { languageCode: "en-US", name: "en-US-Chirp3-HD-Aoede",   note: "Female · American · Breezy" },
+  "Leda":    { languageCode: "en-US", name: "en-US-Chirp3-HD-Leda",    note: "Female · American · Youthful" },
+  "Orus":    { languageCode: "en-US", name: "en-US-Chirp3-HD-Orus",    note: "Male · American · Firm" },
+  "Zephyr":  { languageCode: "en-US", name: "en-US-Chirp3-HD-Zephyr",  note: "Female · American · Bright" },
+  "Schedar": { languageCode: "en-US", name: "en-US-Chirp3-HD-Schedar", note: "Female · American · Even" },
+  "Sulafat": { languageCode: "en-US", name: "en-US-Chirp3-HD-Sulafat", note: "Female · American · Warm" },
 };
 
 let serviceAccountAuth: Auth.GoogleAuth | null = null;
@@ -103,6 +107,38 @@ export function getAvailableVoices(): string[] {
   return Object.keys(AVAILABLE_VOICES);
 }
 
+function escapeXml(text: string): string {
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
+}
+
+// Convert semitone notation (+2st) to percentage (+12%) for SSML prosody pitch
+function semitoneToPercent(pitchStr: string): string {
+  const m = pitchStr.match(/^([+-]?\d+(?:\.\d+)?)st$/i);
+  if (!m) return pitchStr;
+  const pct = Math.round((Math.pow(2, parseFloat(m[1]) / 12) - 1) * 100);
+  return pct >= 0 ? `+${pct}%` : `${pct}%`;
+}
+
+function buildSSML(cleanText: string, style: VoiceStyle, voiceName?: string): string {
+  // Journey and Chirp3 voices do not support SSML prosody (pitch/rate) — they use neural
+  // conversational models that reject those tags with "invalid argument".
+  const isUnsupportedSSML = voiceName?.includes("Journey") || voiceName?.includes("Chirp3");
+  if (isJourneyVoice) return `<speak>${escapeXml(cleanText)}</speak>`;
+
+  const p = VOICE_STYLE_MAPPING[style]?.google ?? VOICE_STYLE_MAPPING[VoiceStyle.Neutral].google;
+  const attrs: string[] = [];
+  if (p.rate && p.rate !== "1.0") attrs.push(`rate="${p.rate}"`);
+  if (p.pitch && p.pitch !== "0st") attrs.push(`pitch="${semitoneToPercent(p.pitch)}"`);
+  if (p.volume) attrs.push(`volume="${p.volume.replace(".0", "")}"`); // "+6.0dB" → "+6dB"
+  if (attrs.length === 0) return `<speak>${escapeXml(cleanText)}</speak>`;
+  return `<speak><prosody ${attrs.join(' ')}>${escapeXml(cleanText)}</prosody></speak>`;
+}
+
 export async function generateSingleSpeakerAudio(
   text: string, 
   voice: string = DEFAULT_TTS_VOICE,
@@ -129,39 +165,27 @@ export async function generateSingleSpeakerAudio(
         await new Promise(r => setTimeout(r, 500 * attempt));
       }
 
-      console.log(`[TTS] Generating audio with Google Cloud TTS (${authMethod}), voice: ${voiceConfig.name}`);
-
       const auth = serviceAuth || await getAuthenticatedClient();
-      const tts = google.texttospeech({ version: "v1", auth: auth as any });
+      const tts = google.texttospeech({ version: "v1beta1", auth: auth as any });
       
       const { style, cleanText } = parseVoiceStyle(text);
-  const styleParams = VOICE_STYLE_MAPPING[style]?.google || VOICE_STYLE_MAPPING[VoiceStyle.Neutral].google;
-  
-  // Use cleanText (without style tags) for TTS input
-  console.log(`[TTS] Generating audio with Google Cloud TTS (${authMethod}), voice: ${voiceConfig.name}, style: ${style}`);
+
+      // Chirp3-HD and Journey voices: plain text only — no SSML, no effectsProfileId
+      const isLimitedVoice = voiceConfig.name.includes("Chirp3") || voiceConfig.name.includes("Journey");
+
+      console.log(`[TTS] Generating audio — voice: ${voiceConfig.name}, style: ${style}`);
 
       const requestBody: any = {
-        input: {},
+        input: isLimitedVoice ? { text: cleanText } : { ssml: buildSSML(cleanText, style) },
         voice: {
           languageCode: voiceConfig.languageCode,
           name: voiceConfig.name,
-          ssmlGender: voiceConfig.ssmlGender as any
         },
         audioConfig: {
           audioEncoding: "MP3",
-          speakingRate: parseFloat(styleParams.rate || "1.0"),
-          pitch: parseFloat((styleParams.pitch || "0st").replace("st", "")) || 0,
-          volumeGainDb: styleParams.volume ? parseFloat(styleParams.volume.replace("dB", "")) : 0,
-          effectsProfileId: ["headphone-class-device"]
+          ...(isLimitedVoice ? {} : { effectsProfileId: ["headphone-class-device"] }),
         }
       };
-
-      // Use SSML if emphasis is needed, or just plain text otherwise
-      // Google TTS applies rate/pitch via audioConfig globally, but SSML prosody is more granular.
-      // For now, we'll stick to global audioConfig changes for simplicity unless SSML is required.
-      // However, pitch in audioConfig is semitones, rate is multiplier.
-      
-      requestBody.input.text = cleanText;
 
       const response = await tts.text.synthesize({
         requestBody
@@ -204,7 +228,7 @@ export async function generateSingleSpeakerAudio(
           scopeIssue: true,
           authMethod
         }, {
-          model: "google-cloud-tts-neural2"
+          model: "google-cloud-tts-journey"
         });
         
         return {
@@ -230,7 +254,7 @@ export async function generateSingleSpeakerAudio(
           voice: voiceConfig.name,
           attempt
         }, {
-          model: "google-cloud-tts-neural2"
+          model: "google-cloud-tts-journey"
         });
         
         return {
