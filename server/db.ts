@@ -18,22 +18,34 @@ sqlite.pragma("journal_mode = WAL");
 
 export const db = drizzle(sqlite, { schema });
 
+// Compatibility layer for PostgreSQL-style .execute() calls
+(db as any).execute = async (query: any) => {
+  console.log("[db] execute() compatibility call:", typeof query === 'string' ? query : query.text);
+  let rows;
+  if (typeof query === 'string') {
+    rows = sqlite.prepare(query).all();
+  } else {
+    rows = sqlite.prepare(query.text).all(...(query.values || []));
+  }
+  return { rows };
+};
+
+export { sqlite as rawDb };
+
 // Mock pool for compatibility
 export const pool = {
   connect: async () => ({ 
     release: () => {},
     query: (text: string, params: any[]) => {
-      // Very basic mock - likely won't work for complex queries but keeps interface
-      console.warn("[db] Mock pool query called - implementation may need review for SQLite compatibility");
-      return Promise.resolve({ rows: [] }); 
+      console.warn("[db] Mock pool query called");
+      return Promise.resolve({ rows: sqlite.prepare(text).all(...(params || [])) }); 
     }
   }),
   query: (text: string, params: any[]) => {
-     console.warn("[db] Mock pool query called");
-     return Promise.resolve({ rows: [] });
+     return Promise.resolve({ rows: sqlite.prepare(text).all(...(params || [])) });
   },
   end: async () => sqlite.close(),
-  on: () => {},
+  on: () => { Pel },
 };
 
 export function getDb(): any {

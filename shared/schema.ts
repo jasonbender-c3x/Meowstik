@@ -858,6 +858,7 @@ export const toolCallSchema = z.object({
     "write",     // Output to chat window (alias: send_chat)
     "log",       // Append to log file (alias: append)
     "say",       // HD voice output (no alias needed)
+    "soundboard", // Play a synthesized sound effect by name
     // ssh: persistent 2-way connection
     
     // ==========================================================================
@@ -908,6 +909,7 @@ export const toolCallSchema = z.object({
     "debug_echo",
     // Contacts
     "contacts_list", "contacts_search", "contacts_get", "contacts_create", "contacts_update", "contacts_delete",
+    "copilot_send_report",
     // Twilio SMS/Voice
     "sms_send", "sms_list", "call_make", "call_list",
     // Arduino/Hardware IoT
@@ -938,6 +940,15 @@ export const sendChatParamsSchema = z.object({
   content: z.string().min(1, "Content cannot be empty"),
 });
 export type SendChatParams = z.infer<typeof sendChatParamsSchema>;
+
+export const copilotSendReportParamsSchema = z.object({
+  title: z.string().min(5),
+  summary: z.string().min(20),
+  details: z.string().optional(),
+  priority: z.enum(["low", "medium", "high"]).optional().default("medium"),
+  files: z.array(z.string()).optional(),
+});
+export type CopilotSendReportParams = z.infer<typeof copilotSendReportParamsSchema>;
 
 // =============================================================================
 // BROWSER CONTROL PARAMETER SCHEMA
@@ -2700,5 +2711,3 @@ export const insertTodoItemSchema = createInsertSchema(todoItems).omit({
 });
 export type InsertTodoItem = z.infer<typeof insertTodoItemSchema>;
 export type TodoItem = typeof todoItems.$inferSelect;
-
-

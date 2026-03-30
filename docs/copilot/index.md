@@ -37,3 +37,10 @@ docs/copilot/
 - [Recommended Document Moves](./recommended-moves.md)
 - [AutoDoc Workflow Proposal](../proposals/PROPOSAL-002-github-autodoc-workflow.md)
 - [State of the Art Report](../proposals/REPORT-001-codebase-understanding-automation.md)
+
+## Copilot SDK Bridge
+
+- **Purpose:** Allows the Meowstik LLM to prepare a report describing desired code fixes and hand that report to GitHub Copilot for tactical implementation without the LLM editing the repository directly.
+- **How it works:** Structured responses can call the `copilot_send_report` tool, which writes a summary file to `docs/copilot/intake/`, then routes the request through `@github/copilot-sdk` to send a message to the Copilot CLI. Copilot can later run using the same workspace so that the report is visible in the terminal/logs.
+- **Configuration:** Set `COPILOT_MODEL` (defaults to `gpt-5`), optionally point to an existing CLI via `COPILOT_CLI_URL`, override `COPILOT_CLI_PATH`, and provide `COPILOT_GITHUB_TOKEN` if you want to authenticate with a specific token. Use `COPILOT_LOG_LEVEL`/`COPILOT_USE_LOGGED_IN_USER` to tune logging and authentication mode.
+- **Next steps:** After the LLM writes a report, run Copilot manually (e.g., `copilot chat` or `gh copilot` in the repo root) so the terminal stays visible to you. The generated report files contain the prompt that was sent and can be referenced again if you need to rerun Copilot later.

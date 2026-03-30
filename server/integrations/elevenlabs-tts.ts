@@ -177,7 +177,7 @@ export async function generateSingleSpeakerAudio(
       // Generate audio using ElevenLabs API
       const audioStream = await client.textToSpeech.convert(voiceConfig.voiceId, {
         text: cleanText,
-        model_id: "eleven_turbo_v2_5", // Fast, high-quality model
+        model_id: "eleven_multilingual_v2", // Fast, high-quality model
         voice_settings: {
           stability: styleParams.stability,
           similarity_boost: styleParams.similarity_boost,
@@ -228,7 +228,7 @@ export async function generateSingleSpeakerAudio(
           attempt,
           authIssue: true
         }, {
-          model: "eleven_turbo_v2_5"
+          model: "eleven_multilingual_v2"
         });
         
         return {
@@ -249,7 +249,7 @@ export async function generateSingleSpeakerAudio(
           attempt,
           quotaIssue: true
         }, {
-          model: "eleven_turbo_v2_5"
+          model: "eleven_multilingual_v2"
         });
         
         return {
@@ -275,7 +275,7 @@ export async function generateSingleSpeakerAudio(
           voice: voiceConfig.voiceId,
           attempt
         }, {
-          model: "eleven_turbo_v2_5"
+          model: "eleven_multilingual_v2"
         });
         
         return {

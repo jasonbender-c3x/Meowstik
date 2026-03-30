@@ -6,9 +6,21 @@
 
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LOG_DIR="/home/runner/logs"
 PORT=5000
 FRONTEND_PORT=5173
+
+# Screen recording helper (optional).
+SCREEN_RECORD_HELPER="${SCRIPT_DIR}/scripts/screen-record.sh"
+SCREEN_RECORD_HELPER_LOADED=0
+if [ -r "$SCREEN_RECORD_HELPER" ]; then
+    # shellcheck source=/dev/null
+    source "$SCREEN_RECORD_HELPER"
+    SCREEN_RECORD_HELPER_LOADED=1
+else
+    echo "⚠️  Screen recording helper missing at $SCREEN_RECORD_HELPER"
+fi
 
 mkdir -p "$LOG_DIR"
 
@@ -22,11 +34,20 @@ fuser -k -n tcp "$FRONTEND_PORT" 2>/dev/null || true
 pkill -f "tsx server/index.ts" 2>/dev/null || true
 
 # 2. Check for Screen Recording (ffmpeg)
+RECORD_DISPLAY="${DISPLAY:-:0}"
+RECORD_OUTPUT_DIR="${MEOW_RECORD_DIR:-/mnt/scrnrec}"
+if [ ! -d "$RECORD_OUTPUT_DIR" ] || ! touch "$RECORD_OUTPUT_DIR/.meowstik-write-test" >/dev/null 2>&1; then
+    RECORD_OUTPUT_DIR="$LOG_DIR"
+else
+    rm -f "$RECORD_OUTPUT_DIR/.meowstik-write-test" >/dev/null 2>&1
+fi
+
 if pgrep -x "ffmpeg" > /dev/null; then
     echo "🎥 MEOW: Screen recording is already active."
+elif [ "$SCREEN_RECORD_HELPER_LOADED" -eq 1 ]; then
+    start_screen_recording "$RECORD_DISPLAY" "$RECORD_OUTPUT_DIR" "$LOG_DIR"
 else
-    echo "🎥 MEOW: Starting screen recording..."
-    nohup ffmpeg -f x11grab -i :99 -r 15 -s 1920x1080 "$LOG_DIR/meowstik_recording_$(date +%s).mp4" > "$LOG_DIR/recorder.log" 2>&1 &
+    echo "🎥 MEOW: Screen recording helper unavailable; skipping."
 fi
 
 # 3. Check for Chrome (Debug Enabled) and open Meowstik
@@ -44,6 +65,27 @@ else
         --user-data-dir=/tmp/chrome-debug \
         --new-window "$CHROME_URL" \
         > "$LOG_DIR/chrome.log" 2>&1 &
+fi
+
+# 4. Open a log terminal window (larger font)
+if command -v qterminal >/dev/null 2>&1; then
+    echo "📟 MEOW: Opening qterminal for server logs..."
+    nohup qterminal \
+        --title "Meowstik Server Logs" \
+        --font "Monospace,14" \
+        --profile "MeowLogs" \
+        -e "tail -f $LOG_DIR/server.log" \
+        > /dev/null 2>&1 &
+elif command -v xterm >/dev/null 2>&1; then
+    echo "📟 MEOW: Opening xterm for server logs..."
+    nohup xterm \
+        -T "Meowstik Server Logs" \
+        -fa "Monospace" \
+        -fs 14 \
+        -e "tail -f $LOG_DIR/server.log" \
+        > /dev/null 2>&1 &
+else
+    echo "📟 MEOW: No supported terminal (qterminal/xterm) found for logs."
 fi
 
 # 4. Start the Server

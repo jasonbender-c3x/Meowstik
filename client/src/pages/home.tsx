@@ -1,4 +1,3 @@
-
 /**
  * ╔══════════════════════════════════════════════════════════════════════════════╗
  * ║                        HOME.TSX - MAIN CHAT INTERFACE                         ║
@@ -66,7 +65,7 @@ import { VerbositySlider } from "@/components/ui/verbosity-slider";
 import { LocalDriveButton } from "@/components/ui/local-drive-button";
 import { useLocation } from "wouter";
 import { ResizablePanel, ResizablePanelGroup, ResizableHandle } from "@/components/ui/resizable";
-import { Canvas } from "@/components/ide/side-workbench";
+import { SideWorkbench } from "@/components/ide/side-workbench";
 
 /**
  * Framer Motion - Animation library
@@ -86,6 +85,7 @@ import logo from "@assets/generated_images/cute_cat_logo_icon.png";
  * - Message: Individual message (id, chatId, role, content, timestamp)
  */
 import type { Chat, Message } from "@shared/schema";
+import { playSound } from "@/lib/soundboard";
 
 import { useTTS } from "@/contexts/tts-context";
 import { useAuth } from "@/hooks/useAuth";
@@ -749,6 +749,13 @@ export default function Home() {
                 }
               }
 
+              // Handle soundboard event - play synthesized sound effect
+              if (data.soundboard) {
+                const { sound, volume } = data.soundboard as { sound: string; volume?: number };
+                console.log(`[SOUNDBOARD] Playing: ${sound}`);
+                playSound(sound, volume ?? 0.8);
+              }
+
               // Handle metadata event (tool results, file ops, autoexec)
               if (data.metadata) {
                 streamMetadata = data.metadata;
@@ -1316,7 +1323,7 @@ export default function Home() {
             <>
               <ResizableHandle withHandle />
               <ResizablePanel defaultSize={42} minSize={24} maxSize={58}>
-                <Canvas
+                <SideWorkbench
                   activeTab={workbenchTab}
                   onActiveTabChange={setWorkbenchTab}
                   onCollapse={() => setIsWorkbenchOpen(false)}
@@ -1536,6 +1543,3 @@ function CardButton({ icon, text, subtext, onClick, testId }: { icon: React.Reac
         </button>
     )
 }
-
-
-

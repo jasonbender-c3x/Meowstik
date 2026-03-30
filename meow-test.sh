@@ -4,44 +4,53 @@
 # MEOWSTIK TEST STARTUP SCRIPT
 # ==========================================
 
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCREEN_RECORD_HELPER="${SCRIPT_DIR}/scripts/screen-record.sh"
+SCREEN_RECORD_HELPER_LOADED=0
+if [ -r "$SCREEN_RECORD_HELPER" ]; then
+    # shellcheck source=/dev/null
+    source "$SCREEN_RECORD_HELPER"
+    SCREEN_RECORD_HELPER_LOADED=1
+else
+    echo "⚠️  Screen recording helper missing at $SCREEN_RECORD_HELPER"
+fi
+
 echo "🐱 MEOW-TEST: Waking up Meowstik..."
 
 # 1. Kill any existing processes on port 5000 (Backend) and 5173 (Frontend)
 echo "🧹 MEOW-TEST: Clearing ports 5000 and 5173..."
-fuser -k -n tcp 5000 2>/dev/null
-fuser -k -n tcp 5173 2>/dev/null
+fuser -k -n tcp 5000 2>/dev/null || true
+fuser -k -n tcp 5173 2>/dev/null || true
 # Force kill any lingering node processes related to server
-pkill -f "tsx server/index.ts" 2>/dev/null
-pkill -f "vite" 2>/dev/null
+pkill -f "tsx server/index.ts" 2>/dev/null || true
+pkill -f "vite" 2>/dev/null || true
 
 # 2. Kill zombie processes
 echo "🧟 MEOW-TEST: Hunting zombie processes..."
 ZOMBIES=$(ps -ef | grep defunct | grep -v grep | awk '{print $2}')
-if [ ! -z "$ZOMBIES" ]; then
+if [ -n "$ZOMBIES" ]; then
     echo "Killing zombies: $ZOMBIES"
-    echo "$ZOMBIES" | xargs kill -9 2>/dev/null
+    echo "$ZOMBIES" | xargs kill -9 2>/dev/null || true
 else
     echo "No zombies found."
 fi
 
 # 3. Check for Screen Recording (ffmpeg)
-# We'll try to record to /home/runner/logs/ if /mnt/scrnrec is unavailable
-RECORD_DIR="/home/runner/logs"
-mkdir -p "$RECORD_DIR"
+LOG_DIR="/home/runner/logs"
+mkdir -p "$LOG_DIR"
+RECORD_DIR="${MEOW_RECORD_DIR:-/mnt/scrnrec}"
+if [ ! -d "$RECORD_DIR" ]; then
+    RECORD_DIR="$LOG_DIR"
+fi
 
 if pgrep -x "ffmpeg" > /dev/null; then
     echo "🎥 MEOW-TEST: Screen recording is already active."
+elif [ "$SCREEN_RECORD_HELPER_LOADED" -eq 1 ]; then
+    start_screen_recording "${DISPLAY:-:0}" "$RECORD_DIR" "$LOG_DIR"
 else
-    echo "🎥 MEOW-TEST: Starting screen recording on display :0..."
-    # We use a slightly more robust ffmpeg command.
-    # We'll save it to the logs directory.
-    nohup ffmpeg -f x11grab -video_size 1920x1200 -i :0 -r 15 -f mp4 "$RECORD_DIR/meowstik_recording_$(date +%s).mp4" > /tmp/ffmpeg.log 2>&1 &
-    sleep 2
-    if pgrep -x "ffmpeg" > /dev/null; then
-        echo "🎥 MEOW-TEST: ffmpeg started successfully."
-    else
-        echo "⚠️  MEOW-TEST: ffmpeg failed to start. Check /tmp/ffmpeg.log"
-    fi
+    echo "🎥 MEOW-TEST: Screen recording helper unavailable; skipping."
 fi
 
 # 4. Check for Chrome (Debug Enabled)
@@ -60,7 +69,6 @@ fi
 
 # 6. Start the Server
 echo "🚀 MEOW-TEST: Launching Meowstik Core..."
-echo "📊 Logs will be saved to /home/runner/logs/server.log"
+echo "📊 Logs will be saved to $LOG_DIR/server.log"
 
-# We use tee to show in current terminal AND save to log file
-pnpm run dev 2>&1 | tee /home/runner/logs/server.log
+pnpm run dev 2>&1 | tee "$LOG_DIR/server.log"

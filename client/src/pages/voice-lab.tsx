@@ -1,489 +1,373 @@
-
 /**
- * Voice Lab - AI-Powered Voice Testing & Experimentation
- * 
- * Dual-purpose page for:
- * 1. Voice sampling and testing with AI-generated text
- * 2. Sound effects and expressiveness testing
+ * Voice Showcase — Investor Demo
+ * ElevenLabs Multilingual v2 · Nine voices · Nine personalities
  */
 
-import { useState, useCallback } from "react";
-import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Slider } from "@/components/ui/slider";
-import { ArrowLeft, Play, Square, Sparkles, Loader2, Volume2, Wand2, Settings2 } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { ArrowLeft, ChevronRight, Loader2, Play, Square } from "lucide-react";
 import { Link } from "wouter";
-import { useToast } from "@/hooks/use-toast";
 
-const VOICES = [
-  { id: "Kore", gender: "Female", style: "Calm, Professional", code: "en-US-Neural2-C" },
-  { id: "Puck", gender: "Male", style: "Deep, Assertive", code: "en-US-Neural2-D" },
-  { id: "Charon", gender: "Male", style: "Steady, News", code: "en-US-Neural2-A" },
-  { id: "Fenrir", gender: "Male", style: "Energetic", code: "en-US-Neural2-J" },
-  { id: "Aoede", gender: "Female", style: "Soft, Storyteller", code: "en-US-Neural2-E" },
-  { id: "Leda", gender: "Female", style: "Warm, Conversational", code: "en-US-Neural2-F" },
-  { id: "Orus", gender: "Male", style: "Authoritative", code: "en-US-Neural2-I" },
-  { id: "Zephyr", gender: "Female", style: "Bright, Assistant", code: "en-US-Neural2-H" },
+// ─── Voice definitions ────────────────────────────────────────────────────────
+
+interface ShowcaseVoice {
+  id: string;
+  name: string;
+  gender: "F" | "M";
+  label: string;
+  color: string;
+  demo: string;
+}
+
+const VOICES: ShowcaseVoice[] = [
+  {
+    id: "Rachel",
+    name: "Rachel",
+    gender: "F",
+    label: "Warm · Professional",
+    color: "#a78bfa",
+    demo: "Welcome to Meowstik. We've been looking forward to showing you what's possible.",
+  },
+  {
+    id: "Bella",
+    name: "Bella",
+    gender: "F",
+    label: "Soft · Intimate",
+    color: "#f472b6",
+    demo: "(whispering) You know what the others don't? The real magic is what happens when no one's watching.",
+  },
+  {
+    id: "Elli",
+    name: "Elli",
+    gender: "F",
+    label: "Bright · Playful",
+    color: "#fb923c",
+    demo: "Oh! [giggles softly] Sorry — I just get so excited when I get to show off. Okay. Watch this.",
+  },
+  {
+    id: "Domi",
+    name: "Domi",
+    gender: "F",
+    label: "Strong · Confident",
+    color: "#ef4444",
+    demo: "Meowstik doesn't ask for permission. It identifies the problem, solves it, and moves on.",
+  },
+  {
+    id: "Freya",
+    name: "Freya",
+    gender: "F",
+    label: "Mature · Authoritative",
+    color: "#14b8a6",
+    demo: "In ten years, every competitive advantage will be measured in how intelligently you operate. The question is whether you start now.",
+  },
+  {
+    id: "Antoni",
+    name: "Antoni",
+    gender: "M",
+    label: "Smooth · Reassuring",
+    color: "#38bdf8",
+    demo: "Whatever's been keeping you up at night? That's exactly what we built this for. You can sleep now.",
+  },
+  {
+    id: "Josh",
+    name: "Josh",
+    gender: "M",
+    label: "Deep · Cinematic",
+    color: "#818cf8",
+    demo: "The future doesn't wait. It doesn't ask if you're ready. Meowstik doesn't either.",
+  },
+  {
+    id: "Adam",
+    name: "Adam",
+    gender: "M",
+    label: "Commanding · Deep",
+    color: "#22c55e",
+    demo: "Three seconds. That's all it takes for Meowstik to understand your entire operation.",
+  },
+  {
+    id: "Sam",
+    name: "Sam",
+    gender: "M",
+    label: "Casual · Direct",
+    color: "#eab308",
+    demo: "Look — I'll be straight with you. This thing is going to change how you work. Full stop.",
+  },
 ];
 
-const EXPRESSIVENESS_STYLES = [
-  { value: "natural", label: "Natural", description: "Standard conversational tone" },
-  { value: "cheerful", label: "Cheerful", description: "Upbeat and positive" },
-  { value: "serious", label: "Serious", description: "Formal and grave" },
-  { value: "excited", label: "Excited", description: "Energetic and enthusiastic" },
-  { value: "calm", label: "Calm", description: "Soothing and peaceful" },
-  { value: "dramatic", label: "Dramatic", description: "Theatrical and intense" },
-  { value: "whisper", label: "Whisper", description: "Soft and intimate" },
-  { value: "news", label: "News Anchor", description: "Professional broadcast style" },
-  { value: "warm", label: "Warm", description: "Friendly and inviting" },
-  { value: "professional", label: "Professional", description: "Business-like" },
-];
+// ─── Waveform component ───────────────────────────────────────────────────────
 
-const SOUND_EFFECTS = [
-  { id: "pause-short", label: "Short Pause", ssml: '<break time="0.5s"/>' },
-  { id: "pause-long", label: "Long Pause", ssml: '<break time="2s"/>' },
-  { id: "emphasis-strong", label: "Strong Emphasis", ssml: '<emphasis level="strong">emphasized</emphasis>' },
-  { id: "emphasis-moderate", label: "Moderate Emphasis", ssml: '<emphasis level="moderate">emphasized</emphasis>' },
-  { id: "speed-slow", label: "Slow Speech", ssml: '<prosody rate="slow">slower</prosody>' },
-  { id: "speed-fast", label: "Fast Speech", ssml: '<prosody rate="fast">faster</prosody>' },
-  { id: "pitch-high", label: "High Pitch", ssml: '<prosody pitch="+20%">higher</prosody>' },
-  { id: "pitch-low", label: "Low Pitch", ssml: '<prosody pitch="-20%">lower</prosody>' },
-  { id: "volume-soft", label: "Soft Volume", ssml: '<prosody volume="soft">quiet</prosody>' },
-  { id: "volume-loud", label: "Loud Volume", ssml: '<prosody volume="loud">louder</prosody>' },
-];
-
-const TEST_SCENARIOS = [
-  { id: "greeting", label: "Greeting", prompt: "Generate a friendly professional greeting" },
-  { id: "explanation", label: "Explanation", prompt: "Explain how neural networks work in simple terms" },
-  { id: "story", label: "Story", prompt: "Tell a short exciting story about space exploration" },
-  { id: "instruction", label: "Instruction", prompt: "Give step-by-step instructions for making coffee" },
-  { id: "news", label: "News Report", prompt: "Write a brief news report about AI advancements" },
-  { id: "poetry", label: "Poetry", prompt: "Write a short poem about technology" },
-  { id: "dialogue", label: "Dialogue", prompt: "Create a conversation between two AI researchers" },
-  { id: "presentation", label: "Presentation", prompt: "Write an introduction for a tech presentation" },
-];
-
-export default function VoiceLabPage() {
-  const [selectedVoice, setSelectedVoice] = useState("Kore");
-  const [selectedStyle, setSelectedStyle] = useState("natural");
-  const [testText, setTestText] = useState("");
-  const [userPrompt, setUserPrompt] = useState("");
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [isSpeaking, setIsSpeaking] = useState(false);
-  const [expressiveness, setExpressiveness] = useState(50);
-  const [speechRate, setSpeechRate] = useState(50);
-  const [pitch, setPitch] = useState(50);
-  const { toast } = useToast();
-
-  const generateTestText = useCallback(async (prompt: string) => {
-    setIsGenerating(true);
-    try {
-      const response = await fetch('/api/chat/generate-text', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          prompt: `Generate expressive text for voice testing. ${prompt}. Keep it under 200 words and make it engaging.`,
-          maxTokens: 300
-        }),
-      });
-
-      if (!response.ok) throw new Error('Failed to generate text');
-      
-      const data = await response.json();
-      setTestText(data.text || data.content || "Generated text will appear here...");
-      toast({ title: "Text Generated", description: "AI has created test text for you!" });
-    } catch (error) {
-      console.error('Error generating text:', error);
-      toast({ 
-        title: "Generation Failed", 
-        description: "Could not generate text. Please try again.",
-        variant: "destructive" 
-      });
-    } finally {
-      setIsGenerating(false);
-    }
-  }, [toast]);
-
-  const handleQuickGenerate = useCallback((scenario: typeof TEST_SCENARIOS[0]) => {
-    generateTestText(scenario.prompt);
-  }, [generateTestText]);
-
-  const handleCustomGenerate = useCallback(() => {
-    if (!userPrompt.trim()) {
-      toast({ title: "Empty Prompt", description: "Please enter a prompt first.", variant: "destructive" });
-      return;
-    }
-    generateTestText(userPrompt);
-  }, [userPrompt, generateTestText, toast]);
-
-  const handleSpeak = useCallback(async () => {
-    if (!testText.trim()) {
-      toast({ title: "No Text", description: "Generate or enter text first.", variant: "destructive" });
-      return;
-    }
-
-    setIsSpeaking(true);
-    try {
-      // Build SSML with expressiveness controls
-      let ssmlText = testText;
-      
-      // Apply speech rate
-      if (speechRate !== 50) {
-        const rate = speechRate < 50 ? "slow" : "fast";
-        const percentage = Math.abs(speechRate - 50) * 2; // 0-100%
-        ssmlText = `<prosody rate="${rate}">${ssmlText}</prosody>`;
-      }
-
-      // Apply pitch
-      if (pitch !== 50) {
-        const pitchChange = (pitch - 50) * 0.4; // -20% to +20%
-        ssmlText = `<prosody pitch="${pitchChange > 0 ? '+' : ''}${pitchChange}%">${ssmlText}</prosody>`;
-      }
-
-      // Apply style
-      if (selectedStyle !== "natural") {
-        const stylePrefix = {
-          cheerful: "Say cheerfully: ",
-          serious: "Say seriously: ",
-          excited: "Say excitedly: ",
-          calm: "Say calmly: ",
-          dramatic: "Say dramatically: ",
-          whisper: "Whisper: ",
-          news: "Say like a news anchor: ",
-          warm: "Say warmly: ",
-          professional: "Say professionally: ",
-        }[selectedStyle] || "";
-        
-        ssmlText = stylePrefix + ssmlText;
-      }
-
-      const response = await fetch('/api/tts/generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          text: ssmlText,
-          voice: selectedVoice,
-        }),
-      });
-
-      if (!response.ok) throw new Error('TTS generation failed');
-
-      const data = await response.json();
-      
-      // Play audio
-      if (data.audioBase64) {
-        const audio = new Audio(`data:audio/mp3;base64,${data.audioBase64}`);
-        audio.play();
-        audio.onended = () => setIsSpeaking(false);
-      }
-    } catch (error) {
-      console.error('Error speaking:', error);
-      toast({ 
-        title: "Speech Failed", 
-        description: "Could not generate speech. Please try again.",
-        variant: "destructive" 
-      });
-      setIsSpeaking(false);
-    }
-  }, [testText, selectedVoice, selectedStyle, speechRate, pitch, toast]);
-
-  const insertSoundEffect = useCallback((effect: typeof SOUND_EFFECTS[0]) => {
-    const cursorPos = 0; // In a real implementation, get cursor position
-    const beforeCursor = testText.substring(0, cursorPos);
-    const afterCursor = testText.substring(cursorPos);
-    setTestText(beforeCursor + effect.ssml + afterCursor);
-    toast({ title: "Effect Added", description: `${effect.label} inserted into text` });
-  }, [testText, toast]);
-
+function Waveform({ active, color }: { active: boolean; color: string }) {
+  const bars = [0.4, 0.7, 1.0, 0.6, 0.85, 0.5, 0.9, 0.65, 0.75, 0.45];
   return (
-    <div className="min-h-screen bg-background flex flex-col">
-      {/* Header */}
-      <header className="border-b bg-card px-4 py-3">
-        <div className="flex items-center gap-4">
-          <Link href="/">
-            <Button variant="ghost" size="icon">
-              <ArrowLeft className="h-4 w-4" />
-            </Button>
-          </Link>
-          <div className="flex-1">
-            <h1 className="text-xl font-semibold flex items-center gap-2">
-              <Wand2 className="h-5 w-5 text-primary" />
-              Voice Lab
-            </h1>
-            <p className="text-sm text-muted-foreground">
-              AI-powered voice testing and experimentation
-            </p>
-          </div>
-          <Link href="/sound-settings">
-            <Button variant="outline" size="sm">
-              <Settings2 className="h-4 w-4 mr-2" />
-              Sound Settings
-            </Button>
-          </Link>
-        </div>
-      </header>
-
-      {/* Main Content */}
-      <main className="flex-1 overflow-hidden">
-        <ScrollArea className="h-full">
-          <div className="p-6 max-w-7xl mx-auto space-y-6">
-            <Tabs defaultValue="generate" className="w-full">
-              <TabsList className="grid w-full grid-cols-3">
-                <TabsTrigger value="generate">AI Generate</TabsTrigger>
-                <TabsTrigger value="voices">Voice Sampling</TabsTrigger>
-                <TabsTrigger value="effects">Sound Effects</TabsTrigger>
-              </TabsList>
-
-              {/* AI Generate Tab */}
-              <TabsContent value="generate" className="space-y-6">
-                <div className="grid md:grid-cols-2 gap-6">
-                  {/* Quick Scenarios */}
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="text-lg flex items-center gap-2">
-                        <Sparkles className="h-5 w-5 text-primary" />
-                        Quick Scenarios
-                      </CardTitle>
-                      <CardDescription>
-                        Generate test text for common use cases
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-2">
-                      {TEST_SCENARIOS.map(scenario => (
-                        <Button
-                          key={scenario.id}
-                          variant="outline"
-                          className="w-full justify-start"
-                          onClick={() => handleQuickGenerate(scenario)}
-                          disabled={isGenerating}
-                        >
-                          {scenario.label}
-                        </Button>
-                      ))}
-                    </CardContent>
-                  </Card>
-
-                  {/* Custom Prompt */}
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="text-lg">Custom Prompt</CardTitle>
-                      <CardDescription>
-                        Describe what you want the AI to say
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      <Textarea
-                        value={userPrompt}
-                        onChange={(e) => setUserPrompt(e.target.value)}
-                        placeholder="E.g., 'Explain quantum computing to a 5-year-old' or 'Give a motivational speech about perseverance'"
-                        className="min-h-[150px]"
-                      />
-                      <Button 
-                        onClick={handleCustomGenerate}
-                        disabled={isGenerating}
-                        className="w-full"
-                      >
-                        {isGenerating ? (
-                          <>
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            Generating...
-                          </>
-                        ) : (
-                          <>
-                            <Sparkles className="mr-2 h-4 w-4" />
-                            Generate Text
-                          </>
-                        )}
-                      </Button>
-                    </CardContent>
-                  </Card>
-                </div>
-
-                {/* Generated Text & Controls */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Generated Text & Voice Controls</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <Textarea
-                      value={testText}
-                      onChange={(e) => setTestText(e.target.value)}
-                      placeholder="AI-generated text will appear here, or type your own..."
-                      className="min-h-[200px] font-mono"
-                    />
-
-                    <div className="grid md:grid-cols-3 gap-4">
-                      {/* Voice Selection */}
-                      <div className="space-y-2">
-                        <Label>Voice</Label>
-                        <Select value={selectedVoice} onValueChange={setSelectedVoice}>
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {VOICES.map(voice => (
-                              <SelectItem key={voice.id} value={voice.id}>
-                                {voice.id} - {voice.style}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-
-                      {/* Style Selection */}
-                      <div className="space-y-2">
-                        <Label>Expressiveness</Label>
-                        <Select value={selectedStyle} onValueChange={setSelectedStyle}>
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {EXPRESSIVENESS_STYLES.map(style => (
-                              <SelectItem key={style.value} value={style.value}>
-                                {style.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-
-                      {/* Speak Button */}
-                      <div className="space-y-2">
-                        <Label>Action</Label>
-                        <Button 
-                          onClick={handleSpeak}
-                          disabled={isSpeaking || !testText.trim()}
-                          className="w-full"
-                        >
-                          {isSpeaking ? (
-                            <>
-                              <Square className="mr-2 h-4 w-4" />
-                              Speaking...
-                            </>
-                          ) : (
-                            <>
-                              <Play className="mr-2 h-4 w-4" />
-                              Speak
-                            </>
-                          )}
-                        </Button>
-                      </div>
-                    </div>
-
-                    {/* Fine-tuning Sliders */}
-                    <div className="space-y-4 pt-4 border-t">
-                      <div className="space-y-2">
-                        <Label>Speech Rate: {speechRate}%</Label>
-                        <Slider
-                          value={[speechRate]}
-                          onValueChange={([value]) => setSpeechRate(value)}
-                          min={0}
-                          max={100}
-                          step={5}
-                        />
-                        <div className="flex justify-between text-xs text-muted-foreground">
-                          <span>Slower</span>
-                          <span>Normal</span>
-                          <span>Faster</span>
-                        </div>
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label>Pitch: {pitch}%</Label>
-                        <Slider
-                          value={[pitch]}
-                          onValueChange={([value]) => setPitch(value)}
-                          min={0}
-                          max={100}
-                          step={5}
-                        />
-                        <div className="flex justify-between text-xs text-muted-foreground">
-                          <span>Lower</span>
-                          <span>Normal</span>
-                          <span>Higher</span>
-                        </div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </TabsContent>
-
-              {/* Voice Sampling Tab */}
-              <TabsContent value="voices" className="space-y-6">
-                <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
-                  {VOICES.map(voice => (
-                    <Card 
-                      key={voice.id}
-                      className={`cursor-pointer transition-all ${selectedVoice === voice.id ? 'ring-2 ring-primary' : ''}`}
-                      onClick={() => setSelectedVoice(voice.id)}
-                    >
-                      <CardHeader className="pb-3">
-                        <CardTitle className="text-base flex items-center gap-2">
-                          <Volume2 className="h-4 w-4" />
-                          {voice.id}
-                        </CardTitle>
-                        <CardDescription className="text-xs">
-                          {voice.gender} • {voice.style}
-                        </CardDescription>
-                      </CardHeader>
-                      <CardContent>
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          className="w-full"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setSelectedVoice(voice.id);
-                            handleSpeak();
-                          }}
-                        >
-                          <Play className="h-3 w-3 mr-1" />
-                          Sample
-                        </Button>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              </TabsContent>
-
-              {/* Sound Effects Tab */}
-              <TabsContent value="effects" className="space-y-6">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>SSML Sound Effects</CardTitle>
-                    <CardDescription>
-                      Click to insert effects into your text
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-3">
-                      {SOUND_EFFECTS.map(effect => (
-                        <Button
-                          key={effect.id}
-                          variant="outline"
-                          onClick={() => insertSoundEffect(effect)}
-                          className="justify-start"
-                        >
-                          {effect.label}
-                        </Button>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              </TabsContent>
-            </Tabs>
-          </div>
-        </ScrollArea>
-      </main>
+    <div style={{ display: "flex", alignItems: "center", gap: 3, height: 28 }}>
+      {bars.map((h, i) => (
+        <div
+          key={i}
+          style={{
+            width: 3,
+            borderRadius: 2,
+            backgroundColor: active ? color : "#374151",
+            height: active ? `${Math.round(h * 100)}%` : "25%",
+            transition: "height 0.15s ease",
+            animation: active ? `wave-${i % 3} 0.8s ease-in-out infinite` : "none",
+            animationDelay: active ? `${i * 0.08}s` : "0s",
+          }}
+        />
+      ))}
+      <style>{`
+        @keyframes wave-0 { 0%,100%{height:25%} 50%{height:90%} }
+        @keyframes wave-1 { 0%,100%{height:40%} 50%{height:70%} }
+        @keyframes wave-2 { 0%,100%{height:60%} 50%{height:95%} }
+      `}</style>
     </div>
   );
 }
 
+// ─── Voice card ───────────────────────────────────────────────────────────────
 
+interface VoiceCardProps {
+  voice: ShowcaseVoice;
+  isPlaying: boolean;
+  isLoading: boolean;
+  isHighlighted: boolean;
+  onPlay: (voiceId: string) => void;
+  onStop: () => void;
+}
 
+function VoiceCard({ voice, isPlaying, isLoading, isHighlighted, onPlay, onStop }: VoiceCardProps) {
+  return (
+    <div
+      style={{
+        background: isHighlighted ? `${voice.color}18` : "#111827",
+        border: `1px solid ${isHighlighted ? voice.color : "#1f2937"}`,
+        borderRadius: 12,
+        padding: "20px",
+        display: "flex",
+        flexDirection: "column",
+        gap: 14,
+        transition: "all 0.2s ease",
+        boxShadow: isHighlighted ? `0 0 20px ${voice.color}30` : "none",
+      }}
+    >
+      {/* Header */}
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
+        <div>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <span style={{ fontSize: 18, fontWeight: 700, color: "#f9fafb" }}>{voice.name}</span>
+            <span
+              style={{
+                fontSize: 10,
+                fontWeight: 600,
+                letterSpacing: "0.05em",
+                padding: "2px 7px",
+                borderRadius: 20,
+                background: `${voice.color}25`,
+                color: voice.color,
+              }}
+            >
+              {voice.gender === "F" ? "FEMALE" : "MALE"}
+            </span>
+          </div>
+          <div style={{ fontSize: 12, color: "#6b7280", marginTop: 2 }}>{voice.label}</div>
+        </div>
+        <Waveform active={isPlaying} color={voice.color} />
+      </div>
+
+      {/* Demo text */}
+      <p
+        style={{
+          fontSize: 13,
+          color: isHighlighted ? "#d1d5db" : "#9ca3af",
+          lineHeight: 1.6,
+          fontStyle: "italic",
+          margin: 0,
+          flexGrow: 1,
+        }}
+      >
+        "{voice.demo}"
+      </p>
+
+      {/* Play button */}
+      <button
+        onClick={isPlaying ? onStop : () => onPlay(voice.id)}
+        disabled={isLoading}
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: 7,
+          padding: "8px 16px",
+          borderRadius: 8,
+          border: "none",
+          cursor: isLoading ? "wait" : "pointer",
+          fontWeight: 600,
+          fontSize: 13,
+          background: isPlaying ? `${voice.color}30` : isHighlighted ? `${voice.color}20` : "#1f2937",
+          color: isHighlighted ? voice.color : "#9ca3af",
+          transition: "all 0.2s",
+          width: "100%",
+        }}
+      >
+        {isLoading ? (
+          <Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} />
+        ) : isPlaying ? (
+          <Square size={14} />
+        ) : (
+          <Play size={14} />
+        )}
+        {isLoading ? "Generating…" : isPlaying ? "Stop" : "Play"}
+        <style>{`@keyframes spin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }`}</style>
+      </button>
+    </div>
+  );
+}
+
+// ─── Page ─────────────────────────────────────────────────────────────────────
+
+export default function VoiceLabPage() {
+  const [playingId, setPlayingId] = useState<string | null>(null);
+  const [loadingId, setLoadingId] = useState<string | null>(null);
+  const [showcaseRunning, setShowcaseRunning] = useState(false);
+  const [showcaseIdx, setShowcaseIdx] = useState(0);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const showcaseRef = useRef(false);
+
+  const stopCurrent = useCallback(() => {
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current = null;
+    }
+    setPlayingId(null);
+    setLoadingId(null);
+  }, []);
+
+  const playVoice = useCallback(async (voiceId: string): Promise<boolean> => {
+    stopCurrent();
+    const voice = VOICES.find(v => v.id === voiceId)!;
+    setLoadingId(voiceId);
+
+    try {
+      const res = await fetch("/api/tts/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: voice.demo, voice: voiceId, provider: "elevenlabs" }),
+      });
+      if (!res.ok) throw new Error("TTS failed");
+      const data = await res.json();
+      if (!data.audioBase64) throw new Error("No audio");
+
+      const audio = new Audio(`data:audio/mpeg;base64,${data.audioBase64}`);
+      audioRef.current = audio;
+      setLoadingId(null);
+      setPlayingId(voiceId);
+
+      return new Promise<boolean>(resolve => {
+        audio.onended = () => { setPlayingId(null); resolve(true); };
+        audio.onerror = () => { setPlayingId(null); resolve(false); };
+        audio.play().catch(() => { setPlayingId(null); resolve(false); });
+      });
+    } catch {
+      setLoadingId(null);
+      setPlayingId(null);
+      return false;
+    }
+  }, [stopCurrent]);
+
+  // Showcase: play all voices in sequence
+  const runShowcase = useCallback(async () => {
+    showcaseRef.current = true;
+    setShowcaseRunning(true);
+    setShowcaseIdx(0);
+
+    for (let i = 0; i < VOICES.length; i++) {
+      if (!showcaseRef.current) break;
+      setShowcaseIdx(i);
+      await playVoice(VOICES[i].id);
+      if (!showcaseRef.current) break;
+      await new Promise(r => setTimeout(r, 600)); // pause between voices
+    }
+
+    showcaseRef.current = false;
+    setShowcaseRunning(false);
+    setPlayingId(null);
+  }, [playVoice]);
+
+  const stopShowcase = useCallback(() => {
+    showcaseRef.current = false;
+    setShowcaseRunning(false);
+    stopCurrent();
+  }, [stopCurrent]);
+
+  // Cleanup on unmount
+  useEffect(() => () => { showcaseRef.current = false; audioRef.current?.pause(); }, []);
+
+  return (
+    <div style={{ minHeight: "100vh", background: "#030712", color: "#f9fafb", fontFamily: "system-ui, sans-serif" }}>
+      {/* Header */}
+      <div style={{ borderBottom: "1px solid #111827", padding: "14px 24px", display: "flex", alignItems: "center", gap: 16 }}>
+        <Link href="/">
+          <button style={{ background: "none", border: "none", cursor: "pointer", color: "#6b7280", display: "flex", alignItems: "center" }}>
+            <ArrowLeft size={18} />
+          </button>
+        </Link>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: 18, fontWeight: 700, letterSpacing: "-0.01em" }}>Voice Showcase</div>
+          <div style={{ fontSize: 12, color: "#6b7280" }}>ElevenLabs Multilingual v2 · {VOICES.length} voices · HD quality</div>
+        </div>
+        <button
+          onClick={showcaseRunning ? stopShowcase : runShowcase}
+          disabled={!!(loadingId)}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            padding: "10px 20px",
+            borderRadius: 8,
+            border: "none",
+            cursor: "pointer",
+            fontWeight: 600,
+            fontSize: 14,
+            background: showcaseRunning ? "#7f1d1d" : "linear-gradient(135deg, #7c3aed, #4f46e5)",
+            color: "#fff",
+          }}
+        >
+          {showcaseRunning ? (
+            <><Square size={14} /> Stop Showcase</>
+          ) : (
+            <><ChevronRight size={14} /> Play Full Showcase</>
+          )}
+        </button>
+      </div>
+
+      {/* Showcase progress bar */}
+      {showcaseRunning && (
+        <div style={{ background: "#111827", padding: "10px 24px", display: "flex", alignItems: "center", gap: 12, fontSize: 13, color: "#9ca3af" }}>
+          <div style={{ flex: 1, height: 3, background: "#1f2937", borderRadius: 2 }}>
+            <div style={{ height: "100%", background: "#7c3aed", borderRadius: 2, width: `${((showcaseIdx + 1) / VOICES.length) * 100}%`, transition: "width 0.4s" }} />
+          </div>
+          <span style={{ color: VOICES[showcaseIdx]?.color }}>{VOICES[showcaseIdx]?.name}</span>
+          <span style={{ color: "#4b5563" }}>{showcaseIdx + 1} / {VOICES.length}</span>
+        </div>
+      )}
+
+      {/* Grid */}
+      <div style={{ padding: "32px 24px", display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: 16, maxWidth: 1200, margin: "0 auto" }}>
+        {VOICES.map((voice, i) => (
+          <VoiceCard
+            key={voice.id}
+            voice={voice}
+            isPlaying={playingId === voice.id}
+            isLoading={loadingId === voice.id}
+            isHighlighted={playingId === voice.id || (showcaseRunning && showcaseIdx === i)}
+            onPlay={playVoice}
+            onStop={stopCurrent}
+          />
+        ))}
+      </div>
+
+      {/* Footer note */}
+      <div style={{ textAlign: "center", padding: "24px", fontSize: 12, color: "#374151" }}>
+        Voices powered by ElevenLabs Multilingual v2 — the industry standard for expressive synthetic speech
+      </div>
+    </div>
+  );
+}

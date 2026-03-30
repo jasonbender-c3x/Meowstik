@@ -98,6 +98,7 @@ import { promptComposer } from "./services/prompt-composer";
 import { toolDispatcher } from "./services/tool-dispatcher";
 import { type ToolCall } from "@shared/schema";
 import { recognizeFamilyMember } from "./services/family-recognition";
+import { parseVoiceStyle } from "./services/style-parser";
 
 import { createApiRouter } from "./routes/index";
 import diagRouter from "./routes/diag";
@@ -479,8 +480,8 @@ export async function registerRoutes(
    *
    * STREAMING PROTOCOL (Server-Sent Events):
    * - Content-Type: text/event-stream
-   * - Each chunk: data: {"text": "..."}\n\n
-   * - Final event: data: {"done": true}\n\n
+   * - Each chunk: data: {"text": "..."}\\n\\n
+   * - Final event: data: {"done": true}\\n\\n
    *
    * Path Parameters:
    * - id: string (UUID) - Chat ID to add message to
@@ -656,11 +657,11 @@ export async function registerRoutes(
               const limitedResult = hasNoTruncate ? resultStr : resultStr.slice(0, 5000);
               return `[Tool ${tr.type} returned: ${limitedResult}]`;
             })
-            .join("\n");
-          content = content + "\n\n" + toolSummary;
+            .join("\\n");
+          content = content + "\\n\\n" + toolSummary;
         } else if (content.length > MAX_CONTENT_LENGTH) {
           // Truncate older messages if too long
-          content = content.slice(0, MAX_CONTENT_LENGTH) + "\n...[truncated for context]";
+          content = content.slice(0, MAX_CONTENT_LENGTH) + "\\n...[truncated for context]";
         }
         
         return {
@@ -759,7 +760,7 @@ The user has EXPERIMENTAL mode enabled - generate a two-voice discussion format.
             break;
         }
         
-        finalSystemPrompt = voiceInstruction + "\n\n" + finalSystemPrompt;
+        finalSystemPrompt = voiceInstruction + "\\n\\n" + finalSystemPrompt;
       } else {
         // Mute mode - minimal output, alerts only
         const muteInstruction = `
@@ -770,18 +771,18 @@ The user has MUTE mode enabled. Minimize all output.
 - No voice output whatsoever
 - Skip conversational niceties and get straight to the essential information
 `;
-        finalSystemPrompt = muteInstruction + "\n\n" + finalSystemPrompt;
+        finalSystemPrompt = muteInstruction + "\\n\\n" + finalSystemPrompt;
       }
       
       // Add content verbosity instruction
       if (contentVerbosity === "low") {
-        const verbosityNote = "\n\n**Content Verbosity: LOW** - Keep all responses concise and focused. Maximum 1-3 sentences.\n";
+        const verbosityNote = "\\n\\n**Content Verbosity: LOW** - Keep all responses concise and focused. Maximum 1-3 sentences.\\n";
         finalSystemPrompt = finalSystemPrompt + verbosityNote;
       } else if (contentVerbosity === "minimal") {
-        const verbosityNote = "\n\n**Content Verbosity: MINIMAL** - Only respond to critical alerts or explicit queries. Maximum 1 sentence.\n";
+        const verbosityNote = "\\n\\n**Content Verbosity: MINIMAL** - Only respond to critical alerts or explicit queries. Maximum 1 sentence.\\n";
         finalSystemPrompt = finalSystemPrompt + verbosityNote;
       } else if (contentVerbosity === "verbose") {
-        const verbosityNote = "\n\n**Content Verbosity: VERBOSE** - Provide comprehensive, detailed explanations with context and examples.\n";
+        const verbosityNote = "\\n\\n**Content Verbosity: VERBOSE** - Provide comprehensive, detailed explanations with context and examples.\\n";
         finalSystemPrompt = finalSystemPrompt + verbosityNote;
       }
       
@@ -833,16 +834,16 @@ The user has MUTE mode enabled. Minimize all output.
           ? "gemini-3-flash-preview"
           : "gemini-2.5-pro";
       console.log(
-        `[Routes] Using model: ${modelMode} (mode: ${req.body.model || "pro"})`,
+        `[Routes] Using model: ${modelMode} (mode: ${req.body.model || "pro"})`
       );
       
       // Log the user message for debugging
       const userMsgText = req.body.content || "";
-      console.log(`\n${"=".repeat(60)}`);
+      console.log(`\\n${"=".repeat(60)}`);
       console.log(`[LLM] USER MESSAGE:`);
       console.log(`${"─".repeat(60)}`);
       console.log(userMsgText.slice(0, 500) + (userMsgText.length > 500 ? "..." : ""));
-      console.log(`${"=".repeat(60)}\n`);
+      console.log(`${"=".repeat(60)}\\n`);
 
       // Select appropriate tool set based on authentication (authStatus already declared above)
       const toolDeclarations = getToolDeclarations(authStatus.isAuthenticated);
@@ -930,84 +931,7 @@ The user has MUTE mode enabled. Minimize all output.
       // Collect function calls from response chunks
       const collectedFunctionCalls: FunctionCall[] = [];
       let parsedResponse: { toolCalls?: ToolCall[] } | null = null;
-      
-      // Streaming TTS: accumulate text into sentences, generate TTS per sentence
-      let ttsSentenceBuffer = "";
-      let streamingSpeechCount = 0;
-      const streamTTSSentence = async (sentence: string) => {
-        if (!useVoice || !sentence.trim()) return;
-        try {
-          // Determine TTS provider
-          const provider = process.env.TTS_PROVIDER || "google";
-          let ttsResult;
-          
-          if (provider === "elevenlabs" || provider === "11labs") {
-            const { generateSingleSpeakerAudio, DEFAULT_ELEVENLABS_VOICE } = await import("./integrations/elevenlabs-tts");
-            ttsResult = await generateSingleSpeakerAudio(sentence.trim(), DEFAULT_ELEVENLABS_VOICE, 1);
-          } else {
-            const { generateSingleSpeakerAudio, DEFAULT_TTS_VOICE } = await import("./integrations/expressive-tts");
-            ttsResult = await generateSingleSpeakerAudio(sentence.trim(), DEFAULT_TTS_VOICE, 1);
-          }
 
-          if (ttsResult.audioBase64) {
-            streamingSpeechCount++;
-            console.log(`[Routes][StreamTTS] ✓ Sentence ${streamingSpeechCount} audio generated via ${provider}, length: ${ttsResult.audioBase64.length}`);
-            res.write(
-              `data: ${JSON.stringify({
-                speech: {
-                  utterance: sentence.trim(),
-                  audioGenerated: true,
-                  audioBase64: ttsResult.audioBase64,
-                  mimeType: ttsResult.mimeType || "audio/mpeg",
-                  duration: ttsResult.duration,
-                  streaming: true,
-                  index: streamingSpeechCount,
-                },
-              })}\n\n`,
-            );
-          }
-        } catch (err) {
-          console.error(`[Routes][StreamTTS] Failed to generate sentence audio:`, err);
-        }
-      };
-      
-      // Extract complete sentences from buffer, return remaining incomplete text
-      const extractSentences = (buffer: string): { sentences: string[]; remainder: string } => {
-        const sentences: string[] = [];
-        // Split on sentence-ending punctuation, but not on:
-        //   - decimal numbers  (digit . digit)       e.g. "3.14"
-        //   - domain names     (word . word no space) e.g. "example.com"
-        //   - abbreviations    (. followed by lowercase word) e.g. "Dr. smith"
-        // Strategy: scan for [.!?] followed by whitespace-or-end, skip if the
-        // period is between two word/digit characters (decimal/domain) or if
-        // the next non-space char is lowercase (abbreviation continuation).
-        const sentenceEnd = /([!?]+[\s\n]*|\.(?!\d)(?!\s*[a-z])[\s\n]*)/;
-        const parts = buffer.split(sentenceEnd);
-        let accumulated = "";
-        for (let i = 0; i < parts.length - 1; i += 2) {
-          accumulated += parts[i] + (parts[i + 1] || "");
-          const trimmed = accumulated.trim();
-          // Only emit sentences that contain at least one alphanumeric character
-          // to avoid passing punctuation-only fragments to TTS.
-          if (trimmed.length > 0 && /[a-zA-Z0-9]/.test(trimmed)) {
-            sentences.push(trimmed);
-            accumulated = "";
-          }
-        }
-        // Last part (no terminator yet) is the remainder
-        const remainder = accumulated + (parts.length % 2 === 1 ? parts[parts.length - 1] : "");
-        // Also split on double newlines in remainder
-        if (remainder.includes('\n\n')) {
-          const paraParts = remainder.split('\n\n');
-          for (let i = 0; i < paraParts.length - 1; i++) {
-            const part = paraParts[i].trim();
-            if (part.length > 0 && /[a-zA-Z0-9]/.test(part)) sentences.push(part);
-          }
-          return { sentences, remainder: paraParts[paraParts.length - 1] };
-        }
-        return { sentences, remainder };
-      };
-      
       let initialTurnUsage: typeof usageMetadata | undefined;
       for await (const chunk of result) {
         // FIX: Explicitly capture "Thinking" content from Gemini 2.0 Flash Thinking
@@ -1025,12 +949,16 @@ The user has MUTE mode enabled. Minimize all output.
 
         // If we have thought text, wrap it so it persists in storage
         if (thoughtText) {
-          const thoughtChunk = `<thinking>${thoughtText}</thinking>\n\n`;
+          const thoughtChunk = `<thinking>${thoughtText}</thinking>
+
+`;
           fullResponse += thoughtChunk;
           cleanContentForStorage += thoughtChunk; // CRITICAL FIX: Add to storage!
           
           // Stream it to the client immediately
-          res.write(`data: ${JSON.stringify({ text: thoughtChunk })}\n\n`);
+          res.write(`data: ${JSON.stringify({ text: thoughtChunk })}
+
+`);
         }
 
         // Capture any text content (rare with function calling mode)
@@ -1039,17 +967,9 @@ The user has MUTE mode enabled. Minimize all output.
           fullResponse += text;
           cleanContentForStorage += text;
           // Stream text to client if any
-          res.write(`data: ${JSON.stringify({ text })}\n\n`);
-          
-          // Streaming TTS: accumulate and send sentences
-          if (useVoice) {
-            ttsSentenceBuffer += text;
-            const { sentences, remainder } = extractSentences(ttsSentenceBuffer);
-            ttsSentenceBuffer = remainder;
-            for (const sentence of sentences) {
-              await streamTTSSentence(sentence);
-            }
-          }
+          res.write(`data: ${JSON.stringify({ text })}
+
+`);
         }
 
         // Capture function calls from the response
@@ -1068,11 +988,6 @@ The user has MUTE mode enabled. Minimize all output.
         usageMetadata.promptTokenCount += initialTurnUsage.promptTokenCount || 0;
         usageMetadata.candidatesTokenCount += initialTurnUsage.candidatesTokenCount || 0;
         usageMetadata.totalTokenCount += initialTurnUsage.totalTokenCount || 0;
-      }
-      
-      // Flush remaining TTS buffer after stream ends
-      if (useVoice && ttsSentenceBuffer.trim().length > 0) {
-        await streamTTSSentence(ttsSentenceBuffer.trim());
       }
       
       // Convert Gemini FunctionCall objects to our ToolCall format
@@ -1143,7 +1058,9 @@ The user has MUTE mode enabled. Minimize all output.
                   result: toolResult.result,
                   error: toolResult.error,
                 },
-              })}\n\n`,
+              })}
+
+`,
             );
             
             // Check for send_chat/write - stream content to client AND accumulate for storage
@@ -1151,7 +1068,9 @@ The user has MUTE mode enabled. Minimize all output.
               const sendChatResult = toolResult.result as { content?: string };
               if (sendChatResult?.content) {
                 // Stream the send_chat content to the client
-                res.write(`data: ${JSON.stringify({ text: sendChatResult.content })}\n\n`);
+                res.write(`data: ${JSON.stringify({ text: sendChatResult.content })}
+
+`);
                 // CRITICAL FIX: Accumulate send_chat content so it's saved to database
                 sendChatContent += sendChatResult.content;
               }
@@ -1165,52 +1084,62 @@ The user has MUTE mode enabled. Minimize all output.
               }
             }
             
-            // Special handling for say tool - send speech event for HD audio playback
+            // Special handling for say tool — generate TTS audio and display text in chat
             if (toolCall.type === "say" && toolResult.success) {
-              console.log(`[Routes][SAY] Tool result:`, JSON.stringify(toolResult.result).substring(0, 200));
-              const sayResult = toolResult.result as { 
-                audioBase64?: string; 
-                mimeType?: string; 
-                duration?: number;
-                utterance?: string;
-                voice?: string;
-                success?: boolean;
-              };
-              // Check if the say tool itself reported success
-              if (sayResult?.success === false) {
-                console.log(`[Routes][SAY] Tool execution failed internally, falling back to client-side TTS:`, sayResult);
-                // Send speech event WITHOUT audio to trigger client-side fallback
-                res.write(
-                  `data: ${JSON.stringify({
-                    speech: {
-                      utterance: sayResult.utterance || "",
-                      voice: sayResult.voice,
-                      audioGenerated: false, // Explicitly false
-                      message: sayResult.message,
-                      error: sayResult.error
-                    },
-                  })}\n\n`,
-                );
-              } else if (sayResult?.audioBase64) {
-                console.log(`[Routes][SAY] ✓ Sending speech event with voice: ${sayResult.voice}, audio length: ${sayResult.audioBase64.length}`);
-                res.write(
-                  `data: ${JSON.stringify({
-                    speech: {
-                      utterance: sayResult.utterance || "",
-                      voice: sayResult.voice,
-                      audioGenerated: true,
-                      audioBase64: sayResult.audioBase64,
-                      mimeType: sayResult.mimeType || "audio/mpeg",
-                      duration: sayResult.duration,
-                    },
-                  })}\n\n`,
-                );
-                console.log(`[Routes][SAY] ✓ Speech event sent to client`);
-              } else {
-                console.log(`[Routes][SAY] ✗ No audioBase64 in result. Keys:`, Object.keys(sayResult || {}));
+              const { utterance, voice } = toolCall.parameters as { utterance: string; voice?: string };
+              const { cleanText: cleanUtterance } = parseVoiceStyle(utterance || "");
+
+              if (cleanUtterance.trim()) {
+                // Always write spoken text to the chat window
+                res.write(`data: ${JSON.stringify({ text: cleanUtterance })}
+
+`);
+                sendChatContent += cleanUtterance + "\\n\\n";
+
+                // Generate and stream TTS audio
+                if (useVoice) {
+                  try {
+                    const provider = process.env.TTS_PROVIDER || "google";
+                    let ttsResult;
+                    if (provider === "elevenlabs" || provider === "11labs") {
+                      const { generateSingleSpeakerAudio, DEFAULT_ELEVENLABS_VOICE } = await import("./integrations/elevenlabs-tts");
+                      ttsResult = await generateSingleSpeakerAudio(utterance, voice || DEFAULT_ELEVENLABS_VOICE);
+                    } else {
+                      const { generateSingleSpeakerAudio, DEFAULT_TTS_VOICE } = await import("./integrations/expressive-tts");
+                      ttsResult = await generateSingleSpeakerAudio(utterance, voice || DEFAULT_TTS_VOICE);
+                    }
+                    if (ttsResult.audioBase64) {
+                      console.log(`[Routes][SAY] ✓ Audio generated, length: ${ttsResult.audioBase64.length}`);
+                      res.write(`data: ${JSON.stringify({
+                        speech: {
+                          utterance: cleanUtterance,
+                          audioGenerated: true,
+                          audioBase64: ttsResult.audioBase64,
+                          mimeType: ttsResult.mimeType || "audio/mpeg",
+                          duration: ttsResult.duration,
+                        }
+                      })}
+
+`);
+                    } else {
+                      console.warn(`[Routes][SAY] TTS returned no audio: ${ttsResult.error}`);
+                    }
+                  } catch (ttsErr) {
+                    console.error(`[Routes][SAY] TTS failed:`, ttsErr);
+                  }
+                }
               }
             }
             
+            // Special handling for soundboard tool - send sound event to client
+            if (toolCall.type === "soundboard" && toolResult.success) {
+              const { sound, volume } = toolResult as { sound: string; volume: number };
+              if (sound) {
+                console.log(`[Routes][SOUNDBOARD] Playing: ${sound} @ vol ${volume}`);
+                res.write(`data: ${JSON.stringify({ soundboard: { sound, volume } })}\n\n`);
+              }
+            }
+
             // Special handling for open_url tool - send event to frontend to open URL
             if (toolCall.type === "open_url" && toolResult.success) {
               console.log(`[Routes][OPEN_URL] Sending open_url event`);
@@ -1221,7 +1150,9 @@ The user has MUTE mode enabled. Minimize all output.
                     openUrl: {
                       url: openUrlResult.url,
                     },
-                  })}\n\n`,
+                  })}
+
+`,
                 );
                 console.log(`[Routes][OPEN_URL] ✓ Sent URL to open: ${openUrlResult.url}`);
               } else {
@@ -1244,7 +1175,9 @@ The user has MUTE mode enabled. Minimize all output.
                   success: false,
                   error: err.message,
                 },
-              })}\n\n`,
+              })}
+
+`,
             );
           }
         }
@@ -1255,13 +1188,13 @@ The user has MUTE mode enabled. Minimize all output.
       // Execute initial tool calls if we parsed any
       if (parsedResponse && parsedResponse.toolCalls && parsedResponse.toolCalls.length > 0) {
         // Log all tool calls for debugging
-        console.log(`\n${"=".repeat(60)}`);
+        console.log(`\\n${"=".repeat(60)}`);
         console.log(`[LLM] AI RESPONSE (Turn ${loopIteration}) - ${parsedResponse.toolCalls.length} TOOL CALLS:`);
         console.log(`${"─".repeat(60)}`);
         for (const tc of parsedResponse.toolCalls) {
           console.log(`  • ${tc.type} (${tc.id})`);
         }
-        console.log(`${"=".repeat(60)}\n`);
+        console.log(`${"=".repeat(60)}\\n`);
         
         // Execute tools (with per-turn limit)
         const limitedToolCalls = parsedResponse.toolCalls.slice(0, MAX_TOOLS_PER_TURN);
@@ -1288,9 +1221,9 @@ The user has MUTE mode enabled. Minimize all output.
         // AGENTIC LOOP: Continue if end_turn was NOT called
         while (!shouldEndTurn && loopIteration < MAX_LOOP_ITERATIONS && totalToolsExecuted < MAX_TOTAL_TOOLS) {
           loopIteration++;
-          console.log(`\n${"═".repeat(60)}`);
+          console.log(`\\n${"═".repeat(60)}`);
           console.log(`[AGENTIC LOOP] Turn ${loopIteration} - Feeding tool results back to LLM`);
-          console.log(`${"═".repeat(60)}\n`);
+          console.log(`${"═".repeat(60)}\\n`);
           
           // Build tool results message for the LLM (compact, strip large binary data)
           const lastToolCount = parsedResponse?.toolCalls?.length || 0;
@@ -1329,12 +1262,12 @@ The user has MUTE mode enabled. Minimize all output.
               const limitedSummary = hasNoTruncate ? summary : (summary.length > 500 ? summary.substring(0, 500) + "..." : summary);
               return `• ${r.type}: ${limitedSummary}`;
             })
-            .join("\n");
+            .join("\\n");
           
           // Provide tool results to the model as a user message
           agenticHistory.push({
             role: "user", 
-            parts: [{ text: `Tool results:\n${toolResultsText}\n\nContinue with more tools or call end_turn when ready.` }]
+            parts: [{ text: `Tool results:\\n${toolResultsText}\\n\\nContinue with more tools or call end_turn when ready.` }]
           });
           
           // Call LLM again with native function calling
@@ -1379,7 +1312,7 @@ The user has MUTE mode enabled. Minimize all output.
              usageMetadata.totalTokenCount += loopTurnUsage.totalTokenCount || 0;
           }
           
-          fullResponse += `\n\n[Turn ${loopIteration}]\n${loopResponse}`;
+          fullResponse += `\\n\\n[Turn ${loopIteration}]\\n${loopResponse}`;
           
           // Convert function calls to ToolCall format
           if (loopFunctionCalls.length > 0) {
@@ -1422,7 +1355,9 @@ The user has MUTE mode enabled. Minimize all output.
             console.log(`[AGENTIC LOOP] Turn ${loopIteration} - No function calls, treating as implicit end_turn`);
             const plainTextResponse = loopResponse.trim();
             if (plainTextResponse) {
-              res.write(`data: ${JSON.stringify({ text: plainTextResponse })}\n\n`);
+              res.write(`data: ${JSON.stringify({ text: plainTextResponse })}
+
+`);
             }
             break;
           }
@@ -1438,7 +1373,9 @@ The user has MUTE mode enabled. Minimize all output.
             warningMessage = "[Tool execution limit reached - response truncated]";
           }
           if (warningMessage) {
-            res.write(`data: ${JSON.stringify({ text: warningMessage })}\n\n`);
+            res.write(`data: ${JSON.stringify({ text: warningMessage })}
+
+`);
           }
         }
       }
@@ -1449,7 +1386,8 @@ The user has MUTE mode enabled. Minimize all output.
 
       // Clean up the accumulated prose-only content
       // Remove any residual tool_code blocks, empty code blocks, and cleanup
-      let finalContent = cleanContentForStorage
+      // Strip voice style tags (e.g. [style: cheerful]) — for TTS only, not display
+      let finalContent = parseVoiceStyle(cleanContentForStorage).cleanText
         // Remove code blocks containing tool call arrays (identified by known tool types)
 
       // Prepare Gemini content for storage (keep original for multi-turn context)
@@ -1604,7 +1542,7 @@ The user has MUTE mode enabled. Minimize all output.
       // FALLBACK TTS: Only if zero streaming sentences AND zero say-tool calls
       // ─────────────────────────────────────────────────────────────────────
       const sayToolCalled = toolResults.some(r => r.type === "say" && r.success);
-      if (useVoice && !sayToolCalled && streamingSpeechCount === 0 && finalContent && finalContent.trim().length > 0) {
+      if (useVoice && !sayToolCalled && finalContent && finalContent.trim().length > 0) {
         console.log(`[Routes][TTS-Fallback] No streaming TTS or say tool, generating single fallback`);
         try {
           const provider = process.env.TTS_PROVIDER || "google";
@@ -1633,14 +1571,16 @@ The user has MUTE mode enabled. Minimize all output.
                   duration: ttsResult.duration,
                   fallback: true,
                 },
-              })}\n\n`,
+              })}
+
+`,
             );
           }
         } catch (ttsError) {
           console.error(`[Routes][TTS-Fallback] Failed:`, ttsError);
         }
       } else if (useVoice) {
-        console.log(`[Routes][TTS] Speech already delivered: ${streamingSpeechCount} streaming chunks, sayToolCalled: ${sayToolCalled}`);
+        console.log(`[Routes][TTS] Speech already delivered via say tool`);
       }
 
       // Send completion event with tool results summary and close the stream
@@ -1655,7 +1595,9 @@ The user has MUTE mode enabled. Minimize all output.
             createdAt: savedAiMessage.createdAt,
             metadata: savedAiMessage.metadata,
           },
-        })}\n\n`,
+        })}
+
+`,
       );
       res.end();
     } catch (error) {
@@ -1667,7 +1609,9 @@ The user has MUTE mode enabled. Minimize all output.
         // Send error via SSE and end stream gracefully
         try {
           res.write(
-            `data: ${JSON.stringify({ error: "An error occurred while processing your message" })}\n\n`,
+            `data: ${JSON.stringify({ error: "An error occurred while processing your message" })}
+
+`,
           );
           res.end();
         } catch (e) {
@@ -2381,6 +2325,3 @@ ${summary}`,
 
   return httpServer;
 }
-
-
-

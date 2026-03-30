@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -114,28 +113,18 @@ function buildEditorMessage(activeFile: EditorFile, files: EditorFile[], prompt:
     : `Here's my code from the editor:\n\n\`\`\`json\n${JSON.stringify(payload, null, 2)}\n\`\`\``;
 }
 
-interface CanvasProps {
-  activeTab: WorkbenchTab;
-  onActiveTabChange: (tab: WorkbenchTab) => void;
-  onCollapse: () => void;
-  onSendToChat: (message: string) => void | Promise<void>;
-  readOnly?: boolean;
-}
-
-export function Canvas({
+export function SideWorkbench({
   activeTab,
   onActiveTabChange,
   onCollapse,
   onSendToChat,
-  readOnly = false,
-}: CanvasProps) {
+}: SideWorkbenchProps) {
   const [files, setFiles] = useState<EditorFile[]>(() => [createNewFile()]);
   const [activeFileId, setActiveFileId] = useState("");
   const [theme, setTheme] = useState<"vs-dark" | "light">("vs-dark");
   const [prompt, setPrompt] = useState("");
   const [wsConnected, setWsConnected] = useState(false);
   const [isInteractive, setIsInteractive] = useState(false);
-  const [isPublishing, setIsPublishing] = useState(false);
 
   const terminalContainerRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -566,249 +555,207 @@ export function Canvas({
   }, []);
 
   return (
-    <div className="flex flex-col h-full bg-background border-l border-border shadow-2xl animate-in slide-in-from-right duration-300">
-      {/* 
-       * CANVAS HEADER
-       * Minimalist, elegant header with integrated controls
-       */}
-      <div className="flex items-center justify-between px-4 h-14 border-b border-border/50 bg-muted/10">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-blue-600 to-purple-500 flex items-center justify-center text-white shadow-sm">
-            <Sparkles className="h-5 w-5" />
-          </div>
-          <div>
-            <h2 className="text-sm font-bold tracking-tight">Canvas</h2>
-            <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-widest leading-none">
-              {activeFile?.filename || "Untitled"}
-            </p>
-          </div>
+    <div className="flex h-full flex-col border-l bg-background">
+      <div className="flex items-center justify-between border-b bg-card px-3 py-2">
+        <div className="flex items-center gap-1 rounded-lg border bg-muted/40 p-1">
+          <ScreenRecorder />
+          <Button
+            variant={activeTab === "editor" ? "secondary" : "ghost"}
+            size="sm"
+            className="h-8 gap-2 px-3"
+            onClick={() => onActiveTabChange("editor")}
+            data-testid="button-workbench-editor"
+          >
+            <Code2 className="h-4 w-4" />
+            Editor
+          </Button>
+          <Button
+            variant={activeTab === "terminal" ? "secondary" : "ghost"}
+            size="sm"
+            className="h-8 gap-2 px-3"
+            onClick={() => onActiveTabChange("terminal")}
+            data-testid="button-workbench-terminal"
+          >
+            <Terminal className="h-4 w-4" />
+            Terminal
+          </Button>
         </div>
 
-        <div className="flex items-center gap-2">
-           {/* Tab System - Pill style */}
-           <div className="flex items-center bg-muted/50 rounded-full p-1 mr-2">
-             <button
-               onClick={() => onActiveTabChange("editor")}
-               className={cn(
-                 "px-4 py-1.5 text-xs font-bold rounded-full transition-all",
-                 activeTab === "editor" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
-               )}
-             >
-               Code
-             </button>
-             <button
-               onClick={() => onActiveTabChange("terminal")}
-               className={cn(
-                 "px-4 py-1.5 text-xs font-bold rounded-full transition-all",
-                 activeTab === "terminal" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
-               )}
-             >
-               Terminal
-             </button>
-           </div>
-
-           <Button 
-             variant="ghost" 
-             size="icon" 
-             className="rounded-full h-8 w-8 hover:bg-muted" 
-             onClick={onCollapse}
-             title="Close Canvas"
-           >
-             <PanelRightClose className="h-4 w-4" />
-           </Button>
-        </div>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8"
+          onClick={onCollapse}
+          data-testid="button-workbench-collapse"
+        >
+          <PanelRightClose className="h-4 w-4" />
+        </Button>
       </div>
 
-      {/* 
-       * ACTION BAR
-       * Dynamic tools based on context
-       */}
-      <div className="flex items-center justify-between px-4 h-12 border-b border-border/30 bg-muted/5">
-        <div className="flex items-center gap-1 overflow-x-auto no-scrollbar">
-          <Select value={activeFileId} onValueChange={setActiveFileId}>
-            <SelectTrigger className="h-8 border-none bg-transparent hover:bg-muted/50 text-xs font-medium focus:ring-0 w-auto gap-2">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {files.map(file => (
-                <SelectItem key={file.id} value={file.id} className="text-xs">
+      {activeTab === "editor" ? (
+        <div className="flex min-h-0 flex-1 flex-col">
+          <div className="flex items-center gap-2 border-b bg-card/60 px-3 py-2">
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handleOpenFile}
+              className="hidden"
+              accept=".html,.css,.js,.ts,.json,.md,.txt"
+            />
+            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleNewFile} data-testid="button-workbench-new-file" title="New File">
+              <Plus className="h-4 w-4" />
+            </Button>
+            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => fileInputRef.current?.click()} data-testid="button-workbench-open-file" title="Open File">
+              <FolderOpen className="h-4 w-4" />
+            </Button>
+
+            <Select value={activeFile?.language || "html"} onValueChange={handleLanguageChange}>
+              <SelectTrigger className="h-8 w-32" data-testid="select-workbench-language">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="html">HTML</SelectItem>
+                <SelectItem value="css">CSS</SelectItem>
+                <SelectItem value="javascript">JavaScript</SelectItem>
+                <SelectItem value="typescript">TypeScript</SelectItem>
+                <SelectItem value="json">JSON</SelectItem>
+                <SelectItem value="markdown">Markdown</SelectItem>
+                <SelectItem value="python">Python</SelectItem>
+                <SelectItem value="shell">Shell</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              onClick={() => setTheme((previous) => (previous === "vs-dark" ? "light" : "vs-dark"))}
+              data-testid="button-workbench-theme"
+            >
+              {theme === "vs-dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+            </Button>
+
+            <div className="ml-auto flex items-center gap-2">
+              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handlePreview} title="Preview">
+                <Eye className="h-4 w-4" />
+              </Button>
+              <Button variant="outline" size="sm" className="h-8 gap-2" onClick={handleSave} data-testid="button-workbench-save">
+                <Save className="h-4 w-4" />
+                {files.every((file) => file.isSaved) ? "Saved" : "Save"}
+              </Button>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-1 overflow-x-auto border-b bg-muted/40 px-2 py-1.5">
+            {files.map((file) => (
+              <button
+                key={file.id}
+                onClick={() => setActiveFileId(file.id)}
+                className={cn(
+                  "group flex max-w-[180px] items-center gap-2 rounded-md px-3 py-1.5 text-sm transition-colors",
+                  activeFileId === file.id ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:bg-muted",
+                )}
+                data-testid={`tab-workbench-${file.filename}`}
+              >
+                <span className="truncate">
+                  {!file.isSaved && <span className="mr-1 text-primary">●</span>}
                   {file.filename}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+                </span>
+                <span
+                  role="button"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    handleCloseFile(file.id);
+                  }}
+                  className="rounded p-0.5 opacity-0 transition-opacity group-hover:opacity-100 hover:bg-muted"
+                >
+                  <X className="h-3 w-3" />
+                </span>
+              </button>
+            ))}
+          </div>
 
-          <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg text-muted-foreground" onClick={handleNewFile}>
-            <Plus className="h-4 w-4" />
-          </Button>
-          
-          <div className="h-4 w-[1px] bg-border/50 mx-1" />
+          <div className="min-h-0 flex-1">
+            <Editor
+              height="100%"
+              language={activeFile?.language || "html"}
+              value={activeFile?.code || ""}
+              theme={theme}
+              onChange={handleEditorChange}
+              options={{
+                fontSize: 13,
+                fontFamily: "'JetBrains Mono', 'Fira Code', monospace",
+                minimap: { enabled: false },
+                padding: { top: 12 },
+                scrollBeyondLastLine: false,
+                wordWrap: "on",
+                automaticLayout: true,
+                lineNumbers: "on",
+                renderWhitespace: "selection",
+                bracketPairColorization: { enabled: true },
+              }}
+            />
+          </div>
 
-          <Button variant="ghost" size="sm" className="h-8 gap-2 text-xs font-bold text-muted-foreground hover:text-primary" onClick={handlePreview}>
-            <Eye className="h-3.5 w-3.5" />
-            Preview
-          </Button>
-
-          <Button variant="ghost" size="sm" className="h-8 gap-2 text-xs font-bold text-muted-foreground hover:text-green-500" onClick={handleSave}>
-            <Save className="h-3.5 w-3.5" />
-            Save
-          </Button>
-        </div>
-
-        <div className="flex items-center gap-2">
-           <Button 
-             size="sm" 
-             variant="default" 
-             className="h-8 px-4 rounded-full bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs gap-2 shadow-lg shadow-blue-500/20"
-             onClick={() => {
-                setIsPublishing(true);
-                setTimeout(() => setIsPublishing(false), 2000);
-             }}
-             disabled={isPublishing}
-           >
-             {isPublishing ? <RefreshCw className="h-3 w-3 animate-spin" /> : <Globe className="h-3.5 w-3.5" />}
-             {isPublishing ? "Publishing..." : "Publish to Web"}
-           </Button>
-        </div>
-      </div>
-
-      <div className="flex-1 relative overflow-hidden">
-        {activeTab === "editor" ? (
-          <div className="absolute inset-0 flex flex-col">
-             {/* File Tabs for multi-file editing */}
-             <div className="flex items-center gap-1 overflow-x-auto border-b bg-muted/20 px-2 py-1.5 no-scrollbar">
-                {files.map((file) => (
-                  <button
-                    key={file.id}
-                    onClick={() => setActiveFileId(file.id)}
-                    className={cn(
-                      "group flex max-w-[180px] items-center gap-2 rounded-md px-3 py-1.5 text-xs font-bold transition-all",
-                      activeFileId === file.id ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:bg-muted/60",
-                    )}
-                  >
-                    <span className="truncate">
-                      {!file.isSaved && <span className="mr-1.5 text-primary">●</span>}
-                      {file.filename}
-                    </span>
-                    <span
-                      role="button"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        handleCloseFile(file.id);
-                      }}
-                      className="rounded p-0.5 opacity-0 transition-opacity group-hover:opacity-100 hover:bg-muted/80"
-                    >
-                      <X className="h-3 w-3" />
-                    </span>
-                  </button>
-                ))}
-              </div>
-
-            <div className="flex-1">
-              <Editor
-                height="100%"
-                language={activeFile?.language || "html"}
-                value={activeFile?.code || ""}
-                theme={theme}
-                onChange={handleEditorChange}
-                options={{
-                  minimap: { enabled: false },
-                  fontSize: 13,
-                  fontFamily: '"JetBrains Mono", monospace',
-                  padding: { top: 16 },
-                  scrollBeyondLastLine: false,
-                  smoothScrolling: true,
-                  cursorBlink: "smooth",
-                  cursorSmoothCaretAnimation: "on",
-                  lineNumbers: "on",
-                  roundedSelection: true,
-                  readOnly: readOnly,
-                  contextmenu: true,
-                  automaticLayout: true,
+          <div className="border-t bg-card/50 p-3">
+            <div className="flex items-center gap-2">
+              <Input
+                value={prompt}
+                onChange={(event) => setPrompt(event.target.value)}
+                placeholder="Send this file to chat with an instruction..."
+                data-testid="input-workbench-prompt"
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" && !event.shiftKey) {
+                    event.preventDefault();
+                    void handleSend();
+                  }
                 }}
               />
-            </div>
-
-            {/* Canvas Prompt - Chat with Code */}
-            <div className="p-4 bg-muted/10 border-t border-border/20">
-              <div className="relative group">
-                <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none text-muted-foreground group-focus-within:text-primary transition-colors">
-                  <Brain className="h-4 w-4" />
-                </div>
-                <input
-                  type="text"
-                  value={prompt}
-                  onChange={(e) => setPrompt(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" && !e.shiftKey) {
-                      e.preventDefault();
-                      void handleSend();
-                    }
-                  }}
-                  placeholder="Ask Meowstik to edit this code..."
-                  className="w-full pl-10 pr-20 py-2.5 bg-background border border-border/50 rounded-xl text-xs focus:ring-2 focus:ring-primary/20 outline-none transition-all"
-                />
-                <div className="absolute inset-y-1.5 right-1.5 flex items-center gap-1">
-                   <Button 
-                    size="sm" 
-                    variant="ghost" 
-                    className="h-7 px-2 text-[10px] font-bold uppercase tracking-wider"
-                    onClick={() => void handleSend()}
-                    disabled={!prompt.trim()}
-                   >
-                     Apply
-                   </Button>
-                </div>
-              </div>
+              <Button size="sm" className="gap-2" onClick={() => void handleSend()} data-testid="button-workbench-send">
+                <Send className="h-4 w-4" />
+                Send
+              </Button>
             </div>
           </div>
-        ) : (
-          <div className="absolute inset-0 bg-[#111827] flex flex-col p-4">
-             <div className="flex items-center justify-between mb-4">
-               <div className="flex items-center gap-2">
-                 <div className={cn("w-2 h-2 rounded-full", wsConnected ? "bg-green-500 animate-pulse" : "bg-red-500")} />
-                 <span className="text-[10px] font-bold uppercase tracking-widest text-gray-500">
-                   {wsConnected ? "System Interactive" : "Disconnected"}
-                 </span>
-               </div>
-               <div className="flex items-center gap-1">
-                 <Button variant="ghost" size="icon" className="h-7 w-7 rounded-lg text-gray-500 hover:text-white" onClick={stopShell} title="Restart Shell">
-                   <RefreshCw className="h-3.5 w-3.5" />
-                 </Button>
-                 <Button variant="ghost" size="icon" className="h-7 w-7 rounded-lg text-gray-500 hover:text-white" onClick={() => terminalRef.current?.clear()} title="Clear">
-                   <Trash2 className="h-3.5 w-3.5" />
-                 </Button>
-               </div>
-             </div>
-             <div ref={terminalContainerRef} className="flex-1 min-h-0 rounded-lg overflow-hidden border border-white/5 shadow-inner" />
-          </div>
-        )}
-      </div>
+        </div>
+      ) : (
+        <div className="flex min-h-0 flex-1 flex-col">
+          <div className="flex items-center justify-between border-b bg-card/60 px-3 py-2">
+            <div className="flex items-center gap-3 text-sm text-muted-foreground">
+              <span className="inline-flex items-center gap-1">
+                {wsConnected ? <Wifi className="h-4 w-4 text-emerald-500" /> : <WifiOff className="h-4 w-4 text-red-500" />}
+                {wsConnected ? "Connected" : "Reconnecting"}
+              </span>
+              <span className="inline-flex items-center gap-1">
+                {isInteractive ? <Play className="h-4 w-4 text-emerald-500" /> : <Square className="h-4 w-4 text-muted-foreground" />}
+                {isInteractive ? "Shell live" : "Shell idle"}
+              </span>
+            </div>
 
-      {/* Footer / Meta */}
-      <div className="px-4 py-2 border-t border-border/30 bg-muted/10 flex items-center justify-between">
-        <div className="flex items-center gap-4 text-[10px] font-medium text-muted-foreground/60">
-           <span className="flex items-center gap-1.5 uppercase tracking-wider">
-             <Code className="h-3 w-3" />
-             {activeFile?.language || "plain"}
-           </span>
-           <span className="flex items-center gap-1.5 uppercase tracking-wider font-bold">
-             <Terminal className="h-3 w-3" />
-             Interactive
-           </span>
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" className="h-8 gap-2" onClick={startShell} data-testid="button-workbench-start-shell">
+                <Play className="h-4 w-4" />
+                Start
+              </Button>
+              <Button variant="outline" size="sm" className="h-8 gap-2" onClick={stopShell} data-testid="button-workbench-stop-shell">
+                <Square className="h-4 w-4" />
+                Stop
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8"
+                onClick={() => terminalRef.current?.clear()}
+                data-testid="button-workbench-clear-terminal"
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+
+          <div ref={terminalContainerRef} className="min-h-0 flex-1 bg-[#111827]" data-testid="workbench-terminal" />
         </div>
-        <div className="flex items-center gap-2">
-           <button 
-             onClick={() => setTheme(theme === "vs-dark" ? "light" : "vs-dark")}
-             className="p-1.5 rounded-full hover:bg-muted text-muted-foreground transition-colors"
-           >
-             {theme === "vs-dark" ? <Sun className="h-3.5 w-3.5" /> : <Moon className="h-3.5 w-3.5" />}
-           </button>
-        </div>
-      </div>
+      )}
     </div>
   );
 }
-
-
-

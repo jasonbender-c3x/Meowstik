@@ -107,6 +107,24 @@ export const geminiFunctionDeclarations: FunctionDeclaration[] = [
       required: ["utterance"]
     }
   },
+  {
+    name: "soundboard",
+    description: "Play a synthesized sound effect in the user's browser. NON-BLOCKING. Use for comedic timing, notifications, alarms, or ambiance. Examples: womp_womp (failure/bad news), rimshot (punchline), fart (comedy), airhorn (hype), success (win), alarm_clock (wake up), pill_reminder (medication), crickets (awkward silence), ding (notification), level_up (achievement).",
+    parametersJsonSchema: {
+      type: "object",
+      properties: {
+        sound: {
+          type: "string",
+          description: "Sound effect ID. Common sounds: womp_womp, rimshot, fart, fart_long, airhorn, crickets, price_is_wrong, laugh_track, jingle, news_intro, alarm_clock, gentle_wake, pill_reminder, urgent_alarm, ding, success, error_buzz, level_up, incoming, traffic_alert, weather_beep"
+        },
+        volume: {
+          type: "number",
+          description: "Playback volume 0.0–1.0 (default: 0.8)"
+        }
+      },
+      required: ["sound"]
+    }
+  },
   // ═══════════════════════════════════════════════════════════════════════════
   // GMAIL
   // ═══════════════════════════════════════════════════════════════════════════

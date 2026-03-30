@@ -59,5 +59,11 @@ export function parseVoiceStyle(text: string): { style: VoiceStyle; cleanText: s
   };
 }
 
-
+/**
+ * Strips ALL [style: x] tags from anywhere in the text (not just the start).
+ * Use this when displaying AI responses in the chat UI.
+ */
+export function stripAllVoiceTags(text: string): string {
+  return text.replace(/\[style:\s*[a-zA-Z]+\]\s*/gi, "").trim();
+}
 
