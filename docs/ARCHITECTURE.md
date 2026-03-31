@@ -13,9 +13,11 @@ graph TD
 
     subgraph "Server Core"
         Server --> Gemini[Google Gemini AI\ngemini-2.0-flash / 2.5-pro]
+        Server --> TTS[Google Cloud TTS\nChirp3-HD]
         Server --> DB[(SQLite Database\nbetter-sqlite3 + Drizzle ORM)]
+        Server --> Memory[logs/Short_Term_Memory.md\nFile-based session memory]
         Server --> SE[Summarization Engine\ngemini-2.0-flash]
-        Server --> EE[Evolution Engine\nFeedback → GitHub PRs]
+        SE --> EE[Evolution Engine\nFeedback → GitHub PRs]
         Server --> Dispatcher[Tool Dispatcher\nserver/services/tool-dispatcher.ts]
         Server --> JIT[JIT Tool Loader\nserver/services/jit-tool-protocol.ts]
         Server --> Cron[Cron Scheduler\nserver/services/cron-scheduler.ts]
@@ -26,12 +28,12 @@ graph TD
         Server <-->|"WebSocket"| Extension[Browser Extension\nbrowser-extension/]
     end
 
-    subgraph "External Integrations"
-        Server --> TTS["Google Cloud TTS\nChirp3-HD voices"]
+    subgraph "External"
+        Server <-->|"SMS/Voice"| Twilio[Twilio]
+        Server <-->|"SSH"| SSH[SSH Gateway\nRemote Servers]
         Server --> GWorkspace["Google Workspace\nGmail · Calendar · Drive · Docs · Sheets"]
-        Server --> Twilio["Twilio\nSMS · Voice · Calling AI"]
         Server --> GitHub["GitHub API\nPRs · Issues · Commits"]
-        Server --> Exa["Search\nExa + Google Custom Search"]
+        Server --> Search["Web Search\nExa + Google CSE"]
     end
 
     Desktop --> LocalOS["Local OS\nScreen · Mouse · Keyboard"]
@@ -217,3 +219,43 @@ Events emitted:
 ```
 
 Desktop Agent and Browser Extension use **WebSockets** for bidirectional communication.
+
+---
+
+## Memory System
+
+Meowstik has **two distinct memory layers** that serve different purposes:
+
+### 1. Short-Term Memory (File-Based)
+
+**Location:** `logs/Short_Term_Memory.md`  
+**Managed by:** `server/services/prompt-composer.ts`
+
+This is a human-readable markdown file that is loaded verbatim into the system prompt on every turn. The AI can write to it (and other `logs/` files) to persist context across sessions.
+
+```
+logs/
+├── Short_Term_Memory.md   ← main memory file, injected into every prompt
+├── STM_APPEND.md          ← AI writes here; auto-appended to STM and deleted
+├── cache.md               ← thoughts-forward from last turn
+└── *.md                   ← named log files (via `append` tool)
+```
+
+**How it works:**
+1. On each request, `prompt-composer.ts` reads `Short_Term_Memory.md`
+2. If `STM_APPEND.md` exists, its contents are appended to `Short_Term_Memory.md` and it is deleted
+3. Both the memory and cache are included in the assembled system prompt
+
+**What the AI stores here:** user preferences, ongoing tasks, names, facts the user wants remembered, session continuity notes.
+
+### 2. Conversation Summaries (Database)
+
+**Location:** `conversation_summaries` table in SQLite  
+**Managed by:** `server/services/summarization-engine.ts`
+
+Structured AI-generated summaries produced by the Summarization Engine. These are used by the **Evolution Engine** for pattern analysis — not for live prompt injection.
+
+| Layer | Purpose | Storage | Injection point |
+|-------|---------|---------|-----------------|
+| Short-Term Memory | Session context, user facts | `logs/Short_Term_Memory.md` | Every prompt |
+| Conversation Summaries | Pattern analysis feed | SQLite `conversation_summaries` | Evolution Engine only |

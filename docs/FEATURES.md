@@ -56,6 +56,19 @@ The AI uses style tags embedded in text to control TTS tone. See [TTS.md](./TTS.
 
 ---
 
+## ✅ File-Based Short-Term Memory
+
+**Status: Active**
+
+Persistent memory stored in `logs/Short_Term_Memory.md` and managed by `server/services/prompt-composer.ts`. Injected into the system prompt on every turn so the AI always has session context.
+
+- AI appends to `logs/STM_APPEND.md`; `prompt-composer.ts` auto-merges it into the main memory file
+- `logs/cache.md` holds "thoughts forward" from the previous turn
+- Named log files via `append` tool (e.g., `logs/execution.md`, `logs/thoughts.md`)
+- Human-readable — memory can be directly edited by the user
+
+---
+
 ## ✅ Summarization Engine
 
 **Status: Active** — See [SUMMARIZATION_ENGINE.md](./SUMMARIZATION_ENGINE.md)
