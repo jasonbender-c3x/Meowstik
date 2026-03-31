@@ -1,476 +1,305 @@
-# Meowstik - Complete Feature Documentation
+# Features
 
-A next-generation AI chat interface with integrated Google Workspace services, code editing capabilities, and voice interaction.
-
----
-
-## Table of Contents
-
-1. [AI-Powered Chat Interface](#1-ai-powered-chat-interface)
-2. [Google Workspace Integration](#2-google-workspace-integration)
-3. [Code Editor & VS Code Integration](#3-code-editor--vs-code-integration)
-4. [Voice Interaction](#4-voice-interaction)
-5. [Document Processing (RAG)](#5-document-processing-rag)
-6. [Terminal Access](#6-terminal-access)
-7. [User Interface & Experience](#7-user-interface--experience)
-8. [Data Management](#8-data-management)
-9. [Technical Architecture](#9-technical-architecture)
+Current feature set of Meowstik as it exists today.
 
 ---
 
-## 1. AI-Powered Chat Interface
+## ✅ Chat & Agentic Loop
 
-### Core Capabilities
+**Status: Active**
 
-| Feature | Description |
-|---------|-------------|
-| **Gemini AI Engine** | Powered by Google's Generative AI (Gemini) for intelligent, context-aware conversations |
-| **Real-time Streaming** | Responses stream word-by-word using Server-Sent Events (SSE) for a natural conversation feel |
-| **Persistent History** | All conversations are saved to a PostgreSQL database and accessible across sessions |
-| **Web Search Grounding** | Real-time internet access via Gemini Search for up-to-date answers with citations |
-| **Markdown Rendering** | Full markdown support including headings, lists, code blocks, tables, and formatting |
-| **Quick-Start Prompts** | Suggested conversation starters help new users get started quickly |
-| **Environment Awareness** | AI is aware of its execution environment (production/local) and hostname for context-aware decisions |
+The core loop: user sends a message → Gemini generates a response with optional tool calls → tools execute in parallel → results fed back → Gemini continues. This loop runs until `end_turn` is called.
 
-### Chat Management
-
-- **Create New Chats**: Start fresh conversations anytime
-- **Rename Chats**: Give meaningful names to your conversations
-- **Chat History Sidebar**: Access all past conversations in a collapsible sidebar
-- **Seamless Switching**: Move between conversations without losing context
-- **Auto-titling**: AI automatically suggests titles based on conversation content
-
-### Message Features
-
-- **User & AI Messages**: Clear visual distinction between your messages and AI responses
-- **Code Block Syntax Highlighting**: Code snippets are beautifully formatted with language-specific highlighting
-- **Copy to Clipboard**: One-click copying of code blocks and messages
-- **Timestamps**: See when each message was sent
+- Streaming responses via SSE
+- Multi-turn conversation history
+- Message attachments (images, files)
+- Tool call visibility (UI shows each tool executing with timing)
+- Structured response parsing
 
 ---
 
-## 2. Google Workspace Integration
+## ✅ Voice Synthesis — Google Cloud TTS (Chirp3-HD)
 
-Meowstik connects directly to your Google account, allowing the AI to help you manage your digital workspace.
+**Status: Active**
 
-### Gmail Integration
+High-quality voice output using Google's 2025 Chirp3-HD neural voices. See [TTS.md](./TTS.md) for full documentation.
 
-| Action | Description |
-|--------|-------------|
-| **List Emails** | View your recent inbox messages with sender, subject, and preview |
-| **Read Emails** | Open and read full email contents including attachments |
-| **Send Emails** | Compose and send new emails with subject, body, and recipients |
-| **Search Emails** | Find specific emails by keyword, sender, or date |
-| **Label Management** | View email labels and categories |
-
-**Example Commands:**
-- "Show me my recent emails"
-- "Read the email from John about the project"
-- "Send an email to team@company.com about the meeting"
-- "Search for emails containing 'invoice'"
-
-### Google Drive Integration
-
-| Action | Description |
-|--------|-------------|
-| **Browse Files** | List files and folders in your Drive |
-| **Search Files** | Find documents by name or content |
-| **Read Content** | View the contents of documents and files |
-| **Create Files** | Create new documents, spreadsheets, or text files |
-| **Update Files** | Modify existing file contents |
-| **Delete Files** | Remove files from your Drive |
-
-**Example Commands:**
-- "Show my recent Google Drive files"
-- "Search for files containing 'budget report'"
-- "Create a new document called 'Meeting Notes'"
-- "Read the contents of my project proposal"
-
-### Google Calendar Integration
-
-| Action | Description |
-|--------|-------------|
-| **List Calendars** | View all your calendars (personal, work, shared) |
-| **View Events** | See upcoming events with times, locations, and descriptions |
-| **Create Events** | Schedule new meetings and appointments |
-| **Update Events** | Modify event details, times, or attendees |
-| **Delete Events** | Cancel scheduled events |
-
-**Example Commands:**
-- "What's on my calendar this week?"
-- "Schedule a meeting with Sarah tomorrow at 2pm"
-- "Update the team meeting to 3pm instead"
-- "Show events for next Monday"
-
-### Google Docs Integration
-
-| Action | Description |
-|--------|-------------|
-| **Read Documents** | Extract and view text content from any Google Doc |
-| **Create Documents** | Make new documents with initial content |
-| **Append Text** | Add content to the end of existing documents |
-| **Find & Replace** | Search for and replace text within documents |
-
-**Example Commands:**
-- "Read my document called 'Product Roadmap'"
-- "Create a new doc with today's meeting notes"
-- "Add a new section to my blog draft"
-- "Replace 'Q3' with 'Q4' in the quarterly report"
-
-### Google Sheets Integration
-
-| Action | Description |
-|--------|-------------|
-| **List Spreadsheets** | View all your spreadsheets |
-| **Read Data** | Get values from specific cell ranges |
-| **Write Data** | Update cells with new values |
-| **Append Rows** | Add new data to the bottom of a sheet |
-| **Create Spreadsheets** | Make new spreadsheets with headers |
-| **Clear Ranges** | Remove data from specified cells |
-
-**Example Commands:**
-- "Show data from cells A1 to D10 in my budget spreadsheet"
-- "Add a new row with today's sales figures"
-- "Create a new spreadsheet for tracking expenses"
-- "Clear the data in column E"
-
-### Google Tasks Integration
-
-| Action | Description |
-|--------|-------------|
-| **List Task Lists** | View all your task lists |
-| **View Tasks** | See tasks within a specific list |
-| **Create Tasks** | Add new tasks with titles and due dates |
-| **Update Tasks** | Modify task details |
-| **Complete Tasks** | Mark tasks as done |
-| **Delete Tasks** | Remove tasks from lists |
-
-**Example Commands:**
-- "Show my tasks for today"
-- "Add 'Review proposal' to my work tasks"
-- "Mark the grocery list task as complete"
-- "What tasks are due this week?"
+- 10 HD voices: Kore (default), Puck, Charon, Fenrir, Aoede, Leda, Orus, Zephyr, Schedar, Sulafat
+- Expressive style tags: `[style: cheerful]`, `[style: sad]`, `[style: tense]`, etc.
+- Plain text input — no SSML required
+- `say` tool: AI can trigger voice output mid-conversation
 
 ---
 
-## 3. Code Editor & VS Code Integration
+## ✅ Voice Lab
 
-A full-featured development environment built into Meowstik, with seamless VS Code connectivity.
+**Status: Active**
 
-### Monaco Editor Features
-
-| Feature | Description |
-|---------|-------------|
-| **VS Code Experience** | Same editing engine used by Visual Studio Code |
-| **Multi-Language Support** | HTML, CSS, JavaScript, TypeScript, JSON, Markdown |
-| **Syntax Highlighting** | Intelligent code coloring based on language |
-| **Code Completion** | IntelliSense-powered autocomplete suggestions |
-| **Error Detection** | Real-time syntax error highlighting |
-| **Find & Replace** | Powerful search with regex support |
-| **Multiple Cursors** | Edit multiple locations simultaneously |
-| **Keyboard Shortcuts** | Standard VS Code shortcuts work out of the box |
-
-### Theme Support
-
-- **Light Theme**: Clean, bright interface for well-lit environments
-- **Dark Theme**: Easy on the eyes for extended coding sessions
-- **Theme Toggle**: Switch between themes with one click
-
-### Auto-Save
-
-- **Browser Storage**: Code is automatically saved to local storage
-- **Persistence**: Your work is preserved even if you close the browser
-- **No Manual Saving**: Changes are saved as you type
-
-### Live Preview
-
-| Feature | Description |
-|---------|-------------|
-| **Sandboxed Execution** | Code runs safely in an isolated iframe |
-| **Real-time Updates** | See changes instantly as you edit |
-| **Refresh Button** | Manually reload the preview when needed |
-| **Fullscreen Mode** | Expand preview for distraction-free viewing |
-
-### Responsive Testing
-
-Simulate how your code looks on different devices:
-
-| Viewport | Width | Use Case |
-|----------|-------|----------|
-| **Mobile** | 375px | Smartphone view |
-| **Tablet** | 768px | iPad/tablet view |
-| **Desktop** | Full width | Standard desktop view |
-
-### VS Code Integration (New)
-
-Connect Meowstik directly to your local VS Code environment for a powerful bidirectional workflow.
-
-| Feature | Description |
-|---------|-------------|
-| **Bidirectional Sync** | Chat interface can read and write files in your open VS Code project |
-| **Command Execution** | Run terminal commands directly from the chat |
-| **Voice Coding** | Dictate code changes and see them applied instantly in your editor |
-| **Context Awareness** | AI understands your current file context and project structure |
-
-**Setup:**
-1.  Install the **Meowstik VS Code Extension** (located in `vscode-extension/`).
-2.  Start the Desktop App (which runs the server on port 5000).
-3.  Load the extension in VS Code (Run `pnpm run compile` then F5 to debug, or package it).
-4.  The extension connects automatically to `ws://localhost:5000`.
-
-See [VSCODE_INTEGRATION.md](VSCODE_INTEGRATION.md) for full details.
+UI at `/voice-lab` for previewing all available voices in real time. Users can:
+- Listen to each voice with a test phrase
+- Set their preferred default voice
+- Preferences persisted per-user in `user_branding` table
 
 ---
 
-## 4. Voice Interaction
+## ✅ Expressive Voice Styles
 
-Hands-free communication with the AI assistant.
+**Status: Active**
 
-### Expressive Voice (New)
+The AI uses style tags embedded in text to control TTS tone. See [TTS.md](./TTS.md#expressive-styles).
 
-Meowstik uses "Stage Directions" to add emotion to its voice. The AI automatically inserts style tags (e.g., `[style: cheerful]`) which are processed by the TTS engine to modulate pitch, rate, and stability.
-
-**Supported Styles:**
-- `[style: neutral]` or `neutral:` - Professional, balanced (default)
-- `[style: cheerful]` or `cheerful:` - Enthusiastic, higher pitch
-- `[style: sad]` or `sad:` - Empathetic, slower pace
-- `[style: angry]` or `angry:` - Stern, serious tone
-- `[style: fearful]` or `fearful:` - Cautious, uncertain
-- `[style: surprised]` or `surprised:` - Dynamic, varied pitch
-- `[style: empathy]` or `empathetic:` - Warm, reassuring tone
-
-### Speech-to-Text (Voice Input)
-
-| Feature | Description |
-|---------|-------------|
-| **Voice Activation** | Click the microphone button to start speaking |
-| **Real-time Transcription** | See your words appear as you speak |
-| **Web Speech API** | Uses browser's built-in speech recognition |
-| **Language Support** | Supports multiple languages based on browser settings |
-| **Toggle On/Off** | Easy activation and deactivation |
-
-### Text-to-Speech (Voice Output)
-
-| Feature | Description |
-|---------|-------------|
-| **Read Aloud** | AI responses can be spoken out loud |
-| **Natural Voice** | Uses Google Cloud TTS or ElevenLabs for high-quality audio |
-| **Expressive Styling** | Applies emotional tone based on context |
-| **Pause/Resume** | Control playback as needed |
-| **Per-Message Control** | Choose which messages to hear |
+```
+[style: cheerful] I found the answer!
+[style: sad] Unfortunately, the file was deleted.
+[style: surprised] That's not something I expected to find.
+```
 
 ---
 
-## 5. Document Processing (RAG)
+## ✅ Summarization Engine
 
-Retrieval-Augmented Generation for intelligent document handling.
+**Status: Active** — See [SUMMARIZATION_ENGINE.md](./SUMMARIZATION_ENGINE.md)
 
-### Document Upload
+Compresses conversations and feedback batches into structured summaries using Gemini 2.0 Flash. These summaries feed the Evolution Engine's pattern analysis.
 
-| Feature | Description |
-|---------|-------------|
-| **PDF Support** | Upload and process PDF documents |
-| **Text Extraction** | Automatic content extraction from files |
-| **Attachment Management** | Attach files to messages for context |
-
-### Semantic Chunking
-
-| Feature | Description |
-|---------|-------------|
-| **Intelligent Splitting** | Documents are split into meaningful chunks |
-| **Overlap Preservation** | Context is maintained between chunks |
-| **Optimized Size** | Chunks are sized for optimal AI processing |
-
-### Vector Embeddings
-
-| Feature | Description |
-|---------|-------------|
-| **Semantic Search** | Find relevant content based on meaning, not just keywords |
-| **Context Retrieval** | AI retrieves relevant document sections to answer questions |
-| **Efficient Storage** | Embeddings are stored for fast retrieval |
+- `summarizeConversation(chatId)` — 2-3 sentence summary + key topics + sentiment
+- `summarizeFeedbackBatch(items)` — patterns, common issues, improvement areas
+- `getOrCreateSummary(chatId)` — cached, checks DB before generating
+- Results stored in `conversation_summaries` table
 
 ---
 
-## 6. Terminal Access
+## ✅ Evolution Engine
 
-Execute commands directly from the chat interface.
+**Status: Active** — See [EVOLUTION_ENGINE.md](./EVOLUTION_ENGINE.md)
 
-### Shell Command Execution
-
-| Feature | Description |
-|---------|-------------|
-| **Command Execution** | Run shell commands in a sandboxed environment |
-| **Output Display** | See command output directly in the chat |
-| **Error Handling** | Clear error messages when commands fail |
-| **Security** | Sandboxed execution prevents dangerous operations |
-
-**Example Commands:**
-- "Run 'ls -la' to list files"
-- "Execute 'npm install' to install dependencies"
-- "Check the current directory with 'pwd'"
+Closes the feedback loop:
+1. Collects user feedback from database
+2. Runs `summarizeFeedbackBatch` for AI-extracted patterns
+3. Combines with structural analysis (low-rated categories, disliked aspects)
+4. Sends patterns to Gemini for improvement suggestions
+5. Creates a GitHub PR with analysis report and suggestions
+6. Tags `@copilot` to trigger automated implementation review
 
 ---
 
-## 7. User Interface & Experience
+## ✅ Desktop Agent
 
-### Design Philosophy
+**Status: Active** — See [AGENTS.md](./AGENTS.md)
 
-| Principle | Description |
-|-----------|-------------|
-| **Google-esque Aesthetic** | Clean, airy design inspired by Google's design language |
-| **Minimalist Interface** | Focus on content, not clutter |
-| **Consistent Spacing** | Generous whitespace for readability |
-| **Visual Hierarchy** | Clear organization of information |
-
-### Typography
-
-| Element | Font | Purpose |
-|---------|------|---------|
-| **Body Text** | Inter | Readable, professional body copy |
-| **Headings** | Outfit | Modern, distinctive display text |
-| **Code** | Monospace | Clear code readability |
-
-### Responsive Design
-
-| Screen Size | Behavior |
-|-------------|----------|
-| **Desktop** | Full layout with sidebar and main content |
-| **Tablet** | Collapsible sidebar, optimized spacing |
-| **Mobile** | Stacked layout, touch-friendly controls |
-
-### Animations & Transitions
-
-| Animation | Purpose |
-|-----------|---------|
-| **Framer Motion** | Smooth, professional UI animations |
-| **Fade Transitions** | Gentle content appearance |
-| **Slide Effects** | Sidebar and modal animations |
-| **Loading States** | Clear visual feedback during processing |
-
-### Theme Support
-
-| Theme | Description |
-|-------|-------------|
-| **Light Mode** | Bright, clean interface |
-| **Dark Mode** | Eye-friendly dark colors |
-| **System Preference** | Automatically matches OS settings |
-
-### Notifications
-
-| Type | Purpose |
-|------|---------|
-| **Toast Notifications** | Quick feedback for actions |
-| **Error Messages** | Clear error communication |
-| **Success Confirmations** | Confirmation of completed actions |
+Node.js agent that connects to the server via WebSocket and provides full OS control:
+- Screen capture (screenshots + video stream)
+- Mouse injection (click, move, scroll, drag)
+- Keyboard injection (type text, press keys, modifiers)
+- Global hotkey registration
+- Tools: `computer_click`, `computer_type`, `computer_key`, `computer_scroll`, `computer_screenshot`
 
 ---
 
-## 8. Data Management
+## ✅ Browser Extension
 
-### Chat Persistence
+**Status: Active** — See [AGENTS.md](./AGENTS.md)
 
-| Feature | Description |
-|---------|-------------|
-| **PostgreSQL Database** | Reliable, scalable data storage |
-| **Auto-save** | Messages are saved automatically |
-| **Cross-session Access** | Access conversations from any device |
-| **Data Integrity** | ACID-compliant transactions |
-
-### Message Storage
-
-| Field | Description |
-|-------|-------------|
-| **ID** | Unique identifier (UUID) |
-| **Chat ID** | Reference to parent conversation |
-| **Role** | User or AI message |
-| **Content** | The message text |
-| **Metadata** | Additional information (attachments, tool calls) |
-| **Timestamp** | When the message was created |
-
-### Draft Management
-
-| Feature | Description |
-|---------|-------------|
-| **Auto-save Drafts** | In-progress messages are saved |
-| **Draft Recovery** | Recover unsent messages |
-| **Attachment Drafts** | Files attached to unsent messages are preserved |
+Chrome extension with a side-panel chat interface:
+- Reads active tab URL and page content
+- DOM manipulation
+- Form filling
+- Tab management
+- Connects to server via WebSocket
 
 ---
 
-## 9. Technical Architecture
+## ✅ Twilio SMS & Voice
 
-### Frontend Stack
+**Status: Active** — See [INTEGRATIONS.md](./INTEGRATIONS.md)
 
-| Technology | Purpose |
-|------------|---------|
-| **React 18** | UI component framework |
-| **TypeScript** | Type-safe development |
-| **Vite** | Fast development and build tool |
-| **Tailwind CSS v4** | Utility-first styling |
-| **shadcn/ui** | Accessible UI components |
-| **TanStack Query** | Server state management |
-| **Wouter** | Lightweight routing |
-| **Framer Motion** | Animation library |
-| **Monaco Editor** | Code editing |
-
-### Backend Stack
-
-| Technology | Purpose |
-|------------|---------|
-| **Node.js** | JavaScript runtime |
-| **Express.js** | HTTP server framework |
-| **Drizzle ORM** | Type-safe database operations |
-| **PostgreSQL** | Relational database |
-| **Google APIs** | Workspace integrations |
-
-### AI & Processing
-
-| Technology | Purpose |
-|------------|---------|
-| **Google Gemini** | Conversational AI engine |
-| **Server-Sent Events** | Real-time streaming |
-| **JSON Parser** | Tool call extraction |
-| **RAG Pipeline** | Document retrieval and context |
-| **Environment Metadata** | Runtime environment awareness (production/local, hostname) |
-
-### Security
-
-| Feature | Description |
-|---------|-------------|
-| **OAuth2 Authentication** | Secure Google account access |
-| **Token Management** | Automatic token refresh and caching |
-| **Sandboxed Execution** | Safe code and command execution |
-| **Input Validation** | Zod schemas for data validation |
+- Receive and reply to inbound SMS
+- Send outbound SMS via `sms_send` tool
+- Inbound call handling with AI receptionist (TwiML)
+- Outbound AI calling via `call_make` tool — AI handles the full conversation
+- Voicemail transcription and storage
+- All messages stored in `sms_messages` + `call_conversations` tables
 
 ---
 
-## Quick Reference: What You Can Ask Meowstic
+## ✅ Google Workspace Integration
 
-### Productivity
-- "Show my recent emails"
-- "What's on my calendar today?"
-- "Create a new document for meeting notes"
-- "Add a task to buy groceries"
+**Status: Active**
 
-### File Management
-- "Search my Drive for project files"
-- "Read the contents of my report"
-- "Update the budget spreadsheet"
+Full read/write access to Google services via OAuth:
 
-### Communication
-- "Send an email to my team about the update"
-- "Find emails from last week"
-
-### Development
-- "Help me write a JavaScript function"
-- "Preview this HTML code"
-- "Run npm install"
-
-### General Assistance
-- "Summarize this document"
-- "Explain this concept"
-- "Help me plan my day"
+| Service | Tools |
+|---------|-------|
+| Gmail | `gmail_list`, `gmail_read`, `gmail_search`, `gmail_send` |
+| Calendar | `calendar_list`, `calendar_events`, `calendar_create`, `calendar_update`, `calendar_delete` |
+| Drive | `drive_list`, `drive_read`, `drive_search`, `drive_create`, `drive_update`, `drive_delete` |
+| Docs | `docs_read`, `docs_create`, `docs_append`, `docs_replace` |
+| Sheets | `sheets_read`, `sheets_write`, `sheets_append`, `sheets_create`, `sheets_clear` |
+| Tasks | `tasks_list`, `tasks_create`, `tasks_update`, `tasks_complete`, `tasks_delete` |
+| Contacts | `contacts_list`, `contacts_search`, `contacts_create`, `contacts_update` |
 
 ---
 
-*Meowstik - Your AI-powered productivity companion*
+## ✅ GitHub Integration
+
+**Status: Active**
+
+Full GitHub API access for the Evolution Engine and for user-initiated operations:
+- Create/update files, branches, commits
+- Create pull requests with agent attribution
+- Add PR comments, tag `@copilot`
+- List repos, issues, PRs
+- Used by the Evolution Engine to propose improvements
+
+---
+
+## ✅ SSH Gateway
+
+**Status: Active**
+
+Persistent SSH sessions to remote servers:
+- Connect to any SSH server with credentials
+- Execute commands and stream output
+- Manage multiple concurrent sessions
+- `ssh` tool provides a 2-way terminal-like interface
+
+---
+
+## ✅ Web Search
+
+**Status: Active**
+
+Dual search backends:
+- **Exa** (`exa_search`) — neural search engine, best for semantic queries
+- **Google Custom Search** (`web_search`) — traditional keyword search
+
+---
+
+## ✅ Browser Automation (Puppeteer)
+
+**Status: Active**
+
+Headless browser via Puppeteer for web scraping and automation:
+- `puppeteer_navigate` — load any URL
+- `puppeteer_click` — click elements by CSS selector
+- `puppeteer_type` — fill input fields
+- `puppeteer_screenshot` — capture page visuals
+- `puppeteer_evaluate` — run JavaScript in page context
+- `puppeteer_content` — extract page HTML/text
+
+---
+
+## ✅ Cron Scheduler
+
+**Status: Active**
+
+Schedule recurring tasks using cron expressions:
+- Parse and evaluate standard cron syntax
+- Calculate next run times
+- Trigger workflows on schedule
+- Track consecutive failures
+- Timezone support
+
+---
+
+## ✅ Computer Use (Vision-Based Desktop Automation)
+
+**Status: Active**
+
+Gemini-powered vision automation that analyzes screenshots to control the desktop:
+- Takes a screenshot, analyzes it, determines where to click
+- Works without explicit coordinates — just describe what to do
+- Tools: `computer_screenshot` → `computer_click` / `computer_type` / `computer_key` / `computer_scroll`
+
+---
+
+## ✅ Live Mode (Gemini Live API)
+
+**Status: Active**
+
+Real-time voice conversation using Gemini's Live API:
+- Microphone input with silence detection
+- Streaming bidirectional audio
+- Low-latency responses
+- Available at `/live` route
+
+---
+
+## ✅ Todo System
+
+**Status: Active**
+
+Persistent task list with the `todo_*` tools:
+- `todo_list`, `todo_add`, `todo_update`, `todo_complete`, `todo_remove`
+- Stored in `todo_items` table per user
+- Priority, category, tags, status tracking
+
+---
+
+## ✅ Database Tool Access
+
+**Status: Active**
+
+The AI can inspect and query its own database:
+- `db_tables` — list all tables and columns
+- `db_query` — run SELECT queries
+- `db_insert` — insert rows
+- `db_delete` — delete rows with WHERE
+
+---
+
+## ✅ Google OAuth + Persona Customization
+
+**Status: Active**
+
+- Google OAuth 2.0 login
+- Per-user branding: custom display name, avatar, GitHub signature
+- Stored in `user_branding` table
+- Evolution Engine uses the user's GitHub signature for attributed PRs
+
+---
+
+## ✅ HTTP Tools
+
+**Status: Active**
+
+Make arbitrary HTTP requests from within a conversation:
+- `http_get`, `http_post`, `http_put`, `http_patch`, `http_delete`
+- Custom headers support (for API keys, Authorization, etc.)
+- Useful for calling any third-party API
+
+---
+
+## ✅ JIT Tool Loading
+
+**Status: Active**
+
+Just-in-time tool selection (`server/services/jit-tool-protocol.ts`):
+- Predicts which tools are likely needed for each message
+- Loads only that subset into the Gemini context window
+- Keeps prompts lean and fast, especially for non-tool conversations
+
+---
+
+## ✅ LLM Usage Tracking
+
+**Status: Active**
+
+Every LLM call is logged with:
+- Input/output token counts
+- Model used
+- Duration
+- Cost estimation
+- Available via `/api/llm/usage`
+
+---
+
+## 🔧 Hardware Control (Stubs)
+
+**Status: Stub / Experimental**
+
+- `set_mood_light` — HP USB mood lighting device
+- Arduino integration (`server/integrations/arduino.ts`)
+- ADB Android device control (`server/integrations/adb.ts`)
+- 3D printer (`server/integrations/printer3d.ts`)
+- KiCad EDA (`server/integrations/kicad.ts`)
