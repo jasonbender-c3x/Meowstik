@@ -1,7 +1,7 @@
 
 /**
  * =============================================================================
- * MEOWSTIC CHAT - RAG DISPATCHER SERVICE
+ * MEOWSTIC CHAT - TOOL DISPATCHER SERVICE
  * =============================================================================
  * 
  * Handles the dispatch and execution of structured LLM outputs.

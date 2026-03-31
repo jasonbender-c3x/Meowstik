@@ -617,7 +617,6 @@ export const feedback = sqliteTable("feedback", {
   freeformText: text("freeform_text"),
   promptSnapshot: text("prompt_snapshot"), // Full prompt at time of response
   responseSnapshot: text("response_snapshot"), // Full AI response
-  kernelId: text("kernel_id"), // Reference to kernel version used
   createdAt: integer("created_at", { mode: "timestamp" }).default(sql`(unixepoch() * 1000)`).notNull(),
   submittedAt: integer("submitted_at", { mode: "timestamp" }), // Set when feedback is submitted to GitHub PR
 });
@@ -2711,3 +2710,30 @@ export const insertTodoItemSchema = createInsertSchema(todoItems).omit({
 });
 export type InsertTodoItem = z.infer<typeof insertTodoItemSchema>;
 export type TodoItem = typeof todoItems.$inferSelect;
+
+// =============================================================================
+// CONVERSATION SUMMARIES - Compressed summaries for pattern analysis
+// =============================================================================
+/**
+ * CONVERSATION_SUMMARIES TABLE
+ * ----------------------------
+ * Stores AI-generated summaries of conversations produced by the Summarization
+ * Engine. These summaries feed into the Evolution Engine's pattern analysis
+ * to generate self-improvement suggestions.
+ */
+export const conversationSummaries = sqliteTable("conversation_summaries", {
+  id: text("id").primaryKey().$defaultFn(() => nanoid()),
+  chatId: text("chat_id").references(() => chats.id, { onDelete: "cascade" }),
+  summary: text("summary").notNull(),
+  keyTopics: text("key_topics", { mode: "json" }).$type<string[]>(),
+  sentiment: text("sentiment"), // "positive" | "neutral" | "negative"
+  modelUsed: text("model_used"),
+  createdAt: integer("created_at", { mode: "timestamp" }).default(sql`(unixepoch() * 1000)`).notNull(),
+});
+
+export const insertConversationSummarySchema = createInsertSchema(conversationSummaries).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertConversationSummary = z.infer<typeof insertConversationSummarySchema>;
+export type ConversationSummaryRecord = typeof conversationSummaries.$inferSelect;

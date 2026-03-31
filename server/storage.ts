@@ -71,7 +71,10 @@ import {
   type InsertSmsMessage,
   userAgents,
   type UserAgent,
-  type InsertUserAgent
+  type InsertUserAgent,
+  conversationSummaries,
+  type ConversationSummaryRecord,
+  type InsertConversationSummary,
 } from "@shared/schema";
 import { db, pool } from "./db";
 import { eq, desc, and, ne, sql, inArray, or } from "drizzle-orm";
@@ -881,6 +884,30 @@ export class DatabaseStorage {
       return true;
     }
     return false;
+  }
+
+  // Conversation Summaries (Summarization Engine)
+  async createConversationSummary(data: InsertConversationSummary): Promise<ConversationSummaryRecord> {
+    const [saved] = await db.insert(conversationSummaries).values(data).returning();
+    return saved;
+  }
+
+  async getConversationSummary(chatId: string): Promise<ConversationSummaryRecord | undefined> {
+    const [record] = await db
+      .select()
+      .from(conversationSummaries)
+      .where(eq(conversationSummaries.chatId, chatId))
+      .orderBy(desc(conversationSummaries.createdAt))
+      .limit(1);
+    return record;
+  }
+
+  async getRecentSummaries(limit: number = 20): Promise<ConversationSummaryRecord[]> {
+    return await db
+      .select()
+      .from(conversationSummaries)
+      .orderBy(desc(conversationSummaries.createdAt))
+      .limit(limit);
   }
 }
 

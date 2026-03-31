@@ -18,6 +18,7 @@ import { GoogleGenAI } from "@google/genai";
 import { storage } from "../storage";
 import { Feedback } from "@shared/schema";
 import * as github from "../integrations/github";
+import { summarizeFeedbackBatch } from "./summarization-engine";
 
 const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
@@ -110,6 +111,9 @@ export async function analyzeFeedbackPatterns(): Promise<FeedbackPattern[]> {
     return [];
   }
 
+  // Summarize feedback via the Summarization Engine for AI-extracted patterns
+  const feedbackSummary = await summarizeFeedbackBatch(feedbackEntries);
+
   const negativeFeedback = feedbackEntries.filter(f => f.rating === "negative");
   const feedbackWithText = feedbackEntries.filter(f => f.freeformText);
   
@@ -199,12 +203,27 @@ export async function analyzeFeedbackPatterns(): Promise<FeedbackPattern[]> {
     }
   }
 
+  // Add AI-summarized patterns from Summarization Engine
+  for (const issue of feedbackSummary.commonIssues) {
+    patterns.push({
+      category: "ai_summarized",
+      issue,
+      frequency: 1,
+      examples: [],
+      severity: "medium",
+    });
+  }
+
   return patterns.sort((a, b) => {
     const severityOrder = { high: 0, medium: 1, low: 2 };
     return severityOrder[a.severity] - severityOrder[b.severity] || b.frequency - a.frequency;
   });
 }
 
+/**
+ * Generates improvement suggestions using the Summarization Engine output
+ * plus the manually-extracted structural patterns.
+ */
 export async function generateImprovementSuggestions(
   patterns: FeedbackPattern[]
 ): Promise<ImprovementSuggestion[]> {

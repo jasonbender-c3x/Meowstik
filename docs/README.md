@@ -1,269 +1,453 @@
-# 📚 Meowstik Documentation
+# Meowstik Documentation
 
-Welcome to the Meowstik documentation! This guide will help you navigate our comprehensive documentation system.
+> **The AI Personal Assistant & Meta-Agent Platform**
 
----
-
-## 🎯 Quick Navigation
-
-### For New Users
-👉 **Start Here:** [`core/QUICK_START.md`](core/QUICK_START.md) - Get up and running in 5 minutes
-
-### For Developers  
-👉 **Start Here:** [`core/DEVELOPMENT_GUIDE.md`](core/DEVELOPMENT_GUIDE.md) - Complete development guide
-
-### For Architects
-👉 **Start Here:** [`core/SYSTEM_ARCHITECTURE.md`](core/SYSTEM_ARCHITECTURE.md) - System design and architecture
-
-### For Historians
-👉 **Start Here:** [`exhibit/README.md`](exhibit/README.md) - Evolution of Meowstik through AI collaboration
-
-### For AI Training
-👉 **Start Here:** [`NOTEBOOKLM_INGESTION.md`](NOTEBOOKLM_INGESTION.md) - Create a "Self-Replicating" knowledge base
+Meowstik is a comprehensive AI assistant built on Google Gemini. It's not just a chat app — it's a meta-agent platform that gives the AI real agency over your digital world: browsing the web, writing code, managing files, sending emails, controlling your desktop, and more.
 
 ---
 
-## 📖 Documentation Structure
+## Table of Contents
 
-We organize our documentation into two main sections:
-
-### 🎯 Core Documentation (`docs/core/`)
-
-**Active, authoritative reference for the current system.**
-
-These documents describe Meowstik as it exists today. Use these for:
-- Development and implementation
-- Feature usage and APIs
-- Troubleshooting and maintenance
-- System understanding
-
-**Key Documents:**
-- **[SYSTEM_ARCHITECTURE.md](core/SYSTEM_ARCHITECTURE.md)** - How everything fits together
-- **[FEATURES.md](core/FEATURES.md)** - What Meowstik can do
-- **[DATABASE_SCHEMA.md](core/DATABASE_SCHEMA.md)** - Database design
-- **[API_REFERENCE.md](core/API_REFERENCE.md)** - All endpoints and their usage
-- **[DEVELOPMENT_GUIDE.md](core/DEVELOPMENT_GUIDE.md)** - How to contribute
-- **[TROUBLESHOOTING.md](core/TROUBLESHOOTING.md)** - Common issues and fixes
-
-👉 **[Browse Core Docs →](core/README.md)**
+1. [Architecture Overview](#architecture-overview)
+2. [Chat & Conversation](#chat--conversation)
+3. [Voice & TTS (Chirp3-HD)](#voice--tts-chirp3-hd)
+4. [Tools & Capabilities](#tools--capabilities)
+5. [Summarization Engine](#summarization-engine)
+6. [Evolution Engine](#evolution-engine)
+7. [Desktop Agent](#desktop-agent)
+8. [Browser Extension](#browser-extension)
+9. [Twilio SMS & Voice](#twilio-sms--voice)
+10. [Data Model](#data-model)
+11. [API Reference](#api-reference)
 
 ---
 
-### 🎭 Evolution Exhibit (`docs/exhibit/`)
+## Architecture Overview
 
-**Historical documentation showing progressive sophistication through AI collaboration.**
+Meowstik is a monorepo with a hub-and-spoke architecture. The **server** is the central brain; agents ("limbs") connect via WebSockets to receive instructions and stream back results.
 
-This exhibit chronicles Meowstik's journey from concept to comprehensive platform. Organized chronologically into phases:
+```mermaid
+graph TD
+    User[User] <--> Client[Web Client / React UI]
+    Client <-->|SSE + REST| Server[Meowstik Server]
 
-**Phase 0: Genesis** (Dec 2024 - Early Jan 2025)
-- Initial architecture and foundation
-- Database design
-- Core concepts
+    subgraph "Server Core"
+        Server --> Gemini[Google Gemini AI]
+        Server --> DB[(SQLite / Drizzle ORM)]
+        Server --> Summarizer[Summarization Engine]
+        Server --> Evolution[Evolution Engine]
+    end
 
-**Phase 1: Core Features** (January 2025)
-- Chat interface
-- Tool calling
-- User authentication
+    subgraph "Agents"
+        Server <-->|WebSocket| Desktop[Desktop Agent]
+        Server <-->|WebSocket| Extension[Browser Extension]
+        Server <-->|SSH| Remote[SSH Gateway]
+    end
 
-**Phase 2: Integrations** (Mid-January 2025)
-- Google Workspace
-- Twilio voice/SMS
-- OAuth systems
+    subgraph "Integrations"
+        Server --> Gmail[Gmail]
+        Server --> GCal[Google Calendar]
+        Server --> GDrive[Google Drive]
+        Server --> GitHub[GitHub]
+        Server --> Twilio[Twilio SMS/Voice]
+        Server --> TTS[Cloud TTS / Chirp3-HD]
+    end
 
-**Phase 3: Advanced AI** (Mid-January 2025)
-- RAG implementation
-- Memory systems
-- Multi-LLM orchestration
+    Desktop --> LocalOS[Local OS / Screen]
+    Extension --> Browser[User's Browser Tabs]
+```
 
-**Phase 4: Automation** (Late January 2025)
-- Browser extensions
-- Desktop agents
-- MCP servers
+### Stack
 
-**Phase 5: Refinements** (Late January 2025)
-- Bug fixes
-- UX improvements
-- Performance optimization
-
-**Phase 6: Future Visions** (Ongoing)
-- Roadmaps
-- Proposals
-- Long-term planning
-
-👉 **[Explore the Exhibit →](exhibit/README.md)**
-
----
-
-## 🚀 Getting Started
-
-### I Want To...
-
-**...use Meowstik** → Start with [QUICK_START.md](core/QUICK_START.md)
-
-**...develop a feature** → Read [DEVELOPMENT_GUIDE.md](core/DEVELOPMENT_GUIDE.md)
-
-**...integrate with an API** → Check [API_REFERENCE.md](core/API_REFERENCE.md)
-
-**...understand the system** → Read [SYSTEM_ARCHITECTURE.md](core/SYSTEM_ARCHITECTURE.md)
-
-**...fix a bug** → See [TROUBLESHOOTING.md](core/TROUBLESHOOTING.md)
-
-**...learn about evolution** → Browse [exhibit/README.md](exhibit/README.md)
-
-**...add Google Workspace** → See [core/GOOGLE_WORKSPACE_INTEGRATION.md](core/GOOGLE_WORKSPACE_INTEGRATION.md)
-
-**...implement voice features** → See [core/VOICE_INTEGRATION.md](core/VOICE_INTEGRATION.md)
-
-**...understand RAG** → See [core/RAG_SYSTEM.md](core/RAG_SYSTEM.md)
+| Layer | Technology |
+|-------|-----------|
+| AI Model | Google Gemini (gemini-2.0-flash, gemini-2.5-pro) |
+| Backend | Node.js + Express |
+| Database | SQLite via Drizzle ORM |
+| Frontend | React + Vite + Tailwind CSS |
+| TTS | Google Cloud Text-to-Speech (Chirp3-HD) |
+| Real-time | Server-Sent Events (SSE) |
 
 ---
 
-## 🔍 Finding What You Need
+## Chat & Conversation
 
-### Search Strategy
+The core loop: user sends a message → Gemini generates a response with optional tool calls → tools execute → results stream back.
 
-1. **Check Core Docs First** - Most current information
-2. **Search Exhibit by Phase** - Historical context
-3. **Use GitHub Search** - Full-text search across all docs
-4. **Check README files** - Each directory has an index
+```mermaid
+sequenceDiagram
+    participant U as User
+    participant C as Client
+    participant S as Server
+    participant G as Gemini
 
-### Common Topics
+    U->>C: Send message
+    C->>S: POST /api/chats/:id/messages
+    S->>G: Prompt (personality + tools + history)
+    G-->>S: Structured response (text + tool calls)
+    S-->>C: SSE stream (tokens + tool events)
+    S->>S: Execute tool calls
+    S-->>C: Tool results via SSE
+    C-->>U: Final rendered response
+```
 
-| Topic | Core Doc | Exhibit Phase |
-|-------|----------|---------------|
-| Architecture | [SYSTEM_ARCHITECTURE.md](core/SYSTEM_ARCHITECTURE.md) | Phase 0 |
-| Features | [FEATURES.md](core/FEATURES.md) | Phase 1 |
-| Database | [DATABASE_SCHEMA.md](core/DATABASE_SCHEMA.md) | Phase 0 |
-| APIs | [API_REFERENCE.md](core/API_REFERENCE.md) | Phase 1 |
-| Google Integration | [GOOGLE_WORKSPACE_INTEGRATION.md](core/GOOGLE_WORKSPACE_INTEGRATION.md) | Phase 2 |
-| Voice/TTS | [VOICE_INTEGRATION.md](core/VOICE_INTEGRATION.md) | Phase 2 |
-| RAG System | [RAG_SYSTEM.md](core/RAG_SYSTEM.md) | Phase 3 |
-| Browser Extension | [BROWSER_AUTOMATION.md](core/BROWSER_AUTOMATION.md) | Phase 4 |
-| Bug Fixes | [TROUBLESHOOTING.md](core/TROUBLESHOOTING.md) | Phase 5 |
+**Key endpoints:**
+- `POST /api/chats` — create a new conversation
+- `GET /api/chats/:id/messages` — fetch message history
+- `POST /api/chats/:id/messages` — send a message (returns SSE stream)
 
----
+**Personality:** Meowstik expresses emotion through voice style tags in responses:
 
-## 📝 Documentation Philosophy
-
-### Core Documentation Should Be:
-- ✅ **Accurate** - Reflects current system state
-- ✅ **Complete** - Covers all major features
-- ✅ **Clear** - Easy to understand
-- ✅ **Actionable** - Includes examples
-- ✅ **Maintained** - Regularly updated
-
-### Exhibit Documentation Shows:
-- 📜 **Evolution** - How features developed
-- 🤝 **Collaboration** - Human-AI interaction
-- 💡 **Learning** - Lessons and patterns
-- 🎨 **Craftsmanship** - Attention to detail
-- 🚀 **Progress** - Increasing sophistication
+| Tag | Effect |
+|-----|--------|
+| `[style: cheerful]` | Upbeat, enthusiastic tone |
+| `[style: neutral]` | Clear, informational |
+| `[style: empathy]` | Warm, reassuring |
+| `[style: sad]` | Gentle, apologetic |
+| `[style: surprised]` | Excited, intrigued |
+| `[style: tense]` | Serious, focused |
 
 ---
 
-## 🤝 Contributing to Documentation
+## Voice & TTS (Chirp3-HD)
 
-### When to Update Core Docs
-- Feature changes or additions
-- API modifications
-- Bug fixes affecting behavior
-- Configuration changes
+Meowstik uses **Google Cloud Text-to-Speech with Chirp3-HD** — Google's highest-quality 2025 neural voices. These voices understand natural language style cues (no SSML needed).
 
-### When to Add to Exhibit
-- Major refactors (preserve old approach)
-- Deprecated features
-- Significant architectural changes
-- Completed project phases
+**Default voice:** `Kore` (Female · American · Natural)
 
-### How to Contribute
-1. Fork the repository
-2. Make your changes
-3. Test all code examples
-4. Submit a pull request
-5. Tag with `documentation` label
+### Available Voices
 
----
+| Name | Gender | Character |
+|------|--------|-----------|
+| **Kore** *(default)* | Female | Natural, balanced |
+| Puck | Male | Upbeat, American |
+| Charon | Male | Informative |
+| Fenrir | Male | Excitable |
+| Aoede | Female | Breezy |
+| Leda | Female | Youthful |
+| Orus | Male | Firm |
+| Zephyr | Female | Bright |
+| Schedar | Female | Even |
+| Sulafat | Female | Warm |
 
-## 📊 Documentation Statistics
+All voices use the `en-US-Chirp3-HD-{Name}` endpoint. Voice style is controlled by natural language style tags (`[style: cheerful]`) embedded in the response text.
 
-**Total Documents:** 85+ markdown files  
-**Core Docs:** 15+ active documents  
-**Exhibit Docs:** 70+ historical documents  
-**Total Size:** 1.2+ MB  
-**Time Span:** 6 weeks (Dec 2024 - Jan 2025)  
-**Major Phases:** 6 documented phases  
-**Contributors:** Human + AI collaboration  
+### Voice Lab
+
+The Voice Lab UI lets users preview all voices in real time and set their preferred default. Voice preferences are persisted per user in the `user_branding` table.
 
 ---
 
-## 🎓 Learning Paths
+## Tools & Capabilities
 
-### Path 1: Quick User (30 minutes)
-1. [QUICK_START.md](core/QUICK_START.md)
-2. [FEATURES.md](core/FEATURES.md)
-3. Try the app!
+Meowstik has a rich set of built-in tools that Gemini can invoke during a conversation. Tools are declared in `prompts/tools.md` and dispatched by `server/services/tool-dispatcher.ts`.
 
-### Path 2: Developer (2-3 hours)
-1. [SYSTEM_ARCHITECTURE.md](core/SYSTEM_ARCHITECTURE.md)
-2. [DATABASE_SCHEMA.md](core/DATABASE_SCHEMA.md)
-3. [API_REFERENCE.md](core/API_REFERENCE.md)
-4. [DEVELOPMENT_GUIDE.md](core/DEVELOPMENT_GUIDE.md)
-5. Build something!
+### Tool Categories
 
-### Path 3: Architect (4-6 hours)
-1. [exhibit/README.md](exhibit/README.md) - Start with the journey
-2. [core/SYSTEM_ARCHITECTURE.md](core/SYSTEM_ARCHITECTURE.md)
-3. [exhibit/00-genesis/](exhibit/00-genesis/) - Foundation decisions
-4. [exhibit/03-advanced-ai/](exhibit/03-advanced-ai/) - Complex systems
-5. [exhibit/06-proposals/](exhibit/06-proposals/) - Future vision
+#### 🌐 Web & Information
+| Tool | Description |
+|------|-------------|
+| `web_search` | Search the web and return structured results |
+| `browser_load` | Load a URL and extract page content |
+| `http_get/post/put` | Make arbitrary HTTP requests |
 
-### Path 4: AI Researcher (2-4 hours)
-1. [exhibit/03-advanced-ai/RAG_PIPELINE.md](exhibit/03-advanced-ai/RAG_PIPELINE.md)
-2. [exhibit/03-advanced-ai/LLM_ORCHESTRATION_GUIDE.md](exhibit/03-advanced-ai/LLM_ORCHESTRATION_GUIDE.md)
-3. [exhibit/04-automation/](exhibit/04-automation/) - MCP and automation
-4. [exhibit/README.md](exhibit/README.md) - AI collaboration patterns
+#### 💻 System & Files
+| Tool | Description |
+|------|-------------|
+| `terminal` | Execute shell commands |
+| `file_get` | Read a file from the filesystem |
+| `file_put` | Write/create a file |
+| `db_query` | Run SELECT queries on the SQLite database |
+| `db_insert` | Insert rows into the database |
 
----
+#### 📧 Google Workspace
+| Tool | Description |
+|------|-------------|
+| Gmail | Read, send, search emails |
+| Google Calendar | Create, list, update events |
+| Google Drive | Upload, download, search files |
+| Google Docs | Create and edit documents |
+| Google Sheets | Read and write spreadsheet data |
+| Google Tasks | Manage task lists |
+| Google Contacts | Look up contacts |
 
-## 🌟 Highlights
+#### 🐙 Developer Tools
+| Tool | Description |
+|------|-------------|
+| GitHub | Create PRs, issues, commits, branches |
+| SSH | Connect to remote servers, run commands |
+| Arduino | Flash and communicate with microcontrollers |
+| ADB | Control Android devices |
 
-### Most Comprehensive
-**RAG Traceability Implementation** - 38KB of detailed RAG system design with provenance tracking
+#### 📱 Communication
+| Tool | Description |
+|------|-------------|
+| Twilio SMS | Send and receive SMS messages |
+| `say` | Trigger TTS speech output |
+| `soundboard` | Play audio sound effects |
 
-### Most Innovative  
-**Playwright MCP Server** - Browser automation via Model Context Protocol for AI assistants
+### Just-In-Time (JIT) Tool Loading
 
-### Most Practical
-**Merge Conflict Resolution Tools** - Real-world developer experience improvements
-
-### Most Visionary
-**Multi-User Architecture Proposal** - Future-looking system scaling design
-
----
-
-## 📞 Getting Help
-
-- **Documentation Issues:** Open issue with `docs:` prefix
-- **Feature Questions:** See [core/FEATURES.md](core/FEATURES.md)
-- **Bug Reports:** See [core/TROUBLESHOOTING.md](core/TROUBLESHOOTING.md)
-- **General Questions:** Check [core/FAQ.md](core/FAQ.md)
-
----
-
-## 🔗 External Resources
-
-- **Main Repository:** https://github.com/jasonbender-c3x/Meowstik
-- **Issues:** https://github.com/jasonbender-c3x/Meowstik/issues
-- **Project README:** [../../README.md](../../README.md)
+The JIT protocol (`server/services/jit-tool-protocol.ts`) predicts which tools are likely needed for an incoming message and loads only those into the context window — keeping prompts lean and fast.
 
 ---
 
-*"Good documentation is a love letter to your future self."* - Damian Conway
+## Summarization Engine
 
-This documentation system represents 6 weeks of collaborative development between human vision and AI implementation, resulting in a sophisticated platform and comprehensive knowledge base.
+**Location:** `server/services/summarization-engine.ts`
+
+The Summarization Engine compresses raw conversations and feedback into structured summaries using **Gemini 2.0 Flash** (cheap, fast). These summaries are the foundation of the Evolution Engine's self-improvement loop.
+
+```mermaid
+graph LR
+    Convos[Raw Conversations] --> SE[Summarization Engine]
+    Feedback[User Feedback] --> SE
+    SE -->|Gemini 2.0 Flash| DB[(conversation_summaries table)]
+    DB --> EE[Evolution Engine]
+    EE --> PR[GitHub PR with improvements]
+```
+
+### API
+
+```typescript
+// Summarize a single chat
+summarizeConversation(chatId: string): Promise<ConversationSummary>
+
+// Summarize a batch of feedback (used by Evolution Engine)
+summarizeFeedbackBatch(feedbackItems: Feedback[]): Promise<FeedbackSummary>
+
+// Cached version — checks DB first
+getOrCreateSummary(chatId: string): Promise<ConversationSummary>
+```
+
+### Types
+
+```typescript
+interface ConversationSummary {
+  chatId: string;
+  summary: string;          // 2-3 sentence summary
+  keyTopics: string[];      // Extracted topics
+  sentiment: "positive" | "neutral" | "negative";
+  createdAt: Date;
+}
+
+interface FeedbackSummary {
+  patterns: string[];       // Observed behavioral patterns
+  commonIssues: string[];   // Frequently reported problems
+  improvementAreas: string[]; // Suggested areas to improve
+  createdAt: Date;
+}
+```
+
+### Database
+
+Summaries are stored in the `conversation_summaries` table:
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | text (PK) | nanoid |
+| `chatId` | text (FK → chats) | Source conversation |
+| `summary` | text | 2-3 sentence summary |
+| `keyTopics` | json (string[]) | Extracted topics |
+| `sentiment` | text | positive / neutral / negative |
+| `modelUsed` | text | Gemini model that generated it |
+| `createdAt` | timestamp | When generated |
 
 ---
 
-**Last Updated:** January 18, 2026  
-**Maintained By:** Meowstik Core Team  
-**Structure:** Core (Current) + Exhibit (Historical)
+## Evolution Engine
+
+**Location:** `server/services/evolution-engine.ts`
+
+The Evolution Engine closes the feedback loop: it collects user ratings, analyzes patterns (aided by the Summarization Engine), generates improvement suggestions, and opens GitHub PRs for human review.
+
+```mermaid
+graph TD
+    FB[User Feedback DB] --> SE[Summarization Engine]
+    SE --> PA[Pattern Analysis]
+    PA --> AI[Gemini: Generate Suggestions]
+    AI --> PR[GitHub Pull Request]
+    PR --> Human[Human Review / Copilot]
+    Human -->|Approved| Merge[Merged Improvements]
+```
+
+### Flow
+
+1. **Collect** — fetch up to 100 recent feedback entries from DB
+2. **Summarize** — `summarizeFeedbackBatch()` produces AI-extracted patterns
+3. **Analyze** — combine structural patterns (low category scores, disliked aspects) with AI patterns
+4. **Suggest** — Gemini generates 2-5 prioritized improvement suggestions
+5. **PR** — create a GitHub branch, commit an evolution report, open a PR, tag `@copilot`
+
+### Feedback Data
+
+Users rate responses via the feedback UI. Each entry captures:
+- `rating`: positive / negative
+- `categories`: scored dimensions (accuracy, helpfulness, clarity, completeness)
+- `likedAspects` / `dislikedAspects`: structured aspect tags
+- `freeformText`: open-ended comment
+- `promptSnapshot` / `responseSnapshot`: full context for replay
+
+---
+
+## Desktop Agent
+
+**Location:** `desktop-agent/`
+
+A Node.js agent that connects to the server via WebSocket and provides full OS control:
+
+- **Screen capture** — real-time screenshots and video stream
+- **Mouse & keyboard** — inject clicks, keystrokes, and shortcuts via `@nut-tree-fork/nut-js`
+- **Global hotkeys** — trigger actions from anywhere on the desktop
+
+**Use case examples:**
+> "Click the Submit button in VS Code's source control panel"  
+> "Take a screenshot and tell me what's on screen"  
+> "Open Terminal and run `git status`"
+
+---
+
+## Browser Extension
+
+**Location:** `browser-extension/`
+
+A Chrome extension with a side-panel chat interface. The extension connects to the Meowstik server and can:
+
+- Read the active tab's URL and page content
+- Manipulate the DOM
+- Fill out forms
+- Summarize pages inline
+
+**Use case examples:**
+> "Summarize this article"  
+> "Extract all links from this page"  
+> "Fill out this checkout form with my saved address"
+
+---
+
+## Twilio SMS & Voice
+
+Meowstik integrates with **Twilio** for phone communication:
+
+### SMS
+- Receive inbound SMS and process them through the AI pipeline
+- Send outbound SMS via the `twilio_sms` tool
+- Conversation history tracked per phone number in `sms_messages` table
+
+### Voice / Phone
+- Handle inbound calls with an AI receptionist (TwiML response)
+- Voicemail transcription and storage
+- Call conversation logs in `call_conversations` table
+
+**Configuration:** Set `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, and `TWILIO_PHONE_NUMBER` environment variables.
+
+---
+
+## Data Model
+
+Core tables in the SQLite database:
+
+```mermaid
+erDiagram
+    users ||--o{ chats : owns
+    chats ||--o{ messages : contains
+    messages ||--o{ attachments : has
+    messages ||--o{ feedback : rated_by
+    chats ||--o{ conversation_summaries : summarized_in
+    messages ||--o{ tool_call_logs : triggers
+    messages ||--o{ llm_usage : tracked_by
+
+    users {
+        text id PK
+        text email
+        text displayName
+        timestamp createdAt
+    }
+    chats {
+        text id PK
+        text title
+        text userId FK
+        timestamp createdAt
+    }
+    messages {
+        text id PK
+        text chatId FK
+        text role
+        text content
+        timestamp createdAt
+    }
+    feedback {
+        text id PK
+        text messageId FK
+        text chatId FK
+        text rating
+        json categories
+        json likedAspects
+        json dislikedAspects
+        text freeformText
+        text promptSnapshot
+        text responseSnapshot
+        timestamp createdAt
+    }
+    conversation_summaries {
+        text id PK
+        text chatId FK
+        text summary
+        json keyTopics
+        text sentiment
+        text modelUsed
+        timestamp createdAt
+    }
+```
+
+---
+
+## API Reference
+
+### Chat
+
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | `/api/chats` | Create a new chat |
+| GET | `/api/chats` | List all chats |
+| GET | `/api/chats/:id` | Get chat by ID |
+| POST | `/api/chats/:id/messages` | Send a message (SSE stream) |
+| GET | `/api/chats/:id/messages` | Get message history |
+| GET | `/api/chats/:id/tool-calls` | Get recent tool calls for chat |
+
+### LLM Usage
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/llm/usage` | Get all LLM usage |
+| GET | `/api/llm/usage/recent` | Get recent usage |
+| GET | `/api/llm/usage/chat/:chatId` | Get usage for a specific chat |
+
+### JIT Tools
+
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | `/api/jit/predict` | Predict tools needed for a message |
+| POST | `/api/jit/context` | Get JIT tool context |
+| GET | `/api/jit/examples` | Get JIT examples |
+
+### Codebase Analysis
+
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | `/api/codebase/analyze` | Analyze a codebase directory |
+| GET | `/api/codebase/progress` | Get analysis progress |
+
+### Debug
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/debug/database` | List all tables |
+| GET | `/api/debug/database/:tableName` | Browse a table |
+| GET | `/api/debug/llm` | LLM interaction logs |
+| GET | `/api/debug/errors` | Error logs |
+| GET | `/api/debug/system-prompt-breakdown` | Inspect system prompt assembly |
+
+---
+
+*Last updated: reflects current codebase state including Summarization Engine and Chirp3-HD TTS.*

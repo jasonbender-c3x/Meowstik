@@ -17,8 +17,8 @@ graph TD
     
     subgraph "The Brain (Server)"
         Server --> Gemini[Google Gemini AI]
-        Server --> DB[(Postgres Database)]
-        Server --> RAG[RAG / Knowledge Base]
+        Server --> DB[(SQLite Database)]
+        Server --> Summarizer[Summarization Engine]
     end
     
     subgraph "The Limbs (Agents)"
