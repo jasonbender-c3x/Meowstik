@@ -22,3 +22,9 @@ package-lock.json
 meowstik.AppImage
 sessions/
 data/
+notebooklm-ingest/
+# Sensitive/temp files
+*.bak
+*.bak2
+meowstik-key.json
+server.log

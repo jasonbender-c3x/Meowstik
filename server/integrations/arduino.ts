@@ -1,3 +1,4 @@
+
 /**
  * =============================================================================
  * ARDUINO INTEGRATION SERVICE
@@ -312,3 +313,6 @@ export function getCommonBoards(): Array<{ name: string; fqbn: string; descripti
     { name: "ESP8266", fqbn: "esp8266:esp8266:generic", description: "ESP8266 with WiFi" },
   ];
 }
+
+
+

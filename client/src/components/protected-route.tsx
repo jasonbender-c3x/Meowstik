@@ -1,3 +1,4 @@
+
 import { useAuth } from "@/hooks/useAuth";
 import { Redirect } from "wouter";
 
@@ -26,3 +27,6 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
 
   return <>{children}</>;
 }
+
+
+

@@ -1,3 +1,4 @@
+
 /**
  * ╔══════════════════════════════════════════════════════════════════════════════╗
  * ║  CUSTOM SELF-HOSTED BROWSER INTEGRATION                                      ║
@@ -453,7 +454,7 @@ export async function executeBrowserAction(
           break;
 
         case 'wait':
-          await page.waitForTimeout(action.delay || 1000);
+          await new Promise(resolve => setTimeout(resolve, action.delay || 1000));
           results.push({ type: 'wait', delay: action.delay || 1000, success: true });
           break;
 
@@ -497,3 +498,6 @@ export default {
   batchScrape,
   executeBrowserAction,
 };
+
+
+

@@ -1,3 +1,4 @@
+
 import { createContext, useContext, useState, ReactNode } from "react";
 import type { Chat, Message } from "@shared/schema";
 
@@ -40,3 +41,6 @@ export function useChatContext() {
   }
   return context;
 }
+
+
+

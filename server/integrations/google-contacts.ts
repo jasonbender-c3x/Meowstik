@@ -1,3 +1,4 @@
+
 /**
  * ╔═══════════════════════════════════════════════════════════════════════════╗
  * ║                    GOOGLE CONTACTS INTEGRATION MODULE                     ║
@@ -236,3 +237,6 @@ export async function deleteContact(resourceName: string): Promise<boolean> {
     return false;
   }
 }
+
+
+

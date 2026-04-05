@@ -1,4 +1,5 @@
-import dotenv from 'dotenv';
+
+import * as dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
@@ -23,3 +24,6 @@ if (result.error) {
   console.log('🚀 [Env] GOOGLE_CLIENT_ID:', process.env.GOOGLE_CLIENT_ID);
   console.log('🚀 [Env] GOOGLE_REDIRECT_URI:', process.env.GOOGLE_REDIRECT_URI);
 }
+
+
+

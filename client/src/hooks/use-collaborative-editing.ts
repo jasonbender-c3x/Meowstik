@@ -1,3 +1,4 @@
+
 /**
  * useCollaborativeEditing Hook
  * 
@@ -431,7 +432,7 @@ export function useCollaborativeEditing(options: UseCollaborativeEditingOptions)
 
   const clearAllCursorDecorations = useCallback(() => {
     if (editorRef.current) {
-      for (const [, decoration] of cursorDecorationsRef.current) {
+      for (const [, decoration] of Array.from(cursorDecorationsRef.current)) {
         editorRef.current.deltaDecorations(decoration.decorationIds, []);
       }
     }
@@ -520,7 +521,7 @@ export function useCollaborativeEditing(options: UseCollaborativeEditingOptions)
     editorRef.current = editor;
     monacoRef.current = monaco;
 
-    editor.onDidChangeCursorPosition((e) => {
+    editor.onDidChangeCursorPosition((e: Monaco.editor.ICursorPositionChangedEvent) => {
       if (!session.isConnected || !currentFilePathRef.current) return;
 
       const selection = editor.getSelection();
@@ -664,3 +665,6 @@ export async function joinCollabSession(sessionId: string): Promise<boolean> {
     return false;
   }
 }
+
+
+

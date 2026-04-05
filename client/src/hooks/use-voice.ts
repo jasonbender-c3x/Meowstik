@@ -1,3 +1,4 @@
+
 /**
  * ╔══════════════════════════════════════════════════════════════════════════════╗
  * ║                     USE-VOICE.TS - VOICE I/O HOOK                             ║
@@ -452,3 +453,6 @@ declare global {
     webkitSpeechRecognition: any;
   }
 }
+
+
+

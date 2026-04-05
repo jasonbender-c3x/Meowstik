@@ -1,3 +1,4 @@
+
 interface LogEntry {
   id: string;
   timestamp: string;
@@ -54,3 +55,6 @@ class LogBuffer {
 }
 
 export const logBuffer = new LogBuffer();
+
+
+

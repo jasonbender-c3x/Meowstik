@@ -1,3 +1,4 @@
+
 /**
  * Gemini Function Calling Tool Declarations
  * 
@@ -59,7 +60,7 @@ export const geminiFunctionDeclarations: FunctionDeclaration[] = [
   },
   {
     name: "write",
-    description: "Send markdown content to the chat window. NON-TERMINATING - call end_turn when finished.",
+    description: "Send markdown content to the chat window. NON-TERMINATING",
     parametersJsonSchema: {
       type: "object",
       properties: {
@@ -70,17 +71,17 @@ export const geminiFunctionDeclarations: FunctionDeclaration[] = [
   },
   {
     name: "end_chat",
-    description: "ALIAS for write. Send markdown content to the chat window. NON-TERMINATING.",
+    description: "TERMINATES Chat.",
     parametersJsonSchema: {
       type: "object",
       properties: {
-        content: { type: "string", description: "Markdown content to display" }
+        content: { type: "string", description: "End chat." }
       },
       required: ["content"]
     }
   },
   {
-    name: "log",
+    name: "append",
     description: "Append content to a named log file in ~/workspace/logs/{name}.md",
     parametersJsonSchema: {
       type: "object",
@@ -89,21 +90,6 @@ export const geminiFunctionDeclarations: FunctionDeclaration[] = [
         content: { type: "string", description: "Content to append" }
       },
       required: ["name", "content"]
-    }
-  },
-  // say is already defined below with correct name
-  // ssh: implements persistent WebSocket connection
-
-  // ═══════════════════════════════════════════════════════════════════════════
-  // LEGACY ALIASES (backward compatibility - route to core primitives)
-  // Note: end_chat removed - use write instead
-  // ═══════════════════════════════════════════════════════════════════════════
-  {
-    name: "end_turn",
-    description: "Terminate your turn in the interactive agentic loop and return control to the user. This is the ONLY way to end your turn - call this when you have completed your response.",
-    parametersJsonSchema: {
-      type: "object",
-      properties: {}
     }
   },
   {
@@ -1091,3 +1077,6 @@ export function getToolDeclarations(toolNames?: string[]): FunctionDeclaration[]
 export function getAllToolNames(): string[] {
   return geminiFunctionDeclarations.map(tool => tool.name).filter((name): name is string => !!name);
 }
+
+
+

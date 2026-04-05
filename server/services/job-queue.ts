@@ -1,29 +1,23 @@
 /**
  * =============================================================================
- * JOB QUEUE SERVICE
+ * JOB QUEUE SERVICE (PGLite / No-PG Version)
  * =============================================================================
  * 
- * PostgreSQL-backed job queue using pg-boss for reliable, durable job processing.
- * Features:
- * - Priority-based job scheduling (0 = highest priority)
- * - Automatic retries with exponential backoff
- * - Job expiration and timeout handling
- * - Concurrent worker processing
- * - DAG-based dependency resolution
+ * In-memory/Polling job queue replacing pg-boss to avoid Postgres dependency.
+ * Uses the existing SQLite/PGlite database for persistence.
  */
 
-import PgBoss from "pg-boss";
 import { getDb } from "../db";
 import { 
   agentJobs, 
   jobResults,
-  agentWorkers,
   type AgentJob, 
   type InsertAgentJob,
   type JobResult,
   type InsertJobResult 
 } from "@shared/schema";
-import { eq, and, inArray, isNull, or, sql, asc, desc } from "drizzle-orm";
+import { eq, and, inArray, or, sql, asc, lte } from "drizzle-orm";
+import cronParser from "cron-parser";
 
 export type JobType = "prompt" | "tool" | "composite" | "workflow";
 export type JobStatus = "pending" | "queued" | "running" | "completed" | "failed" | "cancelled";
@@ -81,11 +75,12 @@ export type JobEvent = {
 type JobEventCallback = (event: JobEvent) => void;
 
 class JobQueueService {
-  private boss: PgBoss | null = null;
   private config: JobQueueConfig;
   private isInitialized = false;
   private processingCallbacks: Map<string, (job: AgentJob) => Promise<{ output: unknown; error?: string }>> = new Map();
   private eventCallbacks: JobEventCallback[] = [];
+  private pollInterval: NodeJS.Timeout | null = null;
+  private isProcessing = false;
 
   constructor(config: Partial<JobQueueConfig> = {}) {
     this.config = { ...DEFAULT_CONFIG, ...config };
@@ -114,32 +109,76 @@ class JobQueueService {
   async initialize(): Promise<void> {
     if (this.isInitialized) return;
 
-    const connectionString = process.env.DATABASE_URL;
-    if (!connectionString) {
-      throw new Error("DATABASE_URL not configured");
-    }
-
-    this.boss = new PgBoss({
-      connectionString,
-      retryLimit: this.config.retryLimit,
-      retryDelay: this.config.retryDelay,
-      expireInHours: this.config.expireInHours,
-    });
-
-    this.boss.on("error", (error) => {
-      console.error("[JobQueue] pg-boss error:", error);
-    });
-
-    await this.boss.start();
     this.isInitialized = true;
-    console.log("[JobQueue] Initialized with pg-boss");
+    console.log("[JobQueue] Initialized with PGlite/Polling (No pg-boss)");
+    
+    // Start polling loop
+    this.pollInterval = setInterval(() => this.poll(), this.config.pollInterval);
   }
 
   async stop(): Promise<void> {
-    if (this.boss) {
-      await this.boss.stop();
-      this.isInitialized = false;
-      console.log("[JobQueue] Stopped");
+    if (this.pollInterval) {
+      clearInterval(this.pollInterval);
+      this.pollInterval = null;
+    }
+    this.isInitialized = false;
+    console.log("[JobQueue] Stopped");
+  }
+
+  private async poll() {
+    if (this.isProcessing || !this.isInitialized) return;
+    this.isProcessing = true;
+
+    try {
+      // Check for scheduled jobs that are ready to run
+      await this.checkScheduledJobs();
+
+      // Find jobs that are "queued"
+      // We process them based on priority (lower number = higher priority usually, but check logic)
+      // Original code: priority 10 - (job.priority ?? 5) for pg-boss. 
+      // Here we assume standard priority field.
+      
+      const pendingJobs = await getDb().select()
+        .from(agentJobs)
+        .where(eq(agentJobs.status, "queued"))
+        .orderBy(asc(agentJobs.priority), asc(agentJobs.createdAt))
+        .limit(this.config.concurrency);
+
+      if (pendingJobs.length === 0) return;
+
+      // Process in parallel (up to concurrency limit fetched)
+      await Promise.all(pendingJobs.map((job: any) => this.processJob(job.id)));
+      
+    } catch (err) {
+      console.error("[JobQueue] Polling error:", err);
+    } finally {
+      this.isProcessing = false;
+    }
+  }
+
+  private async checkScheduledJobs(): Promise<void> {
+    try {
+      // 1. Move pending jobs with passed scheduledFor time to queued
+      const dueJobs = await getDb().update(agentJobs)
+        .set({ status: "queued" })
+        .where(and(
+          eq(agentJobs.status, "pending"),
+          lte(agentJobs.scheduledFor, new Date())
+        ))
+        .returning();
+
+      if (dueJobs.length > 0) {
+        console.log(`[JobQueue] Moved ${dueJobs.length} scheduled jobs to queue`);
+      }
+
+      // 2. Handle recurring jobs (cron)
+      // We look for jobs that are "completed" but have a cron expression, 
+      // AND we haven't already scheduled the next run.
+      // But actually, the standard pattern is: when a cron job runs, we schedule the NEXT one.
+      // So we should do this in processJob completion handler.
+      
+    } catch (error) {
+      console.error("[JobQueue] Error checking scheduled jobs:", error);
     }
   }
 
@@ -172,7 +211,7 @@ class JobQueueService {
       await this.enqueueJob(job);
     }
 
-    console.log(`[JobQueue] Submitted job ${job.id}: ${job.name} (type: ${job.type}, priority: ${job.priority})`);
+    console.log(`[JobQueue] Submitted job ${job.id}: ${job.name} (type: ${job.type})`);
     return job;
   }
 
@@ -186,26 +225,12 @@ class JobQueueService {
   }
 
   private async enqueueJob(job: AgentJob): Promise<void> {
-    if (!this.boss) return;
-
-    const queueName = this.getQueueName(job.type, job.priority);
-    
     await getDb().update(agentJobs)
       .set({ status: "queued" })
       .where(eq(agentJobs.id, job.id));
 
-    await this.boss.send(queueName, { jobId: job.id }, {
-      priority: 10 - (job.priority ?? 5),
-      retryLimit: job.maxRetries ?? this.config.retryLimit,
-      expireInSeconds: Math.floor((job.timeout ?? 300000) / 1000),
-    });
-  }
-
-  private getQueueName(type: string, priority?: number | null): string {
-    const pri = priority ?? 5;
-    if (pri <= 2) return `agent-jobs-high`;
-    if (pri <= 5) return `agent-jobs-normal`;
-    return `agent-jobs-low`;
+    // Trigger immediate poll check if we're not already busy
+    setImmediate(() => this.poll());
   }
 
   async registerProcessor(
@@ -215,17 +240,8 @@ class JobQueueService {
     if (!this.isInitialized) {
       await this.initialize();
     }
-
     this.processingCallbacks.set(type, callback);
-    
-    for (const queueName of ["agent-jobs-high", "agent-jobs-normal", "agent-jobs-low"]) {
-      await this.boss?.work(queueName, { batchSize: this.config.concurrency }, async (pgJobs) => {
-        for (const pgJob of pgJobs) {
-          const { jobId } = pgJob.data as { jobId: string };
-          await this.processJob(jobId);
-        }
-      });
-    }
+    console.log(`[JobQueue] Registered processor for ${type}`);
   }
 
   private async processJob(jobId: string): Promise<void> {
@@ -239,6 +255,9 @@ class JobQueueService {
       console.error(`[JobQueue] Job ${jobId} not found`);
       return;
     }
+
+    // Double check status to avoid race conditions
+    if (job.status !== "queued") return;
 
     await getDb().update(agentJobs)
       .set({ 
@@ -280,6 +299,31 @@ class JobQueueService {
 
       console.log(`[JobQueue] Job ${jobId} ${result.error ? "failed" : "completed"} in ${durationMs}ms`);
 
+      // Handle Cron Jobs: Schedule next run if successful
+      if (!result.error && job.cronExpression) {
+        try {
+          const interval = (cronParser as any).parseExpression(job.cronExpression);
+          const nextRun = interval.next().toDate();
+          
+          await this.submitJob({
+            name: job.name,
+            type: job.type as JobType,
+            payload: job.payload as JobPayload,
+            priority: job.priority ?? 5,
+            executionMode: job.executionMode as ExecutionMode,
+            maxRetries: job.maxRetries ?? 3,
+            timeout: job.timeout,
+            cronExpression: job.cronExpression,
+            scheduledFor: nextRun,
+            userId: job.userId ?? undefined
+          });
+          
+          console.log(`[JobQueue] Scheduled next run for cron job ${job.name} at ${nextRun}`);
+        } catch (cronError) {
+          console.error(`[JobQueue] Failed to schedule next cron run for ${job.name}:`, cronError);
+        }
+      }
+
       // Emit completion or failure event
       if (result.error) {
         this.emitEvent({ type: "failed", jobId, job, error: result.error });
@@ -298,12 +342,20 @@ class JobQueueService {
       if (currentRetryCount < (job.maxRetries ?? 3)) {
         await getDb().update(agentJobs)
           .set({ 
-            status: "pending",
+            status: "pending", // Set back to pending so dependencies logic can pick it up or we can re-enqueue
             retryCount: currentRetryCount,
           })
           .where(eq(agentJobs.id, jobId));
         
-        // Emit retry event
+        // Re-enqueue after delay? For simplicity in polling, we just set to queued
+        // But for exponential backoff we might want a 'scheduledFor' field logic.
+        // For now, simple re-queue:
+        setTimeout(async () => {
+             await getDb().update(agentJobs)
+              .set({ status: "queued" })
+              .where(eq(agentJobs.id, jobId));
+        }, this.config.retryDelay * currentRetryCount); // simple delay
+
         this.emitEvent({ type: "retry", jobId, job, error: errorMessage });
       } else {
         await getDb().insert(jobResults).values({
@@ -329,20 +381,32 @@ class JobQueueService {
   private async areDependenciesMet(dependencies: string[]): Promise<boolean> {
     if (!dependencies || dependencies.length === 0) return true;
 
-    const [depJobs] = await getDb().select()
-      .from(agentJobs)
-      .where(inArray(agentJobs.id, dependencies));
-
-    if (!depJobs) return dependencies.length === 0;
-
+    // Check if all dependency IDs have status 'completed'
+    // This is a simplification.
+    
+    // Get all dependency jobs
     const deps = await getDb().select()
       .from(agentJobs)
       .where(inArray(agentJobs.id, dependencies));
+      
+    if (deps.length !== dependencies.length) {
+        // Some dependencies don't exist?
+        return false;
+    }
 
-    return deps.every(d => d.status === "completed");
+    return deps.every((d: any) => d.status === "completed");
   }
 
   private async checkDependentJobs(completedJobId: string): Promise<void> {
+    // Find pending jobs that depend on this one
+    // We don't have a direct index on dependencies (it's a JSON/Array column usually), 
+    // so we might need to scan pending jobs or use specific DB features.
+    // Assuming 'dependencies' is a JSONB array or similar text array.
+    
+    // For PGlite/SQLite, we fetch all pending jobs and check in memory if list is small, 
+    // or rely on the fact that when we submit, we check dependencies.
+    // But here we need to "wake up" jobs that were waiting.
+    
     const pendingJobs = await getDb().select()
       .from(agentJobs)
       .where(eq(agentJobs.status, "pending"));
@@ -395,16 +459,12 @@ class JobQueueService {
       .returning();
 
     if (job) {
-      // Emit cancelled event
       this.emitEvent({ type: "cancelled", jobId, job });
     }
 
     return !!job;
   }
 
-  /**
-   * Resume a paused/waiting job with new input
-   */
   async resumeJob(jobId: string, operatorInput?: string): Promise<boolean> {
     const [job] = await getDb().select()
       .from(agentJobs)
@@ -412,7 +472,6 @@ class JobQueueService {
 
     if (!job) return false;
 
-    // Update job payload with new input - merge operator input directly into context
     const currentPayload = (job.payload as Record<string, unknown>) || {};
     const currentContext = (currentPayload.context as Record<string, unknown>) || {};
     const newPayload = operatorInput !== undefined
@@ -432,31 +491,25 @@ class JobQueueService {
       })
       .where(eq(agentJobs.id, jobId));
 
-    // Get updated job and re-enqueue it
     const [updatedJob] = await getDb().select()
       .from(agentJobs)
       .where(eq(agentJobs.id, jobId));
 
     if (updatedJob) {
       await this.enqueueJob(updatedJob);
-      // Emit resumed event
       this.emitEvent({ type: "resumed", jobId, job: updatedJob });
     }
 
     return true;
   }
 
-  /**
-   * Mark a job as waiting for operator input
-   */
   async markWaitingForInput(jobId: string): Promise<boolean> {
     const [job] = await getDb().update(agentJobs)
-      .set({ status: "pending" }) // Keep as pending but not queued
+      .set({ status: "pending" }) 
       .where(eq(agentJobs.id, jobId))
       .returning();
 
     if (job) {
-      // Emit waiting_input event
       this.emitEvent({ type: "waiting_input", jobId, job });
     }
 

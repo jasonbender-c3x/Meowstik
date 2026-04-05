@@ -1,3 +1,4 @@
+
 /**
  * =============================================================================
  * MYSQL DATABASE ADAPTER (STUB)
@@ -105,3 +106,6 @@ export class MySQLAdapter implements IDatabaseAdapter {
  * - MySQL-specific SQL syntax (LIMIT without OFFSET syntax, etc.)
  * - Handle MySQL-specific data types (TINYINT, MEDIUMINT, etc.)
  */
+
+
+

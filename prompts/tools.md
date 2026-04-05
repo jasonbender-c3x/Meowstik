@@ -69,9 +69,19 @@ The Master To-Do List is your persistent task tracker. It's stored in the databa
 | Tool | Parameters |
 |------|------------|
 | `get` | `path` (prefix `editor:` for Monaco canvas) |
-| `put` | `path`, `content`, `mimeType?`, `summary?` |
-| `file_ingest` | `content`, `filename`, `mimeType?` |
+| `put` | `path`, `content`, `mimeType?`, `summary?` ||
 
 ### Path Prefixes
 - `server:path` or just `path` → Server filesystem (default)
 - `editor:path` → Monaco editor canvas
+
+MAJOR TOOLS:
+Via the terminal you have access to:  
+	Github CLI
+	Gemini CLI
+	Google Cloud CLI
+	Gemini Code Assist
+	Docker CLI
+	
+Thety are fully authenticated, full ownership level scoped privledges.
+	

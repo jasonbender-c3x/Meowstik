@@ -150,7 +150,7 @@ router.post("/scan-messages", async (req: Request, res: Response) => {
     }
 
     // Get the last 10 user messages from the database
-    const messages = await storage.getRecentUserMessages(10);
+    const messages = await (storage as any).getRecentUserMessages(10);
     
     if (messages.length === 0) {
       return res.json({
@@ -231,9 +231,12 @@ router.post("/create-feedback-pr", async (req: Request, res: Response) => {
     try {
       // Get default branch
       const defaultBranch = await github.getDefaultBranch(owner, repo);
+      if ('error' in (defaultBranch as any)) {
+        throw new Error((defaultBranch as any).error || "Failed to get default branch");
+      }
 
       // Create a new branch (this internally gets the base SHA)
-      await github.createBranch(owner, repo, branchName, defaultBranch);
+      await github.createBranch(owner, repo, branchName, defaultBranch as string);
 
       // Create or update the feedback file
       const filePath = `docs/feedback/${timestamp}-feedback.md`;
@@ -254,17 +257,21 @@ router.post("/create-feedback-pr", async (req: Request, res: Response) => {
         `User Feedback Report - ${timestamp}`,
         prBody,
         branchName,
-        defaultBranch
+        defaultBranch as string
       );
 
       // Mark feedback as submitted so it doesn't show up in pending list
       const feedbackIdsToMark = selectedFeedback.map(f => f.id);
-      await storage.markFeedbackSubmitted(feedbackIdsToMark);
+      await storage.markFeedbackSubmitted(feedbackIdsToMark as any);
+
+      if ('error' in (pr as any)) {
+        throw new Error((pr as any).error || "Failed to create PR");
+      }
 
       res.json({
         success: true,
-        prUrl: pr.htmlUrl,
-        prNumber: pr.number
+        prUrl: (pr as any).htmlUrl,
+        prNumber: (pr as any).number
       });
     } catch (gitError: any) {
       console.error("GitHub error:", gitError);

@@ -1,3 +1,4 @@
+
 /**
  * ╔═══════════════════════════════════════════════════════════════════════════╗
  * ║                    GOOGLE DOCS INTEGRATION MODULE                         ║
@@ -161,11 +162,14 @@ export async function getDocumentText(documentId: string) {
       return doc;
     }
     
+    // At this point doc is a Google Docs Schema$Document
+    const googleDoc = doc as Exclude<typeof doc, { success: boolean }>;
+    
     let text = '';
     
     // Traverse document body content
-    if (doc.body?.content) {
-      for (const element of doc.body.content) {
+    if (googleDoc.body?.content) {
+      for (const element of googleDoc.body.content) {
         // Check if element is a paragraph
         if (element.paragraph?.elements) {
           // Extract text from each text run in the paragraph
@@ -178,7 +182,7 @@ export async function getDocumentText(documentId: string) {
       }
     }
     
-    return { documentId: doc.documentId, title: doc.title, text };
+    return { documentId: googleDoc.documentId, title: googleDoc.title, text };
   } catch (error: any) {
     console.error('[GoogleDocs] getDocumentText error:', error);
     return {
@@ -398,3 +402,6 @@ export async function listDocuments() {
     };
   }
 }
+
+
+

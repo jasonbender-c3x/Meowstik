@@ -1,3 +1,4 @@
+
 /**
  * SSH Service
  * Manages SSH connections to remote servers with WebSocket streaming
@@ -137,7 +138,7 @@ export function addOutputListener(listener: OutputListener) {
 }
 
 export function broadcastOutput(type: 'stdout' | 'stderr' | 'system' | 'command', content: string, source: string) {
-  for (const listener of outputListeners) {
+  for (const listener of Array.from(outputListeners)) {
     try {
       listener({ type, content, source });
     } catch (e) {
@@ -504,3 +505,6 @@ export async function executeLocalCommand(command: string): Promise<{ stdout: st
     }, 120000);
   });
 }
+
+
+

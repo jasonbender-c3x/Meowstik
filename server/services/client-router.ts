@@ -1,3 +1,4 @@
+
 /**
  * Client Router Service
  * 
@@ -91,7 +92,7 @@ class ClientRouter {
    * Get first available agent
    */
   getFirstAgent(): ConnectedAgent | null {
-    const [first] = this.connectedAgents.values();
+    const [first] = Array.from(this.connectedAgents.values());
     return first || null;
   }
 
@@ -224,3 +225,6 @@ interface ClientCommand {
 }
 
 export const clientRouter = new ClientRouter();
+
+
+

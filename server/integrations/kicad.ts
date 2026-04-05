@@ -1,3 +1,4 @@
+
 /**
  * =============================================================================
  * KICAD INTEGRATION SERVICE
@@ -446,3 +447,6 @@ export function getSupportedFormats(): Array<{
     { format: "Netlist", extension: ".net", description: "Circuit connectivity", usage: "Simulation and verification" },
   ];
 }
+
+
+

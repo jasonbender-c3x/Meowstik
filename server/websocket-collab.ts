@@ -1,3 +1,4 @@
+
 /**
  * ╔═══════════════════════════════════════════════════════════════════════════╗
  * ║                    COLLABORATIVE EDITING WEBSOCKET HANDLER                 ║
@@ -456,7 +457,7 @@ async function handleDisconnect(session: Session, participantId: string): Promis
 
 function broadcastToSession(session: Session, message: object, excludeId?: string): void {
   const data = JSON.stringify(message);
-  for (const [id, participant] of session.participants) {
+  for (const [id, participant] of Array.from(session.participants)) {
     if (id !== excludeId && participant.ws.readyState === WebSocket.OPEN) {
       participant.ws.send(data);
     }
@@ -606,7 +607,7 @@ async function handleBrowserAction(session: Session, participantId: string, data
       y: 0,
       text: data.action === "type" ? data.value : undefined,
       selector: data.target,
-    });
+    } as any);
     
     broadcastToSession(session, {
       type: "browser_action_result",
@@ -645,7 +646,6 @@ export function broadcastAIEdit(sessionId: string, filePath: string, operation: 
   const currentVersion = session.fileVersions.get(filePath) || 0;
   const op: EditOp = {
     id: `ai_${Date.now()}`,
-    filePath,
     participantId: aiParticipant.id,
     baseVersion: currentVersion,
     ...operation,
@@ -653,3 +653,6 @@ export function broadcastAIEdit(sessionId: string, filePath: string, operation: 
 
   handleEditOperation(session, aiParticipant.id, op);
 }
+
+
+

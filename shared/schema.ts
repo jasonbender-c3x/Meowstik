@@ -1,3 +1,4 @@
+import { nanoid } from "nanoid";
 /**
  * =============================================================================
  * MEOWSTIC CHAT - DATABASE SCHEMA DEFINITIONS
@@ -39,7 +40,13 @@
  */
 
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, timestamp, integer, jsonb, bigint, index, boolean } from "drizzle-orm/pg-core";
+import { sqliteTable, text, integer, blob, index } from "drizzle-orm/sqlite-core";
+// SQLite compatibility aliases for types not natively in sqlite-core
+const varchar = (name: string, opts?: { length?: number }) => text(name);
+const timestamp = (name: string, opts?: object) => integer(name, { mode: "timestamp" });
+const jsonb = (name: string) => text(name, { mode: "json" });
+const bigint = (name: string, opts?: object) => integer(name);
+const boolean = (name: string) => integer(name, { mode: "boolean" });
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -68,12 +75,12 @@ export const DEFAULT_BRAND_COLOR = "#3B82F6";
  * SESSION STORAGE TABLE
  * Stores user sessions
  */
-export const sessions = pgTable(
+export const sessions = sqliteTable(
   "sessions",
   {
-    sid: varchar("sid").primaryKey(),
-    sess: jsonb("sess").notNull(),
-    expire: timestamp("expire").notNull(),
+    sid: text("sid").primaryKey(),
+    sess: text("sess", { mode: "json" }).notNull(),
+    expire: integer("expire", { mode: "timestamp" }).notNull(),
   },
   (table) => [index("IDX_session_expire").on(table.expire)],
 );
@@ -82,19 +89,19 @@ export const sessions = pgTable(
  * USER STORAGE TABLE
  * Stores user profiles
  */
-export const users = pgTable("users", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+export const users = sqliteTable("users", {
+  id: text("id").primaryKey().$defaultFn(() => nanoid()),
   username: text("username").unique(),
-  email: varchar("email").unique().notNull(),
+  email: text("email").unique().notNull(),
   password: text("password"),
-  displayName: varchar("display_name"),
-  role: varchar("role").default("user"),
+  displayName: text("display_name"),
+  role: text("role").default("user"),
   googleId: text("google_id"),
   avatarUrl: text("avatar_url"),
   googleAccessToken: text("google_access_token"),
   googleRefreshToken: text("google_refresh_token"),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
+  createdAt: integer("created_at", { mode: "timestamp" }).default(sql`(unixepoch() * 1000)`),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).default(sql`(unixepoch() * 1000)`),
 });
 
 export type InsertUser = typeof users.$inferInsert;
@@ -106,28 +113,28 @@ export type User = typeof users.$inferSelect;
  * Stores per-user custom branding configuration.
  * Allows users to customize agent name, signature, avatar, and domain.
  */
-export const userBranding = pgTable("user_branding", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  userId: varchar("user_id").references(() => users.id, { onDelete: "cascade" }).notNull().unique(),
+export const userBranding = sqliteTable("user_branding", {
+  id: text("id").primaryKey().$defaultFn(() => nanoid()),
+  userId: text("user_id").references(() => users.id, { onDelete: "cascade" }).notNull().unique(),
   
   // Custom agent identity
-  agentName: varchar("agent_name").default(DEFAULT_AGENT_NAME).notNull(),
-  displayName: varchar("display_name").default(DEFAULT_DISPLAY_NAME).notNull(),
+  agentName: text("agent_name").default(DEFAULT_AGENT_NAME).notNull(),
+  displayName: text("display_name").default(DEFAULT_DISPLAY_NAME).notNull(),
   
   // Visual branding
   avatarUrl: text("avatar_url"), // Custom avatar image URL
-  brandColor: varchar("brand_color").default(DEFAULT_BRAND_COLOR), // Primary brand color (hex)
+  brandColor: text("brand_color").default(DEFAULT_BRAND_COLOR), // Primary brand color (hex)
   
   // Signatures and metadata
   githubSignature: text("github_signature"), // Signature for GitHub commits/PRs
   emailSignature: text("email_signature"), // Signature for emails
   
   // Domain branding
-  canonicalDomain: varchar("canonical_domain"), // e.g., "catpilot.pro"
+  canonicalDomain: text("canonical_domain"), // e.g., "catpilot.pro"
   
   // Timestamps
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  createdAt: integer("created_at", { mode: "timestamp" }).default(sql`(unixepoch() * 1000)`).notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).default(sql`(unixepoch() * 1000)`).notNull(),
 });
 
 export const insertUserBrandingSchema = createInsertSchema(userBranding).omit({
@@ -144,21 +151,21 @@ export type UserBranding = typeof userBranding.$inferSelect;
  * Stores multiple AI agent personas per user.
  * Allows users to create and switch between different agent identities.
  */
-export const userAgents = pgTable("user_agents", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  userId: varchar("user_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
+export const userAgents = sqliteTable("user_agents", {
+  id: text("id").primaryKey().$defaultFn(() => nanoid()),
+  userId: text("user_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
   
   // Agent identity
-  name: varchar("name").notNull(), // e.g., "Catpilot", "CodeBot", "Researcher"
-  displayName: varchar("display_name").notNull(), // e.g., "Catpilot Pro"
+  name: text("name").notNull(), // e.g., "Catpilot", "CodeBot", "Researcher"
+  displayName: text("display_name").notNull(), // e.g., "Catpilot Pro"
   description: text("description"), // Brief description of agent purpose
   
   // Agent type/category
-  agentType: varchar("agent_type").default("assistant").notNull(), // assistant, coder, researcher, writer, etc.
+  agentType: text("agent_type").default("assistant").notNull(), // assistant, coder, researcher, writer, etc.
   
   // Visual branding
   avatarUrl: text("avatar_url"),
-  brandColor: varchar("brand_color").default(DEFAULT_BRAND_COLOR),
+  brandColor: text("brand_color").default(DEFAULT_BRAND_COLOR),
   
   // Personality and behavior
   personalityPrompt: text("personality_prompt"), // Custom personality description
@@ -169,16 +176,16 @@ export const userAgents = pgTable("user_agents", {
   emailSignature: text("email_signature"),
   
   // Settings
-  isDefault: boolean("is_default").default(false).notNull(), // Default agent for this user
-  isActive: boolean("is_active").default(true).notNull(), // Can be disabled without deleting
+  isDefault: integer("is_default", { mode: "boolean" }).default(false).notNull(), // Default agent for this user
+  isActive: integer("is_active", { mode: "boolean" }).default(true).notNull(), // Can be disabled without deleting
   
   // Metadata
-  canonicalDomain: varchar("canonical_domain"),
-  tags: text("tags").array(), // For categorization/search
+  canonicalDomain: text("canonical_domain"),
+  tags: text("tags", { mode: "json" }).$type<string[]>(), // For categorization/search
   
   // Timestamps
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  createdAt: integer("created_at", { mode: "timestamp" }).default(sql`(unixepoch() * 1000)`).notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).default(sql`(unixepoch() * 1000)`).notNull(),
 });
 
 export const insertUserAgentSchema = createInsertSchema(userAgents).omit({
@@ -209,7 +216,7 @@ export type UserAgent = typeof userAgents.$inferSelect;
  * const allChats = await storage.getChats(); // Returns Chat[]
  * ```
  */
-export const chats = pgTable("chats", {
+export const chats = sqliteTable("chats", {
   /**
    * Primary key - Auto-generated UUID using PostgreSQL's gen_random_uuid()
    * UUIDs are used instead of sequential integers for:
@@ -217,7 +224,7 @@ export const chats = pgTable("chats", {
    * - Easier data migration and replication
    * - No collision issues in distributed systems
    */
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  id: text("id").primaryKey().$defaultFn(() => nanoid()),
   
   /**
    * Human-readable title for the chat conversation
@@ -238,7 +245,7 @@ export const chats = pgTable("chats", {
    * - Cascade delete will automatically remove associated messages and chunks
    * - No orphaned records since guest chats don't reference users table
    */
-  userId: varchar("user_id").references(() => users.id, { onDelete: "cascade" }),
+  userId: text("user_id").references(() => users.id, { onDelete: "cascade" }),
   
   /**
    * Guest flag - Indicates if this is a guest conversation
@@ -248,21 +255,21 @@ export const chats = pgTable("chats", {
    * - Should be periodically cleaned up (see userId documentation)
    * - Use GUEST_USER_ID constant for identification
    */
-  isGuest: boolean("is_guest").default(false).notNull(),
+  isGuest: integer("is_guest", { mode: "boolean" }).default(false).notNull(),
   
   /**
    * Timestamp when this chat was first created
    * Automatically set by PostgreSQL using defaultNow()
    * Used for sorting chats chronologically
    */
-  createdAt: timestamp("created_at").defaultNow().notNull(),
+  createdAt: integer("created_at", { mode: "timestamp" }).default(sql`(unixepoch() * 1000)`).notNull(),
   
   /**
    * Timestamp when this chat was last updated
    * Updated whenever a new message is added to the chat
    * Used for sorting chats by "most recent activity"
    */
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).default(sql`(unixepoch() * 1000)`).notNull(),
 });
 
 /**
@@ -293,12 +300,12 @@ export const chats = pgTable("chats", {
  * });
  * ```
  */
-export const messages = pgTable("messages", {
+export const messages = sqliteTable("messages", {
   /**
    * Primary key - Auto-generated UUID for each message
    * Ensures globally unique identification of every message
    */
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  id: text("id").primaryKey().$defaultFn(() => nanoid()),
   
   /**
    * Foreign key reference to the parent chat
@@ -306,7 +313,7 @@ export const messages = pgTable("messages", {
    * - CASCADE DELETE: Messages are deleted when their chat is deleted
    * - NOT NULL: Every message must belong to a chat
    */
-  chatId: varchar("chat_id").references(() => chats.id, { onDelete: "cascade" }).notNull(),
+  chatId: text("chat_id").references(() => chats.id, { onDelete: "cascade" }).notNull(),
   
   /**
    * Identifies the sender of the message
@@ -328,13 +335,13 @@ export const messages = pgTable("messages", {
    * Timestamp when this message was created/sent
    * Used for chronological ordering of messages within a chat
    */
-  createdAt: timestamp("created_at").defaultNow().notNull(),
+  createdAt: integer("created_at", { mode: "timestamp" }).default(sql`(unixepoch() * 1000)`).notNull(),
   
   /**
    * Optional JSON metadata for AI messages
    * Stores tool results, file operations, autoexec results, etc.
    */
-  metadata: jsonb("metadata"),
+  metadata: text("metadata", { mode: "json" }),
   
   /**
    * Full Gemini API content object for model responses
@@ -342,7 +349,7 @@ export const messages = pgTable("messages", {
    * This preserves the model's reasoning state for multi-turn function calling
    * See: https://cloud.google.com/vertex-ai/generative-ai/docs/thought-signatures
    */
-  geminiContent: jsonb("gemini_content"),
+  geminiContent: text("gemini_content", { mode: "json" }),
 });
 
 /**
@@ -422,18 +429,18 @@ export type Message = typeof messages.$inferSelect;
  * 
  * Binary data is stored as base64 for simplicity and portability.
  */
-export const attachments = pgTable("attachments", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  messageId: varchar("message_id").references(() => messages.id, { onDelete: "cascade" }),
-  draftId: varchar("draft_id").references(() => drafts.id, { onDelete: "cascade" }),
+export const attachments = sqliteTable("attachments", {
+  id: text("id").primaryKey().$defaultFn(() => nanoid()),
+  messageId: text("message_id").references(() => messages.id, { onDelete: "cascade" }),
+  draftId: text("draft_id").references(() => drafts.id, { onDelete: "cascade" }),
   type: text("type").notNull(), // "file" | "screenshot" | "voice_transcript"
   filename: text("filename").notNull(),
   mimeType: text("mime_type"),
-  size: bigint("size", { mode: "number" }), // File size in bytes
+  size: integer("size"), // File size in bytes
   content: text("content"), // Base64 encoded content or text
   path: text("path"), // Optional file path for created files
   permissions: text("permissions"), // Unix permission string (e.g., "755")
-  createdAt: timestamp("created_at").defaultNow().notNull(),
+  createdAt: integer("created_at", { mode: "timestamp" }).default(sql`(unixepoch() * 1000)`).notNull(),
 });
 
 export const insertAttachmentSchema = createInsertSchema(attachments).omit({
@@ -459,14 +466,14 @@ export type Attachment = typeof attachments.$inferSelect;
  * When submitted, the draft is assembled into a complete prompt
  * and sent to the RAG backend.
  */
-export const drafts = pgTable("drafts", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  chatId: varchar("chat_id").references(() => chats.id, { onDelete: "cascade" }).notNull(),
+export const drafts = sqliteTable("drafts", {
+  id: text("id").primaryKey().$defaultFn(() => nanoid()),
+  chatId: text("chat_id").references(() => chats.id, { onDelete: "cascade" }).notNull(),
   textContent: text("text_content").default(""),
   voiceTranscript: text("voice_transcript").default(""),
   status: text("status").default("active").notNull(), // "active" | "submitted" | "cancelled"
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  createdAt: integer("created_at", { mode: "timestamp" }).default(sql`(unixepoch() * 1000)`).notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).default(sql`(unixepoch() * 1000)`).notNull(),
 });
 
 export const insertDraftSchema = createInsertSchema(drafts).omit({
@@ -496,16 +503,16 @@ export type Draft = typeof drafts.$inferSelect;
  * 
  * Execution status tracks the lifecycle of each task.
  */
-export const toolTasks = pgTable("tool_tasks", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  messageId: varchar("message_id").references(() => messages.id, { onDelete: "cascade" }).notNull(),
+export const toolTasks = sqliteTable("tool_tasks", {
+  id: text("id").primaryKey().$defaultFn(() => nanoid()),
+  messageId: text("message_id").references(() => messages.id, { onDelete: "cascade" }).notNull(),
   taskType: text("task_type").notNull(),
-  payload: jsonb("payload").notNull(), // Task parameters as JSONB
+  payload: text("payload", { mode: "json" }).notNull(), // Task parameters as JSONB
   status: text("status").default("pending").notNull(), // "pending" | "running" | "completed" | "failed"
-  result: jsonb("result"), // Execution result as JSONB
+  result: text("result", { mode: "json" }), // Execution result as JSONB
   error: text("error"), // Error message if failed
-  executedAt: timestamp("executed_at"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
+  executedAt: integer("executed_at", { mode: "timestamp" }),
+  createdAt: integer("created_at", { mode: "timestamp" }).default(sql`(unixepoch() * 1000)`).notNull(),
 });
 
 export const insertToolTaskSchema = createInsertSchema(toolTasks).omit({
@@ -530,10 +537,10 @@ export type ToolTask = typeof toolTasks.$inferSelect;
  * - Updated when tool completes (status: "success" or "failure")
  * - Old entries automatically pruned when new ones are added (keep last 10 per chat)
  */
-export const toolCallLogs = pgTable("tool_call_logs", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  chatId: varchar("chat_id").references(() => chats.id, { onDelete: "cascade" }).notNull(),
-  messageId: varchar("message_id").references(() => messages.id, { onDelete: "cascade" }),
+export const toolCallLogs = sqliteTable("tool_call_logs", {
+  id: text("id").primaryKey().$defaultFn(() => nanoid()),
+  chatId: text("chat_id").references(() => chats.id, { onDelete: "cascade" }).notNull(),
+  messageId: text("message_id").references(() => messages.id, { onDelete: "cascade" }),
   
   // Tool identification
   toolCallId: text("tool_call_id").notNull(), // Unique ID for this specific tool call
@@ -543,17 +550,17 @@ export const toolCallLogs = pgTable("tool_call_logs", {
   status: text("status").default("pending").notNull(), // "pending" | "success" | "failure"
   
   // Request/Response data
-  request: jsonb("request").notNull(), // Tool call parameters
-  response: jsonb("response"), // Tool execution result (set when completed)
+  request: text("request", { mode: "json" }).notNull(), // Tool call parameters
+  response: text("response", { mode: "json" }), // Tool execution result (set when completed)
   errorMessage: text("error_message"), // Error details if failed
   
   // Timing
-  startedAt: timestamp("started_at").defaultNow().notNull(),
-  completedAt: timestamp("completed_at"),
+  startedAt: integer("started_at", { mode: "timestamp" }).default(sql`(unixepoch() * 1000)`).notNull(),
+  completedAt: integer("completed_at", { mode: "timestamp" }),
   duration: integer("duration"), // Duration in milliseconds
   
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  createdAt: integer("created_at", { mode: "timestamp" }).default(sql`(unixepoch() * 1000)`).notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).default(sql`(unixepoch() * 1000)`).notNull(),
 }, (table) => [
   index("idx_tool_call_logs_chat").on(table.chatId),
   index("idx_tool_call_logs_message").on(table.messageId),
@@ -578,15 +585,15 @@ export type ToolCallLog = typeof toolCallLogs.$inferSelect;
  * Audit trail for all tool executions, especially important for
  * security-sensitive operations like autoexec scripts.
  */
-export const executionLogs = pgTable("execution_logs", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  taskId: varchar("task_id").references(() => toolTasks.id, { onDelete: "cascade" }),
+export const executionLogs = sqliteTable("execution_logs", {
+  id: text("id").primaryKey().$defaultFn(() => nanoid()),
+  taskId: text("task_id").references(() => toolTasks.id, { onDelete: "cascade" }),
   action: text("action").notNull(),
-  input: jsonb("input"), // Input parameters as JSONB
-  output: jsonb("output"), // Output/result as JSONB
+  input: text("input", { mode: "json" }), // Input parameters as JSONB
+  output: text("output", { mode: "json" }), // Output/result as JSONB
   exitCode: text("exit_code"),
   duration: text("duration"), // Execution time in milliseconds
-  createdAt: timestamp("created_at").defaultNow().notNull(),
+  createdAt: integer("created_at", { mode: "timestamp" }).default(sql`(unixepoch() * 1000)`).notNull(),
 });
 
 export const insertExecutionLogSchema = createInsertSchema(executionLogs).omit({
@@ -605,20 +612,19 @@ export type ExecutionLog = typeof executionLogs.$inferSelect;
  * Stores user feedback on AI responses. This is the backbone for the evolution
  * system - feedback is analyzed to generate improvements via GitHub PRs.
  */
-export const feedback = pgTable("feedback", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  messageId: varchar("message_id").references(() => messages.id, { onDelete: "cascade" }),
-  chatId: varchar("chat_id").references(() => chats.id, { onDelete: "cascade" }),
-  rating: varchar("rating", { length: 20 }), // "positive" | "negative" | null
-  categories: jsonb("categories"), // { accuracy, helpfulness, clarity, completeness }
-  likedAspects: text("liked_aspects").array(),
-  dislikedAspects: text("disliked_aspects").array(),
+export const feedback = sqliteTable("feedback", {
+  id: text("id").primaryKey().$defaultFn(() => nanoid()),
+  messageId: text("message_id").references(() => messages.id, { onDelete: "cascade" }),
+  chatId: text("chat_id").references(() => chats.id, { onDelete: "cascade" }),
+  rating: text("rating"), // "positive" | "negative" | null
+  categories: text("categories", { mode: "json" }), // { accuracy, helpfulness, clarity, completeness }
+  likedAspects: text("liked_aspects", { mode: "json" }).$type<string[]>(),
+  dislikedAspects: text("disliked_aspects", { mode: "json" }).$type<string[]>(),
   freeformText: text("freeform_text"),
   promptSnapshot: text("prompt_snapshot"), // Full prompt at time of response
   responseSnapshot: text("response_snapshot"), // Full AI response
-  kernelId: varchar("kernel_id"), // Reference to kernel version used
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  submittedAt: timestamp("submitted_at"), // Set when feedback is submitted to GitHub PR
+  createdAt: integer("created_at", { mode: "timestamp" }).default(sql`(unixepoch() * 1000)`).notNull(),
+  submittedAt: integer("submitted_at", { mode: "timestamp" }), // Set when feedback is submitted to GitHub PR
 });
 
 export const insertFeedbackSchema = createInsertSchema(feedback).omit({
@@ -644,14 +650,14 @@ export type Feedback = typeof feedback.$inferSelect;
  * Tracks transient context caches created in Gemini for token optimization.
  * Caches are created at the start of a turn and deleted after the agentic loop.
  */
-export const geminiCaches = pgTable("gemini_caches", {
-  id: varchar("id").primaryKey(),
-  chatId: varchar("chat_id").references(() => chats.id, { onDelete: "cascade" }).notNull(),
-  messageId: varchar("message_id").notNull(),
+export const geminiCaches = sqliteTable("gemini_caches", {
+  id: text("id").primaryKey(),
+  chatId: text("chat_id").references(() => chats.id, { onDelete: "cascade" }).notNull(),
+  messageId: text("message_id").notNull(),
   cacheName: text("cache_name").notNull(), // The unique ID from Gemini API
   contentHash: text("content_hash").notNull(),
-  expiresAt: timestamp("expires_at").notNull(),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
+  expiresAt: integer("expires_at", { mode: "timestamp" }).notNull(),
+  createdAt: integer("created_at", { mode: "timestamp" }).default(sql`(unixepoch() * 1000)`).notNull(),
 });
 
 export const insertGeminiCacheSchema = createInsertSchema(geminiCaches).omit({
@@ -660,17 +666,17 @@ export const insertGeminiCacheSchema = createInsertSchema(geminiCaches).omit({
 export type InsertGeminiCache = z.infer<typeof insertGeminiCacheSchema>;
 export type GeminiCache = typeof geminiCaches.$inferSelect;
 
-export const llmUsage = pgTable("llm_usage", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  chatId: varchar("chat_id").references(() => chats.id, { onDelete: "cascade" }),
-  messageId: varchar("message_id").references(() => messages.id, { onDelete: "cascade" }),
+export const llmUsage = sqliteTable("llm_usage", {
+  id: text("id").primaryKey().$defaultFn(() => nanoid()),
+  chatId: text("chat_id").references(() => chats.id, { onDelete: "cascade" }),
+  messageId: text("message_id").references(() => messages.id, { onDelete: "cascade" }),
   model: text("model").notNull(), // e.g., "gemini-3-flash-preview-exp"
   promptTokens: integer("prompt_tokens").notNull(), // Input tokens
   completionTokens: integer("completion_tokens").notNull(), // Output tokens
   totalTokens: integer("total_tokens").notNull(), // Total tokens
   durationMs: integer("duration_ms"), // Request duration in milliseconds
-  metadata: jsonb("metadata"), // Additional metadata (e.g., thoughtsTokenCount for thinking models)
-  createdAt: timestamp("created_at").defaultNow().notNull(),
+  metadata: text("metadata", { mode: "json" }), // Additional metadata (e.g., thoughtsTokenCount for thinking models)
+  createdAt: integer("created_at", { mode: "timestamp" }).default(sql`(unixepoch() * 1000)`).notNull(),
 });
 
 export const insertLlmUsageSchema = createInsertSchema(llmUsage).omit({
@@ -806,7 +812,7 @@ export const ToolTypes = {
   DEBUG_ECHO: "debug_echo",
   
   // Chat output - primary tool for sending content to chat window (non-terminating)
-  SEND_CHAT: "end_chat",
+  SEND_CHAT: "write",
   
   // Turn control - terminates the interactive agentic loop (ONLY way to end turn)
   END_TURN: "end_turn",
@@ -814,6 +820,15 @@ export const ToolTypes = {
   // File operations
   FILE_GET: "get",
   FILE_PUT: "put",
+  // Legacy aliases kept for dispatcher switch compatibility
+  FILE_GET_ALIAS: "file_get",
+  FILE_PUT_ALIAS: "file_put",
+
+  // Database tools
+  DB_TABLES: "db_tables",
+  DB_QUERY: "db_query",
+  DB_INSERT: "db_insert",
+  DB_DELETE: "db_delete",
   
   // Twilio SMS/Voice operations
   SMS_SEND: "sms_send",
@@ -854,9 +869,10 @@ export const toolCallSchema = z.object({
     "terminal",  // Non-interactive shell command (alias: terminal_execute)
     "get",       // Read file or URL (alias: get)
     "put",       // Write file (alias: put)
-    "write",     // Output to chat window (alias: end_chat)
+    "write",     // Output to chat window (alias: send_chat)
     "log",       // Append to log file (alias: append)
     "say",       // HD voice output (no alias needed)
+    "soundboard", // Play a synthesized sound effect by name
     // ssh: persistent 2-way connection
     
     // ==========================================================================
@@ -865,7 +881,7 @@ export const toolCallSchema = z.object({
     // Core
 
     // Chat output - primary tool for sending content to chat window
-    "end_chat",
+    "send_chat",
     // Turn control - terminates the agentic loop
     "end_turn",
     // Browser control - open URLs in new tabs
@@ -907,11 +923,19 @@ export const toolCallSchema = z.object({
     "debug_echo",
     // Contacts
     "contacts_list", "contacts_search", "contacts_get", "contacts_create", "contacts_update", "contacts_delete",
+    "copilot_send_report",
     // Twilio SMS/Voice
     "sms_send", "sms_list", "call_make", "call_list",
     // Arduino/Hardware IoT
     "arduino_list_boards", "arduino_compile", "arduino_upload", 
     "arduino_create_sketch", "arduino_install_library", "arduino_search_libraries",
+    // Chromecast / Smart home
+    "cast",
+    // Camera control
+    "camera",
+    // Legacy aliases used in tool-dispatcher
+    "web_search", "file_get", "file_put",
+    "db_tables", "db_query", "db_insert", "db_delete",
   ]),
   operation: z.string(),
   parameters: z.record(z.unknown()),
@@ -928,7 +952,7 @@ export type ToolCall = z.infer<typeof toolCallSchema>;
  * The primary tool for sending content to the chat window
  * 
  * IMPORTANT: This is NON-TERMINATING - calling this does not end your turn.
- * You can call end_chat multiple times within a single turn to provide
+ * You can call write multiple times within a single turn to provide
  * incremental updates as you work through multi-step operations.
  * 
  * Always explicitly call end_turn when you're ready to return control to the user.
@@ -937,6 +961,15 @@ export const sendChatParamsSchema = z.object({
   content: z.string().min(1, "Content cannot be empty"),
 });
 export type SendChatParams = z.infer<typeof sendChatParamsSchema>;
+
+export const copilotSendReportParamsSchema = z.object({
+  title: z.string().min(5),
+  summary: z.string().min(20),
+  details: z.string().optional(),
+  priority: z.enum(["low", "medium", "high"]).optional().default("medium"),
+  files: z.array(z.string()).optional(),
+});
+export type CopilotSendReportParams = z.infer<typeof copilotSendReportParamsSchema>;
 
 // =============================================================================
 // BROWSER CONTROL PARAMETER SCHEMA
@@ -1249,7 +1282,7 @@ export type AutoexecScript = z.infer<typeof autoexecSchema>;
 
 /**
  * Complete Structured LLM Response Schema
- * LLM returns toolCalls array - all output goes through tools (end_chat, say, put, etc.)
+ * LLM returns toolCalls array - all output goes through tools (write, say, put, etc.)
  */
 export const structuredLLMResponseSchema = z.object({
   toolCalls: z.array(toolCallSchema).optional().default([]),
@@ -1277,7 +1310,7 @@ export type StructuredLLMResponse = z.infer<typeof structuredLLMResponseSchema>;
  * 4. On query, relevant chunks are found via vector similarity search
  */
 // Document Chunks table removed
-// export const documentChunks = pgTable("document_chunks", { ... });
+// export const documentChunks = sqliteTable("document_chunks", { ... });
 
 // export const insertDocumentChunkSchema = ...;
 // export type InsertDocumentChunk = ...;
@@ -1292,15 +1325,15 @@ export type StructuredLLMResponse = z.infer<typeof structuredLLMResponseSchema>;
  * Stores Google OAuth2 tokens for persistent authentication.
  * Uses a singleton pattern (id = 'default') for single-user app.
  */
-export const googleOAuthTokens = pgTable("google_oauth_tokens", {
-  id: varchar("id").primaryKey().default("default"),
+export const googleOAuthTokens = sqliteTable("google_oauth_tokens", {
+  id: text("id").primaryKey().default("default"),
   accessToken: text("access_token"),
   refreshToken: text("refresh_token"),
-  expiryDate: bigint("expiry_date", { mode: "number" }),
+  expiryDate: integer("expiry_date"),
   tokenType: text("token_type"),
   scope: text("scope"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  createdAt: integer("created_at", { mode: "timestamp" }).default(sql`(unixepoch() * 1000)`).notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).default(sql`(unixepoch() * 1000)`).notNull(),
 });
 
 export const insertGoogleOAuthTokensSchema = createInsertSchema(googleOAuthTokens).omit({
@@ -1385,13 +1418,13 @@ export function parseStructuredResponse(response: string): StructuredLLMResponse
 
 /**
  * Create a fallback structured response when LLM returns plain text
- * Plain text is converted to a end_chat tool call
+ * Plain text is converted to a write tool call followed by implicit end_turn
  */
 export function createFallbackResponse(plainText: string): StructuredLLMResponse {
   return {
     toolCalls: [{
       id: "fallback_chat",
-      type: "end_chat" as const,
+      type: "write" as const,
       operation: "respond",
       parameters: { content: plainText },
       priority: 0,
@@ -1416,17 +1449,17 @@ export function isStructuredResponse(response: string): boolean {
 // =============================================================================
 
 // Conversation Sources and Ingestion Jobs tables removed
-// export const conversationSources = pgTable("conversation_sources", { ... });
+// export const conversationSources = sqliteTable("conversation_sources", { ... });
 // export const insertConversationSourceSchema = ...;
 // export type InsertConversationSource = ...;
 
-// export const ingestionJobs = pgTable("ingestion_jobs", { ... });
+// export const ingestionJobs = sqliteTable("ingestion_jobs", { ... });
 // export const insertIngestionJobSchema = ...;
 // export type InsertIngestionJob = ...;
 
 
 // Extracted Knowledge table removed
-// export const extractedKnowledge = pgTable("extracted_knowledge", { ... });
+// export const extractedKnowledge = sqliteTable("extracted_knowledge", { ... });
 // export const insertExtractedKnowledgeSchema = ...;
 // export type InsertExtractedKnowledge = ...;
 
@@ -1437,17 +1470,17 @@ export function isStructuredResponse(response: string): boolean {
 
 
 // Entities and Entity Mentions tables removed
-// export const entities = pgTable("entities", { ... });
+// export const entities = sqliteTable("entities", { ... });
 // export const insertEntitySchema = ...;
 // export type InsertEntity = ...;
 
-// export const entityMentions = pgTable("entity_mentions", { ... });
+// export const entityMentions = sqliteTable("entity_mentions", { ... });
 // export const insertEntityMentionSchema = ...;
 // export type InsertEntityMention = ...;
 
 
 // Knowledge Embeddings table removed
-// export const knowledgeEmbeddings = pgTable("knowledge_embeddings", { ... });
+// export const knowledgeEmbeddings = sqliteTable("knowledge_embeddings", { ... });
 // export const insertKnowledgeEmbeddingSchema = ...;
 // export type InsertKnowledgeEmbedding = ...;
 
@@ -1495,14 +1528,14 @@ export function isStructuredResponse(response: string): boolean {
  * 
  * Tasks can have parent-child relationships for hierarchical execution.
  */
-export const queuedTasks = pgTable("queued_tasks", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+export const queuedTasks = sqliteTable("queued_tasks", {
+  id: text("id").primaryKey().$defaultFn(() => nanoid()),
   
   // Optional parent task for hierarchical task trees
-  parentId: varchar("parent_id").references((): any => queuedTasks.id, { onDelete: "cascade" }),
+  parentId: text("parent_id").references((): any => queuedTasks.id, { onDelete: "cascade" }),
   
   // Link to chat where task was created
-  chatId: varchar("chat_id").references(() => chats.id, { onDelete: "cascade" }),
+  chatId: text("chat_id").references(() => chats.id, { onDelete: "cascade" }),
   
   // Task details
   title: text("title").notNull(),
@@ -1516,23 +1549,23 @@ export const queuedTasks = pgTable("queued_tasks", {
   status: text("status").default("pending").notNull(), // pending, running, completed, failed, cancelled
   
   // Input/output data
-  input: jsonb("input"), // Task parameters and context
-  output: jsonb("output"), // Result after execution
+  input: text("input", { mode: "json" }), // Task parameters and context
+  output: text("output", { mode: "json" }), // Result after execution
   error: text("error"), // Error message if failed
   
   // Execution mode and flow control
   executionMode: text("execution_mode").default("sequential").notNull(), // sequential, parallel
   condition: text("condition"), // Natural language condition for if/then logic
-  conditionResult: boolean("condition_result"), // Result of condition evaluation
-  dependencies: text("dependencies").array(), // Array of task IDs that must complete first
+  conditionResult: integer("condition_result", { mode: "boolean" }), // Result of condition evaluation
+  dependencies: text("dependencies", { mode: "json" }).$type<string[]>(), // Array of task IDs that must complete first
   
   // Operator interaction
-  waitingForInput: boolean("waiting_for_input").default(false).notNull(),
+  waitingForInput: integer("waiting_for_input", { mode: "boolean" }).default(false).notNull(),
   inputPrompt: text("input_prompt"), // What to ask the operator
   operatorInput: text("operator_input"), // Response from operator
   
   // Workflow reference
-  workflowId: varchar("workflow_id"), // Links to a workflow definition
+  workflowId: text("workflow_id"), // Links to a workflow definition
   
   // Metadata
   estimatedDuration: integer("estimated_duration"), // Estimated seconds to complete
@@ -1541,9 +1574,9 @@ export const queuedTasks = pgTable("queued_tasks", {
   maxRetries: integer("max_retries").default(3),
   
   // Timestamps
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  startedAt: timestamp("started_at"),
-  completedAt: timestamp("completed_at"),
+  createdAt: integer("created_at", { mode: "timestamp" }).default(sql`(unixepoch() * 1000)`).notNull(),
+  startedAt: integer("started_at", { mode: "timestamp" }),
+  completedAt: integer("completed_at", { mode: "timestamp" }),
 });
 
 export const insertQueuedTaskSchema = createInsertSchema(queuedTasks).omit({
@@ -1601,8 +1634,8 @@ export type ExecutionMode = typeof ExecutionModes[keyof typeof ExecutionModes];
 // SCHEDULES - Cron jobs and scheduled task execution
 // ============================================================================
 
-export const schedules = pgTable("schedules", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+export const schedules = sqliteTable("schedules", {
+  id: text("id").primaryKey().$defaultFn(() => nanoid()),
   
   // Schedule identity
   name: text("name").notNull(),
@@ -1613,13 +1646,13 @@ export const schedules = pgTable("schedules", {
   timezone: text("timezone").default("UTC").notNull(),
   
   // What to execute
-  taskTemplate: jsonb("task_template").notNull(), // Task definition to create when triggered
-  workflowId: varchar("workflow_id"), // Or link to a workflow
+  taskTemplate: text("task_template", { mode: "json" }).notNull(), // Task definition to create when triggered
+  workflowId: text("workflow_id"), // Or link to a workflow
   
   // State
-  enabled: boolean("enabled").default(true).notNull(),
-  lastRunAt: timestamp("last_run_at"),
-  nextRunAt: timestamp("next_run_at"),
+  enabled: integer("enabled", { mode: "boolean" }).default(true).notNull(),
+  lastRunAt: integer("last_run_at", { mode: "timestamp" }),
+  nextRunAt: integer("next_run_at", { mode: "timestamp" }),
   runCount: integer("run_count").default(0).notNull(),
   
   // Error handling
@@ -1628,8 +1661,8 @@ export const schedules = pgTable("schedules", {
   maxConsecutiveFailures: integer("max_consecutive_failures").default(3),
   
   // Timestamps
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  createdAt: integer("created_at", { mode: "timestamp" }).default(sql`(unixepoch() * 1000)`).notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).default(sql`(unixepoch() * 1000)`).notNull(),
 });
 
 export const insertScheduleSchema = createInsertSchema(schedules).omit({
@@ -1649,8 +1682,8 @@ export type Schedule = typeof schedules.$inferSelect;
 // TRIGGERS - Event-driven task execution
 // ============================================================================
 
-export const triggers = pgTable("triggers", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+export const triggers = sqliteTable("triggers", {
+  id: text("id").primaryKey().$defaultFn(() => nanoid()),
   
   // Trigger identity
   name: text("name").notNull(),
@@ -1665,21 +1698,21 @@ export const triggers = pgTable("triggers", {
   subjectFilter: text("subject_filter"), // For email: filter by subject
   
   // What to execute
-  taskTemplate: jsonb("task_template"), // Task definition to create when triggered
-  workflowId: varchar("workflow_id"), // Or link to a workflow
+  taskTemplate: text("task_template", { mode: "json" }), // Task definition to create when triggered
+  workflowId: text("workflow_id"), // Or link to a workflow
   priority: integer("priority").default(5).notNull(), // Priority for triggered tasks
   
   // Webhook-specific
   webhookSecret: text("webhook_secret"), // For validating webhook calls
   
   // State
-  enabled: boolean("enabled").default(true).notNull(),
-  lastTriggeredAt: timestamp("last_triggered_at"),
+  enabled: integer("enabled", { mode: "boolean" }).default(true).notNull(),
+  lastTriggeredAt: integer("last_triggered_at", { mode: "timestamp" }),
   triggerCount: integer("trigger_count").default(0).notNull(),
   
   // Timestamps
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  createdAt: integer("created_at", { mode: "timestamp" }).default(sql`(unixepoch() * 1000)`).notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).default(sql`(unixepoch() * 1000)`).notNull(),
 });
 
 export const insertTriggerSchema = createInsertSchema(triggers).omit({
@@ -1709,15 +1742,15 @@ export type TriggerType = typeof TriggerTypes[keyof typeof TriggerTypes];
 // WORKFLOWS - Reusable workflow definitions
 // ============================================================================
 
-export const workflows = pgTable("workflows", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+export const workflows = sqliteTable("workflows", {
+  id: text("id").primaryKey().$defaultFn(() => nanoid()),
   
   // Workflow identity
   name: text("name").notNull(),
   description: text("description"),
   
   // Workflow definition
-  steps: jsonb("steps").notNull(), // Array of step definitions
+  steps: text("steps", { mode: "json" }).notNull(), // Array of step definitions
   
   // Execution settings
   defaultExecutionMode: text("default_execution_mode").default("sequential").notNull(),
@@ -1725,12 +1758,12 @@ export const workflows = pgTable("workflows", {
   timeoutSeconds: integer("timeout_seconds").default(3600), // 1 hour default
   
   // State
-  enabled: boolean("enabled").default(true).notNull(),
+  enabled: integer("enabled", { mode: "boolean" }).default(true).notNull(),
   version: integer("version").default(1).notNull(),
   
   // Timestamps
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  createdAt: integer("created_at", { mode: "timestamp" }).default(sql`(unixepoch() * 1000)`).notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).default(sql`(unixepoch() * 1000)`).notNull(),
 });
 
 export const insertWorkflowSchema = createInsertSchema(workflows).omit({
@@ -1746,28 +1779,28 @@ export type Workflow = typeof workflows.$inferSelect;
 // EXECUTOR STATE - Track executor status
 // ============================================================================
 
-export const executorState = pgTable("executor_state", {
-  id: varchar("id").primaryKey().default("singleton"), // Only one row
+export const executorState = sqliteTable("executor_state", {
+  id: text("id").primaryKey().default("singleton"), // Only one row
   
   // Executor status
   status: text("status").default("stopped").notNull(), // running, stopped, paused
   
   // Current execution
-  currentTaskId: varchar("current_task_id"),
-  runningTaskIds: text("running_task_ids").array(), // For parallel execution
+  currentTaskId: text("current_task_id"),
+  runningTaskIds: text("running_task_ids", { mode: "json" }).$type<string[]>(), // For parallel execution
   
   // Statistics
   tasksProcessed: integer("tasks_processed").default(0).notNull(),
   tasksFailed: integer("tasks_failed").default(0).notNull(),
-  lastActivityAt: timestamp("last_activity_at"),
+  lastActivityAt: integer("last_activity_at", { mode: "timestamp" }),
   
   // Settings
   maxParallelTasks: integer("max_parallel_tasks").default(3),
   pollIntervalMs: integer("poll_interval_ms").default(5000),
   
   // Timestamps
-  startedAt: timestamp("started_at"),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  startedAt: integer("started_at", { mode: "timestamp" }),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).default(sql`(unixepoch() * 1000)`).notNull(),
 });
 
 export type ExecutorState = typeof executorState.$inferSelect;
@@ -1782,31 +1815,31 @@ export type ExecutorState = typeof executorState.$inferSelect;
  * Stores active collaborative editing sessions where multiple participants
  * (users and AI) can edit files together in real-time.
  */
-export const collaborativeSessions = pgTable("collaborative_sessions", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+export const collaborativeSessions = sqliteTable("collaborative_sessions", {
+  id: text("id").primaryKey().$defaultFn(() => nanoid()),
   
   // Session identity
   name: text("name").notNull(),
   description: text("description"),
   
   // Owner/host of the session
-  hostUserId: varchar("host_user_id").references(() => users.id),
+  hostUserId: text("host_user_id").references(() => users.id),
   
   // Files being edited in this session
-  files: jsonb("files").notNull().default([]), // Array of {path, content, language}
+  files: text("files", { mode: "json" }).notNull().default([]), // Array of {path, content, language}
   
   // Session settings
-  isVoiceEnabled: boolean("is_voice_enabled").default(true).notNull(),
-  isPublic: boolean("is_public").default(false).notNull(),
+  isVoiceEnabled: integer("is_voice_enabled", { mode: "boolean" }).default(true).notNull(),
+  isPublic: integer("is_public", { mode: "boolean" }).default(false).notNull(),
   maxParticipants: integer("max_participants").default(5),
   
   // State
   status: text("status").default("active").notNull(), // active, paused, ended
   
   // Timestamps
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
-  endedAt: timestamp("ended_at"),
+  createdAt: integer("created_at", { mode: "timestamp" }).default(sql`(unixepoch() * 1000)`).notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).default(sql`(unixepoch() * 1000)`).notNull(),
+  endedAt: integer("ended_at", { mode: "timestamp" }),
 });
 
 export const insertCollaborativeSessionSchema = createInsertSchema(collaborativeSessions).omit({
@@ -1823,12 +1856,12 @@ export type CollaborativeSession = typeof collaborativeSessions.$inferSelect;
  * --------------------------
  * Tracks who is currently participating in a collaborative session.
  */
-export const sessionParticipants = pgTable("session_participants", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+export const sessionParticipants = sqliteTable("session_participants", {
+  id: text("id").primaryKey().$defaultFn(() => nanoid()),
   
   // References
-  sessionId: varchar("session_id").references(() => collaborativeSessions.id, { onDelete: "cascade" }).notNull(),
-  userId: varchar("user_id").references(() => users.id),
+  sessionId: text("session_id").references(() => collaborativeSessions.id, { onDelete: "cascade" }).notNull(),
+  userId: text("user_id").references(() => users.id),
   
   // Participant identity (for AI or anonymous users)
   participantType: text("participant_type").default("user").notNull(), // user, ai, guest
@@ -1836,16 +1869,16 @@ export const sessionParticipants = pgTable("session_participants", {
   avatarColor: text("avatar_color").default("#4285f4"),
   
   // Permissions
-  canEdit: boolean("can_edit").default(true).notNull(),
-  canVoice: boolean("can_voice").default(true).notNull(),
+  canEdit: integer("can_edit", { mode: "boolean" }).default(true).notNull(),
+  canVoice: integer("can_voice", { mode: "boolean" }).default(true).notNull(),
   
   // Current state
-  isActive: boolean("is_active").default(true).notNull(),
-  lastSeenAt: timestamp("last_seen_at").defaultNow().notNull(),
+  isActive: integer("is_active", { mode: "boolean" }).default(true).notNull(),
+  lastSeenAt: integer("last_seen_at", { mode: "timestamp" }).default(sql`(unixepoch() * 1000)`).notNull(),
   
   // Timestamps
-  joinedAt: timestamp("joined_at").defaultNow().notNull(),
-  leftAt: timestamp("left_at"),
+  joinedAt: integer("joined_at", { mode: "timestamp" }).default(sql`(unixepoch() * 1000)`).notNull(),
+  leftAt: integer("left_at", { mode: "timestamp" }),
 });
 
 export const insertSessionParticipantSchema = createInsertSchema(sessionParticipants).omit({
@@ -1862,12 +1895,12 @@ export type SessionParticipant = typeof sessionParticipants.$inferSelect;
  * Stores real-time cursor positions for each participant in a session.
  * Updated frequently via WebSocket, periodically persisted.
  */
-export const cursorPositions = pgTable("cursor_positions", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+export const cursorPositions = sqliteTable("cursor_positions", {
+  id: text("id").primaryKey().$defaultFn(() => nanoid()),
   
   // References
-  sessionId: varchar("session_id").references(() => collaborativeSessions.id, { onDelete: "cascade" }).notNull(),
-  participantId: varchar("participant_id").references(() => sessionParticipants.id, { onDelete: "cascade" }).notNull(),
+  sessionId: text("session_id").references(() => collaborativeSessions.id, { onDelete: "cascade" }).notNull(),
+  participantId: text("participant_id").references(() => sessionParticipants.id, { onDelete: "cascade" }).notNull(),
   
   // File context
   filePath: text("file_path").notNull(),
@@ -1883,7 +1916,7 @@ export const cursorPositions = pgTable("cursor_positions", {
   selectionEndColumn: integer("selection_end_column"),
   
   // Timestamps
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).default(sql`(unixepoch() * 1000)`).notNull(),
 });
 
 export type CursorPosition = typeof cursorPositions.$inferSelect;
@@ -1894,12 +1927,12 @@ export type CursorPosition = typeof cursorPositions.$inferSelect;
  * Stores edit operations for conflict resolution (OT/CRDT).
  * Each operation represents a change to the document.
  */
-export const editOperations = pgTable("edit_operations", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+export const editOperations = sqliteTable("edit_operations", {
+  id: text("id").primaryKey().$defaultFn(() => nanoid()),
   
   // References
-  sessionId: varchar("session_id").references(() => collaborativeSessions.id, { onDelete: "cascade" }).notNull(),
-  participantId: varchar("participant_id").references(() => sessionParticipants.id).notNull(),
+  sessionId: text("session_id").references(() => collaborativeSessions.id, { onDelete: "cascade" }).notNull(),
+  participantId: text("participant_id").references(() => sessionParticipants.id).notNull(),
   
   // File context
   filePath: text("file_path").notNull(),
@@ -1915,7 +1948,7 @@ export const editOperations = pgTable("edit_operations", {
   resultVersion: integer("result_version").notNull(),
   
   // Timestamps
-  createdAt: timestamp("created_at").defaultNow().notNull(),
+  createdAt: integer("created_at", { mode: "timestamp" }).default(sql`(unixepoch() * 1000)`).notNull(),
 }, (table) => [
   index("idx_edit_ops_session").on(table.sessionId),
   index("idx_edit_ops_version").on(table.sessionId, table.baseVersion),
@@ -1934,8 +1967,8 @@ export type EditOperation = typeof editOperations.$inferSelect;
  * Tracks jobs submitted to the orchestration system.
  * Supports DAG-based dependencies, priority queues, and parallel execution.
  */
-export const agentJobs = pgTable("agent_jobs", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+export const agentJobs = sqliteTable("agent_jobs", {
+  id: text("id").primaryKey().$defaultFn(() => nanoid()),
   
   // Job identification
   name: text("name").notNull(),
@@ -1945,22 +1978,22 @@ export const agentJobs = pgTable("agent_jobs", {
   priority: integer("priority").default(5).notNull(),
   
   // Parent job (for hierarchical/composite jobs)
-  parentJobId: varchar("parent_job_id").references((): any => agentJobs.id, { onDelete: "cascade" }),
+  parentJobId: text("parent_job_id").references((): any => agentJobs.id, { onDelete: "cascade" }),
   
   // Dependencies (array of job IDs that must complete before this job runs)
-  dependencies: text("dependencies").array().default([]),
+  dependencies: text("dependencies", { mode: "json" }).$type<string[]>().default([]),
   
   // Execution mode
   executionMode: text("execution_mode").default("sequential").notNull(), // 'sequential', 'parallel', 'batch'
   
   // Job payload (prompt, tool args, etc.)
-  payload: jsonb("payload").notNull(),
+  payload: text("payload", { mode: "json" }).notNull(),
   
   // Status tracking
   status: text("status").default("pending").notNull(), // 'pending', 'queued', 'running', 'completed', 'failed', 'cancelled'
   
   // Assignment
-  workerId: varchar("worker_id"),
+  workerId: text("worker_id"),
   
   // Retry configuration
   maxRetries: integer("max_retries").default(3),
@@ -1970,16 +2003,16 @@ export const agentJobs = pgTable("agent_jobs", {
   timeout: integer("timeout").default(300000), // 5 minutes default
   
   // Scheduling
-  scheduledFor: timestamp("scheduled_for"),
+  scheduledFor: integer("scheduled_for", { mode: "timestamp" }),
   cronExpression: text("cron_expression"),
   
   // Timestamps
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  startedAt: timestamp("started_at"),
-  completedAt: timestamp("completed_at"),
+  createdAt: integer("created_at", { mode: "timestamp" }).default(sql`(unixepoch() * 1000)`).notNull(),
+  startedAt: integer("started_at", { mode: "timestamp" }),
+  completedAt: integer("completed_at", { mode: "timestamp" }),
   
   // User association
-  userId: varchar("user_id"),
+  userId: text("user_id"),
 }, (table) => [
   index("idx_agent_jobs_status").on(table.status),
   index("idx_agent_jobs_priority").on(table.priority),
@@ -2002,15 +2035,15 @@ export type AgentJob = typeof agentJobs.$inferSelect;
  * Stores outputs from completed jobs.
  * Supports structured results, streaming data, and aggregation.
  */
-export const jobResults = pgTable("job_results", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+export const jobResults = sqliteTable("job_results", {
+  id: text("id").primaryKey().$defaultFn(() => nanoid()),
   
   // Job reference
-  jobId: varchar("job_id").references(() => agentJobs.id, { onDelete: "cascade" }).notNull().unique(),
+  jobId: text("job_id").references(() => agentJobs.id, { onDelete: "cascade" }).notNull().unique(),
   
   // Result data
-  success: boolean("success").notNull(),
-  output: jsonb("output"), // Structured result data
+  success: integer("success", { mode: "boolean" }).notNull(),
+  output: text("output", { mode: "json" }), // Structured result data
   error: text("error"), // Error message if failed
   
   // Token usage tracking
@@ -2021,7 +2054,7 @@ export const jobResults = pgTable("job_results", {
   durationMs: integer("duration_ms"),
   
   // Timestamps
-  createdAt: timestamp("created_at").defaultNow().notNull(),
+  createdAt: integer("created_at", { mode: "timestamp" }).default(sql`(unixepoch() * 1000)`).notNull(),
 }, (table) => [
   index("idx_job_results_job").on(table.jobId),
 ]);
@@ -2039,8 +2072,8 @@ export type JobResult = typeof jobResults.$inferSelect;
  * Tracks active workers in the pool.
  * Used for health checks, load balancing, and auto-restart.
  */
-export const agentWorkers = pgTable("agent_workers", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+export const agentWorkers = sqliteTable("agent_workers", {
+  id: text("id").primaryKey().$defaultFn(() => nanoid()),
   
   // Worker identification
   name: text("name").notNull(),
@@ -2050,22 +2083,22 @@ export const agentWorkers = pgTable("agent_workers", {
   status: text("status").default("idle").notNull(), // 'idle', 'busy', 'offline', 'error'
   
   // Current job
-  currentJobId: varchar("current_job_id").references(() => agentJobs.id),
+  currentJobId: text("current_job_id").references(() => agentJobs.id),
   
   // Capacity
   maxConcurrency: integer("max_concurrency").default(1),
   activeJobs: integer("active_jobs").default(0),
   
   // Health tracking
-  lastHeartbeat: timestamp("last_heartbeat").defaultNow().notNull(),
+  lastHeartbeat: integer("last_heartbeat", { mode: "timestamp" }).default(sql`(unixepoch() * 1000)`).notNull(),
   consecutiveFailures: integer("consecutive_failures").default(0),
   
   // Metrics
   totalJobsProcessed: integer("total_jobs_processed").default(0),
-  totalTokensUsed: bigint("total_tokens_used", { mode: "number" }).default(0),
+  totalTokensUsed: integer("total_tokens_used").default(0),
   
   // Timestamps
-  createdAt: timestamp("created_at").defaultNow().notNull(),
+  createdAt: integer("created_at", { mode: "timestamp" }).default(sql`(unixepoch() * 1000)`).notNull(),
 }, (table) => [
   index("idx_agent_workers_status").on(table.status),
   index("idx_agent_workers_heartbeat").on(table.lastHeartbeat),
@@ -2094,8 +2127,8 @@ export type AgentWorker = typeof agentWorkers.$inferSelect;
  * While actions are authenticated using the primary user's API key,
  * the author/creator is attributed to the specific agent.
  */
-export const agentIdentities = pgTable("agent_identities", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+export const agentIdentities = sqliteTable("agent_identities", {
+  id: text("id").primaryKey().$defaultFn(() => nanoid()),
   
   // Agent identification
   name: text("name").notNull().unique(), // e.g., "Agentia Compiler"
@@ -2113,11 +2146,11 @@ export const agentIdentities = pgTable("agent_identities", {
   
   // Configuration
   githubSignature: text("github_signature"), // Signature added to commits/PRs
-  enabled: boolean("enabled").default(true).notNull(),
+  enabled: integer("enabled", { mode: "boolean" }).default(true).notNull(),
   
   // Timestamps
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  createdAt: integer("created_at", { mode: "timestamp" }).default(sql`(unixepoch() * 1000)`).notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).default(sql`(unixepoch() * 1000)`).notNull(),
 });
 
 export const insertAgentIdentitySchema = createInsertSchema(agentIdentities).omit({
@@ -2134,11 +2167,11 @@ export type AgentIdentity = typeof agentIdentities.$inferSelect;
  * Audit trail of all actions performed by agents.
  * Tracks GitHub commits, PRs, issues, and Google Workspace operations.
  */
-export const agentActivityLog = pgTable("agent_activity_log", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+export const agentActivityLog = sqliteTable("agent_activity_log", {
+  id: text("id").primaryKey().$defaultFn(() => nanoid()),
   
   // Agent reference
-  agentId: varchar("agent_id").references(() => agentIdentities.id, { onDelete: "cascade" }).notNull(),
+  agentId: text("agent_id").references(() => agentIdentities.id, { onDelete: "cascade" }).notNull(),
   
   // Activity details
   activityType: text("activity_type").notNull(), // 'commit', 'pr', 'issue', 'email', 'doc_edit', etc.
@@ -2152,14 +2185,14 @@ export const agentActivityLog = pgTable("agent_activity_log", {
   // Action details
   action: text("action").notNull(), // 'create', 'update', 'delete', 'comment'
   title: text("title"), // Brief description of the action
-  metadata: jsonb("metadata"), // Additional context (commit message, PR body, etc.)
+  metadata: text("metadata", { mode: "json" }), // Additional context (commit message, PR body, etc.)
   
   // Result
-  success: boolean("success").default(true).notNull(),
+  success: integer("success", { mode: "boolean" }).default(true).notNull(),
   errorMessage: text("error_message"),
   
   // Timestamps
-  createdAt: timestamp("created_at").defaultNow().notNull(),
+  createdAt: integer("created_at", { mode: "timestamp" }).default(sql`(unixepoch() * 1000)`).notNull(),
 }, (table) => [
   index("idx_agent_activity_agent").on(table.agentId),
   index("idx_agent_activity_type").on(table.activityType),
@@ -2206,8 +2239,8 @@ export type PermissionLevel = typeof PermissionLevels[keyof typeof PermissionLev
  * Stores SSH connection profiles for remote servers.
  * The AI can generate keys, add hosts, and establish connections.
  */
-export const sshHosts = pgTable("ssh_hosts", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+export const sshHosts = sqliteTable("ssh_hosts", {
+  id: text("id").primaryKey().$defaultFn(() => nanoid()),
   
   // Connection details
   alias: text("alias").notNull().unique(), // User-friendly name (e.g., "my-server")
@@ -2220,16 +2253,16 @@ export const sshHosts = pgTable("ssh_hosts", {
   passwordSecretName: text("password_secret_name"), // Alternative: password auth
   
   // Connection state
-  lastConnected: timestamp("last_connected"),
+  lastConnected: integer("last_connected", { mode: "timestamp" }),
   lastError: text("last_error"),
   
   // Metadata
   description: text("description"),
-  tags: text("tags").array(), // For categorization
+  tags: text("tags", { mode: "json" }).$type<string[]>(), // For categorization
   
   // Timestamps
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  createdAt: integer("created_at", { mode: "timestamp" }).default(sql`(unixepoch() * 1000)`).notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).default(sql`(unixepoch() * 1000)`).notNull(),
 });
 
 export const insertSshHostSchema = createInsertSchema(sshHosts).omit({
@@ -2247,8 +2280,8 @@ export type SshHost = typeof sshHosts.$inferSelect;
  * --------------
  * Stores SSH key pair metadata (public keys only - private keys go to secrets).
  */
-export const sshKeys = pgTable("ssh_keys", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+export const sshKeys = sqliteTable("ssh_keys", {
+  id: text("id").primaryKey().$defaultFn(() => nanoid()),
   
   name: text("name").notNull().unique(), // Key pair name
   publicKey: text("public_key").notNull(), // The public key content
@@ -2257,7 +2290,7 @@ export const sshKeys = pgTable("ssh_keys", {
   keyType: text("key_type").default("ed25519").notNull(), // ed25519, rsa, etc.
   fingerprint: text("fingerprint"), // SSH key fingerprint
   
-  createdAt: timestamp("created_at").defaultNow().notNull(),
+  createdAt: integer("created_at", { mode: "timestamp" }).default(sql`(unixepoch() * 1000)`).notNull(),
 });
 
 export const insertSshKeySchema = createInsertSchema(sshKeys).omit({
@@ -2277,36 +2310,36 @@ export type SshKey = typeof sshKeys.$inferSelect;
  * Stores inbound and outbound SMS messages from Twilio integration.
  * Used for tracking conversations via SMS and enabling AI responses.
  */
-export const smsMessages = pgTable("sms_messages", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+export const smsMessages = sqliteTable("sms_messages", {
+  id: text("id").primaryKey().$defaultFn(() => nanoid()),
   
   // Twilio identifiers
-  messageSid: varchar("message_sid").unique().notNull(), // Twilio's unique message ID
-  accountSid: varchar("account_sid").notNull(), // Twilio account SID
+  messageSid: text("message_sid").unique().notNull(), // Twilio's unique message ID
+  accountSid: text("account_sid").notNull(), // Twilio account SID
   
   // Message content
-  from: varchar("from").notNull(), // Sender phone number
-  to: varchar("to").notNull(), // Recipient phone number
+  from: text("from").notNull(), // Sender phone number
+  to: text("to").notNull(), // Recipient phone number
   body: text("body").notNull(), // Message content
   
   // Message metadata - using varchar with specific constraints for type safety
-  direction: varchar("direction", { length: 20 }).notNull(), // "inbound" or "outbound"
-  status: varchar("status", { length: 50 }).notNull(), // Twilio message status (received, sent, failed, etc.)
+  direction: text("direction").notNull(), // "inbound" or "outbound"
+  status: text("status").notNull(), // Twilio message status (received, sent, failed, etc.)
   numMedia: integer("num_media").default(0), // Number of media attachments
-  mediaUrls: jsonb("media_urls"), // Array of media URLs if present
+  mediaUrls: text("media_urls", { mode: "json" }), // Array of media URLs if present
   
   // Processing state
-  processed: boolean("processed").default(false).notNull(), // Whether AI has processed this message
-  chatId: varchar("chat_id").references(() => chats.id, { onDelete: "set null" }), // Link to chat if AI responded
-  responseMessageSid: varchar("response_message_sid"), // SID of the response message we sent
+  processed: integer("processed", { mode: "boolean" }).default(false).notNull(), // Whether AI has processed this message
+  chatId: text("chat_id").references(() => chats.id, { onDelete: "set null" }), // Link to chat if AI responded
+  responseMessageSid: text("response_message_sid"), // SID of the response message we sent
   
   // Error tracking
   errorCode: integer("error_code"), // Twilio error code if any
   errorMessage: text("error_message"), // Error details
   
   // Timestamps
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  processedAt: timestamp("processed_at"), // When AI processed the message
+  createdAt: integer("created_at", { mode: "timestamp" }).default(sql`(unixepoch() * 1000)`).notNull(),
+  processedAt: integer("processed_at", { mode: "timestamp" }), // When AI processed the message
 });
 
 export const insertSmsMessageSchema = createInsertSchema(smsMessages).omit({
@@ -2331,8 +2364,8 @@ export type SmsMessage = typeof smsMessages.$inferSelect;
  * - Links to associated chat for full conversation history
  * - Records call duration and outcome
  */
-export const callConversations = pgTable("call_conversations", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+export const callConversations = sqliteTable("call_conversations", {
+  id: text("id").primaryKey().$defaultFn(() => nanoid()),
   
   // Twilio call identification
   callSid: text("call_sid").notNull().unique(), // Twilio call identifier
@@ -2340,7 +2373,7 @@ export const callConversations = pgTable("call_conversations", {
   toNumber: text("to_number").notNull(), // Receiving number (our Twilio number)
   
   // Associated chat for conversation history
-  chatId: varchar("chat_id").references(() => chats.id, { onDelete: "cascade" }),
+  chatId: text("chat_id").references(() => chats.id, { onDelete: "cascade" }),
   
   // Call state
   status: text("status").default("in_progress").notNull(), // in_progress, completed, failed, no_input
@@ -2356,15 +2389,15 @@ export const callConversations = pgTable("call_conversations", {
   transcriptionStatus: text("transcription_status"), // pending, completed, failed
   
   // Timing
-  startedAt: timestamp("started_at").defaultNow().notNull(),
-  endedAt: timestamp("ended_at"),
+  startedAt: integer("started_at", { mode: "timestamp" }).default(sql`(unixepoch() * 1000)`).notNull(),
+  endedAt: integer("ended_at", { mode: "timestamp" }),
   duration: integer("duration"), // Call duration in seconds
   
   // Error tracking
   errorMessage: text("error_message"),
   
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  createdAt: integer("created_at", { mode: "timestamp" }).default(sql`(unixepoch() * 1000)`).notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).default(sql`(unixepoch() * 1000)`).notNull(),
 }, (table) => [
   index("idx_call_conversations_sid").on(table.callSid),
   index("idx_call_conversations_status").on(table.status),
@@ -2386,11 +2419,11 @@ export type CallConversation = typeof callConversations.$inferSelect;
  * Stores individual speech turns within a call conversation.
  * Each turn represents one user speech input and the AI's response.
  */
-export const callTurns = pgTable("call_turns", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+export const callTurns = sqliteTable("call_turns", {
+  id: text("id").primaryKey().$defaultFn(() => nanoid()),
   
   // Link to parent conversation
-  conversationId: varchar("conversation_id").references(() => callConversations.id, { onDelete: "cascade" }).notNull(),
+  conversationId: text("conversation_id").references(() => callConversations.id, { onDelete: "cascade" }).notNull(),
   
   // Turn sequence
   turnNumber: integer("turn_number").notNull(), // Sequential turn number
@@ -2404,7 +2437,7 @@ export const callTurns = pgTable("call_turns", {
   aiResponseAudio: text("ai_response_audio"), // TwiML or audio URL if custom TTS
   
   // Timing
-  createdAt: timestamp("created_at").defaultNow().notNull(),
+  createdAt: integer("created_at", { mode: "timestamp" }).default(sql`(unixepoch() * 1000)`).notNull(),
   duration: integer("duration"), // Turn duration in seconds
 }, (table) => [
   index("idx_call_turns_conversation").on(table.conversationId),
@@ -2424,8 +2457,8 @@ export type CallTurn = typeof callTurns.$inferSelect;
  * Stores voicemail recordings and transcriptions from Twilio.
  * Each voicemail represents a recorded message left by a caller.
  */
-export const voicemails = pgTable("voicemails", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+export const voicemails = sqliteTable("voicemails", {
+  id: text("id").primaryKey().$defaultFn(() => nanoid()),
   
   // Twilio identification
   recordingSid: text("recording_sid").notNull().unique(), // Twilio recording identifier
@@ -2444,12 +2477,12 @@ export const voicemails = pgTable("voicemails", {
   transcriptionStatus: text("transcription_status"), // pending, completed, failed
   
   // Status
-  heard: boolean("heard").default(false).notNull(), // Whether voicemail has been listened to
-  heardAt: timestamp("heard_at"), // When it was marked as heard
+  heard: integer("heard", { mode: "boolean" }).default(false).notNull(), // Whether voicemail has been listened to
+  heardAt: integer("heard_at", { mode: "timestamp" }), // When it was marked as heard
   
   // Timestamps
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  createdAt: integer("created_at", { mode: "timestamp" }).default(sql`(unixepoch() * 1000)`).notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).default(sql`(unixepoch() * 1000)`).notNull(),
 }, (table) => [
   index("idx_voicemails_recording_sid").on(table.recordingSid),
   index("idx_voicemails_from_number").on(table.fromNumber),
@@ -2494,29 +2527,29 @@ export type Voicemail = typeof voicemails.$inferSelect;
  * - Keep only error cases or flagged interactions long-term
  * - Compress large payloads (systemPrompt, rawResponse) if needed
  */
-export const llmInteractions = pgTable("llm_interactions", {
+export const llmInteractions = sqliteTable("llm_interactions", {
   /**
    * Primary key - Auto-generated UUID
    */
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  id: text("id").primaryKey().$defaultFn(() => nanoid()),
   
   /**
    * Reference to the chat this interaction belongs to
    * Nullable because some LLM interactions may not be tied to a chat
    */
-  chatId: varchar("chat_id").references(() => chats.id, { onDelete: "cascade" }),
+  chatId: text("chat_id").references(() => chats.id, { onDelete: "cascade" }),
   
   /**
    * Reference to the specific message that triggered this interaction
    * Links to the user message that initiated the LLM call
    */
-  messageId: varchar("message_id").references(() => messages.id, { onDelete: "cascade" }),
+  messageId: text("message_id").references(() => messages.id, { onDelete: "cascade" }),
   
   /**
    * User ID - for data isolation and filtering
    * NULL for guest users
    */
-  userId: varchar("user_id").references(() => users.id, { onDelete: "cascade" }),
+  userId: text("user_id").references(() => users.id, { onDelete: "cascade" }),
   
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   // INPUT DATA - What went into the LLM
@@ -2537,24 +2570,24 @@ export const llmInteractions = pgTable("llm_interactions", {
    * Conversation history sent as context
    * Stored as JSONB for efficient querying and indexing
    */
-  conversationHistory: jsonb("conversation_history").$type<Array<{ role: string; content: string }>>(),
+  conversationHistory: text("conversation_history", { mode: "json" }).$type<Array<{ role: string; content: string }>>(),
   
   /**
    * Attachments included with the message
    * File metadata only (not full content to save space)
    */
-  attachments: jsonb("attachments").$type<Array<{ type: string; filename?: string; mimeType?: string; size?: number }>>(),
+  attachments: text("attachments", { mode: "json" }).$type<Array<{ type: string; filename?: string; mimeType?: string; size?: number }>>(),
   
 
   /**
    * Files injected into the prompt
    */
-  injectedFiles: jsonb("injected_files").$type<Array<{ filename: string; content: string; mimeType?: string }>>(),
+  injectedFiles: text("injected_files", { mode: "json" }).$type<Array<{ filename: string; content: string; mimeType?: string }>>(),
   
   /**
    * JSON data injected into the prompt
    */
-  injectedJson: jsonb("injected_json").$type<Array<{ name: string; data: unknown }>>(),
+  injectedJson: text("injected_json", { mode: "json" }).$type<Array<{ name: string; data: unknown }>>(),
   
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   // OUTPUT DATA - What the LLM generated
@@ -2573,12 +2606,12 @@ export const llmInteractions = pgTable("llm_interactions", {
   /**
    * Parsed tool calls from the response
    */
-  parsedToolCalls: jsonb("parsed_tool_calls").$type<unknown[]>(),
+  parsedToolCalls: text("parsed_tool_calls", { mode: "json" }).$type<unknown[]>(),
   
   /**
    * Results from executing tool calls
    */
-  toolResults: jsonb("tool_results").$type<Array<{ 
+  toolResults: text("tool_results", { mode: "json" }).$type<Array<{ 
     toolId: string; 
     type: string; 
     success: boolean; 
@@ -2593,7 +2626,7 @@ export const llmInteractions = pgTable("llm_interactions", {
   /**
    * Model used for this interaction (e.g., "gemini-3-flash-preview", "gemini-3.1-pro-preview")
    */
-  model: varchar("model", { length: 100 }),
+  model: text("model"),
   
   /**
    * Duration of the LLM call in milliseconds
@@ -2603,7 +2636,7 @@ export const llmInteractions = pgTable("llm_interactions", {
   /**
    * Token usage estimate or actual count
    */
-  tokenEstimate: jsonb("token_estimate").$type<{
+  tokenEstimate: text("token_estimate", { mode: "json" }).$type<{
     inputTokens: number;
     outputTokens: number;
   }>(),
@@ -2616,12 +2649,12 @@ export const llmInteractions = pgTable("llm_interactions", {
   /**
    * Status of the interaction
    */
-  status: varchar("status", { length: 20 }).notNull().default("success"),
+  status: text("status").notNull().default("success"),
   
   /**
    * Timestamp when this interaction occurred
    */
-  createdAt: timestamp("created_at").defaultNow().notNull(),
+  createdAt: integer("created_at", { mode: "timestamp" }).default(sql`(unixepoch() * 1000)`).notNull(),
 });
 
 // Create insert schema for LLM interactions
@@ -2660,11 +2693,11 @@ export type LlmInteraction = typeof llmInteractions.$inferSelect;
  * - "blocked": Waiting on something
  * - "cancelled": No longer relevant
  */
-export const todoItems = pgTable("todo_items", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+export const todoItems = sqliteTable("todo_items", {
+  id: text("id").primaryKey().$defaultFn(() => nanoid()),
   
   // User association
-  userId: varchar("user_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
+  userId: text("user_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
   
   // Content
   title: text("title").notNull(),
@@ -2678,13 +2711,13 @@ export const todoItems = pgTable("todo_items", {
   
   // Context & metadata
   category: text("category"), // e.g., "bug", "feature", "research", "maintenance"
-  tags: text("tags").array(), // Flexible categorization
-  relatedChatId: varchar("related_chat_id").references(() => chats.id, { onDelete: "set null" }),
+  tags: text("tags", { mode: "json" }).$type<string[]>(), // Flexible categorization
+  relatedChatId: text("related_chat_id").references(() => chats.id, { onDelete: "set null" }),
   
   // Timestamps
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
-  completedAt: timestamp("completed_at"),
+  createdAt: integer("created_at", { mode: "timestamp" }).default(sql`(unixepoch() * 1000)`).notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).default(sql`(unixepoch() * 1000)`).notNull(),
+  completedAt: integer("completed_at", { mode: "timestamp" }),
 }, (table) => [
   index("idx_todo_items_user").on(table.userId),
   index("idx_todo_items_status").on(table.status),
@@ -2699,3 +2732,30 @@ export const insertTodoItemSchema = createInsertSchema(todoItems).omit({
 });
 export type InsertTodoItem = z.infer<typeof insertTodoItemSchema>;
 export type TodoItem = typeof todoItems.$inferSelect;
+
+// =============================================================================
+// CONVERSATION SUMMARIES - Compressed summaries for pattern analysis
+// =============================================================================
+/**
+ * CONVERSATION_SUMMARIES TABLE
+ * ----------------------------
+ * Stores AI-generated summaries of conversations produced by the Summarization
+ * Engine. These summaries feed into the Evolution Engine's pattern analysis
+ * to generate self-improvement suggestions.
+ */
+export const conversationSummaries = sqliteTable("conversation_summaries", {
+  id: text("id").primaryKey().$defaultFn(() => nanoid()),
+  chatId: text("chat_id").references(() => chats.id, { onDelete: "cascade" }),
+  summary: text("summary").notNull(),
+  keyTopics: text("key_topics", { mode: "json" }).$type<string[]>(),
+  sentiment: text("sentiment"), // "positive" | "neutral" | "negative"
+  modelUsed: text("model_used"),
+  createdAt: integer("created_at", { mode: "timestamp" }).default(sql`(unixepoch() * 1000)`).notNull(),
+});
+
+export const insertConversationSummarySchema = createInsertSchema(conversationSummaries).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertConversationSummary = z.infer<typeof insertConversationSummarySchema>;
+export type ConversationSummaryRecord = typeof conversationSummaries.$inferSelect;

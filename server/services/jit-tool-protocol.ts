@@ -1,3 +1,4 @@
+
 /**
  * JIT (Just-In-Time) Tool Protocol v2
  * 
@@ -392,3 +393,6 @@ JSON only: {"categories": ["cat1"], "confidence": 0.9, "reasoning": "brief"}`;
 }
 
 export const jitToolProtocol = new JITToolProtocol();
+
+
+

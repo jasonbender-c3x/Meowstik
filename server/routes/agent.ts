@@ -1,3 +1,4 @@
+
 /**
  * Agent API Routes
  * 
@@ -61,7 +62,7 @@ router.post("/command", async (req, res) => {
       agent = connectedAgents.get(agentId);
     } else {
       // Use first available agent
-      const [firstAgent] = connectedAgents.values();
+      const [firstAgent] = Array.from(connectedAgents.values());
       agent = firstAgent;
     }
 
@@ -92,7 +93,7 @@ router.post("/task", async (req, res) => {
     if (agentId) {
       agent = connectedAgents.get(agentId);
     } else {
-      const [firstAgent] = connectedAgents.values();
+      const [firstAgent] = Array.from(connectedAgents.values());
       agent = firstAgent;
     }
 
@@ -320,3 +321,6 @@ function handleAgentMessage(agentId: string, message: any) {
 }
 
 export default router;
+
+
+

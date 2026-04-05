@@ -1,3 +1,4 @@
+
 /**
  * =============================================================================
  * WORKER POOL SERVICE
@@ -81,7 +82,7 @@ class WorkerPoolService {
     try {
       const worker = createAgentWorker({
         name,
-        model: "gemini-3-flash-preview",
+        model: "gemini-2.5-pro",
         ...config,
       });
 
@@ -204,10 +205,10 @@ class WorkerPoolService {
 
     return {
       activeWorkers: workers.length,
-      idleWorkers: workers.filter(w => w.status === "idle").length,
-      busyWorkers: workers.filter(w => w.status === "busy").length,
-      totalJobsProcessed: workers.reduce((sum, w) => sum + (w.totalJobsProcessed ?? 0), 0),
-      totalTokensUsed: workers.reduce((sum, w) => sum + (w.totalTokensUsed ?? 0), 0),
+      idleWorkers: workers.filter((w: any) => w.status === "idle").length,
+      busyWorkers: workers.filter((w: any) => w.status === "busy").length,
+      totalJobsProcessed: workers.reduce((sum: any, w: any) => sum + (w.totalJobsProcessed ?? 0), 0),
+      totalTokensUsed: workers.reduce((sum: any, w: any) => sum + (w.totalTokensUsed ?? 0), 0),
     };
   }
 
@@ -222,3 +223,6 @@ class WorkerPoolService {
 
 export const workerPool = new WorkerPoolService();
 export default workerPool;
+
+
+

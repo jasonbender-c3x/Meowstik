@@ -1,3 +1,4 @@
+
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { ArrowLeft, Watch, Mic, Bell, Calendar, Mail, Heart, Zap, Smartphone, Clock, Glasses, ArrowRight } from "lucide-react";
@@ -288,3 +289,6 @@ export default function WatchPage() {
     </div>
   );
 }
+
+
+

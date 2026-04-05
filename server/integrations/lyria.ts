@@ -1,3 +1,4 @@
+
 /**
  * =============================================================================
  * LYRIA MUSIC GENERATION INTEGRATION
@@ -223,3 +224,6 @@ export async function checkLyriaAvailability(): Promise<{
     message: "Lyria integration ready. Note: Full audio generation requires Lyria RealTime experimental API access."
   };
 }
+
+
+

@@ -1,3 +1,4 @@
+
 import { db } from "../db"; 
 import { eq } from "drizzle-orm";
 import { users } from "@shared/schema";
@@ -41,9 +42,11 @@ export class AgentRegistry {
 
   // Example database interaction
   async getAgentFromUser(userId: number) {
-    const [user] = await db.select().from(users).where(eq(users.id, userId));
+    const [user] = await db.select().from(users).where(eq(users.id, userId as any));
     return user ? { id: `user-${user.id}`, name: user.username, role: user.role, capabilities: [] } : null;
   }
 }
 
 export const agentRegistry = new AgentRegistry();
+
+

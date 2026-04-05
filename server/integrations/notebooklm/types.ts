@@ -1,3 +1,4 @@
+
 /**
  * Type definitions for NotebookLM Puppeteer Integration
  */
@@ -216,3 +217,6 @@ export interface NotebookLMEvents {
   'generation:complete': (content: any) => void;
   'generation:error': (error: Error) => void;
 }
+
+
+

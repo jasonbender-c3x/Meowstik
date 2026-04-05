@@ -1,3 +1,4 @@
+
 /**
  * Custom Google OAuth2 Authentication
  * Uses user's own Google Cloud credentials with database persistence
@@ -254,3 +255,6 @@ export async function revokeAccess(): Promise<void> {
 }
 
 export { SCOPES };
+
+
+

@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -23,7 +24,8 @@ import {
   Search,
   Loader2,
   Network,
-  Zap
+  Zap,
+  AlertCircle
 } from "lucide-react";
 import { Link } from "wouter";
 import { cn } from "@/lib/utils";
@@ -849,3 +851,6 @@ export default function DebugPage() {
     </div>
   );
 }
+
+
+

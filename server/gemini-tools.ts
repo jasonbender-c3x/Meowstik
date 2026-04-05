@@ -1,3 +1,4 @@
+
 /**
  * Gemini Function Calling Tool Declarations
  * 
@@ -69,14 +70,11 @@ export const geminiFunctionDeclarations: FunctionDeclaration[] = [
     }
   },
   {
-    name: "end_chat",
-    description: "TERMINATES Chat.",
+    name: "end_turn",
+    description: "Terminate your turn in the interactive agentic loop and return control to the user. This is the ONLY way to end your turn - call this when you have completed your response.",
     parametersJsonSchema: {
       type: "object",
-      properties: {
-        content: { type: "string", description: "End chat." }
-      },
-      required: ["content"]
+      properties: {}
     }
   },
   {
@@ -93,7 +91,7 @@ export const geminiFunctionDeclarations: FunctionDeclaration[] = [
   },
   {
     name: "say",
-    description: "Generate HD voice audio output. NON-BLOCKING and NON-TERMINATING - speech generation happens concurrently with other operations. Use alongside or before end_chat. Must call end_turn to finish your turn.",
+    description: "Generate HD voice audio output. NON-BLOCKING and NON-TERMINATING - speech generation happens concurrently with other operations. Use alongside or before send_chat or write. Must call end_turn to finish your turn.",
     parametersJsonSchema: {
       type: "object",
       properties: {
@@ -107,6 +105,24 @@ export const geminiFunctionDeclarations: FunctionDeclaration[] = [
         }
       },
       required: ["utterance"]
+    }
+  },
+  {
+    name: "soundboard",
+    description: "Play a synthesized sound effect in the user's browser. NON-BLOCKING. Use for comedic timing, notifications, alarms, or ambiance. Examples: womp_womp (failure/bad news), rimshot (punchline), fart (comedy), airhorn (hype), success (win), alarm_clock (wake up), pill_reminder (medication), crickets (awkward silence), ding (notification), level_up (achievement).",
+    parametersJsonSchema: {
+      type: "object",
+      properties: {
+        sound: {
+          type: "string",
+          description: "Sound effect ID. Common sounds: womp_womp, rimshot, fart, fart_long, airhorn, crickets, price_is_wrong, laugh_track, jingle, news_intro, alarm_clock, gentle_wake, pill_reminder, urgent_alarm, ding, success, error_buzz, level_up, incoming, traffic_alert, weather_beep"
+        },
+        volume: {
+          type: "number",
+          description: "Playback volume 0.0–1.0 (default: 0.8)"
+        }
+      },
+      required: ["sound"]
     }
   },
   // ═══════════════════════════════════════════════════════════════════════════
@@ -543,32 +559,7 @@ export const geminiFunctionDeclarations: FunctionDeclaration[] = [
     }
   },
 
-  // ═══════════════════════════════════════════════════════════════════════════
-  // V2 CORE PRIMITIVE: SSH
-  // Unified SSH primitive that replaces 9 individual ssh_* tools
-  // ═══════════════════════════════════════════════════════════════════════════
-  {
-    name: "ssh",
-    description: "[V2 CORE PRIMITIVE] Persistent 2-way SSH connection. " +
-      "Actions: 'connect' (establish connection), 'exec' (run command), 'disconnect' (close), 'status' (list active). " +
-      "If connected, just provide host and command to execute. Auto-connects if not connected. " +
-      "Example: ssh({ host: 'myserver', command: 'ls -la' })",
-    parametersJsonSchema: {
-      type: "object",
-      properties: {
-        host: { type: "string", description: "Host alias (configured via ssh_host_add)" },
-        command: { type: "string", description: "Command to execute (for 'exec' action)" },
-        action: { 
-          type: "string", 
-          enum: ["connect", "exec", "disconnect", "status"],
-          description: "Action to perform (default: 'exec' if command provided, 'status' otherwise)" 
-        }
-      },
-      required: []
-    }
-  },
-
-  // ═══════════════════════════════════════════════════════════════════════════
+   // ═══════════════════════════════════════════════════════════════════════════
   // WEB SEARCH
   // ═══════════════════════════════════════════════════════════════════════════
   {
@@ -808,82 +799,23 @@ OBJECTIVE TIPS:
   },
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // ARDUINO / HARDWARE IoT
+  // HARDWARE CONTROL (STUBS)
   // ═══════════════════════════════════════════════════════════════════════════
   {
-    name: "arduino_list_boards",
-    description: "List all connected Arduino boards. Detects USB-connected boards and shows port, board name, and FQBN.",
-    parametersJsonSchema: {
-      type: "object",
-      properties: {}
-    }
-  },
-  {
-    name: "arduino_compile",
-    description: "Compile an Arduino sketch (.ino file) for a specific board.",
+    name: "set_mood_light",
+    description: "Set the color/status of the HP Mood Lighting device (USB ID 03f0:150c). Currently a stub.",
     parametersJsonSchema: {
       type: "object",
       properties: {
-        sketchPath: { type: "string", description: "Path to the .ino file or sketch directory" },
-        fqbn: { type: "string", description: "Fully Qualified Board Name (e.g., 'arduino:avr:uno', 'arduino:avr:mega')" }
-      },
-      required: ["sketchPath", "fqbn"]
+        color: { type: "string", description: "Color name (red, green, blue, off) or hex code" },
+        status: { type: "string", enum: ["on", "off", "blink"], description: "Light status" }
+      }
     }
   },
-  {
-    name: "arduino_upload",
-    description: "Upload a compiled sketch to a connected Arduino board.",
-    parametersJsonSchema: {
-      type: "object",
-      properties: {
-        sketchPath: { type: "string", description: "Path to the .ino file or sketch directory" },
-        fqbn: { type: "string", description: "Fully Qualified Board Name (e.g., 'arduino:avr:uno')" },
-        port: { type: "string", description: "Serial port (e.g., '/dev/ttyUSB0', 'COM3')" }
-      },
-      required: ["sketchPath", "fqbn", "port"]
-    }
-  },
-  {
-    name: "arduino_create_sketch",
-    description: "Create a new Arduino sketch with the given code.",
-    parametersJsonSchema: {
-      type: "object",
-      properties: {
-        name: { type: "string", description: "Name of the sketch (will create directory and .ino file)" },
-        code: { type: "string", description: "Arduino C++ code for the sketch" }
-      },
-      required: ["name", "code"]
-    }
-  },
-  {
-    name: "arduino_install_library",
-    description: "Install an Arduino library by name.",
-    parametersJsonSchema: {
-      type: "object",
-      properties: {
-        libraryName: { type: "string", description: "Name of the library to install (e.g., 'Servo', 'FastLED')" }
-      },
-      required: ["libraryName"]
-    }
-  },
-  {
-    name: "arduino_search_libraries",
-    description: "Search for Arduino libraries by keyword.",
-    parametersJsonSchema: {
-      type: "object",
-      properties: {
-        query: { type: "string", description: "Search query for library name or keyword" }
-      },
-      required: ["query"]
-    }
-  },
-
-
-
+  
   // ═══════════════════════════════════════════════════════════════════════════
   // COMPUTER USE (PROJECT GHOST)
   // Hands-free desktop control via Gemini Computer Use API
-  // ═══════════════════════════════════════════════════════════════════════════
   {
     name: "computer_click",
     description: "Click at a specific coordinate on the user's desktop screen. Use after analyzing a screenshot to find element positions.",
@@ -1056,6 +988,130 @@ OBJECTIVE TIPS:
       },
       required: ["table", "where"]
     }
+  },
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // TODO LIST MANAGEMENT
+  // ═══════════════════════════════════════════════════════════════════════════
+  {
+    name: "todo_list",
+    description: "Get all active to-do items from the persistent list.",
+    parametersJsonSchema: {
+      type: "object",
+      properties: {
+        includeCompleted: { type: "boolean", description: "Whether to include completed items" }
+      }
+    }
+  },
+  {
+    name: "todo_add",
+    description: "Add a new item to the persistent to-do list.",
+    parametersJsonSchema: {
+      type: "object",
+      properties: {
+        title: { type: "string", description: "Title of the task" },
+        description: { type: "string", description: "Detailed description (optional)" },
+        priority: { type: "number", description: "Priority level (0-10, 10 is highest)" },
+        category: { type: "string", description: "Category (e.g., bug, feature, research)" },
+        tags: { type: "array", items: { type: "string" }, description: "Tags for categorization" }
+      },
+      required: ["title"]
+    }
+  },
+  {
+    name: "todo_update",
+    description: "Update an existing to-do item.",
+    parametersJsonSchema: {
+      type: "object",
+      properties: {
+        id: { type: "string", description: "ID of the todo item" },
+        title: { type: "string", description: "New title" },
+        description: { type: "string", description: "New description" },
+        status: { type: "string", enum: ["pending", "in_progress", "completed", "blocked", "cancelled"], description: "New status" },
+        priority: { type: "number", description: "New priority" }
+      },
+      required: ["id"]
+    }
+  },
+  {
+    name: "todo_complete",
+    description: "Mark a to-do item as completed.",
+    parametersJsonSchema: {
+      type: "object",
+      properties: {
+        id: { type: "string", description: "ID of the todo item" }
+      },
+      required: ["id"]
+    }
+  },
+  {
+    name: "todo_remove",
+    description: "Permanently remove a to-do item.",
+    parametersJsonSchema: {
+      type: "object",
+      properties: {
+        id: { type: "string", description: "ID of the todo item" }
+      },
+      required: ["id"]
+    }
+  },
+  // ═══════════════════════════════════════════════════════════════════════════
+  // CHROMECAST
+  // ═══════════════════════════════════════════════════════════════════════════
+  {
+    name: "cast",
+    description: "Control Chromecast and Google Nest devices via the catt CLI. Actions: cast (play a URL), stop, volume, status, pause, resume, scan (list devices). Default device is 'Living Room TV'. Known devices: 'Living Room TV' (192.168.0.14), 'Kitchen display' (192.168.0.31).",
+    parametersJsonSchema: {
+      type: "object",
+      properties: {
+        action: {
+          type: "string",
+          enum: ["cast", "stop", "volume", "status", "pause", "resume", "scan"],
+          description: "Action to perform on the Chromecast device"
+        },
+        url: {
+          type: "string",
+          description: "Media URL to cast (required for cast action)"
+        },
+        device: {
+          type: "string",
+          description: "Device name (default: 'Living Room TV'). Known: 'Living Room TV', 'Kitchen display'"
+        },
+        level: {
+          type: "number",
+          description: "Volume level 0-100 (required for volume action)"
+        }
+      },
+      required: ["action"]
+    }
+  },
+  {
+    name: "camera",
+    description: "Control the PTZ IP camera at 192.168.0.5 (HI3510). Actions: snapshot (get current image URL), ptz (pan/tilt/zoom), stop (stop movement). The camera supports 8 directions + zoom. Credentials: admin / no password.",
+    parametersJsonSchema: {
+      type: "object",
+      properties: {
+        action: {
+          type: "string",
+          enum: ["snapshot", "ptz", "stop"],
+          description: "Action: snapshot=get image, ptz=move camera, stop=halt movement"
+        },
+        direction: {
+          type: "string",
+          enum: ["up", "down", "left", "right", "leftup", "rightup", "leftdown", "rightdown", "zoomin", "zoomout"],
+          description: "PTZ direction (required for ptz action)"
+        },
+        speed: {
+          type: "number",
+          description: "PTZ speed 1-10 (default 5)"
+        },
+        duration: {
+          type: "number",
+          description: "How long to move in milliseconds (default 500). Camera auto-stops after this."
+        }
+      },
+      required: ["action"]
+    }
   }
 ];
 
@@ -1076,3 +1132,6 @@ export function getToolDeclarations(toolNames?: string[]): FunctionDeclaration[]
 export function getAllToolNames(): string[] {
   return geminiFunctionDeclarations.map(tool => tool.name).filter((name): name is string => !!name);
 }
+
+
+
