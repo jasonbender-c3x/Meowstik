@@ -160,7 +160,6 @@ export class DatabaseStorage {
       }
       throw error;
     }
-    return newUser;
   }
 
   // Chat Operations
@@ -205,7 +204,7 @@ export class DatabaseStorage {
     return await db.select().from(messages).where(eq(messages.chatId, chatId)).orderBy(messages.createdAt);
   }
 
-  async getMessagesByChatId(chatId: string, options: { limit?: number; offset?: number } = {}): Promise<Message[]> {
+  async getMessagesByChatId(chatId: string, options: { limit?: number; offset?: number; before?: string } = {}): Promise<Message[]> {
     let query = db.select().from(messages).where(eq(messages.chatId, chatId)).orderBy(desc(messages.createdAt));
     
     if (options.limit) {
@@ -218,7 +217,16 @@ export class DatabaseStorage {
       query = query.offset(options.offset);
     }
     
-    const results = await query;
+    let results = await query;
+
+    // Cursor-based pagination: if 'before' is given, filter to messages older than that ID
+    if (options.before) {
+      const cursorIdx = results.findIndex(m => m.id === options.before);
+      if (cursorIdx !== -1) {
+        results = results.slice(cursorIdx + 1);
+      }
+    }
+
     // Return in chronological order since AI needs history in order
     return results.reverse();
   }
@@ -261,7 +269,7 @@ export class DatabaseStorage {
     return this.addToolCallLog(log);
   }
 
-  async updateToolCallLog(id: string, update: Partial<InsertToolCallLog>): Promise<ToolCallLog | undefined> {
+  async updateToolCallLog(id: string, update: Partial<InsertToolCallLog> & { completedAt?: Date | null }): Promise<ToolCallLog | undefined> {
     const [updated] = await db.update(toolCallLogs)
       .set({ ...update, updatedAt: new Date() })
       .where(eq(toolCallLogs.id, id))
@@ -560,7 +568,7 @@ export class DatabaseStorage {
 
   async updateToolTask(id: string, update: Partial<InsertToolTask>): Promise<ToolTask | undefined> {
     const [updated] = await db.update(toolTasks)
-      .set({ ...update, updatedAt: new Date() })
+      .set({ ...update })
       .where(eq(toolTasks.id, id))
       .returning();
     return updated;
@@ -591,8 +599,8 @@ export class DatabaseStorage {
     const allFeedback = await db.select().from(feedback);
     return {
       total: allFeedback.length,
-      positive: allFeedback.filter(f => f.sentiment === 'positive').length,
-      negative: allFeedback.filter(f => f.sentiment === 'negative').length,
+      positive: allFeedback.filter(f => f.rating === 'positive').length,
+      negative: allFeedback.filter(f => f.rating === 'negative').length,
     };
   }
 

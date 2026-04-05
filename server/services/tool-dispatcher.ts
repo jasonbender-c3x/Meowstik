@@ -198,13 +198,13 @@ export class ToolDispatcher {
         default: result = { message: `Tool type: ${toolCall.type} executed (fallback)` };
       }
 
-      if (taskId) await storage.updateToolTaskStatus(taskId, "completed", result);
+      if (taskId) await storage.updateToolTaskStatus(taskId, "completed", result as any);
       
       if (toolCallLogId && chatId) {
         const duration = Date.now() - startTime;
         await storage.updateToolCallLog(toolCall.id, {
           status: "success",
-          response: result,
+          response: result as any,
           completedAt: new Date(),
           duration,
         });

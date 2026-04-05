@@ -128,7 +128,7 @@ function buildSSML(cleanText: string, style: VoiceStyle, voiceName?: string): st
   // Journey and Chirp3 voices do not support SSML prosody (pitch/rate) — they use neural
   // conversational models that reject those tags with "invalid argument".
   const isUnsupportedSSML = voiceName?.includes("Journey") || voiceName?.includes("Chirp3");
-  if (isJourneyVoice) return `<speak>${escapeXml(cleanText)}</speak>`;
+  if (isUnsupportedSSML) return `<speak>${escapeXml(cleanText)}</speak>`;
 
   const p = VOICE_STYLE_MAPPING[style]?.google ?? VOICE_STYLE_MAPPING[VoiceStyle.Neutral].google;
   const attrs: string[] = [];

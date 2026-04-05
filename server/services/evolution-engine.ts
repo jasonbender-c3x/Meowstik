@@ -31,7 +31,7 @@ async function getEvolutionAgent(userId?: string): Promise<github.AgentAuthor> {
   // If userId is provided, check for custom branding
   if (userId) {
     try {
-      const branding = await storage.getUserBranding(userId);
+      const branding = await storage.getUserBrandingOrDefault(userId);
       if (branding?.githubSignature) {
         return {
           name: branding.displayName || "Agentia Compiler",
@@ -361,6 +361,12 @@ Please review the suggestions and:
       agent
     );
 
+    // Narrow: createPullRequestWithAgent returns success object or { success: false, error }
+    if ('success' in pr && pr.success === false) {
+      return { success: false, error: (pr as any).error || 'Failed to create PR' };
+    }
+    const prSuccess = pr as { number: number; htmlUrl: string; title: string };
+
     // Auto-tag @copilot to trigger implementation phase
     try {
       const copilotComment = `@copilot Please review these evolution suggestions and implement the approved improvements.
@@ -376,7 +382,7 @@ The full analysis is available in the attached evolution report.`;
       await github.addCommentWithAgent(
         targetRepo.owner,
         targetRepo.repo,
-        pr.number,
+        prSuccess.number,
         copilotComment,
         agent
       );
@@ -393,10 +399,10 @@ The full analysis is available in the attached evolution report.`;
           activityType: 'pr',
           platform: 'github',
           resourceType: 'pull_request',
-          resourceId: pr.number.toString(),
-          resourceUrl: pr.htmlUrl,
+          resourceId: prSuccess.number.toString(),
+          resourceUrl: prSuccess.htmlUrl,
           action: 'create',
-          title: pr.title,
+          title: prSuccess.title,
           metadata: { reportId: report.id, suggestions: report.suggestions.length },
           success: true
         });
@@ -407,8 +413,8 @@ The full analysis is available in the attached evolution report.`;
 
     return {
       success: true,
-      prUrl: pr.htmlUrl,
-      prNumber: pr.number
+      prUrl: prSuccess.htmlUrl,
+      prNumber: prSuccess.number
     };
   } catch (error: any) {
     console.error("Error creating evolution PR:", error);
@@ -492,7 +498,8 @@ export interface MessageScanResult {
  */
 export async function scanMessagesForFeedback(
   messages: Array<{ id: string; content: string; createdAt: Date | null }>,
-  repo: { owner: string; repo: string }
+  repo: { owner: string; repo: string },
+  userId?: string
 ): Promise<MessageScanResult> {
   if (messages.length === 0) {
     return {
@@ -626,7 +633,11 @@ ${actionableFeedback.map(f => `- **${f.feedbackType.toUpperCase()}**: ${f.summar
       agent
     );
 
-    if (prResult && prResult.htmlUrl) {
+    const prSuccess2 = (!('success' in prResult && prResult.success === false) && 'htmlUrl' in prResult)
+      ? prResult as { number: number; htmlUrl: string }
+      : null;
+
+    if (prSuccess2) {
       // Auto-tag @copilot to trigger implementation phase
       try {
         const copilotComment = `@copilot Please review this user feedback and implement improvements where appropriate.
@@ -639,7 +650,7 @@ Please address the high and medium severity items first.`;
         await github.addCommentWithAgent(
           repo.owner,
           repo.repo,
-          prResult.number,
+          prSuccess2.number,
           copilotComment,
           agent
         );
@@ -651,8 +662,8 @@ Please address the high and medium severity items first.`;
         success: true,
         messagesScanned: messages.length,
         feedbackFound,
-        prUrl: prResult.htmlUrl,
-        prNumber: prResult.number
+        prUrl: prSuccess2.htmlUrl,
+        prNumber: prSuccess2.number
       };
     }
 

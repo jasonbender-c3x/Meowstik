@@ -814,6 +814,15 @@ export const ToolTypes = {
   // File operations
   FILE_GET: "get",
   FILE_PUT: "put",
+  // Legacy aliases kept for dispatcher switch compatibility
+  FILE_GET_ALIAS: "file_get",
+  FILE_PUT_ALIAS: "file_put",
+
+  // Database tools
+  DB_TABLES: "db_tables",
+  DB_QUERY: "db_query",
+  DB_INSERT: "db_insert",
+  DB_DELETE: "db_delete",
   
   // Twilio SMS/Voice operations
   SMS_SEND: "sms_send",

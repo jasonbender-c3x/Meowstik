@@ -877,7 +877,7 @@ The user has MUTE mode enabled. Minimize all output.
           role: m.role,
           content: m.content,
         })),
-        attachments: reqAttachments.map(a => ({
+        attachments: reqAttachments.map((a: { type?: string; filename?: string; size?: number; mimeType?: string }) => ({
           type: a.type || 'file',
           filename: a.filename || 'unknown',
           size: a.size || 0,
@@ -1077,8 +1077,8 @@ The user has MUTE mode enabled. Minimize all output.
               }
             }
             
-            // Check for end_turn/end_chat - this terminates the agentic loop
-            if ((toolCall.type === "end_turn" || toolCall.type === "end_chat") && toolResult.success) {
+            // Check for end_turn - this terminates the agentic loop
+            if (toolCall.type === "end_turn" && toolResult.success) {
               const endTurnResult = toolResult.result as { shouldEndTurn?: boolean };
               if (endTurnResult?.shouldEndTurn) {
                 endTurn = true;
@@ -1134,7 +1134,7 @@ The user has MUTE mode enabled. Minimize all output.
             
             // Special handling for soundboard tool - send sound event to client
             if (toolCall.type === "soundboard" && toolResult.success) {
-              const { sound, volume } = toolResult as { sound: string; volume: number };
+              const { sound, volume } = (toolResult.result ?? toolResult) as { sound?: string; volume?: number };
               if (sound) {
                 console.log(`[Routes][SOUNDBOARD] Playing: ${sound} @ vol ${volume}`);
                 res.write(`data: ${JSON.stringify({ soundboard: { sound, volume } })}\n\n`);
