@@ -46,6 +46,8 @@ import * as fileQueue from "./file-queue";
 import * as petoi from "../integrations/petoi";
 import * as printer3d from "../integrations/printer3d";
 import * as kicad from "../integrations/kicad";
+import * as chromecast from "./chromecast-service";
+import * as camera from "./camera-service";
 import { clientRouter } from "./client-router";
 import { exec } from "child_process";
 import { promisify } from "util";
@@ -185,7 +187,14 @@ export class ToolDispatcher {
         case "db_delete": result = await this.executeDbDelete(toolCall); break;
         case "say": result = await this.executeSay(toolCall); break;
         case "soundboard": result = this.executeSoundboard(toolCall); break;
+        case "cast": result = await this.executeCast(toolCall); break;
+        case "camera": result = await this.executeCamera(toolCall); break;
         case "end_turn": result = { success: true, shouldEndTurn: true }; break;
+        case "write": case "send_chat": {
+          const { content } = toolCall.parameters as { content?: string };
+          result = { content: content || "", success: true };
+          break;
+        }
         default: result = { message: `Tool type: ${toolCall.type} executed (fallback)` };
       }
 
@@ -323,6 +332,80 @@ export class ToolDispatcher {
   private executeSoundboard(toolCall: ToolCall) {
     const { sound, volume } = toolCall.parameters as { sound: string; volume?: number };
     return { success: true, sound: sound || "", volume: volume ?? 0.8 };
+  }
+
+  private async executeCast(toolCall: ToolCall) {
+    const { action, url, device, level } = toolCall.parameters as {
+      action: string;
+      url?: string;
+      device?: string;
+      level?: number;
+    };
+    const dev = device || "Living Room TV";
+    try {
+      let content: string;
+      switch (action) {
+        case "cast":
+          if (!url) return { content: "url is required for cast action", success: false };
+          content = await chromecast.castMedia(dev, url);
+          break;
+        case "stop":
+          content = await chromecast.stopCast(dev);
+          break;
+        case "volume":
+          if (level === undefined) return { content: "level is required for volume action", success: false };
+          content = await chromecast.setVolume(dev, level);
+          break;
+        case "status":
+          content = await chromecast.getStatus(dev);
+          break;
+        case "pause":
+          content = await chromecast.pauseCast(dev);
+          break;
+        case "resume":
+          content = await chromecast.resumeCast(dev);
+          break;
+        case "scan": {
+          const devices = await chromecast.scanDevices();
+          content = devices.map(d => `${d.ip} - ${d.name} - ${d.model}`).join("\n") || "No devices found";
+          break;
+        }
+        default:
+          return { content: `Unknown cast action: ${action}`, success: false };
+      }
+      return { content, success: true };
+    } catch (error: any) {
+      return { content: error.message, success: false };
+    }
+  }
+
+  private async executeCamera(toolCall: ToolCall) {
+    const { action, direction, speed, duration } = toolCall.parameters as {
+      action: string;
+      direction?: string;
+      speed?: number;
+      duration?: number;
+    };
+    try {
+      let content: string;
+      switch (action) {
+        case "snapshot":
+          content = `Live snapshot: ${camera.getSnapshotUrl()}?t=${Date.now()}\nViewer: open ~/Desktop/camera-live.html in browser`;
+          break;
+        case "ptz":
+          if (!direction) return { content: "direction is required for ptz action", success: false };
+          content = await camera.ptzMove(direction, speed ?? 5, duration ?? 500);
+          break;
+        case "stop":
+          content = await camera.ptzStop();
+          break;
+        default:
+          return { content: `Unknown camera action: ${action}`, success: false };
+      }
+      return { content, success: true };
+    } catch (error: any) {
+      return { content: error.message, success: false };
+    }
   }
 }
 

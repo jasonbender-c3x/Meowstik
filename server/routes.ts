@@ -98,7 +98,7 @@ import { promptComposer } from "./services/prompt-composer";
 import { toolDispatcher } from "./services/tool-dispatcher";
 import { type ToolCall } from "@shared/schema";
 import { recognizeFamilyMember } from "./services/family-recognition";
-import { parseVoiceStyle } from "./services/style-parser";
+import { parseVoiceStyle, stripAllVoiceTags } from "./services/style-parser";
 
 import { createApiRouter } from "./routes/index";
 import diagRouter from "./routes/diag";
@@ -1067,12 +1067,13 @@ The user has MUTE mode enabled. Minimize all output.
             if ((toolCall.type === "send_chat" || toolCall.type === "write") && toolResult.success) {
               const sendChatResult = toolResult.result as { content?: string };
               if (sendChatResult?.content) {
-                // Stream the send_chat content to the client
-                res.write(`data: ${JSON.stringify({ text: sendChatResult.content })}
+                const cleanContent = stripAllVoiceTags(sendChatResult.content);
+                // Stream the content to the client
+                res.write(`data: ${JSON.stringify({ text: cleanContent })}
 
 `);
-                // CRITICAL FIX: Accumulate send_chat content so it's saved to database
-                sendChatContent += sendChatResult.content;
+                // Accumulate for storage
+                sendChatContent += cleanContent;
               }
             }
             
@@ -1353,7 +1354,7 @@ The user has MUTE mode enabled. Minimize all output.
           } else {
             // No function calls - LLM responded with plain text, treat as implicit end_turn
             console.log(`[AGENTIC LOOP] Turn ${loopIteration} - No function calls, treating as implicit end_turn`);
-            const plainTextResponse = loopResponse.trim();
+            const plainTextResponse = stripAllVoiceTags(loopResponse.trim());
             if (plainTextResponse) {
               res.write(`data: ${JSON.stringify({ text: plainTextResponse })}
 

@@ -52,8 +52,8 @@ export function ChatMessage({
 
   const timestamp = useMemo(() => {
     if (!createdAt) return "";
-    const d = new Date(Number(createdAt));
-    return isNaN(d.getTime()) ? "" : format(d, "MMM d yyyy HH:mm");
+    const d = createdAt instanceof Date ? createdAt : new Date(isNaN(Number(createdAt)) ? createdAt : Number(createdAt));
+    return isNaN(d.getTime()) ? "" : format(d, "MMM d yyyy, h:mm a");
   }, [createdAt]);
 
   return (

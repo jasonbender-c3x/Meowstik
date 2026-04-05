@@ -91,3 +91,17 @@ fi
 # 4. Start the Server
 echo "🚀 MEOW: Launching Meowstik Core..."
 NODE_OPTIONS="--max-old-space-size=2048" PORT="$PORT" pnpm run dev 2>&1 | tee -a "$LOG_DIR/server.log"
+
+# Mount Google Drive if not already mounted
+if ! mountpoint -q /mnt/MyDrive 2>/dev/null; then
+  sudo mkdir -p /mnt/MyDrive
+  rclone mount gdrive: /mnt/MyDrive --daemon --vfs-cache-mode minimal --allow-other &
+  sleep 3
+  echo "✅ Google Drive mounted at /mnt/MyDrive"
+fi
+
+# Restore service account key from Drive if missing
+if [ ! -f /home/runner/workspace/Meowstik/meowstik-key.json ]; then
+  cp /mnt/MyDrive/meowstik-cbb27-afe183166910.json /home/runner/workspace/Meowstik/meowstik-key.json
+  echo "✅ meowstik-key.json restored from Drive"
+fi

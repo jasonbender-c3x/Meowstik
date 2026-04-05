@@ -21,6 +21,10 @@ export default defineConfig({
       "@shared": path.resolve(__dirname, "shared"),
       "@assets": path.resolve(__dirname, "client", "src", "assets"),
       "~": path.resolve(__dirname, "client", "src"),
+      // Force all React imports to resolve to the same copy, preventing
+      // "multiple React versions" errors from third-party libraries.
+      "react": path.resolve(__dirname, "node_modules", "react"),
+      "react-dom": path.resolve(__dirname, "node_modules", "react-dom"),
     },
   },
   root: path.resolve(__dirname, "client"),
@@ -38,6 +42,16 @@ export default defineConfig({
         changeOrigin: true,
         secure: false,
       },
+    },
+    watch: {
+      ignored: [
+        "/mnt/**",
+        "**/node_modules/**",
+        "**/.git/**",
+        "**/data/**",
+        "**/logs/**",
+        "**/sessions/**",
+      ],
     },
   },
 });

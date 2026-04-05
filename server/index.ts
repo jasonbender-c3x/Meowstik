@@ -22,11 +22,9 @@ import { desktopService } from "./services/desktop-service.js";
 // --- SONAR: GLOBAL ERROR CATCHERS ---
 process.on('uncaughtException', (err) => {
   console.error('🔥 [SONAR FATAL] Uncaught Exception:', err);
-  exec("python3 /home/runner/meowstik_mood.py error", (e) => { if (e) console.error(e); });
 });
 process.on('unhandledRejection', (reason, promise) => {
   console.error('🔥 [SONAR FATAL] Unhandled Rejection:', reason);
-  exec("python3 /home/runner/meowstik_mood.py error", (e) => { if (e) console.error(e); });
 });
 
 const app = express();
@@ -162,16 +160,8 @@ async function startServer() {
         await client.query('SELECT 1');
         console.log('✅ [Boot] Database Link Established');
         client.release();
-        
-        // Signal success to mood light
-        exec("python3 /home/runner/meowstik_mood.py success", (e) => { 
-            if (e) console.error("Failed to set mood light:", e); 
-            else console.log("✅ [Mood] Light set to SUCCESS (Green)");
-        });
-        
     } catch(e: any) {
         console.error('⚠️  [Boot] Database Link Failed:', e.message);
-        exec("python3 /home/runner/meowstik_mood.py error", (e) => { if (e) console.error(e); });
     }
   });
 }

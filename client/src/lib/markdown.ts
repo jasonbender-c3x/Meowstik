@@ -12,11 +12,15 @@ marked.setOptions({
   smartLists: true
 });
 
+function stripVoiceStyleTags(text: string): string {
+  return text.replace(/\[style:\s*[a-zA-Z]+\]\s*/gi, "").trim();
+}
+
 export function renderMarkdown(markdown: string) {
   if (!markdown) {
     return "";
   }
 
-  const html = marked.parse(markdown);
+  const html = marked.parse(stripVoiceStyleTags(markdown));
   return DOMPurify.sanitize(html);
 }

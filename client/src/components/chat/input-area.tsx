@@ -1060,12 +1060,6 @@ export function ChatInputArea({ onSend, isLoading, promptHistory = [], onStop }:
           </div>
         </div>
 
-        {/* Disclaimer / Status footer */}
-        <div className="mt-3 text-center px-4">
-          <p className="text-[10px] md:text-xs text-muted-foreground/60 select-none">
-            Meowstik may display inaccurate info, so double-check its responses. 🐾
-          </p>
-        </div>
       </div>
     </div>
   );

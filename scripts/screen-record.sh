@@ -17,7 +17,9 @@ start_screen_recording() {
   local display="${1:-:0.0}"
   local record_dir="${2:-/mnt/scrnrec}"
   local log_dir="${3:-/home/runner/logs}"
-  local video_size="${SCREEN_RECORD_VIDEO_SIZE:-1920x1200}"
+  local detected_size
+  detected_size=$(xdpyinfo -display "${1:-:0}" 2>/dev/null | awk '/dimensions/{print $2}' | head -1)
+  local video_size="${SCREEN_RECORD_VIDEO_SIZE:-${detected_size:-1920x1080}}"
   local frame_rate="${SCREEN_RECORD_FRAME_RATE:-1}"
   local preset="${SCREEN_RECORD_PRESET:-ultrafast}"
   local crf="${SCREEN_RECORD_CRF:-30}"

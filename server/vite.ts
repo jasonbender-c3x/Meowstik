@@ -21,7 +21,20 @@ export function log(message: string, source = "express") {
 
 export async function setupVite(app: Express, server: Server) {
   const vite = await createViteServer({
-    server: { middlewareMode: true, hmr: { server } },
+    server: {
+      middlewareMode: true,
+      hmr: { server },
+      watch: {
+        ignored: [
+          "/mnt/**",
+          "**/node_modules/**",
+          "**/.git/**",
+          "**/data/**",
+          "**/logs/**",
+          "**/sessions/**",
+        ],
+      },
+    },
     appType: "custom",
   });
 

@@ -1054,6 +1054,64 @@ OBJECTIVE TIPS:
       },
       required: ["id"]
     }
+  },
+  // ═══════════════════════════════════════════════════════════════════════════
+  // CHROMECAST
+  // ═══════════════════════════════════════════════════════════════════════════
+  {
+    name: "cast",
+    description: "Control Chromecast and Google Nest devices via the catt CLI. Actions: cast (play a URL), stop, volume, status, pause, resume, scan (list devices). Default device is 'Living Room TV'. Known devices: 'Living Room TV' (192.168.0.14), 'Kitchen display' (192.168.0.31).",
+    parametersJsonSchema: {
+      type: "object",
+      properties: {
+        action: {
+          type: "string",
+          enum: ["cast", "stop", "volume", "status", "pause", "resume", "scan"],
+          description: "Action to perform on the Chromecast device"
+        },
+        url: {
+          type: "string",
+          description: "Media URL to cast (required for cast action)"
+        },
+        device: {
+          type: "string",
+          description: "Device name (default: 'Living Room TV'). Known: 'Living Room TV', 'Kitchen display'"
+        },
+        level: {
+          type: "number",
+          description: "Volume level 0-100 (required for volume action)"
+        }
+      },
+      required: ["action"]
+    }
+  },
+  {
+    name: "camera",
+    description: "Control the PTZ IP camera at 192.168.0.5 (HI3510). Actions: snapshot (get current image URL), ptz (pan/tilt/zoom), stop (stop movement). The camera supports 8 directions + zoom. Credentials: admin / no password.",
+    parametersJsonSchema: {
+      type: "object",
+      properties: {
+        action: {
+          type: "string",
+          enum: ["snapshot", "ptz", "stop"],
+          description: "Action: snapshot=get image, ptz=move camera, stop=halt movement"
+        },
+        direction: {
+          type: "string",
+          enum: ["up", "down", "left", "right", "leftup", "rightup", "leftdown", "rightdown", "zoomin", "zoomout"],
+          description: "PTZ direction (required for ptz action)"
+        },
+        speed: {
+          type: "number",
+          description: "PTZ speed 1-10 (default 5)"
+        },
+        duration: {
+          type: "number",
+          description: "How long to move in milliseconds (default 500). Camera auto-stops after this."
+        }
+      },
+      required: ["action"]
+    }
   }
 ];
 
