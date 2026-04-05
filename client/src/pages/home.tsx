@@ -224,8 +224,8 @@ export default function Home() {
    * Get display name for greeting
    * Returns first name if available, otherwise "Guest"
    */
-  const displayName = user?.firstName || "Guest";
-  const userInitials = user ? (user.firstName?.[0] || user.email?.[0] || "U").toUpperCase() : "G";
+  const displayName = user?.displayName?.split(' ')[0] ?? user?.username ?? "Guest";
+  const userInitials = user ? ((user.displayName?.split(' ')[0]?.[0] ?? user.username?.[0] ?? user.email?.[0] ?? "U")).toUpperCase() : "G";
 
   /**
    * Error count from LLM error buffer - lights up indicator when > 0
@@ -502,7 +502,7 @@ export default function Home() {
         chatId: chatId,
         role: "user",
         content,
-        createdAt: new Date(),
+        createdAt: new Date().toISOString(),
         metadata: null,
       } as Message;
       setMessages((prev) => [...prev, tempUserMessage]);
@@ -647,7 +647,7 @@ export default function Home() {
                       chatId: chatId,
                       role: "ai",
                       content: aiMessageContent,
-                      createdAt: new Date(),
+                      createdAt: new Date().toISOString(),
                     } as Message
                   ];
                 });
@@ -667,7 +667,7 @@ export default function Home() {
                       chatId: chatId,
                       role: "ai",
                       content: aiMessageContent,
-                      createdAt: new Date(),
+                      createdAt: new Date().toISOString(),
                     } as Message
                   ];
                 });
@@ -685,7 +685,7 @@ export default function Home() {
                       chatId: chatId,
                       role: "ai",
                       content: aiMessageContent,
-                      createdAt: new Date(),
+                      createdAt: new Date().toISOString(),
                     } as Message
                   ];
                 });
@@ -816,7 +816,7 @@ export default function Home() {
                       chatId: chatId,
                       role: "ai",
                       content: aiMessageContent,
-                      createdAt: new Date(),
+                      createdAt: new Date().toISOString(),
                       metadata: streamMetadata,
                     } as Message & { metadata?: any }
                   ];
@@ -873,7 +873,7 @@ export default function Home() {
                         chatId: chatId,
                         role: data.savedMessage.role,
                         content: data.savedMessage.content,
-                        createdAt: new Date(data.savedMessage.createdAt),
+                        createdAt: data.savedMessage.createdAt ?? new Date().toISOString(),
                         metadata: data.savedMessage.metadata,
                       } as Message & { metadata?: any }
                     ];
@@ -1168,11 +1168,11 @@ export default function Home() {
                       size="sm" 
                       className="rounded-full"
                       onClick={() => window.location.href = "/api/logout"}
-                      title={`Logged in as ${user?.firstName || user?.email || "User"} - Click to logout`}
+                      title={`Logged in as ${user?.displayName?.split(' ')[0] ?? user?.username ?? user?.email ?? "User"} - Click to logout`}
                       data-testid="button-user-avatar"
                     >
-                      {user?.profileImageUrl ? (
-                        <img src={user.profileImageUrl} alt="Profile" className="w-7 h-7 rounded-full" />
+                      {user?.avatarUrl ? (
+                        <img src={user.avatarUrl} alt="Profile" className="w-7 h-7 rounded-full" />
                       ) : (
                         <span className="w-7 h-7 bg-primary text-primary-foreground rounded-full flex items-center justify-center text-xs font-bold">{userInitials}</span>
                       )}
