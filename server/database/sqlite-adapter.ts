@@ -60,7 +60,7 @@ export class SQLiteAdapter implements IDatabaseAdapter {
         return {
           rows,
           rowCount: rows.length,
-          fields: rows.length > 0 ? Object.keys(rows[0]).map(k => ({ name: k, type: typeof rows[0][k] })) : []
+          fields: rows.length > 0 ? Object.keys(rows[0] as object).map(k => ({ name: k, type: typeof (rows[0] as Record<string, unknown>)[k] })) : []
         };
       } else {
         const result = stmt.run(params || []);

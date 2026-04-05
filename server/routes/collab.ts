@@ -47,10 +47,10 @@ router.post("/sessions", async (req, res) => {
  */
 router.get("/sessions", async (_req, res) => {
   try {
-    const sessions = await getDb().select().from(collaborativeSessions).where(eq(collaborativeSessions.isActive, true));
+    const sessions = await getDb().select().from(collaborativeSessions).where(eq(collaborativeSessions.status, "active"));
     const activeSessions = getActiveSessions();
 
-    const result = sessions.map(session => {
+    const result = sessions.map((session: any) => {
       const activeInfo = activeSessions.find(s => s.id === session.id);
       return {
         id: session.id,
@@ -89,7 +89,7 @@ router.get("/sessions/:sessionId", async (req, res) => {
       filePath: session.currentFilePath,
       isActive: session.isActive,
       createdAt: session.createdAt,
-      participants: participants.map(p => ({
+      participants: participants.map((p: any) => ({
         id: p.id,
         displayName: p.displayName,
         avatarColor: p.avatarColor,

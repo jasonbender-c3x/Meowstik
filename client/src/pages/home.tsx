@@ -224,8 +224,8 @@ export default function Home() {
    * Get display name for greeting
    * Returns first name if available, otherwise "Guest"
    */
-  const displayName = user?.firstName || "Guest";
-  const userInitials = user ? (user.firstName?.[0] || user.email?.[0] || "U").toUpperCase() : "G";
+  const displayName = user?.displayName || "Guest";
+  const userInitials = user ? (user.displayName?.[0] || user.email?.[0] || "U").toUpperCase() : "G";
 
   /**
    * Error count from LLM error buffer - lights up indicator when > 0
@@ -504,7 +504,7 @@ export default function Home() {
         content,
         createdAt: new Date(),
         metadata: null,
-      } as Message;
+      } as unknown as Message;
       setMessages((prev) => [...prev, tempUserMessage]);
       setIsLoading(true);
 
@@ -647,8 +647,8 @@ export default function Home() {
                       chatId: chatId,
                       role: "ai",
                       content: aiMessageContent,
-                      createdAt: new Date(),
-                    } as Message
+                      createdAt: new Date().toISOString(),
+                    } as unknown as Message
                   ];
                 });
                 continue; // Skip further processing for this line
@@ -667,8 +667,8 @@ export default function Home() {
                       chatId: chatId,
                       role: "ai",
                       content: aiMessageContent,
-                      createdAt: new Date(),
-                    } as Message
+                      createdAt: new Date().toISOString(),
+                    } as unknown as Message
                   ];
                 });
               }
@@ -685,8 +685,8 @@ export default function Home() {
                       chatId: chatId,
                       role: "ai",
                       content: aiMessageContent,
-                      createdAt: new Date(),
-                    } as Message
+                      createdAt: new Date().toISOString(),
+                    } as unknown as Message
                   ];
                 });
               }
@@ -818,7 +818,7 @@ export default function Home() {
                       content: aiMessageContent,
                       createdAt: new Date(),
                       metadata: streamMetadata,
-                    } as Message & { metadata?: any }
+                    } as unknown as (Message & { metadata?: any })
                   ];
                 });
               }
@@ -875,7 +875,7 @@ export default function Home() {
                         content: data.savedMessage.content,
                         createdAt: new Date(data.savedMessage.createdAt),
                         metadata: data.savedMessage.metadata,
-                      } as Message & { metadata?: any }
+                      } as unknown as (Message & { metadata?: any })
                     ];
                   });
                   
@@ -1168,11 +1168,11 @@ export default function Home() {
                       size="sm" 
                       className="rounded-full"
                       onClick={() => window.location.href = "/api/logout"}
-                      title={`Logged in as ${user?.firstName || user?.email || "User"} - Click to logout`}
+                      title={`Logged in as ${user?.displayName || user?.email || "User"} - Click to logout`}
                       data-testid="button-user-avatar"
                     >
-                      {user?.profileImageUrl ? (
-                        <img src={user.profileImageUrl} alt="Profile" className="w-7 h-7 rounded-full" />
+                      {user?.avatarUrl ? (
+                        <img src={user.avatarUrl} alt="Profile" className="w-7 h-7 rounded-full" />
                       ) : (
                         <span className="w-7 h-7 bg-primary text-primary-foreground rounded-full flex items-center justify-center text-xs font-bold">{userInitials}</span>
                       )}

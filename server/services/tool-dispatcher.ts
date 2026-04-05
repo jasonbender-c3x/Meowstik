@@ -176,7 +176,7 @@ export class ToolDispatcher {
 
       let result: unknown;
 
-      switch (toolCall.type) {
+      switch (toolCall.type as any) {
         case "web_search": result = await this.executeWebSearch(toolCall); break;
         case "terminal": result = await this.executeTerminal(toolCall); break;
         case "file_get": case "get": result = await this.executeFileGet(toolCall); break;

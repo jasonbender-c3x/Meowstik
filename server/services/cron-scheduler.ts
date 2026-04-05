@@ -60,12 +60,12 @@ class CronScheduler {
    * Initialize next run times for schedules that don't have them
    */
   private async initializeSchedules() {
-    const schedules = await storage.getSchedules({ enabled: true });
+    const schedules = await (storage as any).getSchedules({ enabled: true });
     
     for (const schedule of schedules) {
       if (!schedule.nextRunAt) {
         const nextRun = this.getNextRunTime(schedule.cronExpression);
-        await storage.updateSchedule(schedule.id, { nextRunAt: nextRun });
+        await storage.updateSchedule(schedule.id, { nextRunAt: nextRun } as any);
       }
     }
   }
@@ -104,7 +104,7 @@ class CronScheduler {
           runCount: (schedule.runCount || 0) + 1,
           consecutiveFailures: 0,
           lastError: undefined
-        });
+        } as any);
         
         console.log(`[CronScheduler] Ran schedule: ${schedule.name}, next run: ${nextRun}`);
         
@@ -120,7 +120,7 @@ class CronScheduler {
           consecutiveFailures: failures,
           enabled: !shouldDisable,
           nextRunAt: shouldDisable ? undefined : this.getNextRunTime(schedule.cronExpression)
-        });
+        } as any);
         
         console.error(`[CronScheduler] Schedule ${schedule.name} failed (${failures}x):`, errorMessage);
         

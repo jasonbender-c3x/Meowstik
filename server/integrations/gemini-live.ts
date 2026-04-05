@@ -85,8 +85,10 @@ export async function createLiveSession(
     // Add video streaming support for Gemini 3.0 (Project Ghost)
     if (config.enableVideoStreaming && config.useGemini3) {
       // Enable video input modality for continuous streaming
-      if (!sessionConfig.responseModalities.includes(Modality.VIDEO)) {
-        sessionConfig.responseModalities.push(Modality.VIDEO);
+      // Note: "VIDEO" is not yet in the Modality enum; use string literal for forward compatibility
+      const VIDEO_MODALITY = "VIDEO" as unknown as typeof Modality.AUDIO;
+      if (!sessionConfig.responseModalities.includes(VIDEO_MODALITY)) {
+        sessionConfig.responseModalities.push(VIDEO_MODALITY);
       }
       console.log(`[Gemini Live] Video streaming enabled for session ${sessionId}`);
     }

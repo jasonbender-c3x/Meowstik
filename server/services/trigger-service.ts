@@ -76,7 +76,7 @@ class TriggerService {
       // Get recent emails since last check
       const emails = await gmail.listEmails(20);
       
-      for (const email of emails) {
+      for (const email of (emails as any[])) {
         for (const trigger of emailTriggers) {
           if (this.matchesEmailTrigger({ 
             from: email.from, 
@@ -188,7 +188,7 @@ class TriggerService {
     await storage.updateTrigger(trigger.id, {
       lastTriggeredAt: new Date(),
       triggerCount: (trigger.triggerCount || 0) + 1
-    });
+    } as any);
     
     // If trigger has a workflow, instantiate it
     if (trigger.workflowId) {

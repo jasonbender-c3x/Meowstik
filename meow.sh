@@ -7,6 +7,25 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR"
+
+# Load environment variables (canonical vault first, then local overrides)
+for envfile in "$HOME/.secrets/.env" "$SCRIPT_DIR/.env" "/mnt/MyDrive/.secrets/.env"; do
+    if [ -f "$envfile" ]; then
+        echo "🔑 MEOW: Loading env from $envfile"
+        set -a
+        # shellcheck disable=SC1090
+        source "$envfile"
+        set +a
+    fi
+done
+
+# Use GitHub token from gh CLI if not already set
+if [ -z "${GITHUB_TOKEN:-}" ] && command -v gh >/dev/null 2>&1; then
+    export GITHUB_TOKEN="$(gh auth token 2>/dev/null || true)"
+    [ -n "$GITHUB_TOKEN" ] && echo "🔑 MEOW: GitHub token loaded from gh CLI"
+fi
+
 LOG_DIR="/home/runner/logs"
 PORT=5000
 FRONTEND_PORT=5173

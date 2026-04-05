@@ -605,7 +605,7 @@ export class DatabaseStorage {
   }
 
   async markFeedbackSubmitted(id: number): Promise<void> {
-    await db.update(feedback).set({ submittedAt: new Date() }).where(eq(feedback.id, id));
+    await (db as any).update(feedback).set({ submittedAt: new Date() }).where(eq(feedback.id, String(id)));
   }
 
   async updateToolTaskStatus(id: string, status: string, result?: any, error?: string): Promise<ToolTask | undefined> {
@@ -615,7 +615,7 @@ export class DatabaseStorage {
         result: result || null, 
         error: error || null, 
         updatedAt: new Date() 
-      })
+      } as any)
       .where(eq(toolTasks.id, id))
       .returning();
     return updated;

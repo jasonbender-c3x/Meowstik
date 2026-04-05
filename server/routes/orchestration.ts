@@ -134,7 +134,7 @@ router.get("/schedules", async (req: Request, res: Response) => {
   try {
     const enabled = req.query.enabled === "true" ? true : 
                     req.query.enabled === "false" ? false : undefined;
-    const schedules = await storage.getSchedules({ enabled });
+    const schedules = await (storage as any).getSchedules({ enabled });
     res.json(schedules);
   } catch (error) {
     res.status(500).json({ error: "Failed to get schedules" });
@@ -143,7 +143,7 @@ router.get("/schedules", async (req: Request, res: Response) => {
 
 router.get("/schedules/:id", async (req: Request, res: Response) => {
   try {
-    const schedule = await storage.getScheduleById(req.params.id);
+    const schedule = await (storage as any).getScheduleById(req.params.id);
     if (!schedule) {
       return res.status(404).json({ error: "Schedule not found" });
     }
@@ -201,7 +201,7 @@ router.delete("/schedules/:id", async (req: Request, res: Response) => {
 
 router.post("/schedules/:id/run", async (req: Request, res: Response) => {
   try {
-    const schedule = await storage.getScheduleById(req.params.id);
+    const schedule = await (storage as any).getScheduleById(req.params.id);
     if (!schedule) {
       return res.status(404).json({ error: "Schedule not found" });
     }
@@ -258,7 +258,7 @@ router.get("/triggers", async (req: Request, res: Response) => {
     const enabled = req.query.enabled === "true" ? true : 
                     req.query.enabled === "false" ? false : undefined;
     const triggerType = req.query.type as string | undefined;
-    const triggers = await storage.getTriggers({ enabled, triggerType });
+    const triggers = await (storage as any).getTriggers({ enabled, triggerType });
     res.json(triggers);
   } catch (error) {
     res.status(500).json({ error: "Failed to get triggers" });
@@ -297,7 +297,7 @@ router.put("/triggers/:id", async (req: Request, res: Response) => {
 
 router.delete("/triggers/:id", async (req: Request, res: Response) => {
   try {
-    await storage.deleteTrigger(req.params.id);
+    await (storage as any).deleteTrigger(req.params.id);
     res.json({ message: "Trigger deleted" });
   } catch (error) {
     res.status(500).json({ error: "Failed to delete trigger" });
@@ -342,7 +342,7 @@ router.get("/workflows", async (req: Request, res: Response) => {
   try {
     const enabled = req.query.enabled === "true" ? true : 
                     req.query.enabled === "false" ? false : undefined;
-    const workflows = await storage.getWorkflows({ enabled });
+    const workflows = await (storage as any).getWorkflows({ enabled });
     res.json(workflows);
   } catch (error) {
     res.status(500).json({ error: "Failed to get workflows" });
@@ -372,7 +372,7 @@ router.post("/workflows", async (req: Request, res: Response) => {
 
 router.put("/workflows/:id", async (req: Request, res: Response) => {
   try {
-    const workflow = await storage.updateWorkflow(req.params.id, req.body);
+    const workflow = await (storage as any).updateWorkflow(req.params.id, req.body);
     res.json(workflow);
   } catch (error) {
     res.status(500).json({ error: "Failed to update workflow" });
@@ -381,7 +381,7 @@ router.put("/workflows/:id", async (req: Request, res: Response) => {
 
 router.delete("/workflows/:id", async (req: Request, res: Response) => {
   try {
-    await storage.deleteWorkflow(req.params.id);
+    await (storage as any).deleteWorkflow(req.params.id);
     res.json({ message: "Workflow deleted" });
   } catch (error) {
     res.status(500).json({ error: "Failed to delete workflow" });

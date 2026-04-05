@@ -1,4 +1,5 @@
 
+// @ts-ignore
 import screenshot from 'screenshot-desktop';
 import { mouse, keyboard, Point, Button, Key } from '@nut-tree-fork/nut-js';
 import { Jimp } from 'jimp';

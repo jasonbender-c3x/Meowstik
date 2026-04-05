@@ -124,7 +124,7 @@ function handleTrafficMonitor(ws: WebSocket): void {
 
 function broadcastTraffic(entry: TrafficLogEntry): void {
   const message = JSON.stringify({ type: 'traffic', data: entry });
-  for (const monitor of trafficMonitors) {
+  for (const monitor of Array.from(trafficMonitors)) {
     if (monitor.readyState === WebSocket.OPEN) {
       monitor.send(message);
     }
@@ -410,7 +410,7 @@ function sendToClient(ws: WebSocket, message: TerminalMessage): void {
 
 function broadcast(message: TerminalMessage): void {
   const messageStr = JSON.stringify(message);
-  for (const [ws] of connectedClients) {
+  for (const [ws] of Array.from(connectedClients)) {
     if (ws.readyState === WebSocket.OPEN) {
       ws.send(messageStr);
     }

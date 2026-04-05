@@ -934,7 +934,7 @@ export async function createPullRequest(
       title,
       body,
       head,
-      base: baseBranch,
+      base: baseBranch as string,
       draft
     });
     
@@ -1373,7 +1373,7 @@ export async function createPullRequestWithAgent(
       title,
       body: attributedBody,
       head,
-      base: baseBranch,
+      base: baseBranch as string,
       draft
     });
     

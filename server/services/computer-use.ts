@@ -449,7 +449,7 @@ ${currentState.title ? `Window title: ${currentState.title}` : ''}`;
             mode: "any" // Force the model to use function calling
           }
         }
-      });
+      } as any);
 
       // Extract function calls from the response
       const candidate = result.candidates?.[0];
@@ -480,7 +480,7 @@ ${currentState.title ? `Window title: ${currentState.title}` : ''}`;
           actions.push(action);
           
           // Check if this action requires confirmation (destructive operations)
-          if (this.isDestructiveAction(call.name, call.args)) {
+          if (this.isDestructiveAction(call!.name ?? '', call!.args ?? '')) {
             requiresConfirmation = true;
           }
         }

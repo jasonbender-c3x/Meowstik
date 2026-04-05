@@ -184,7 +184,7 @@ export class CodebaseAnalyzer {
         rootPath,
         totalFiles: files.length,
         totalEntities: this.progress.entitiesFound,
-        totalChunks: totalChunks,
+        totalChunks: this.progress.chunksIngested,
         files,
         glossary,
         documentation,

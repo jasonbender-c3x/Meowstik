@@ -175,7 +175,7 @@ router.post("/click", async (req, res) => {
         message: `Clicked element: ${selector}`
       });
     } else if (x !== undefined && y !== undefined) {
-      await session.page.mouse.click(x, y, { button, modifiers, clickCount });
+      await session.page.mouse.click(x, y, { button, clickCount } as any);
       res.json({
         success: true,
         sessionId,

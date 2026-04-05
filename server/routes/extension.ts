@@ -903,7 +903,7 @@ setInterval(() => {
   const now = Date.now();
   const timeout = 30 * 60 * 1000;
   
-  for (const [id, session] of extensionSessions.entries()) {
+  for (const [id, session] of Array.from(extensionSessions.entries())) {
     if (now - session.lastActivity.getTime() > timeout) {
       extensionSessions.delete(id);
       console.log(`[Extension API] Session ${id} expired`);

@@ -164,10 +164,10 @@ export class CloudSqlProvisioner {
     };
 
     try {
-      const response = await sqladmin.instances.insert({
+      const response: any = await sqladmin.instances.insert({
         auth: auth as any,
         project: this.projectId,
-        requestBody: instanceConfig,
+        requestBody: instanceConfig as any,
       });
 
       console.log('✓ Instance creation initiated');

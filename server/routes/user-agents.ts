@@ -36,7 +36,7 @@ router.get('/', async (req: Request, res: Response) => {
     }
 
     const activeOnly = req.query.active !== 'false';
-    const agents = await storage.getUserAgents(userId, activeOnly);
+    const agents = await (storage as any).getUserAgents(userId, activeOnly);
     
     res.json({ agents });
   } catch (error: any) {
@@ -224,7 +224,7 @@ router.post('/:id/default', async (req: Request, res: Response) => {
       return res.status(403).json({ error: 'Access denied' });
     }
 
-    const agent = await storage.setDefaultUserAgent(req.params.id);
+    const agent = await (storage as any).setDefaultUserAgent(userId, req.params.id);
     
     res.json({ 
       agent,

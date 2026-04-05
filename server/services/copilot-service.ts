@@ -64,7 +64,7 @@ export class CopilotService {
       cliUrl: process.env.COPILOT_CLI_URL,
       githubToken: process.env.COPILOT_GITHUB_TOKEN,
       useLoggedInUser: process.env.COPILOT_USE_LOGGED_IN_USER === "false" ? false : undefined,
-      logLevel: process.env.COPILOT_LOG_LEVEL ?? "info",
+      logLevel: (process.env.COPILOT_LOG_LEVEL ?? "info") as any,
     };
 
     if (options.useLoggedInUser === undefined) {
@@ -139,7 +139,7 @@ export class CopilotService {
     const session = await this.client.createSession({
       model: MODEL,
       streaming: false,
-    });
+    } as any);
 
     let assistantContent: string | undefined;
     try {

@@ -8,7 +8,7 @@ interface ChatMessageProps {
   chatId?: string;
   role: "user" | "ai" | "assistant" | "system";
   content: string;
-  createdAt?: string | number | null;
+  createdAt?: string | number | Date | null;
   isThinking?: boolean;
   metadata?: any;
   promptSnapshot?: any;

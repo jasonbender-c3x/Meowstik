@@ -153,7 +153,7 @@ export async function setupAuth(app: Express) {
               refreshToken: refreshToken || null,
               expiryDate: Math.floor(Date.now() / 1000) + SESSION_TTL_SECONDS,
               tokenType: 'Bearer',
-              scope: profile._json?.scope || null,
+              scope: (profile._json as Record<string, unknown>)?.['scope'] as string || null,
             });
 
             const user = {

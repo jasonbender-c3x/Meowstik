@@ -230,7 +230,7 @@ class StateManagerService {
     session.lastAccessedAt = new Date();
     const state: Record<string, unknown> = {};
 
-    for (const [key, entry] of session.entries) {
+    for (const [key, entry] of Array.from(session.entries)) {
       // Check expiration
       if (entry.ttl) {
         const expiresAt = new Date(
@@ -340,7 +340,7 @@ class StateManagerService {
     // Restore original values
     const session = this.sessions.get(transaction.sessionId);
     if (session && transaction.rollbackData) {
-      for (const [key, entry] of transaction.rollbackData) {
+      for (const [key, entry] of Array.from(transaction.rollbackData)) {
         session.entries.set(key, entry);
       }
     }
@@ -415,8 +415,8 @@ class StateManagerService {
   private cleanupExpiredState(): void {
     let expiredCount = 0;
 
-    for (const [sessionId, session] of this.sessions) {
-      for (const [key, entry] of session.entries) {
+    for (const [sessionId, session] of Array.from(this.sessions)) {
+      for (const [key, entry] of Array.from(session.entries)) {
         if (entry.ttl) {
           const expiresAt = new Date(
             entry.createdAt.getTime() + entry.ttl * 1000
@@ -448,7 +448,7 @@ class StateManagerService {
     let totalStateEntries = 0;
     let totalLocks = 0;
 
-    for (const session of this.sessions.values()) {
+    for (const session of Array.from(this.sessions.values())) {
       totalStateEntries += session.entries.size;
       totalLocks += session.locks.size;
     }

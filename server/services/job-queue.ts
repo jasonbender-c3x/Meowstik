@@ -147,7 +147,7 @@ class JobQueueService {
       if (pendingJobs.length === 0) return;
 
       // Process in parallel (up to concurrency limit fetched)
-      await Promise.all(pendingJobs.map(job => this.processJob(job.id)));
+      await Promise.all(pendingJobs.map((job: any) => this.processJob(job.id)));
       
     } catch (err) {
       console.error("[JobQueue] Polling error:", err);
@@ -302,7 +302,7 @@ class JobQueueService {
       // Handle Cron Jobs: Schedule next run if successful
       if (!result.error && job.cronExpression) {
         try {
-          const interval = cronParser.parseExpression(job.cronExpression);
+          const interval = (cronParser as any).parseExpression(job.cronExpression);
           const nextRun = interval.next().toDate();
           
           await this.submitJob({
@@ -394,7 +394,7 @@ class JobQueueService {
         return false;
     }
 
-    return deps.every(d => d.status === "completed");
+    return deps.every((d: any) => d.status === "completed");
   }
 
   private async checkDependentJobs(completedJobId: string): Promise<void> {

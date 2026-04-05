@@ -157,7 +157,7 @@ async function startServer() {
     console.log("⏳ [Boot] Pinging Database...");
     try {
         const client = await pool.connect();
-        await client.query('SELECT 1');
+        await client.query('SELECT 1', []);
         console.log('✅ [Boot] Database Link Established');
         client.release();
     } catch(e: any) {

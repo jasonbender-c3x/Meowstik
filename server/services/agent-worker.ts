@@ -72,7 +72,7 @@ class AgentWorkerService {
     this.startHeartbeat();
 
     console.log(`[AgentWorker] Initialized worker ${this.workerId} (${this.config.name})`);
-    return this.workerId;
+    return this.workerId!;
   }
 
   async shutdown(): Promise<void> {
@@ -232,8 +232,8 @@ Return a JSON object with the result.`;
       .from(agentJobs)
       .where(eq(agentJobs.parentJobId, job.id));
 
-    const completedChildren = childJobs.filter(c => c.status === "completed");
-    const failedChildren = childJobs.filter(c => c.status === "failed");
+    const completedChildren = childJobs.filter((c: any) => c.status === "completed");
+    const failedChildren = childJobs.filter((c: any) => c.status === "failed");
 
     if (failedChildren.length > 0) {
       return {

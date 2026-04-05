@@ -45,7 +45,7 @@ export const pool = {
      return Promise.resolve({ rows: sqlite.prepare(text).all(...(params || [])) });
   },
   end: async () => sqlite.close(),
-  on: () => { Pel },
+  on: () => { /* no-op event listener stub */ },
 };
 
 export function getDb(): any {

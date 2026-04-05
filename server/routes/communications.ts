@@ -31,7 +31,7 @@ async function lookupContactName(phoneNumber: string): Promise<string | null> {
     const contacts = await searchContacts(phoneNumber, 5);
     for (const c of contacts) {
       for (const phone of c.phoneNumbers ?? []) {
-        const n = phone.value.replace(/[^\d+]/g, "");
+        const n = ((phone as any).value as string | undefined)?.replace(/[^\d+]/g, "") ?? "";
         const s = phoneNumber.replace(/[^\d+]/g, "");
         if (n === s || n.slice(-10) === s.slice(-10)) {
           return c.displayName ?? null;
@@ -75,7 +75,7 @@ communicationsRouter.get("/conversations", async (_req: Request, res: Response) 
           lastMessageAt: c.lastMessage.createdAt,
           unreadCount: c.unreadCount,
           lastDirection: c.lastMessage.direction,
-        }))), 2000)
+        })) as any), 2000)
       ),
     ]);
 

@@ -142,7 +142,7 @@ router.get("/", async (req: Request, res: Response) => {
     const userId = getUserId(req);
     const includeCompleted = req.query.includeCompleted === "true";
     
-    const todos = await storage.getTodoItems(userId, includeCompleted);
+    const todos = await (storage as any).getTodoItems(userId, includeCompleted);
     
     res.json({
       success: true,
@@ -227,7 +227,7 @@ router.post("/", async (req: Request, res: Response) => {
  */
 router.get("/:id", async (req: Request, res: Response) => {
   try {
-    const todo = await storage.getTodoItem(req.params.id);
+    const todo = await (storage as any).getTodoItem(req.params.id);
     
     if (!todo) {
       return res.status(404).json({
@@ -344,15 +344,15 @@ router.post("/reorder", async (req: Request, res: Response) => {
       });
     }
     
-    const updated = await storage.reorderTodoItems(items);
+    await (storage as any).reorderTodoItems(userId, items);
     
     // Update cache file
     await writeTodoCache(userId);
     
     res.json({
       success: true,
-      data: updated,
-      count: updated.length,
+      data: items,
+      count: items.length,
     });
   } catch (error) {
     console.error("[TODO] Error reordering todos:", error);

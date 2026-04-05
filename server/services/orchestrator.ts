@@ -576,9 +576,9 @@ Return the plan as a JSON object matching this structure:
       .from(jobResults)
       .where(inArray(jobResults.jobId, jobIds));
 
-    const completedTasks = jobs.filter((j) => j.status === "completed").length;
-    const failedTasks = jobs.filter((j) => j.status === "failed");
-    const runningTasks = jobs.filter((j) => j.status === "running");
+    const completedTasks = jobs.filter((j: any) => j.status === "completed").length;
+    const failedTasks = jobs.filter((j: any) => j.status === "failed");
+    const runningTasks = jobs.filter((j: any) => j.status === "running");
 
     // Determine overall status
     let status: OrchestrationResult["status"] = "executing";
@@ -601,7 +601,7 @@ Return the plan as a JSON object matching this structure:
       completedTasks,
       totalTasks: jobs.length,
       results: resultMap,
-      errors: failedTasks.map((j) => `Job ${j.id} failed`),
+      errors: failedTasks.map((j: any) => `Job ${j.id} failed`),
       startTime: new Date(context.history[0]?.timestamp || new Date()),
       endTime: status === "completed" || status === "failed" ? new Date() : undefined,
     };

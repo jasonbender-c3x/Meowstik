@@ -1064,10 +1064,13 @@ The user has MUTE mode enabled. Minimize all output.
             );
             
             // Check for send_chat/write - stream content to client AND accumulate for storage
+            // Read from parameters directly (like say tool) — more reliable than toolResult.result
             if ((toolCall.type === "send_chat" || toolCall.type === "write") && toolResult.success) {
-              const sendChatResult = toolResult.result as { content?: string };
-              if (sendChatResult?.content) {
-                const cleanContent = stripAllVoiceTags(sendChatResult.content);
+              const rawContent = (toolCall.parameters as { content?: string }).content
+                || (toolResult.result as { content?: string })?.content
+                || "";
+              if (rawContent) {
+                const cleanContent = stripAllVoiceTags(rawContent);
                 // Stream the content to the client
                 res.write(`data: ${JSON.stringify({ text: cleanContent })}
 
@@ -2242,9 +2245,9 @@ ${summary}`,
 
       res.json({
         success: true,
-        sessionId: result.sessionId,
+        sessionId: (result as any).sessionId,
         url,
-        title: pageResult.title || url,
+        title: (pageResult as any).title || url,
         screenshotUrl,
       });
     } catch (error) {

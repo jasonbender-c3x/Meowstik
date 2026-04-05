@@ -24,7 +24,8 @@ import {
   Search,
   Loader2,
   Network,
-  Zap
+  Zap,
+  AlertCircle
 } from "lucide-react";
 import { Link } from "wouter";
 import { cn } from "@/lib/utils";

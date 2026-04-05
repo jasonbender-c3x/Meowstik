@@ -109,19 +109,19 @@ export async function createDatabaseAdapter(
     
     case 'mysql':
     case 'mariadb':
-      return new MySQLAdapter(config);
+      return new MySQLAdapter(config as any) as unknown as IDatabaseAdapter;
     
     case 'sqlite':
-      return new SQLiteAdapter(config);
+      return new SQLiteAdapter(config as any) as unknown as IDatabaseAdapter;
     
     case 'csv':
-      return new CSVAdapter(config);
+      return new CSVAdapter(config as any) as unknown as IDatabaseAdapter;
     
     case 'json':
-      return new JSONAdapter(config);
+      return new JSONAdapter(config as any) as unknown as IDatabaseAdapter;
     
     case 'xml':
-      return new XMLAdapter(config);
+      return new XMLAdapter(config as any) as unknown as IDatabaseAdapter;
     
     case 'sqlserver':
     case 'oracle':

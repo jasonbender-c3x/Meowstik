@@ -48,7 +48,7 @@ router.get('/', async (req: Request, res: Response) => {
 router.get('/:id', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const agent = await storage.getAgentById(id);
+    const agent = await (storage as any).getAgentById(id);
     
     if (!agent) {
       return res.status(404).json({ error: 'Agent not found' });
@@ -101,7 +101,7 @@ router.patch('/:id', async (req: Request, res: Response) => {
     const { id } = req.params;
     
     // Check if agent exists
-    const existing = await storage.getAgentById(id);
+    const existing = await (storage as any).getAgentById(id);
     if (!existing) {
       return res.status(404).json({ error: 'Agent not found' });
     }
@@ -133,7 +133,7 @@ router.get('/:id/activity', async (req: Request, res: Response) => {
     const limit = req.query.limit ? parseInt(req.query.limit as string) : 50;
     
     // Check if agent exists
-    const agent = await storage.getAgentById(id);
+    const agent = await (storage as any).getAgentById(id);
     if (!agent) {
       return res.status(404).json({ error: 'Agent not found' });
     }
@@ -170,7 +170,7 @@ router.post('/:id/activity', async (req: Request, res: Response) => {
     const { id } = req.params;
     
     // Check if agent exists
-    const agent = await storage.getAgentById(id);
+    const agent = await (storage as any).getAgentById(id);
     if (!agent) {
       return res.status(404).json({ error: 'Agent not found' });
     }

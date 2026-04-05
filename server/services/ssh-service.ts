@@ -138,7 +138,7 @@ export function addOutputListener(listener: OutputListener) {
 }
 
 export function broadcastOutput(type: 'stdout' | 'stderr' | 'system' | 'command', content: string, source: string) {
-  for (const listener of outputListeners) {
+  for (const listener of Array.from(outputListeners)) {
     try {
       listener({ type, content, source });
     } catch (e) {

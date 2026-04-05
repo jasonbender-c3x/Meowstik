@@ -40,7 +40,13 @@ import { nanoid } from "nanoid";
  */
 
 import { sql } from "drizzle-orm";
-import { sqliteTable, text, varchar, timestamp, integer, jsonb, bigint, index, boolean } from "drizzle-orm/sqlite-core";
+import { sqliteTable, text, integer, blob, index } from "drizzle-orm/sqlite-core";
+// SQLite compatibility aliases for types not natively in sqlite-core
+const varchar = (name: string, opts?: { length?: number }) => text(name);
+const timestamp = (name: string, opts?: object) => integer(name, { mode: "timestamp" });
+const jsonb = (name: string) => text(name, { mode: "json" });
+const bigint = (name: string, opts?: object) => integer(name);
+const boolean = (name: string) => integer(name, { mode: "boolean" });
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -923,6 +929,13 @@ export const toolCallSchema = z.object({
     // Arduino/Hardware IoT
     "arduino_list_boards", "arduino_compile", "arduino_upload", 
     "arduino_create_sketch", "arduino_install_library", "arduino_search_libraries",
+    // Chromecast / Smart home
+    "cast",
+    // Camera control
+    "camera",
+    // Legacy aliases used in tool-dispatcher
+    "web_search", "file_get", "file_put",
+    "db_tables", "db_query", "db_insert", "db_delete",
   ]),
   operation: z.string(),
   parameters: z.record(z.unknown()),

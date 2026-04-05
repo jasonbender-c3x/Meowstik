@@ -5,11 +5,8 @@ const renderer = new marked.Renderer();
 
 marked.setOptions({
   renderer,
-  headerIds: true,
-  mangle: false,
   gfm: true,
   breaks: true,
-  smartLists: true
 });
 
 function stripVoiceStyleTags(text: string): string {
@@ -21,6 +18,6 @@ export function renderMarkdown(markdown: string) {
     return "";
   }
 
-  const html = marked.parse(stripVoiceStyleTags(markdown));
+  const html = marked.parse(stripVoiceStyleTags(markdown), { async: false }) as string;
   return DOMPurify.sanitize(html);
 }
