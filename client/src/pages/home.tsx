@@ -168,9 +168,15 @@ export default function Home() {
 
   /**
    * Loading state - true while waiting for AI response
-   * Used to show "thinking" animation and disable input
+   * Used to disable input during the full AI response cycle
    */
   const [isLoading, setIsLoading] = useState(false);
+
+  /**
+   * Thinking state - true from message send until the first SSE event arrives
+   * Used to show the pre-response "thinking" indicator before content starts streaming
+   */
+  const [isThinking, setIsThinking] = useState(false);
 
   /**
    * AbortController reference for canceling in-flight requests
@@ -471,7 +477,6 @@ export default function Home() {
    * // AI response streams in token by token
    */
   const handleSendMessage = async (content: string, attachments: Attachment[] = []) => {
-    console.log("[handleSendMessage] Starting with content:", content.substring(0, 50));
     
     // Unlock audio on user gesture (required for browser autoplay policy)
     try {
@@ -485,14 +490,12 @@ export default function Home() {
 
       // Step 1: Create a new chat if none selected
       if (!chatId) {
-        console.log("[handleSendMessage] No chat ID, creating new chat...");
         const newChatId = await handleNewChat();
         if (!newChatId) {
           console.error('[handleSendMessage] Failed to create chat');
           return;
         }
         chatId = newChatId;
-        console.log("[handleSendMessage] Created new chat:", chatId);
       }
 
       // Step 2: Add user message to UI immediately (optimistic update)
@@ -507,8 +510,7 @@ export default function Home() {
       } as unknown as Message;
       setMessages((prev) => [...prev, tempUserMessage]);
       setIsLoading(true);
-
-      // Step 3: Send message to backend with optional attachments
+      setIsThinking(true); with optional attachments
       // Get model preference from localStorage settings
       const storedSettings = localStorage.getItem('meowstic-settings');
       const modelMode = storedSettings ? JSON.parse(storedSettings).model : 'pro';
@@ -706,17 +708,8 @@ export default function Home() {
                 const hdPermitted = shouldPlayHDAudio();
                 const browserTTSPermitted = shouldPlayBrowserTTS();
                 
-                console.log(`[TTS] Incoming speech event #${speechEventsReceived}:`, {
-                  streaming: speechData.streaming,
-                  audioGenerated: speechData.audioGenerated,
-                  hasAudio: !!speechData.audioBase64,
-                  hdPermitted,
-                  browserTTSPermitted,
-                  utterance: speechData.utterance?.substring(0, 30) + "..."
-                });
                 
                 if (speechData.audioGenerated && speechData.audioBase64 && hdPermitted) {
-                  console.log("[TTS] Queueing HD audio for playback");
                   audioQueue.push({
                     base64: speechData.audioBase64,
                     mimeType: speechData.mimeType || 'audio/mpeg',
@@ -726,23 +719,18 @@ export default function Home() {
                 } else if (speechData.audioGenerated === false && speechData.utterance) {
                   // say tool explicitly failed: always attempt browser TTS so the
                   // utterance is not silently lost, regardless of verbosity mode.
-                  console.log("[TTS] say tool reported audioGenerated:false, using browser TTS fallback");
                   speak(speechData.utterance);
                 } else if (browserTTSPermitted && speechData.utterance) {
-                  console.log("[TTS] Falling back to browser TTS for this speech event");
                   speak(speechData.utterance);
                 }
               }
 
               // Handle openUrl event - open URL in new tab
               if (data.openUrl) {
-                console.log('[OPEN_URL] Received openUrl event:', data.openUrl);
                 const openUrlData = data.openUrl as { url: string };
                 if (openUrlData.url) {
                   try {
-                    console.log('[OPEN_URL] Opening URL in new tab:', openUrlData.url);
                     window.open(openUrlData.url, '_blank');
-                    console.log('[OPEN_URL] ✓ Successfully triggered window.open()');
                   } catch (err) {
                     console.error('[OPEN_URL] Error opening URL:', err);
                   }
@@ -752,7 +740,6 @@ export default function Home() {
               // Handle soundboard event - play synthesized sound effect
               if (data.soundboard) {
                 const { sound, volume } = data.soundboard as { sound: string; volume?: number };
-                console.log(`[SOUNDBOARD] Playing: ${sound}`);
                 playSound(sound, volume ?? 0.8);
               }
 
@@ -800,7 +787,6 @@ export default function Home() {
                         window.dispatchEvent(new CustomEvent("meowstik-editor-llm-update"));
                         setIsWorkbenchOpen(true);
                         setWorkbenchTab("editor");
-                        console.log(`[Chat] File saved to editor canvas: ${filename}`);
                       }
                     }
                   }
@@ -825,7 +811,6 @@ export default function Home() {
 
               // Step 6: Stream complete - update temp message with real DB message
               if (data.done) {
-                console.log('[SSE] Done event received');
                 if (sseTimeoutId !== null) { clearTimeout(sseTimeoutId); sseTimeoutId = null; }
                 setIsLoading(false);
                 
@@ -842,26 +827,15 @@ export default function Home() {
                   /^[\s\W]+$/.test(stripped);
                 const browserTTSPermitted = shouldPlayBrowserTTS();
                 
-                console.log('[TTS] Final Stream Check:', {
-                  speechEventsReceived,
-                  browserTTSPermitted,
-                  isNonSpeakable,
-                  textLength: textToSpeak?.length || 0,
-                  cleanContentForTTS_Len: cleanContentForTTS?.length || 0,
-                  aiMessageContent_Len: aiMessageContent?.length || 0
-                });
 
                 if (textToSpeak && speechEventsReceived === 0 && browserTTSPermitted && !isNonSpeakable) {
-                  console.log('[TTS] No speech events received, triggered full response browser TTS fallback');
                   speak(textToSpeak);
                 } else if (speechEventsReceived > 0) {
-                  console.log(`[TTS] ${speechEventsReceived} speech events already handled, suppressing full response fallback`);
                 }
                 
                 // CRITICAL FIX: Replace temporary message with saved message from DB
                 // This avoids reloading ALL messages which could show stale data
                 if (data.savedMessage) {
-                  console.log('[SSE] Replacing temp message with saved message:', data.savedMessage.id);
                   setMessages((prev) => {
                     // Filter out all temporary AI messages
                     const filtered = prev.filter(m => !m.id.startsWith('temp-ai-'));
@@ -913,7 +887,6 @@ export default function Home() {
     } catch (error: any) {
       // Handle abort errors gracefully (user clicked stop)
       if (error.name === 'AbortError') {
-        console.log('[handleSendMessage] Request aborted by user');
         // Keep any partial response that was received
       } else {
         console.error('[handleSendMessage] Failed to send message:', error);
@@ -940,7 +913,6 @@ export default function Home() {
    * Aborts the in-flight request and clears loading state
    */
   const handleStopGeneration = () => {
-    console.log('[handleStopGeneration] Stop button clicked');
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
       abortControllerRef.current = null;

@@ -139,6 +139,10 @@ export function SideWorkbench({
   }, [isInteractive]);
 
   useEffect(() => {
+    activeFileIdRef.current = activeFileId;
+  }, [activeFileId]);
+
+  useEffect(() => {
     if (!activeFileId && files[0]) {
       setActiveFileId(files[0].id);
     }
@@ -265,17 +269,18 @@ export function SideWorkbench({
 
   const handleEditorChange = useCallback(
     (value: string | undefined) => {
-      if (value === undefined || !activeFile) {
+      if (value === undefined) {
         return;
       }
 
       setFiles((previous) =>
         previous.map((file) =>
-          file.id === activeFile.id ? { ...file, code: value, isSaved: false } : file,
+          file.id === activeFileIdRef.current ? { ...file, code: value, isSaved: false } : file,
         ),
       );
     },
-    [activeFile],
+    // Stable: reads activeFileId via ref, so no dependency needed.
+    [],
   );
 
   const handleLanguageChange = useCallback(
@@ -693,6 +698,15 @@ export function SideWorkbench({
                 lineNumbers: "on",
                 renderWhitespace: "selection",
                 bracketPairColorization: { enabled: true },
+              }}
+              onMount={(editor) => {
+                const container = editor.getContainerDomNode();
+                if (!container) return;
+                const resizeObserver = new ResizeObserver(() => {
+                  editor.layout();
+                });
+                resizeObserver.observe(container);
+                return () => resizeObserver.disconnect();
               }}
             />
           </div>
