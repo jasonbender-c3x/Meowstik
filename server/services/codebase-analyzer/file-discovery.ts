@@ -1,6 +1,6 @@
 import * as fs from "fs";
 import * as path from "path";
-import { CODE_EXTENSIONS, SKIP_DIRS } from "./constants";
+import { CODE_EXTENSIONS, SKIP_DIRS, isDependencyFile } from "./constants";
 
 /**
  * Recursively discover all code files under dirPath,
@@ -21,7 +21,7 @@ export async function discoverFiles(dirPath: string): Promise<string[]> {
       }
     } else if (entry.isFile()) {
       const ext = path.extname(entry.name).toLowerCase();
-      if (CODE_EXTENSIONS.has(ext)) {
+      if (CODE_EXTENSIONS.has(ext) || isDependencyFile(entry.name)) {
         files.push(fullPath);
       }
     }

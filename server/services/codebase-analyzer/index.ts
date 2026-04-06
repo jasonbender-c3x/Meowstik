@@ -83,6 +83,16 @@ export class CodebaseAnalyzer {
    * @param _skipIngestion - Deprecated parameter kept for API compatibility.
    */
   async analyzeCodebase(rootPath: string, _skipIngestion = false): Promise<AnalysisResult> {
+    // Reset progress so repeated calls on the same singleton don't accumulate stale counts
+    this.progress = {
+      phase: "discovery",
+      filesDiscovered: 0,
+      filesProcessed: 0,
+      entitiesFound: 0,
+      chunksIngested: 0,
+      errors: [],
+    };
+
     const startTime = Date.now();
     const files: import("./entity-extractor").FileAnalysis[] = [];
     const errors: string[] = [];
