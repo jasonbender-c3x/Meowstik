@@ -1013,10 +1013,26 @@ The user has MUTE mode enabled. Minimize all output.
 
       // ─────────────────────────────────────────────────────────────────────
       // AGENTIC LOOP: Execute tools repeatedly until end_turn terminates
+      //
+      // Architecture: tool-call → execute → append result → resubmit
+      //
+      //   1. Gemini emits one or more functionCall parts in a single response.
+      //   2. All function calls in that response are executed (potentially in
+      //      parallel at the dispatcher level).
+      //   3. The results are appended to agenticHistory as a user turn
+      //      containing a compact summary of each tool's output.
+      //   4. agenticHistory is resubmitted to Gemini so it can act on the
+      //      results, call more tools, or call end_turn to finish.
+      //   5. Steps 1-4 repeat until end_turn is called, no function calls are
+      //      returned (implicit end), or a safety limit is hit.
+      //
+      // Parallel tool calls: Gemini may return multiple functionCall parts in
+      // a single response.  The dispatcher executes them together, reducing
+      // round-trips.  The system prompt explicitly encourages this pattern.
       // ─────────────────────────────────────────────────────────────────────
       
       let loopIteration = 0;
-      const MAX_LOOP_ITERATIONS = 10; // Safety limit to prevent infinite loops
+      const MAX_LOOP_ITERATIONS = 20; // Safety limit to prevent infinite loops
       const MAX_TOOLS_PER_TURN = 20; // Limit tool calls per turn to prevent runaway
       let totalToolsExecuted = 0;
       const MAX_TOTAL_TOOLS = 50; // Absolute limit across all turns
