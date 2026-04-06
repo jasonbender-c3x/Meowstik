@@ -1,3 +1,4 @@
+
 /**
  * ╔══════════════════════════════════════════════════════════════════════════════╗
  * ║                         MAIN.TSX - APPLICATION ENTRY                          ║
@@ -90,10 +91,44 @@ import "./index.css";
  *   </StrictMode>
  * );
  */
-createRoot(document.getElementById("root")!).render(<App />);
+import { Component, type ReactNode } from "react";
+
+class RootErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
+  constructor(props: { children: ReactNode }) {
+    super(props);
+    this.state = { error: null };
+  }
+  static getDerivedStateFromError(error: Error) {
+    return { error };
+  }
+  render() {
+    if (this.state.error) {
+      return (
+        <div style={{ padding: 32, fontFamily: "monospace", color: "#ff6b6b", background: "#1a1a1a", minHeight: "100vh" }}>
+          <h2>💥 Render Error</h2>
+          <pre style={{ whiteSpace: "pre-wrap", fontSize: 13 }}>{this.state.error.message}</pre>
+          <pre style={{ whiteSpace: "pre-wrap", fontSize: 11, color: "#888" }}>{this.state.error.stack}</pre>
+          <button onClick={() => this.setState({ error: null })} style={{ marginTop: 16, padding: "8px 16px", cursor: "pointer" }}>
+            Retry
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
+createRoot(document.getElementById("root")!).render(
+  <RootErrorBoundary>
+    <App />
+  </RootErrorBoundary>
+);
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('/sw.js').catch(() => {});
   });
 }
+
+
+

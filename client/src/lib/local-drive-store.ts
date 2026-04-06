@@ -1,3 +1,4 @@
+
 /**
  * Local Drive Store - IndexedDB persistence for File System Access API handles
  * 
@@ -116,3 +117,6 @@ export async function hasStoredHandle(): Promise<boolean> {
   const stored = await loadDirectoryHandle();
   return stored !== null;
 }
+
+
+

@@ -1,3 +1,4 @@
+
 /**
  * ╔══════════════════════════════════════════════════════════════════════════════╗
  * ║                       SIDEBAR.TSX - CHAT HISTORY SIDEBAR                      ║
@@ -295,47 +296,40 @@ export function Sidebar({ isOpen, setIsOpen, onNewChat, chats, currentChatId, on
          * Contains close button (mobile), logo/branding, and collapse toggle (desktop)
          */}
         <div className={cn("p-4 flex items-center", effectiveCollapsed ? "justify-center" : "justify-between")}>
-          {/* Close button - only visible on mobile */}
           <Button variant="ghost" size="icon" className="lg:hidden" onClick={() => setIsOpen(false)}>
             <X className="h-5 w-5" />
           </Button>
           
-          {/* Logo and Brand Name - Links to landing page */}
-          <Link href="/landing">
+          <Link href="/">
             <div className={cn("flex items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity", effectiveCollapsed ? "px-0" : "px-2")}>
-               <img src={logo} alt="Logo" className="w-8 h-8 rounded-lg" />
-               {!effectiveCollapsed && <span className="font-display font-semibold text-lg tracking-tight">Meowstik</span>}
+               <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-blue-600 to-purple-500 flex items-center justify-center text-white shadow-sm">
+                  <Sparkles className="w-5 h-5" />
+               </div>
+               {!effectiveCollapsed && <span className="font-bold text-lg tracking-tight">Meowstik</span>}
             </div>
           </Link>
           
-          {/* Collapse toggle button - only visible on desktop */}
           <Button 
             variant="ghost" 
             size="icon" 
-            className={cn("hidden lg:flex", effectiveCollapsed && "absolute right-2 top-4")}
+            className={cn("hidden lg:flex rounded-full h-8 w-8 hover:bg-muted/50", effectiveCollapsed && "absolute right-2 top-4")}
             onClick={() => setIsCollapsed(!effectiveCollapsed)}
-            data-testid="button-collapse-sidebar"
           >
-            {effectiveCollapsed ? <PanelLeft className="h-5 w-5" /> : <PanelLeftClose className="h-5 w-5" />}
+            {effectiveCollapsed ? <PanelLeft className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
           </Button>
         </div>
 
-        {/* 
-         * New Chat Button
-         * Prominently displayed action to create a new conversation
-         */}
-        <div className={cn("mb-4", effectiveCollapsed ? "px-2" : "px-4")}>
+        <div className={cn("mb-6 mt-2", effectiveCollapsed ? "px-3" : "px-4")}>
           <Button 
             onClick={onNewChat}
             className={cn(
-              "rounded-full bg-secondary/50 text-foreground hover:bg-secondary border border-transparent hover:border-border/50 shadow-none transition-all",
-              effectiveCollapsed ? "w-12 h-12 p-0 justify-center" : "w-full justify-start gap-3 h-12"
+              "rounded-full bg-muted/40 text-foreground hover:bg-muted/80 border-none shadow-none transition-all flex items-center",
+              effectiveCollapsed ? "w-12 h-12 p-0 justify-center" : "w-full justify-start gap-4 h-12 px-5"
             )}
             variant="secondary"
-            data-testid="button-new-chat"
           >
-            <Plus className="h-5 w-5 text-muted-foreground" />
-            {!effectiveCollapsed && <span className="font-medium">New discussion</span>}
+            <Plus className="h-5 w-5 text-primary" />
+            {!effectiveCollapsed && <span className="font-medium text-sm">New chat</span>}
           </Button>
         </div>
 
@@ -882,15 +876,15 @@ export function Sidebar({ isOpen, setIsOpen, onNewChat, chats, currentChatId, on
               <div className="flex items-center gap-2">
                 {isAuthenticated ? (
                   <>
-                    {user?.profileImageUrl ? (
-                      <img src={user.profileImageUrl} alt="Profile" className="w-6 h-6 rounded-full" />
+                    {user?.avatarUrl ? (
+                      <img src={user.avatarUrl} alt="Profile" className="w-6 h-6 rounded-full" />
                     ) : (
                       <div className="w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center">
                         <User className="h-3 w-3 text-primary" />
                       </div>
                     )}
                     <span className="text-sm text-foreground truncate flex-1">
-                      {user?.firstName || user?.email || "User"}
+                      {user?.displayName?.split(' ')[0] ?? user?.username ?? user?.email ?? "User"}
                     </span>
                     <Button
                       variant="ghost"
@@ -990,10 +984,10 @@ export function Sidebar({ isOpen, setIsOpen, onNewChat, chats, currentChatId, on
                   className="w-8 h-8 p-0"
                   onClick={() => window.location.href = "/api/logout"}
                   data-testid="button-logout-collapsed"
-                  title={`Logged in as ${user?.firstName || user?.email || "User"} - Click to logout`}
+                  title={`Logged in as ${user?.displayName?.split(' ')[0] ?? user?.username ?? user?.email ?? "User"} - Click to logout`}
                 >
-                  {user?.profileImageUrl ? (
-                    <img src={user.profileImageUrl} alt="Profile" className="w-6 h-6 rounded-full" />
+                  {user?.avatarUrl ? (
+                    <img src={user.avatarUrl} alt="Profile" className="w-6 h-6 rounded-full" />
                   ) : (
                     <User className="h-4 w-4 text-primary" />
                   )}
@@ -1031,3 +1025,6 @@ export function Sidebar({ isOpen, setIsOpen, onNewChat, chats, currentChatId, on
     </>
   );
 }
+
+
+

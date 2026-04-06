@@ -1,3 +1,4 @@
+
 import { Router } from "express";
 import { asyncHandler, badRequest } from "./middleware";
 import { storage } from "../storage";
@@ -9,11 +10,9 @@ router.get(
   "/",
   asyncHandler(async (req, res) => {
     const { status, chatId, limit } = req.query;
-    const tasks = await storage.getQueuedTasks({
-      status: status as string | undefined,
-      chatId: chatId as string | undefined,
-      limit: limit ? parseInt(limit as string, 10) : undefined,
-    });
+    const tasks = await storage.getQueuedTasks(
+      limit ? parseInt(limit as string, 10) : undefined
+    );
     res.json(tasks);
   })
 );
@@ -115,7 +114,7 @@ router.post(
     const updatedTask = await storage.updateQueuedTask(id, {
       status: TaskStatuses.RUNNING,
       startedAt: new Date(),
-    });
+    } as any);
     res.json(updatedTask);
   })
 );
@@ -139,7 +138,7 @@ router.post(
       output,
       completedAt: new Date(),
       actualDuration,
-    });
+    } as any);
     res.json(updatedTask);
   })
 );
@@ -163,7 +162,7 @@ router.post(
       error: error || "Unknown error",
       retryCount,
       completedAt: retryCount >= maxRetries ? new Date() : undefined,
-    });
+    } as any);
     res.json(updatedTask);
   })
 );
@@ -181,7 +180,7 @@ router.post(
     const updatedTask = await storage.updateQueuedTask(id, {
       status: TaskStatuses.CANCELLED,
       completedAt: new Date(),
-    });
+    } as any);
     res.json(updatedTask);
   })
 );
@@ -202,3 +201,6 @@ router.delete(
 );
 
 export default router;
+
+
+

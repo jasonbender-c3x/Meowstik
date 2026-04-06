@@ -1,3 +1,4 @@
+
 /**
  * VerbositySlider - Controls voice output level and chat verbosity
  * 
@@ -92,3 +93,6 @@ export function VerbosityIndicator() {
     </TooltipProvider>
   );
 }
+
+
+

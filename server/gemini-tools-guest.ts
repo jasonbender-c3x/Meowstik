@@ -1,3 +1,4 @@
+
 /**
  * Gemini Function Calling Tool Declarations - GUEST MODE
  * 
@@ -171,7 +172,7 @@ export function getToolDeclarations(isAuthenticated: boolean): FunctionDeclarati
   if (isAuthenticated) {
     // Filter out removed tools only
     const nativeTools = geminiFunctionDeclarations.filter(
-      tool => !REMOVED_TOOLS.has(tool.name)
+      tool => !REMOVED_TOOLS.has(tool.name ?? '')
     );
     
     console.log(`[Tools] Using ${nativeTools.length} native tools (${REMOVED_TOOLS.size} removed)`);
@@ -181,3 +182,6 @@ export function getToolDeclarations(isAuthenticated: boolean): FunctionDeclarati
     return guestToolDeclarations;
   }
 }
+
+
+

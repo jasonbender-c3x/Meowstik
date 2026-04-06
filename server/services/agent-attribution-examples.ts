@@ -1,3 +1,4 @@
+
 /**
  * =============================================================================
  * AGENT ATTRIBUTION USAGE EXAMPLES
@@ -8,8 +9,8 @@
  * =============================================================================
  */
 
-import { storage } from "../server/storage";
-import * as github from "../server/integrations/github";
+import { storage } from "../storage";
+import * as github from "../integrations/github";
 
 // =============================================================================
 // Example 1: Creating a GitHub Issue with Agent Attribution
@@ -26,7 +27,7 @@ export async function exampleCreateIssueWithAgent() {
   const agentAuthor: github.AgentAuthor = {
     name: agent.displayName,
     email: agent.email,
-    signature: agent.githubSignature
+    signature: agent.githubSignature ?? undefined
   };
 
   // Create issue with agent attribution
@@ -45,10 +46,10 @@ export async function exampleCreateIssueWithAgent() {
     activityType: "issue",
     platform: "github",
     resourceType: "issue",
-    resourceId: issue.number.toString(),
-    resourceUrl: issue.htmlUrl,
+    resourceId: (issue as any).number?.toString() ?? "",
+    resourceUrl: (issue as any).htmlUrl,
     action: "create",
-    title: issue.title,
+    title: (issue as any).title,
     success: true
   });
 
@@ -68,7 +69,7 @@ export async function exampleCreateCommitWithAgent() {
   const agentAuthor: github.AgentAuthor = {
     name: agent.displayName,
     email: agent.email,
-    signature: agent.githubSignature
+    signature: agent.githubSignature ?? undefined
   };
 
   // Create a file with agent-attributed commit
@@ -88,11 +89,11 @@ export async function exampleCreateCommitWithAgent() {
     activityType: "commit",
     platform: "github",
     resourceType: "repository",
-    resourceId: result.commitSha,
-    resourceUrl: result.commitUrl,
+    resourceId: (result as any).commitSha,
+    resourceUrl: (result as any).commitUrl,
     action: "create",
     title: "Update automated status report",
-    metadata: { path: result.path, branch: "main" },
+    metadata: { path: (result as any).path, branch: "main" },
     success: true
   });
 
@@ -112,7 +113,7 @@ export async function exampleCreatePRWithAgent() {
   const agentAuthor: github.AgentAuthor = {
     name: agent.displayName,
     email: agent.email,
-    signature: agent.githubSignature
+    signature: agent.githubSignature ?? undefined
   };
 
   // First, create a branch
@@ -146,10 +147,10 @@ export async function exampleCreatePRWithAgent() {
     activityType: "pr",
     platform: "github",
     resourceType: "pull_request",
-    resourceId: pr.number.toString(),
-    resourceUrl: pr.htmlUrl,
+    resourceId: (pr as any).number?.toString() ?? "",
+    resourceUrl: (pr as any).htmlUrl,
     action: "create",
-    title: pr.title,
+    title: (pr as any).title,
     metadata: { branch: branchName },
     success: true
   });
@@ -180,7 +181,7 @@ export async function exampleMultiAgentUsage(operationType: "privileged" | "gues
   const agentAuthor: github.AgentAuthor = {
     name: agent.displayName,
     email: agent.email,
-    signature: agent.githubSignature
+    signature: agent.githubSignature ?? undefined
   };
 
   // Perform operation with appropriate agent
@@ -202,7 +203,7 @@ export async function exampleAddCommentWithAgent(issueNumber: number) {
   const agentAuthor: github.AgentAuthor = {
     name: agent.displayName,
     email: agent.email,
-    signature: agent.githubSignature
+    signature: agent.githubSignature ?? undefined
   };
 
   // Add a comment to an issue or PR
@@ -294,7 +295,7 @@ export async function exampleErrorHandling() {
     const agentAuthor: github.AgentAuthor = {
       name: agent.displayName,
       email: agent.email,
-      signature: agent.githubSignature
+      signature: agent.githubSignature ?? undefined
     };
 
     const issue = await github.createIssueWithAgent(
@@ -311,10 +312,10 @@ export async function exampleErrorHandling() {
       activityType: "issue",
       platform: "github",
       resourceType: "issue",
-      resourceId: issue.number.toString(),
-      resourceUrl: issue.htmlUrl,
+      resourceId: (issue as any).number?.toString() ?? "",
+      resourceUrl: (issue as any).htmlUrl,
       action: "create",
-      title: issue.title,
+      title: (issue as any).title,
       success: true
     });
 
@@ -360,3 +361,6 @@ export async function getAgentAuthor(
     signature: agent.githubSignature || undefined
   };
 }
+
+
+

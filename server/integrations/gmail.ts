@@ -1,3 +1,4 @@
+
 /**
  * ╔═══════════════════════════════════════════════════════════════════════════╗
  * ║                       GMAIL INTEGRATION MODULE                            ║
@@ -447,3 +448,6 @@ export async function searchEmails(query: string, maxResults = 20) {
     };
   }
 }
+
+
+

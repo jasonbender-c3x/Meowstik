@@ -1,3 +1,4 @@
+
 /**
  * Simple runtime test for LLM call validator
  * Run with: tsx server/utils/test-validator-runtime.ts
@@ -111,3 +112,6 @@ if (!result6.valid) console.log(`  Detected error:`, result6.errors[0].substring
 console.log("\n" + "=".repeat(60));
 console.log("All runtime tests completed!");
 console.log("=".repeat(60));
+
+
+

@@ -1,3 +1,4 @@
+
 /**
  * =============================================================================
  * MEOWSTIK - CODEBASE ANALYSIS AGENT
@@ -183,7 +184,7 @@ export class CodebaseAnalyzer {
         rootPath,
         totalFiles: files.length,
         totalEntities: this.progress.entitiesFound,
-        totalChunks: totalChunks,
+        totalChunks: this.progress.chunksIngested,
         files,
         glossary,
         documentation,
@@ -1750,3 +1751,6 @@ ${rawContent}
 }
 
 export const codebaseAnalyzer = new CodebaseAnalyzer();
+
+
+

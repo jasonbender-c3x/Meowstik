@@ -1,3 +1,4 @@
+
 /**
  * ╔═══════════════════════════════════════════════════════════════════════════╗
  * ║                    GEMINI LIVE API INTEGRATION                            ║
@@ -84,8 +85,10 @@ export async function createLiveSession(
     // Add video streaming support for Gemini 3.0 (Project Ghost)
     if (config.enableVideoStreaming && config.useGemini3) {
       // Enable video input modality for continuous streaming
-      if (!sessionConfig.responseModalities.includes(Modality.VIDEO)) {
-        sessionConfig.responseModalities.push(Modality.VIDEO);
+      // Note: "VIDEO" is not yet in the Modality enum; use string literal for forward compatibility
+      const VIDEO_MODALITY = "VIDEO" as unknown as typeof Modality.AUDIO;
+      if (!sessionConfig.responseModalities.includes(VIDEO_MODALITY)) {
+        sessionConfig.responseModalities.push(VIDEO_MODALITY);
       }
       console.log(`[Gemini Live] Video streaming enabled for session ${sessionId}`);
     }
@@ -424,8 +427,19 @@ export async function* receiveResponses(
                           }
                       }
                   } else if (msg.toolCall) {
-                       // Handle tool calls
-                       // ...
+                      // Handle tool calls
+                      const { functionCalls } = msg.toolCall;
+                      if (functionCalls) {
+                          for (const call of functionCalls) {
+                              yield {
+                                  type: "functionCall",
+                                  functionCall: {
+                                      name: call.name,
+                                      args: call.args
+                                  }
+                              };
+                          }
+                      }
                   }
               }
           }
@@ -654,3 +668,6 @@ export const AVAILABLE_VOICES = [
   { value: "Orus", label: "Orus - Authoritative Male", gender: "male" },
   { value: "Zephyr", label: "Zephyr - Gentle Neutral", gender: "neutral" },
 ] as const;
+
+
+

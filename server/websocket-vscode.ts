@@ -1,4 +1,5 @@
 
+
 import { WebSocketServer, WebSocket } from 'ws';
 import type { Server, IncomingMessage } from 'http';
 import type { Duplex } from 'stream';
@@ -142,3 +143,5 @@ export function sendToVSCode(type: string, payload: any = {}, timeoutMs = 30000)
 export function isVSCodeConnected(): boolean {
   return !!activeVSCodeClient && activeVSCodeClient.ws.readyState === WebSocket.OPEN;
 }
+
+

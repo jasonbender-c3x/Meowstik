@@ -18,6 +18,7 @@ import { GoogleGenAI } from "@google/genai";
 import { storage } from "../storage";
 import { Feedback } from "@shared/schema";
 import * as github from "../integrations/github";
+import { summarizeFeedbackBatch } from "./summarization-engine";
 
 const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
@@ -30,7 +31,7 @@ async function getEvolutionAgent(userId?: string): Promise<github.AgentAuthor> {
   // If userId is provided, check for custom branding
   if (userId) {
     try {
-      const branding = await storage.getUserBranding(userId);
+      const branding = await storage.getUserBrandingOrDefault(userId);
       if (branding?.githubSignature) {
         return {
           name: branding.displayName || "Agentia Compiler",
@@ -109,6 +110,9 @@ export async function analyzeFeedbackPatterns(): Promise<FeedbackPattern[]> {
   if (feedbackEntries.length === 0) {
     return [];
   }
+
+  // Summarize feedback via the Summarization Engine for AI-extracted patterns
+  const feedbackSummary = await summarizeFeedbackBatch(feedbackEntries);
 
   const negativeFeedback = feedbackEntries.filter(f => f.rating === "negative");
   const feedbackWithText = feedbackEntries.filter(f => f.freeformText);
@@ -199,12 +203,27 @@ export async function analyzeFeedbackPatterns(): Promise<FeedbackPattern[]> {
     }
   }
 
+  // Add AI-summarized patterns from Summarization Engine
+  for (const issue of feedbackSummary.commonIssues) {
+    patterns.push({
+      category: "ai_summarized",
+      issue,
+      frequency: 1,
+      examples: [],
+      severity: "medium",
+    });
+  }
+
   return patterns.sort((a, b) => {
     const severityOrder = { high: 0, medium: 1, low: 2 };
     return severityOrder[a.severity] - severityOrder[b.severity] || b.frequency - a.frequency;
   });
 }
 
+/**
+ * Generates improvement suggestions using the Summarization Engine output
+ * plus the manually-extracted structural patterns.
+ */
 export async function generateImprovementSuggestions(
   patterns: FeedbackPattern[]
 ): Promise<ImprovementSuggestion[]> {
@@ -342,6 +361,12 @@ Please review the suggestions and:
       agent
     );
 
+    // Narrow: createPullRequestWithAgent returns success object or { success: false, error }
+    if ('success' in pr && pr.success === false) {
+      return { success: false, error: (pr as any).error || 'Failed to create PR' };
+    }
+    const prSuccess = pr as { number: number; htmlUrl: string; title: string };
+
     // Auto-tag @copilot to trigger implementation phase
     try {
       const copilotComment = `@copilot Please review these evolution suggestions and implement the approved improvements.
@@ -357,7 +382,7 @@ The full analysis is available in the attached evolution report.`;
       await github.addCommentWithAgent(
         targetRepo.owner,
         targetRepo.repo,
-        pr.number,
+        prSuccess.number,
         copilotComment,
         agent
       );
@@ -374,10 +399,10 @@ The full analysis is available in the attached evolution report.`;
           activityType: 'pr',
           platform: 'github',
           resourceType: 'pull_request',
-          resourceId: pr.number.toString(),
-          resourceUrl: pr.htmlUrl,
+          resourceId: prSuccess.number.toString(),
+          resourceUrl: prSuccess.htmlUrl,
           action: 'create',
-          title: pr.title,
+          title: prSuccess.title,
           metadata: { reportId: report.id, suggestions: report.suggestions.length },
           success: true
         });
@@ -388,8 +413,8 @@ The full analysis is available in the attached evolution report.`;
 
     return {
       success: true,
-      prUrl: pr.htmlUrl,
-      prNumber: pr.number
+      prUrl: prSuccess.htmlUrl,
+      prNumber: prSuccess.number
     };
   } catch (error: any) {
     console.error("Error creating evolution PR:", error);
@@ -473,7 +498,8 @@ export interface MessageScanResult {
  */
 export async function scanMessagesForFeedback(
   messages: Array<{ id: string; content: string; createdAt: Date | null }>,
-  repo: { owner: string; repo: string }
+  repo: { owner: string; repo: string },
+  userId?: string
 ): Promise<MessageScanResult> {
   if (messages.length === 0) {
     return {
@@ -607,7 +633,11 @@ ${actionableFeedback.map(f => `- **${f.feedbackType.toUpperCase()}**: ${f.summar
       agent
     );
 
-    if (prResult && prResult.htmlUrl) {
+    const prSuccess2 = (!('success' in prResult && prResult.success === false) && 'htmlUrl' in prResult)
+      ? prResult as { number: number; htmlUrl: string }
+      : null;
+
+    if (prSuccess2) {
       // Auto-tag @copilot to trigger implementation phase
       try {
         const copilotComment = `@copilot Please review this user feedback and implement improvements where appropriate.
@@ -620,7 +650,7 @@ Please address the high and medium severity items first.`;
         await github.addCommentWithAgent(
           repo.owner,
           repo.repo,
-          prResult.number,
+          prSuccess2.number,
           copilotComment,
           agent
         );
@@ -632,8 +662,8 @@ Please address the high and medium severity items first.`;
         success: true,
         messagesScanned: messages.length,
         feedbackFound,
-        prUrl: prResult.htmlUrl,
-        prNumber: prResult.number
+        prUrl: prSuccess2.htmlUrl,
+        prNumber: prSuccess2.number
       };
     }
 

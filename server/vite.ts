@@ -1,3 +1,4 @@
+
 import express, { type Express } from "express";
 import fs from "fs";
 import path, { dirname } from "path";
@@ -20,13 +21,34 @@ export function log(message: string, source = "express") {
 
 export async function setupVite(app: Express, server: Server) {
   const vite = await createViteServer({
-    server: { middlewareMode: true, hmr: { server } },
+    server: {
+      middlewareMode: true,
+      hmr: { server },
+      watch: {
+        ignored: [
+          "/mnt/**",
+          "**/node_modules/**",
+          "**/.git/**",
+          "**/data/**",
+          "**/logs/**",
+          "**/sessions/**",
+        ],
+      },
+    },
     appType: "custom",
   });
 
   app.use(vite.middlewares);
   app.use("*", async (req, res, next) => {
     const url = req.originalUrl;
+    const pathUrl = req.url;
+    
+    // Ignore API routes - let them fall through to the API handlers
+    // Check both originalUrl and current url to be safe
+    if (url.startsWith("/api") || pathUrl.startsWith("/api")) {
+      return next();
+    }
+
     try {
       const clientIndex = path.resolve(__dirname, "..", "client", "index.html");
       let template = fs.readFileSync(clientIndex, "utf-8");
@@ -47,7 +69,13 @@ export function serveStatic(app: Express) {
     throw new Error(`Could not find build directory: ${distPath}. Run 'npm run build' first.`);
   }
   app.use(express.static(distPath));
-  app.use("*", (_req, res) => {
+  app.use("*", (req, res, next) => {
+    // Ignore API routes in static serving too
+    if (req.originalUrl.startsWith("/api") || req.url.startsWith("/api")) {
+      return next();
+    }
     res.sendFile(path.resolve(distPath, "index.html"));
   });
 }
+
+

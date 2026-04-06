@@ -1,3 +1,4 @@
+
 import { Switch, Route } from "wouter";
 import { TTSProvider } from "@/contexts/tts-context";
 import Home from "@/pages/home";
@@ -5,7 +6,7 @@ import Debug from "@/pages/debug";
 import Workspace from "@/pages/workspace";
 import Terminal from "@/pages/terminal";
 import DatabaseExplorer from "@/pages/database-explorer";
-import RagDebug from "@/pages/rag-debug";
+
 import Landing from "@/pages/landing";
 import Install from "@/pages/install";
 import Docs from "@/pages/docs";
@@ -27,7 +28,7 @@ import PlaywrightTesting from "@/pages/playwright-testing";
 import NotFound from "@/pages/not-found";
 import MusicGeneration from "@/pages/music-generation";
 import MarkdownPlayground from "@/pages/markdown-playground";
-import KnowledgeIngestion from "@/pages/knowledge-ingestion";
+
 import ImageGeneration from "@/pages/image-generation";
 import Help from "@/pages/help";
 import GoogleServices from "@/pages/google-services";
@@ -45,7 +46,7 @@ export default function MainLayout() {
         <Route path="/workspace" component={Workspace} />
         <Route path="/terminal" component={Terminal} />
         <Route path="/database" component={DatabaseExplorer} />
-        <Route path="/rag-debug" component={RagDebug} />
+
         <Route path="/landing" component={Landing} />
         <Route path="/install" component={Install} />
         <Route path="/docs" component={Docs} />
@@ -67,7 +68,7 @@ export default function MainLayout() {
         <Route path="/playwright" component={PlaywrightTesting} />
         <Route path="/music" component={MusicGeneration} />
         <Route path="/markdown" component={MarkdownPlayground} />
-        <Route path="/knowledge" component={KnowledgeIngestion} />
+
         <Route path="/image" component={ImageGeneration} />
         <Route path="/help" component={Help} />
         <Route path="/google" component={GoogleServices} />
@@ -78,3 +79,6 @@ export default function MainLayout() {
     </TTSProvider>
   );
 }
+
+
+

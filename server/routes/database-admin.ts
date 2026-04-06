@@ -1,3 +1,4 @@
+
 /**
  * =============================================================================
  * DATABASE ADMINISTRATION API ROUTES
@@ -304,7 +305,7 @@ router.get('/cloud-sql-instances', async (req: Request, res: Response) => {
 router.get('/health', async (req: Request, res: Response) => {
   try {
     const db = storage.getDb();
-    await db.execute('SELECT 1');
+    await (db as any).execute('SELECT 1');
 
     res.json({
       status: 'healthy',
@@ -321,3 +322,6 @@ router.get('/health', async (req: Request, res: Response) => {
 });
 
 export default router;
+
+
+

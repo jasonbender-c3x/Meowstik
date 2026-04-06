@@ -1,3 +1,4 @@
+
 /**
  * Authentication Manager - Handles Google authentication for NotebookLM
  */
@@ -70,7 +71,7 @@ export class AuthManager {
       // Wait for password field
       await this.page.waitForTimeout(2000);
       const passwordSelector = 'input[type="password"]';
-      await this.page.waitForSelector(passwordSelector, { visible: true, timeout: 10000 });
+      await this.page.waitForSelector(passwordSelector, { timeout: 10000 } as any);
       await this.page.fill(passwordSelector, options.password);
       await this.page.click('#passwordNext');
 
@@ -197,3 +198,6 @@ export class AuthManager {
     }
   }
 }
+
+
+

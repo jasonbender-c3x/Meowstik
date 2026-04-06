@@ -1,3 +1,5 @@
+
+// @ts-ignore
 import screenshot from 'screenshot-desktop';
 import { mouse, keyboard, Point, Button, Key } from '@nut-tree-fork/nut-js';
 import { Jimp } from 'jimp';
@@ -219,4 +221,15 @@ export class DesktopService extends EventEmitter {
 }
 
 // Singleton instance
-export const desktopService = new DesktopService();
+let instance: DesktopService | null = null;
+export const desktopService = new Proxy({} as DesktopService, {
+    get: (target, prop) => {
+        if (!instance) {
+            instance = new DesktopService();
+        }
+        return (instance as any)[prop];
+    }
+});
+
+
+

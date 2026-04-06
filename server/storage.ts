@@ -1,3 +1,4 @@
+
 import { 
   users, 
   type User, 
@@ -70,7 +71,10 @@ import {
   type InsertSmsMessage,
   userAgents,
   type UserAgent,
-  type InsertUserAgent
+  type InsertUserAgent,
+  conversationSummaries,
+  type ConversationSummaryRecord,
+  type InsertConversationSummary,
 } from "@shared/schema";
 import { db, pool } from "./db";
 import { eq, desc, and, ne, sql, inArray, or } from "drizzle-orm";
@@ -156,7 +160,6 @@ export class DatabaseStorage {
       }
       throw error;
     }
-    return newUser;
   }
 
   // Chat Operations
@@ -201,7 +204,7 @@ export class DatabaseStorage {
     return await db.select().from(messages).where(eq(messages.chatId, chatId)).orderBy(messages.createdAt);
   }
 
-  async getMessagesByChatId(chatId: string, options: { limit?: number; offset?: number } = {}): Promise<Message[]> {
+  async getMessagesByChatId(chatId: string, options: { limit?: number; offset?: number; before?: string } = {}): Promise<Message[]> {
     let query = db.select().from(messages).where(eq(messages.chatId, chatId)).orderBy(desc(messages.createdAt));
     
     if (options.limit) {
@@ -214,7 +217,16 @@ export class DatabaseStorage {
       query = query.offset(options.offset);
     }
     
-    const results = await query;
+    let results = await query;
+
+    // Cursor-based pagination: if 'before' is given, filter to messages older than that ID
+    if (options.before) {
+      const cursorIdx = results.findIndex(m => m.id === options.before);
+      if (cursorIdx !== -1) {
+        results = results.slice(cursorIdx + 1);
+      }
+    }
+
     // Return in chronological order since AI needs history in order
     return results.reverse();
   }
@@ -257,7 +269,7 @@ export class DatabaseStorage {
     return this.addToolCallLog(log);
   }
 
-  async updateToolCallLog(id: string, update: Partial<InsertToolCallLog>): Promise<ToolCallLog | undefined> {
+  async updateToolCallLog(id: string, update: Partial<InsertToolCallLog> & { completedAt?: Date | null }): Promise<ToolCallLog | undefined> {
     const [updated] = await db.update(toolCallLogs)
       .set({ ...update, updatedAt: new Date() })
       .where(eq(toolCallLogs.id, id))
@@ -268,14 +280,14 @@ export class DatabaseStorage {
   async pruneOldToolCallLogs(chatId: string, keepLimit: number = 50): Promise<void> {
     try {
       // Find logs to delete (those beyond the keepLimit)
+      // SQLite requires LIMIT with OFFSET, so we fetch all IDs and slice in JS
       const logs = await db.select({ id: toolCallLogs.id })
         .from(toolCallLogs)
         .where(eq(toolCallLogs.chatId, chatId))
-        .orderBy(desc(toolCallLogs.createdAt))
-        .offset(keepLimit);
+        .orderBy(desc(toolCallLogs.createdAt));
 
-      if (logs.length > 0) {
-        const idsToDelete = logs.map(l => l.id);
+      if (logs.length > keepLimit) {
+        const idsToDelete = logs.slice(keepLimit).map(l => l.id);
         await db.delete(toolCallLogs).where(inArray(toolCallLogs.id, idsToDelete));
       }
     } catch (e) {
@@ -556,7 +568,7 @@ export class DatabaseStorage {
 
   async updateToolTask(id: string, update: Partial<InsertToolTask>): Promise<ToolTask | undefined> {
     const [updated] = await db.update(toolTasks)
-      .set({ ...update, updatedAt: new Date() })
+      .set({ ...update })
       .where(eq(toolTasks.id, id))
       .returning();
     return updated;
@@ -587,13 +599,13 @@ export class DatabaseStorage {
     const allFeedback = await db.select().from(feedback);
     return {
       total: allFeedback.length,
-      positive: allFeedback.filter(f => f.sentiment === 'positive').length,
-      negative: allFeedback.filter(f => f.sentiment === 'negative').length,
+      positive: allFeedback.filter(f => f.rating === 'positive').length,
+      negative: allFeedback.filter(f => f.rating === 'negative').length,
     };
   }
 
   async markFeedbackSubmitted(id: number): Promise<void> {
-    await db.update(feedback).set({ submittedAt: new Date() }).where(eq(feedback.id, id));
+    await (db as any).update(feedback).set({ submittedAt: new Date() }).where(eq(feedback.id, String(id)));
   }
 
   async updateToolTaskStatus(id: string, status: string, result?: any, error?: string): Promise<ToolTask | undefined> {
@@ -603,7 +615,7 @@ export class DatabaseStorage {
         result: result || null, 
         error: error || null, 
         updatedAt: new Date() 
-      })
+      } as any)
       .where(eq(toolTasks.id, id))
       .returning();
     return updated;
@@ -881,6 +893,33 @@ export class DatabaseStorage {
     }
     return false;
   }
+
+  // Conversation Summaries (Summarization Engine)
+  async createConversationSummary(data: InsertConversationSummary): Promise<ConversationSummaryRecord> {
+    const [saved] = await db.insert(conversationSummaries).values(data).returning();
+    return saved;
+  }
+
+  async getConversationSummary(chatId: string): Promise<ConversationSummaryRecord | undefined> {
+    const [record] = await db
+      .select()
+      .from(conversationSummaries)
+      .where(eq(conversationSummaries.chatId, chatId))
+      .orderBy(desc(conversationSummaries.createdAt))
+      .limit(1);
+    return record;
+  }
+
+  async getRecentSummaries(limit: number = 20): Promise<ConversationSummaryRecord[]> {
+    return await db
+      .select()
+      .from(conversationSummaries)
+      .orderBy(desc(conversationSummaries.createdAt))
+      .limit(limit);
+  }
 }
 
 export const storage = new DatabaseStorage();
+
+
+

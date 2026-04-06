@@ -1,3 +1,4 @@
+
 /**
  * ╔══════════════════════════════════════════════════════════════════════════════╗
  * ║                    USE-MOBILE.TSX - MOBILE DETECTION HOOK                     ║
@@ -121,3 +122,6 @@ export function useIsMobile() {
    */
   return !!isMobile
 }
+
+
+

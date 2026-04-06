@@ -1,3 +1,4 @@
+
 import { GoogleGenAI, Modality } from "@google/genai";
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
@@ -173,3 +174,6 @@ export async function editImageWithPrompt(
     throw new Error(`Failed to edit image: ${error instanceof Error ? error.message : String(error)}`);
   }
 }
+
+
+

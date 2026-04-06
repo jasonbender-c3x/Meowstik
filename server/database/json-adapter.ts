@@ -1,3 +1,4 @@
+
 /**
  * =============================================================================
  * JSON FILE ADAPTER
@@ -350,3 +351,6 @@ export class JSONAdapter implements IDatabaseAdapter {
     return a.toString() === b.toString();
   }
 }
+
+
+

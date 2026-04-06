@@ -1,3 +1,4 @@
+
 /**
  * Voice Activity Detection (VAD) Hook
  * 
@@ -205,3 +206,6 @@ export function useVoiceActivityDetection(
     updateConfig,
   };
 }
+
+
+

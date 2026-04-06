@@ -1,3 +1,4 @@
+
 /**
  * Computer Use API Routes (Project Ghost)
  * 
@@ -170,11 +171,12 @@ function convertActionToInputEvent(action: ComputerAction): any {
       };
 
     case 'key':
+      // Handle modifiers array properly for desktop agent
       return {
         type: 'keyboard',
-        action: 'keydown',
+        action: 'keydown', // This should be 'press' conceptually, but our desktop agent expects keydown/keyup sequence or just keydown
         key: action.key,
-        modifiers: action.modifiers, // Now properly typed
+        modifiers: action.modifiers, 
         source: 'ai'
       };
 
@@ -499,3 +501,6 @@ router.post("/run-task", async (req: Request, res: Response) => {
 });
 
 export default router;
+
+
+

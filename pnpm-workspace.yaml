@@ -9,9 +9,10 @@ packages:
 
 onlyBuiltDependencies:
   - '@firebase/util'
+  - '@nut-tree-fork/nut-js'
   - '@playwright/browser-chromium'
   - '@playwright/browser-webkit'
-  - '@nut-tree-fork/nut-js'
+  - better-sqlite3
   - cpu-features
   - electron
   - electron-winstaller

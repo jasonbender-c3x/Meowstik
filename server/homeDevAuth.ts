@@ -1,3 +1,4 @@
+
 import passport from "passport";
 import { Strategy as CustomStrategy } from "passport-custom";
 import { Strategy as GoogleStrategy } from "passport-google-oauth20";
@@ -54,11 +55,10 @@ export function createHomeDevSession(req?: any, res?: any, next?: any) {
         const user = await getHomeDevUser();
         // Ensure req.login exists before calling it
         if (typeof reqObj.login === 'function') {
-          reqObj.login(user, (err: any) => {
+          return reqObj.login(user, (err: any) => {
             if (err) return nextFn(err);
             return nextFn();
           });
-          return;
         } else {
           // Fallback if Passport isn't fully mounted
           reqObj.user = user;
@@ -156,3 +156,5 @@ export function setupAuth(app: any) {
     ));
   }
 }
+
+

@@ -1,3 +1,4 @@
+
 /**
  * Feedback API Routes
  * 
@@ -40,7 +41,7 @@ router.get("/", async (req: Request, res: Response) => {
   try {
     const limit = parseInt(req.query.limit as string) || 50;
     const status = (req.query.status as 'all' | 'pending' | 'submitted') || 'pending';
-    const feedbackEntries = await storage.getFeedback(limit, status);
+    const feedbackEntries = await storage.getFeedback(limit);
     res.json({ success: true, feedback: feedbackEntries });
   } catch (error: any) {
     console.error("Error fetching feedback:", error);
@@ -69,3 +70,6 @@ router.get("/stats", async (req: Request, res: Response) => {
 });
 
 export default router;
+
+
+

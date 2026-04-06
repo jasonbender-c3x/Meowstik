@@ -27,7 +27,7 @@ import * as path from 'path';
 const OUTPUT_DIR = path.resolve(process.cwd(), 'notebooklm-ingest');
 
 const CODE_EXTENSIONS = new Set([
-  '.ts', '.tsx', '.js', '.jsx', '.py', '.html', '.css', '.scss', '.sql',
+  '.ts', '.tsx', '.js', '.jsx', '.html', '.css', '.scss', '.sql',
   '.json', '.yaml', '.yml', '.xml', '.sh', '.bat', '.config', '.toml',
 ]);
 
@@ -37,7 +37,7 @@ const IGNORED_ITEMS = new Set([
   'node_modules', 'dist', 'build', 'coverage', '.git', '.cache',
   '.vscode', 'tmp', 'temp', '__pycache__', 'venv', 'notebooklm-ingest',
   'notebooklm-output', 'attached_assets', '.next', '.output',
-  'package-lock.json', 'yarn.lock', 'pnpm-lock.yaml',
+  'package-lock.json', 'yarn.lock','py','pnpm-lock.yaml',
 ]);
 
 const DOCS_DIRS = new Set(['docs']);

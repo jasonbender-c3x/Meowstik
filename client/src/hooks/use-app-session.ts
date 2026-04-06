@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from "react";
 
 interface ConnectorHealth {
@@ -87,3 +88,6 @@ export function useAppSession(): UseAppSessionReturn {
     githubConnected: status?.connectors.github.connected ?? false
   };
 }
+
+
+

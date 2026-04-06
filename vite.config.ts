@@ -20,6 +20,11 @@ export default defineConfig({
       "@": path.resolve(__dirname, "client", "src"),
       "@shared": path.resolve(__dirname, "shared"),
       "@assets": path.resolve(__dirname, "client", "src", "assets"),
+      "~": path.resolve(__dirname, "client", "src"),
+      // Force all React imports to resolve to the same copy, preventing
+      // "multiple React versions" errors from third-party libraries.
+      "react": path.resolve(__dirname, "node_modules", "react"),
+      "react-dom": path.resolve(__dirname, "node_modules", "react-dom"),
     },
   },
   root: path.resolve(__dirname, "client"),
@@ -31,5 +36,22 @@ export default defineConfig({
     port: 5173,
     strictPort: true,
     host: "0.0.0.0", // Required for sovereign access
-  }
+    proxy: {
+      "/api": {
+        target: "http://localhost:5000",
+        changeOrigin: true,
+        secure: false,
+      },
+    },
+    watch: {
+      ignored: [
+        "/mnt/**",
+        "**/node_modules/**",
+        "**/.git/**",
+        "**/data/**",
+        "**/logs/**",
+        "**/sessions/**",
+      ],
+    },
+  },
 });

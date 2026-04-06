@@ -1,3 +1,4 @@
+
 /**
  * =============================================================================
  * POSTGRESQL DATABASE ADAPTER
@@ -287,3 +288,6 @@ export class PostgreSQLAdapter implements IDatabaseAdapter {
     return 'postgresql';
   }
 }
+
+
+

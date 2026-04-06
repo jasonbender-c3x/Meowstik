@@ -1,18 +1,10 @@
 
-import { db } from "./server/db";
-import { sql } from "drizzle-orm";
+import Database from 'better-sqlite3';
+import path from 'path';
 
-async function checkSchema() {
-  try {
-    const result = await db.execute(sql`
-      SELECT column_name, data_type 
-      FROM information_schema.columns 
-      WHERE table_name = 'chats';
-    `);
-    console.log("Columns in 'chats' table:", result.rows);
-  } catch (error) {
-    console.error("Error checking schema:", error);
-  }
-}
+const dbPath = path.resolve('data/meowstik.db');
+const db = new Database(dbPath);
 
-checkSchema();
+const info = db.prepare("PRAGMA table_info(messages)").all();
+console.log(JSON.stringify(info, null, 2));
+db.close();

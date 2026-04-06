@@ -1,3 +1,4 @@
+
 /**
  * useSilenceDetection Hook
  * 
@@ -177,3 +178,6 @@ export function useSilenceDetection(
     resetSilenceTimer,
   };
 }
+
+
+
