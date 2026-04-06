@@ -98,7 +98,7 @@ import { promptComposer } from "./services/prompt-composer";
 import { toolDispatcher } from "./services/tool-dispatcher";
 import { type ToolCall } from "@shared/schema";
 import { recognizeFamilyMember } from "./services/family-recognition";
-import { parseVoiceStyle, stripAllVoiceTags } from "./services/style-parser";
+import { stripAllVoiceTags } from "./services/style-parser";
 
 import { createApiRouter } from "./routes/index";
 import diagRouter from "./routes/diag";
@@ -1091,7 +1091,9 @@ The user has MUTE mode enabled. Minimize all output.
             // Special handling for say tool — generate TTS audio and display text in chat
             if (toolCall.type === "say" && toolResult.success) {
               const { utterance, voice } = toolCall.parameters as { utterance: string; voice?: string };
-              const { cleanText: cleanUtterance } = parseVoiceStyle(utterance || "");
+              // Strip ALL voice-style tags (e.g. [style: warm]) from display text;
+              // the raw utterance (with tags) is still forwarded to the TTS engine below.
+              const cleanUtterance = stripAllVoiceTags(utterance || "");
 
               if (cleanUtterance.trim()) {
                 // Always write spoken text to the chat window
@@ -1391,7 +1393,7 @@ The user has MUTE mode enabled. Minimize all output.
       // Clean up the accumulated prose-only content
       // Remove any residual tool_code blocks, empty code blocks, and cleanup
       // Strip voice style tags (e.g. [style: cheerful]) — for TTS only, not display
-      let finalContent = parseVoiceStyle(cleanContentForStorage).cleanText
+      let finalContent = stripAllVoiceTags(cleanContentForStorage)
         // Remove code blocks containing tool call arrays (identified by known tool types)
 
       // Prepare Gemini content for storage (keep original for multi-turn context)
