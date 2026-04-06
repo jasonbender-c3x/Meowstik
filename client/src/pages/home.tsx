@@ -168,9 +168,15 @@ export default function Home() {
 
   /**
    * Loading state - true while waiting for AI response
-   * Used to show "thinking" animation and disable input
+   * Used to disable input during the full AI response cycle
    */
   const [isLoading, setIsLoading] = useState(false);
+
+  /**
+   * Thinking state - true from message send until the first SSE event arrives
+   * Used to show the pre-response "thinking" indicator before content starts streaming
+   */
+  const [isThinking, setIsThinking] = useState(false);
 
   /**
    * AbortController reference for canceling in-flight requests
