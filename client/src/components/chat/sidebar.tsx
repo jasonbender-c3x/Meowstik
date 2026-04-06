@@ -956,7 +956,7 @@ export function Sidebar({ isOpen, setIsOpen, onNewChat, chats, currentChatId, on
                     "w-2 h-2 rounded-full",
                     googleConnected 
                       ? "bg-green-500 shadow-[0_0_6px_rgba(34,197,94,0.5)]" 
-                      : "bg-gray-400"
+                      : "bg-muted-foreground/40"
                   )}
                   title={googleConnected ? "Google Connected" : "Google Not Connected"}
                 />
@@ -966,7 +966,7 @@ export function Sidebar({ isOpen, setIsOpen, onNewChat, chats, currentChatId, on
                     "w-2 h-2 rounded-full ml-2",
                     githubConnected 
                       ? "bg-green-500 shadow-[0_0_6px_rgba(34,197,94,0.5)]" 
-                      : "bg-gray-400"
+                      : "bg-muted-foreground/40"
                   )}
                   title={githubConnected ? "GitHub Connected" : "GitHub Not Connected"}
                 />
