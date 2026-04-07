@@ -510,7 +510,7 @@ export default function Home() {
       } as unknown as Message;
       setMessages((prev) => [...prev, tempUserMessage]);
       setIsLoading(true);
-      setIsThinking(true); with optional attachments
+      setIsThinking(true);
       // Get model preference from localStorage settings
       const storedSettings = localStorage.getItem('meowstic-settings');
       const modelMode = storedSettings ? JSON.parse(storedSettings).model : 'pro';

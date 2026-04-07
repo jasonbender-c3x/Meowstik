@@ -133,6 +133,7 @@ export function SideWorkbench({
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isInteractiveRef = useRef(false);
+  const activeFileIdRef = useRef("");
 
   useEffect(() => {
     isInteractiveRef.current = isInteractive;
