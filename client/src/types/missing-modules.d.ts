@@ -3,7 +3,6 @@
 // Remove this file once `pnpm install --force` restores the symlinks.
 
 declare module "marked" {
-  export const marked: (src: string, options?: Record<string, unknown>) => string | Promise<string>;
   export class Renderer {
     link(href: string, title: string | null, text: string): string;
     image(href: string, title: string | null, text: string): string;
@@ -13,9 +12,17 @@ declare module "marked" {
     renderer?: Renderer;
     gfm?: boolean;
     breaks?: boolean;
+    async?: boolean;
     [key: string]: unknown;
   }
-  export function setOptions(options: MarkedOptions): void;
+  interface MarkedInstance {
+    (src: string, options?: MarkedOptions): string | Promise<string>;
+    Renderer: typeof Renderer;
+    setOptions(options: MarkedOptions): void;
+    parse(src: string, options?: MarkedOptions & { async: false }): string;
+    parse(src: string, options?: MarkedOptions): string | Promise<string>;
+  }
+  export const marked: MarkedInstance;
 }
 
 declare module "dompurify" {

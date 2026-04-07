@@ -210,7 +210,7 @@ class DependencyResolverService {
       .from(agentJobs)
       .where(inArray(agentJobs.status, ["pending", "queued"]));
 
-    return allJobs.filter(j => (j.dependencies ?? []).includes(jobId));
+    return allJobs.filter((j: AgentJob) => (j.dependencies ?? []).includes(jobId));
   }
 
   async aggregateResults(parentJobId: string): Promise<{
@@ -224,9 +224,9 @@ class DependencyResolverService {
 
     const childResults = await getDb().select()
       .from(jobResults)
-      .where(inArray(jobResults.jobId, childJobs.map(j => j.id)));
+      .where(inArray(jobResults.jobId, childJobs.map((j: AgentJob) => j.id)));
 
-    const resultsMap = new Map<string, JobResult>(childResults.map(r => [r.jobId, r]));
+    const resultsMap = new Map<string, JobResult>(childResults.map((r: JobResult) => [r.jobId, r]));
 
     const results: Record<string, unknown> = {};
     const errors: string[] = [];

@@ -160,8 +160,8 @@ twilioRouter.post("/agent-leg", (req, res) => {
     url: `wss://${host}/streams/twilio`,
     name: "Meowstik_Live_Voice",
   });
-  stream.parameter({ name: "direction", value: direction });
-  stream.parameter({ name: "fromNumber", value: from || "unknown" });
+  stream.parameter({ name: "direction", value: String(direction ?? "") });
+  stream.parameter({ name: "fromNumber", value: String(from ?? "unknown") });
   
   // 2. Join the Conference (so the stream audio goes there)
   // Wait... <Connect> and <Dial><Conference> are mutually exclusive TwiML verbs.
@@ -188,8 +188,8 @@ twilioRouter.post("/agent-leg", (req, res) => {
     name: "Meowstik_Live_Voice",
     track: "both_tracks"
   });
-  s.parameter({ name: "direction", value: direction });
-  s.parameter({ name: "fromNumber", value: from });
+  s.parameter({ name: "direction", value: String(direction ?? "") });
+  s.parameter({ name: "fromNumber", value: String(from ?? "") });
   
   const dial = response.dial();
   dial.conference({
