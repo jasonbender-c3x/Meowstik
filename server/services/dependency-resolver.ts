@@ -13,7 +13,7 @@
  */
 
 import { getDb } from "../db";
-import { agentJobs, jobResults, type AgentJob } from "@shared/schema";
+import { agentJobs, jobResults, type AgentJob, type JobResult } from "@shared/schema";
 import { eq, inArray, and } from "drizzle-orm";
 
 export interface DependencyGraph {
@@ -80,7 +80,7 @@ class DependencyResolverService {
     const failedDeps: { jobId: string; failedDependencies: string[] }[] = [];
 
     for (const job of jobs) {
-      const deps = job.dependencies ?? [];
+      const deps = (job.dependencies ?? []) as string[];
       
       if (deps.length === 0) {
         readyJobs.push(job);
@@ -91,15 +91,15 @@ class DependencyResolverService {
         .from(agentJobs)
         .where(inArray(agentJobs.id, deps));
 
-      const statusMap = new Map(depStatuses.map((d: any) => [d.id, d.status]));
+      const statusMap = new Map<string, string | null>(depStatuses.map((d: AgentJob) => [d.id, d.status]));
 
-      const failedDepIds = deps.filter((id: any) => statusMap.get(id) === "failed");
+      const failedDepIds = deps.filter((id: string) => statusMap.get(id) === "failed");
       if (failedDepIds.length > 0) {
         failedDeps.push({ jobId: job.id, failedDependencies: failedDepIds });
         continue;
       }
 
-      const allComplete = deps.every((id: any) => statusMap.get(id) === "completed");
+      const allComplete = deps.every((id: string) => statusMap.get(id) === "completed");
       if (allComplete) {
         readyJobs.push(job);
       } else {
@@ -210,7 +210,7 @@ class DependencyResolverService {
       .from(agentJobs)
       .where(inArray(agentJobs.status, ["pending", "queued"]));
 
-    return allJobs.filter((j: any) => (j.dependencies ?? []).includes(jobId));
+    return allJobs.filter(j => (j.dependencies ?? []).includes(jobId));
   }
 
   async aggregateResults(parentJobId: string): Promise<{
@@ -224,16 +224,16 @@ class DependencyResolverService {
 
     const childResults = await getDb().select()
       .from(jobResults)
-      .where(inArray(jobResults.jobId, childJobs.map((j: any) => j.id)));
+      .where(inArray(jobResults.jobId, childJobs.map(j => j.id)));
 
-    const resultsMap = new Map(childResults.map((r: any) => [r.jobId, r]));
+    const resultsMap = new Map<string, JobResult>(childResults.map(r => [r.jobId, r]));
 
     const results: Record<string, unknown> = {};
     const errors: string[] = [];
     let allSuccess = true;
 
     for (const job of childJobs) {
-      const result = resultsMap.get(job.id) as any;
+      const result = resultsMap.get(job.id);
       if (result) {
         results[job.id] = result.output;
         if (!result.success) {

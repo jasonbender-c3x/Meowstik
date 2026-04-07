@@ -52,7 +52,19 @@ export function ChatMessage({
 
   const timestamp = useMemo(() => {
     if (!createdAt) return "";
-    const d = createdAt instanceof Date ? createdAt : new Date(isNaN(Number(createdAt)) ? createdAt : Number(createdAt));
+    let d: Date;
+    if (createdAt instanceof Date) {
+      d = createdAt;
+    } else {
+      const num = Number(createdAt);
+      if (!isNaN(num)) {
+        // PostgreSQL may return microseconds — if timestamp implies year > 3000, divide down to ms
+        const ms = num > 32503680000000 ? Math.round(num / 1000) : num;
+        d = new Date(ms);
+      } else {
+        d = new Date(String(createdAt));
+      }
+    }
     return isNaN(d.getTime()) ? "" : format(d, "MMM d yyyy, h:mm a");
   }, [createdAt]);
 
