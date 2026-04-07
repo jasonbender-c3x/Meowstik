@@ -885,7 +885,11 @@ export const toolCallSchema = z.object({
     // Log operations
     "append",
     // Search & Scraping
-    "google_search", "duckduckgo_search", "browser_scrape",
+    "google_search", "duckduckgo_search", "browser_scrape", "web_search",
+    // File operations (aliases)
+    "file_get", "file_put",
+    // Database operations
+    "db_tables", "db_query",
     // Gmail
     "gmail_list", "gmail_read", "gmail_send", "gmail_search",
     // Drive

@@ -629,7 +629,13 @@ export class DatabaseStorage {
     return saved;
   }
 
-  async getTriggers(): Promise<Trigger[]> {
+  async getTriggers(filter?: { enabled?: boolean; triggerType?: string }): Promise<Trigger[]> {
+    if (filter?.triggerType) {
+      return await db.select().from(triggers).where(eq(triggers.triggerType, filter.triggerType));
+    }
+    if (filter?.enabled !== undefined) {
+      return await db.select().from(triggers).where(eq(triggers.enabled, filter.enabled));
+    }
     return await db.select().from(triggers);
   }
 
@@ -647,19 +653,37 @@ export class DatabaseStorage {
     return updated;
   }
 
+  async deleteTrigger(id: string): Promise<boolean> {
+    const result = await db.delete(triggers).where(eq(triggers.id, id)).returning();
+    return result.length > 0;
+  }
+
   // Workflows
   async createWorkflow(workflow: InsertWorkflow): Promise<Workflow> {
     const [saved] = await db.insert(workflows).values(workflow).returning();
     return saved;
   }
 
-  async getWorkflows(): Promise<Workflow[]> {
+  async getWorkflows(filter?: { enabled?: boolean }): Promise<Workflow[]> {
+    if (filter?.enabled !== undefined) {
+      return await db.select().from(workflows).where(eq(workflows.enabled, filter.enabled));
+    }
     return await db.select().from(workflows);
   }
 
   async getWorkflowById(id: string): Promise<Workflow | undefined> {
     const [workflow] = await db.select().from(workflows).where(eq(workflows.id, id));
     return workflow;
+  }
+
+  async updateWorkflow(id: string, update: Partial<InsertWorkflow>): Promise<Workflow | undefined> {
+    const [updated] = await db.update(workflows).set({ ...update, updatedAt: new Date() }).where(eq(workflows.id, id)).returning();
+    return updated;
+  }
+
+  async deleteWorkflow(id: string): Promise<boolean> {
+    const result = await db.delete(workflows).where(eq(workflows.id, id)).returning();
+    return result.length > 0;
   }
 
   // Schedules
@@ -678,9 +702,21 @@ export class DatabaseStorage {
     return result.length > 0;
   }
 
+  async getScheduleById(id: string): Promise<Schedule | undefined> {
+    const [schedule] = await db.select().from(schedules).where(eq(schedules.id, id));
+    return schedule;
+  }
+
   async getDueSchedules(): Promise<Schedule[]> {
     const now = new Date();
     return await db.select().from(schedules).where(and(eq(schedules.enabled, true), sql`${schedules.nextRunAt} <= ${now}`));
+  }
+
+  async getSchedules(filter?: { enabled?: boolean }): Promise<Schedule[]> {
+    if (filter?.enabled !== undefined) {
+      return await db.select().from(schedules).where(eq(schedules.enabled, filter.enabled));
+    }
+    return await db.select().from(schedules);
   }
 
   // Agent Identity
@@ -699,6 +735,11 @@ export class DatabaseStorage {
 
   async getAgentByName(name: string): Promise<AgentIdentity | undefined> {
     const [agent] = await db.select().from(agentIdentities).where(eq(agentIdentities.name, name));
+    return agent;
+  }
+
+  async getAgentById(id: string): Promise<AgentIdentity | undefined> {
+    const [agent] = await db.select().from(agentIdentities).where(eq(agentIdentities.id, id));
     return agent;
   }
 
@@ -793,7 +834,7 @@ export class DatabaseStorage {
     return await db.select().from(queuedTasks).where(eq(queuedTasks.status, 'waiting_for_input'));
   }
 
-  async updateQueuedTask(id: string, update: Partial<InsertQueuedTask>): Promise<QueuedTask | undefined> {
+  async updateQueuedTask(id: string, update: Partial<InsertQueuedTask> & { completedAt?: Date | null }): Promise<QueuedTask | undefined> {
     const [updated] = await db.update(queuedTasks).set(update).where(eq(queuedTasks.id, id)).returning();
     return updated;
   }

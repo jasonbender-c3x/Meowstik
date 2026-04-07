@@ -876,15 +876,15 @@ export function Sidebar({ isOpen, setIsOpen, onNewChat, chats, currentChatId, on
               <div className="flex items-center gap-2">
                 {isAuthenticated ? (
                   <>
-                    {user?.profileImageUrl ? (
-                      <img src={user.profileImageUrl} alt="Profile" className="w-6 h-6 rounded-full" />
+                    {user?.avatarUrl ? (
+                      <img src={user.avatarUrl} alt="Profile" className="w-6 h-6 rounded-full" />
                     ) : (
                       <div className="w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center">
                         <User className="h-3 w-3 text-primary" />
                       </div>
                     )}
                     <span className="text-sm text-foreground truncate flex-1">
-                      {user?.firstName || user?.email || "User"}
+                      {user?.displayName || user?.email || "User"}
                     </span>
                     <Button
                       variant="ghost"
@@ -984,10 +984,10 @@ export function Sidebar({ isOpen, setIsOpen, onNewChat, chats, currentChatId, on
                   className="w-8 h-8 p-0"
                   onClick={() => window.location.href = "/api/logout"}
                   data-testid="button-logout-collapsed"
-                  title={`Logged in as ${user?.firstName || user?.email || "User"} - Click to logout`}
+                  title={`Logged in as ${user?.displayName || user?.email || "User"} - Click to logout`}
                 >
-                  {user?.profileImageUrl ? (
-                    <img src={user.profileImageUrl} alt="Profile" className="w-6 h-6 rounded-full" />
+                  {user?.avatarUrl ? (
+                    <img src={user.avatarUrl} alt="Profile" className="w-6 h-6 rounded-full" />
                   ) : (
                     <User className="h-4 w-4 text-primary" />
                   )}

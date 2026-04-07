@@ -103,13 +103,13 @@ twilioRouter.post("/voice", async (req, res) => {
   
   // 1. Put the Caller into the Conference
   const dial = response.dial();
-  dial.conference(conferenceName, {
+  dial.conference({
     startConferenceOnEnter: true,
     endConferenceOnExit: true, // If caller hangs up, end it all? Or keep agent/owner?
     waitUrl: "", // No hold music initially, just silence so they hear the agent
     statusCallbackEvent: ['start', 'end', 'join', 'leave', 'mute', 'hold'],
     statusCallback: `https://${host}/api/twilio/conference-status`,
-  });
+  }, conferenceName);
 
   // 2. ASYNC: Add the "Agent" leg (Gemini Live)
   // We make a loopback call to our own /api/twilio/agent-leg endpoint
@@ -192,11 +192,11 @@ twilioRouter.post("/agent-leg", (req, res) => {
   s.parameter({ name: "fromNumber", value: from });
   
   const dial = response.dial();
-  dial.conference(String(confName), {
+  dial.conference({
     startConferenceOnEnter: false,
     endConferenceOnExit: false,
     beep: "false" // Silent entry
-  });
+  }, String(confName));
 
   res.type("text/xml");
   res.send(response.toString());
@@ -208,12 +208,12 @@ twilioRouter.post("/owner-leg", (req, res) => {
   const response = new VoiceResponse();
   
   const dial = response.dial();
-  dial.conference(String(confName), {
+  dial.conference({
     startConferenceOnEnter: false,
     endConferenceOnExit: false,
     muted: true, // Start MUTED (listening mode)
     beep: "false"
-  });
+  }, String(confName));
 
   res.type("text/xml");
   res.send(response.toString());
@@ -304,12 +304,12 @@ twilioRouter.all("/conference/twiml", (req, res) => {
   const confName = (req.query.name ?? req.body?.name ?? "meowstik-default") as string;
   const response = new VoiceResponse();
   const dial = response.dial();
-  dial.conference(confName, {
+  dial.conference({
     beep: "false",
     startConferenceOnEnter: true,
     endConferenceOnExit: false,
     waitUrl: "https://twimlets.com/holdmusic?Bucket=com.twilio.music.classical",
-  });
+  }, confName);
   res.type("text/xml");
   res.send(response.toString());
 });

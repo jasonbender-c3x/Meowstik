@@ -27,7 +27,7 @@ import { jobDispatcher } from "./job-dispatcher";
 import { jobQueue, type JobSubmission } from "./job-queue";
 import { dependencyResolver } from "./dependency-resolver";
 import { getDb } from "../db";
-import { agentJobs, type AgentJob, jobResults } from "@shared/schema";
+import { agentJobs, type AgentJob, jobResults, type JobResult } from "@shared/schema";
 import { eq, inArray, desc } from "drizzle-orm";
 
 // =============================================================================
@@ -576,9 +576,9 @@ Return the plan as a JSON object matching this structure:
       .from(jobResults)
       .where(inArray(jobResults.jobId, jobIds));
 
-    const completedTasks = jobs.filter((j) => j.status === "completed").length;
-    const failedTasks = jobs.filter((j) => j.status === "failed");
-    const runningTasks = jobs.filter((j) => j.status === "running");
+    const completedTasks = jobs.filter((j: AgentJob) => j.status === "completed").length;
+    const failedTasks = jobs.filter((j: AgentJob) => j.status === "failed");
+    const runningTasks = jobs.filter((j: AgentJob) => j.status === "running");
 
     // Determine overall status
     let status: OrchestrationResult["status"] = "executing";
@@ -601,7 +601,7 @@ Return the plan as a JSON object matching this structure:
       completedTasks,
       totalTasks: jobs.length,
       results: resultMap,
-      errors: failedTasks.map((j) => `Job ${j.id} failed`),
+      errors: failedTasks.map((j: AgentJob) => `Job ${j.id} failed`),
       startTime: new Date(context.history[0]?.timestamp || new Date()),
       endTime: status === "completed" || status === "failed" ? new Date() : undefined,
     };

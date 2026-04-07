@@ -222,7 +222,7 @@ export async function generateSingleSpeakerAudio(
         console.error("[ElevenLabs] Authentication error:", errorStr);
         
         const { logLLMError } = await import("../services/llm-error-buffer");
-        logLLMError("elevenlabs-tts", "generateSingleSpeakerAudio", error, {
+        logLLMError("tts", "generateSingleSpeakerAudio", error, {
           textLength: text.length,
           voice: voiceConfig.voiceId,
           attempt,
@@ -243,7 +243,7 @@ export async function generateSingleSpeakerAudio(
         console.error("[ElevenLabs] Rate limit or quota exceeded:", errorStr);
         
         const { logLLMError } = await import("../services/llm-error-buffer");
-        logLLMError("elevenlabs-tts", "generateSingleSpeakerAudio", error, {
+        logLLMError("tts", "generateSingleSpeakerAudio", error, {
           textLength: text.length,
           voice: voiceConfig.voiceId,
           attempt,
@@ -270,7 +270,7 @@ export async function generateSingleSpeakerAudio(
         console.error("[ElevenLabs] Generation error:", errorStr);
         
         const { logLLMError } = await import("../services/llm-error-buffer");
-        logLLMError("elevenlabs-tts", "generateSingleSpeakerAudio", error, {
+        logLLMError("tts", "generateSingleSpeakerAudio", error, {
           textLength: text.length,
           voice: voiceConfig.voiceId,
           attempt

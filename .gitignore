@@ -28,3 +28,4 @@ notebooklm-ingest/
 *.bak2
 meowstik-key.json
 server.log
+google_cloud_key.json
