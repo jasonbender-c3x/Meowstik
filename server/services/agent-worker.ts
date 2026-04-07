@@ -18,6 +18,7 @@ import { getDb } from "../db";
 import { agentWorkers, agentJobs, type AgentWorker, type AgentJob } from "@shared/schema";
 import { eq, sql } from "drizzle-orm";
 import type { JobPayload } from "./job-queue";
+import { withRetryOn503 } from "../utils/retry";
 
 export interface WorkerConfig {
   name: string;
@@ -181,11 +182,11 @@ class AgentWorkerService {
       config.systemInstruction = payload.systemPrompt;
     }
 
-    const response = await this.ai!.models.generateContent({
+    const response = await withRetryOn503(() => this.ai!.models.generateContent({
       model: this.config.model,
       contents: [{ role: "user", parts: [{ text: payload.prompt }] }],
       config,
-    });
+    }));
 
     return {
       output: response.text,
@@ -205,13 +206,13 @@ Arguments: ${JSON.stringify(payload.toolArgs ?? {})}
 
 Return a JSON object with the result.`;
 
-    const response = await this.ai!.models.generateContent({
+    const response = await withRetryOn503(() => this.ai!.models.generateContent({
       model: this.config.model,
       contents: toolPrompt,
       config: {
         responseMimeType: "application/json",
       },
-    });
+    }));
 
     let output: unknown;
     try {

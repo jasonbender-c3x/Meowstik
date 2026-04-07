@@ -102,6 +102,7 @@ import { parseVoiceStyle, stripAllVoiceTags } from "./services/style-parser";
 
 import { createApiRouter } from "./routes/index";
 import diagRouter from "./routes/diag";
+import { withRetryOn503, ModelUnavailableError } from "./utils/retry";
 
 // ═══════════════════════════════════════════════════════════════════════════
 // SECTION: AI CLIENT INITIALIZATION
@@ -889,7 +890,12 @@ The user has MUTE mode enabled. Minimize all output.
 
       console.log(`[IOLogger] Input logged to: ${inputLogFilename}`);
 
-      const result = await genAI.models.generateContentStream({
+      // AbortController lets pending retry sleeps cancel immediately on client disconnect
+      const abortController = new AbortController();
+      req.on("close", () => abortController.abort());
+
+      const result = await withRetryOn503(
+        () => genAI.models.generateContentStream({
         model: modelMode,
         config: {
           systemInstruction: modifiedPrompt.systemPrompt,
@@ -904,7 +910,9 @@ The user has MUTE mode enabled. Minimize all output.
           },
         },
         contents: [...history, { role: "user", parts: userParts }],
-      });
+        }),
+        abortController.signal
+      );
 
       // ─────────────────────────────────────────────────────────────────────
       // STEP 5: Stream response and collect native function calls
@@ -1272,7 +1280,8 @@ The user has MUTE mode enabled. Minimize all output.
           });
           
           // Call LLM again with native function calling
-          const loopResult = await genAI.models.generateContentStream({
+          const loopResult = await withRetryOn503(
+            () => genAI.models.generateContentStream({
             model: modelMode,
             config: {
               systemInstruction: modifiedPrompt.systemPrompt,
@@ -1285,7 +1294,9 @@ The user has MUTE mode enabled. Minimize all output.
               },
             },
             contents: agenticHistory,
-          });
+            }),
+            abortController.signal
+          );
           
           // Collect function calls from loop response
           let loopResponse = "";
@@ -1602,12 +1613,26 @@ The user has MUTE mode enabled. Minimize all output.
       );
       res.end();
     } catch (error) {
-      // Log error for debugging
-      console.error("Error in message streaming:", error);
+      // ── 503 retry exhausted ──────────────────────────────────────────────
+      if (error instanceof ModelUnavailableError) {
+        console.warn(`[Model] ⚠️  AI service unavailable after all retries. Returning to standby.`);
+        const warningMsg = "⚠️ The AI service is temporarily unavailable (503). Please try again in a moment.";
+        try {
+          if (res.headersSent) {
+            res.write(`data: ${JSON.stringify({ warning: warningMsg })}\n\n`);
+            res.end();
+          } else {
+            res.status(503).json({ error: warningMsg });
+          }
+        } catch (e) {
+          console.error("[Model] Failed to send 503 warning to client:", e);
+        }
+        return;
+      }
 
-      // Check if headers were already sent (streaming started)
+      // ── All other errors ─────────────────────────────────────────────────
+      console.error("Error in message streaming:", error);
       if (res.headersSent) {
-        // Send error via SSE and end stream gracefully
         try {
           res.write(
             `data: ${JSON.stringify({ error: "An error occurred while processing your message" })}
@@ -1616,7 +1641,6 @@ The user has MUTE mode enabled. Minimize all output.
           );
           res.end();
         } catch (e) {
-          // Stream may already be closed, just log and continue
           console.error("Failed to send error via stream:", e);
         }
       } else {
