@@ -58,14 +58,16 @@ export function ChatMessage({
     } else {
       const num = Number(createdAt);
       if (!isNaN(num)) {
-        // PostgreSQL may return microseconds — if timestamp implies year > 3000, divide down to ms
+        // DB stores ms (unixepoch() * 1000). Guard against accidental double-multiply:
+        // if value is so large it implies year > 3000, it was stored as µs — divide by 1000.
         const ms = num > 32503680000000 ? Math.round(num / 1000) : num;
         d = new Date(ms);
       } else {
         d = new Date(String(createdAt));
       }
     }
-    return isNaN(d.getTime()) ? "" : format(d, "MMM d yyyy, h:mm a");
+    if (isNaN(d.getTime()) || d.getFullYear() > 3000 || d.getFullYear() < 2000) return "Just now";
+    return format(d, "MMM d yyyy, h:mm a");
   }, [createdAt]);
 
   return (
