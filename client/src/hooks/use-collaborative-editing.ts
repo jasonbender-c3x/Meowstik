@@ -432,7 +432,7 @@ export function useCollaborativeEditing(options: UseCollaborativeEditingOptions)
 
   const clearAllCursorDecorations = useCallback(() => {
     if (editorRef.current) {
-      for (const [, decoration] of Array.from(cursorDecorationsRef.current)) {
+      for (const [, decoration] of Array.from(cursorDecorationsRef.current.entries())) {
         editorRef.current.deltaDecorations(decoration.decorationIds, []);
       }
     }
