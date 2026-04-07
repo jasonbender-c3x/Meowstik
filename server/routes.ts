@@ -120,6 +120,24 @@ import diagRouter from "./routes/diag";
  */
 const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
 
+/** Retry a Gemini API call with exponential backoff on 503/429. */
+async function withGeminiRetry<T>(fn: () => Promise<T>, maxAttempts = 4): Promise<T> {
+  let delay = 2000;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      return await fn();
+    } catch (err: any) {
+      const status = err?.status ?? err?.response?.status;
+      const retryable = status === 503 || status === 429;
+      if (!retryable || attempt === maxAttempts) throw err;
+      console.warn(`[Gemini] ${status} on attempt ${attempt}/${maxAttempts}, retrying in ${delay}ms…`);
+      await new Promise(res => setTimeout(res, delay));
+      delay = Math.min(delay * 2, 16000);
+    }
+  }
+  throw new Error("unreachable");
+}
+
 // ═══════════════════════════════════════════════════════════════════════════
 // SECTION: ROUTE REGISTRATION
 // ═══════════════════════════════════════════════════════════════════════════
@@ -889,7 +907,7 @@ The user has MUTE mode enabled. Minimize all output.
 
       console.log(`[IOLogger] Input logged to: ${inputLogFilename}`);
 
-      const result = await genAI.models.generateContentStream({
+      const result = await withGeminiRetry(() => genAI.models.generateContentStream({
         model: modelMode,
         config: {
           systemInstruction: modifiedPrompt.systemPrompt,
@@ -904,7 +922,7 @@ The user has MUTE mode enabled. Minimize all output.
           },
         },
         contents: [...history, { role: "user", parts: userParts }],
-      });
+      }));
 
       // ─────────────────────────────────────────────────────────────────────
       // STEP 5: Stream response and collect native function calls
@@ -1293,7 +1311,7 @@ The user has MUTE mode enabled. Minimize all output.
           });
           
           // Call LLM again with native function calling
-          const loopResult = await genAI.models.generateContentStream({
+          const loopResult = await withGeminiRetry(() => genAI.models.generateContentStream({
             model: modelMode,
             config: {
               systemInstruction: modifiedPrompt.systemPrompt,
@@ -1306,7 +1324,7 @@ The user has MUTE mode enabled. Minimize all output.
               },
             },
             contents: agenticHistory,
-          });
+          }));
           
           // Collect function calls from loop response
           let loopResponse = "";
