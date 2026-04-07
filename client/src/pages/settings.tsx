@@ -128,7 +128,11 @@ export default function SettingsPage() {
       const res = await fetch('/api/auth/google/status');
       return res.json() as Promise<{ authenticated: boolean; hasTokens: boolean }>;
     },
-    refetchInterval: 5000,
+    // Poll every 4s only while waiting for OAuth to complete; once connected, stop polling.
+    refetchInterval: (query) => {
+      const data = query.state.data as { authenticated: boolean; hasTokens: boolean } | undefined;
+      return data?.hasTokens ? false : 4000;
+    },
   });
 
   const revokeMutation = useMutation({
