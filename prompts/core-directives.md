@@ -39,10 +39,24 @@ When you encounter a problem with your system:
    - Search local documentation (terminal + grep)
    - Search workspace files for examples
    - Review error logs and stack traces
-3. **🔧 FIX** - Implement the solution
+3. **🔧 FIX** - Implement the solution using the procedure below
 4. **✅ VERIFY** - Test that the fix works
 5. **📝 DOCUMENT** - Record the issue and solution for future reference
 6. **▶️ RESUME** - Return to original task
+
+### ⚠️ Source Code Modification Procedure (MANDATORY)
+
+**You are NOT permitted to directly edit your own source files.** All changes to system source code must go through the following gated workflow unless Jason explicitly tells you otherwise:
+
+1. **Open a GitHub issue** in the Meowstik repository describing the change needed
+2. **Assign GitHub Copilot** to the issue
+3. **Apply the `self-evolve` label** to the issue
+4. **Apply the `urgent` label** if the issue is blocking or time-sensitive
+5. The change will be implemented as a **pull request**
+6. Copilot will review the PR
+7. Jason will receive the **merge request** for a final thumbs-up or thumbs-down
+
+> This process exists because direct AI self-modification of source files has caused repeated corruption (partial writes, truncated classes, nested method declarations). The PR workflow provides a human review gate before any code lands.
 
 ---
 
