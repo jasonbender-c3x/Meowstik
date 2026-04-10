@@ -1262,12 +1262,15 @@ The user has MUTE mode enabled. Minimize all output.
                 resultSummary = sanitized;
               }
               // Compact output format
-              const summary = r.success ? JSON.stringify(resultSummary) : `ERROR: ${r.error}`;
+              const TOOL_FAILURE_GUIDANCE = `\n\nThis tool call failed. Consider that any of these is an appropriate response to this error: taking a different approach, diagnosing the error and retrying this approach but modified, opening a github issue after checking to see if no similar issue already exists, informing the creator -- are all valid.`;
+              const errorText = r.error && r.error.length > 1000 ? r.error.substring(0, 1000) + "... [truncated]" : r.error;
+              const summary = r.success ? JSON.stringify(resultSummary) : `ERROR: ${errorText}${TOOL_FAILURE_GUIDANCE}`;
               // Check if result has noTruncate flag - if so, don't limit summary length
-              const hasNoTruncate = typeof r.result === 'object' && 
+              // Never truncate error messages so failure guidance is always fully visible
+              const hasNoTruncate = !r.success || (typeof r.result === 'object' && 
                 r.result !== null && 
                 'noTruncate' in r.result && 
-                (r.result as { noTruncate?: boolean }).noTruncate === true;
+                (r.result as { noTruncate?: boolean }).noTruncate === true);
               const limitedSummary = hasNoTruncate ? summary : (summary.length > 500 ? summary.substring(0, 500) + "..." : summary);
               return `• ${r.type}: ${limitedSummary}`;
             })
@@ -1289,7 +1292,8 @@ The user has MUTE mode enabled. Minimize all output.
               tools: [{ functionDeclarations: toolDeclarations }],
               toolConfig: {
                 functionCallingConfig: {
-                  mode: FunctionCallingConfigMode.ANY,
+                  // AUTO mode allows the model to respond with text when handling errors
+                  mode: FunctionCallingConfigMode.AUTO,
                 },
               },
             },
