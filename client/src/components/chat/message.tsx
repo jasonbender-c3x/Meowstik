@@ -16,12 +16,10 @@ interface ChatMessageProps {
 }
 
 export function ChatMessage({
-  id,
   role,
   content,
   createdAt,
   isThinking,
-  feedback,
 }: ChatMessageProps) {
   const [copied, setCopied] = useState(false);
   const [isSpeakingLocal, setIsSpeakingLocal] = useState(false);
@@ -79,7 +77,7 @@ export function ChatMessage({
           </div>
         ) : (
           <div
-            className="prose prose-sm dark:prose-invert max-w-none text-foreground"
+            className="prose prose-sm dark:prose-invert max-w-none text-foreground break-words [overflow-wrap:anywhere] prose-p:break-words prose-li:break-words prose-code:break-words prose-pre:max-w-full prose-pre:whitespace-pre-wrap prose-pre:break-words prose-pre:[overflow-wrap:anywhere]"
             dangerouslySetInnerHTML={{ __html: htmlContent }}
           />
         )}

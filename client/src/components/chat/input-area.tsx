@@ -31,7 +31,7 @@
  * - useRef: Reference to textarea for auto-resize
  * - useEffect: Handle auto-resize on input change
  */
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 
 // ============================================================================
 // CONSTANTS
@@ -46,28 +46,26 @@ const MAX_FOLDER_FILES = 50;
 /**
  * UI Components from shadcn/ui
  * - Button: Styled action buttons
- * - Textarea: Multi-line text input (unused - using native textarea)
+ * - Native textarea is used for input
  */
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
 
 /**
  * Lucide Icons
  * - Mic/MicOff: Voice input button (toggle)
- * - Image: Image attachment button
  * - Send: Send message button
  * - Paperclip: File attachment button
- * - Sparkles: Loading/AI thinking indicator
  * - Monitor: Screen capture button
  * - X: Remove attachment button
  * - Folder: Directory picker button
  */
-import { Mic, MicOff, Image, Send, Paperclip, Sparkles, Monitor, X, Camera, PawPrint, Folder } from "lucide-react";
+import { Mic, MicOff, Send, Paperclip, Monitor, X, Camera, Folder } from "lucide-react";
 
 /**
  * Voice hook for speech-to-text functionality
  */
 import { useVoice } from "@/hooks/use-voice";
+import { useTTS } from "@/contexts/tts-context";
 
 /**
  * Toast notifications for user feedback
@@ -279,13 +277,15 @@ export function ChatInputArea({ onSend, isLoading, promptHistory = [], onStop }:
   const { 
     isListening, 
     transcript, 
-    interimTranscript,
     isSupported: isVoiceSupported, 
     startListening, 
     stopListening,
+    abortListening,
     resetTranscript,
     error: voiceError 
   } = useVoice({ continuous: true, interimResults: true });
+
+  const { isSpeaking: isTtsSpeaking } = useTTS();
 
   /**
    * Toast notifications
@@ -357,6 +357,26 @@ export function ChatInputArea({ onSend, isLoading, promptHistory = [], onStop }:
     }
   }, [voiceError, toast]);
 
+  const stopVoiceInput = useCallback((immediate: boolean = false) => {
+    if (isListening) {
+      if (immediate) {
+        abortListening();
+      } else {
+        stopListening();
+      }
+    }
+
+    cursorPositionRef.current = null;
+    lastTranscriptLengthRef.current = 0;
+    resetTranscript();
+  }, [abortListening, isListening, resetTranscript, stopListening]);
+
+  useEffect(() => {
+    if (isTtsSpeaking && isListening) {
+      stopVoiceInput(true);
+    }
+  }, [isListening, isTtsSpeaking, stopVoiceInput]);
+
   // ===========================================================================
   // EVENT HANDLERS
   // ===========================================================================
@@ -368,7 +388,8 @@ export function ChatInputArea({ onSend, isLoading, promptHistory = [], onStop }:
   const handleSend = async () => {
     const hasContent = input.trim() || attachments.length > 0;
     if (hasContent && !isLoading) {
-      let finalAttachments = [...attachments];
+      stopVoiceInput(true);
+      const finalAttachments = [...attachments];
       
       // If auto-screenshot mode is on, capture screenshot
       if (autoScreenshotMode) {
@@ -420,6 +441,7 @@ export function ChatInputArea({ onSend, isLoading, promptHistory = [], onStop }:
    */
   const handleScreenshotSend = async () => {
     if (isLoading) return;
+    stopVoiceInput(true);
     
     try {
       const stream = await navigator.mediaDevices.getDisplayMedia({
@@ -740,18 +762,6 @@ export function ChatInputArea({ onSend, isLoading, promptHistory = [], onStop }:
   };
 
   /**
-   * Handle Tab button click - same as pressing Tab key
-   */
-  const handleTabClick = () => {
-    if (ghostText !== null) {
-      setInput(ghostText);
-      setGhostText(null);
-      setHistoryIndex(-1);
-      textareaRef.current?.focus();
-    }
-  };
-
-  /**
    * Toggle voice-to-text listening
    * Starts or stops speech recognition based on current state
    * Saves cursor position to insert transcribed text at that location
@@ -765,15 +775,16 @@ export function ChatInputArea({ onSend, isLoading, promptHistory = [], onStop }:
       });
       return;
     }
+
+    if (isTtsSpeaking) {
+      return;
+    }
     
     if (isListening) {
-      stopListening();
-      cursorPositionRef.current = null;
-      // Reset transcript tracker for next session
-      lastTranscriptLengthRef.current = 0;
+      stopVoiceInput();
     } else {
       // Clear any stale transcript from previous session
-      resetTranscript();
+      stopVoiceInput();
       
       // Save cursor position before starting
       const cursorPos = textareaRef.current?.selectionStart ?? input.length;
@@ -787,84 +798,9 @@ export function ChatInputArea({ onSend, isLoading, promptHistory = [], onStop }:
     }
   };
 
-  /**
-   * Capture screen and add as attachment
-   * Uses the Screen Capture API to capture the user's screen
-   * Compresses the screenshot before adding
-   */
-  const handleScreenCapture = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getDisplayMedia({
-        video: { displaySurface: "monitor" } as MediaTrackConstraints
-      });
-      
-      const video = document.createElement("video");
-      video.srcObject = stream;
-      await video.play();
-      
-      const canvas = document.createElement("canvas");
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-      
-      const ctx = canvas.getContext("2d");
-      if (ctx) {
-        ctx.drawImage(video, 0, 0);
-        
-        const rawDataUrl = canvas.toDataURL("image/png");
-        
-        stream.getTracks().forEach(track => track.stop());
-        
-        // Compress the screenshot
-        let finalDataUrl = rawDataUrl;
-        let finalSize = 0;
-        let finalMimeType = "image/png";
-        
-        try {
-          const compressed = await compressImage(rawDataUrl);
-          finalDataUrl = compressed.dataUrl;
-          finalSize = compressed.size;
-          finalMimeType = compressed.mimeType;
-        } catch (error) {
-          console.error("Screenshot compression failed, using original:", error);
-          const response = await fetch(rawDataUrl);
-          const blob = await response.blob();
-          finalSize = blob.size;
-        }
-        
-        const filename = `screenshot-${Date.now()}.jpg`;
-        const attachment: Attachment = {
-          id: `screenshot-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-          filename,
-          type: "screenshot",
-          mimeType: finalMimeType,
-          size: finalSize,
-          dataUrl: finalDataUrl,
-          preview: finalDataUrl
-        };
-        
-        setAttachments(prev => [...prev, attachment]);
-        
-        toast({
-          title: "Screenshot Attached",
-          description: "Your screenshot has been added to the message"
-        });
-      }
-    } catch (error: any) {
-      if (error.name !== "AbortError") {
-        toast({
-          title: "Capture Failed",
-          description: "Unable to capture screen. Please try again.",
-          variant: "destructive"
-        });
-      }
-    }
-  };
-
   // ===========================================================================
   // RENDER
   // ===========================================================================
-
-  const hasContent = input.trim() || attachments.length > 0;
 
   return (
     <div className="w-full max-w-4xl mx-auto px-2 pb-4">
@@ -990,6 +926,7 @@ export function ChatInputArea({ onSend, isLoading, promptHistory = [], onStop }:
                 variant={isListening ? "secondary" : "ghost"}
                 size="icon"
                 onClick={handleMicClick}
+                disabled={isLoading || isTtsSpeaking}
                 className={cn(
                   "h-10 w-10 rounded-full transition-all duration-300",
                   isListening 
@@ -997,7 +934,7 @@ export function ChatInputArea({ onSend, isLoading, promptHistory = [], onStop }:
                     : "text-muted-foreground hover:text-primary hover:bg-primary/10"
                 )}
                 data-testid="button-voice-input"
-                title={isListening ? "Stop listening" : "Voice input"}
+                title={isTtsSpeaking ? "Voice input disabled while Meowstik is speaking" : isListening ? "Stop listening" : "Voice input"}
               >
                 {isListening ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
               </Button>
@@ -1064,6 +1001,5 @@ export function ChatInputArea({ onSend, isLoading, promptHistory = [], onStop }:
     </div>
   );
 }
-
 
 

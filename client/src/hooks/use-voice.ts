@@ -72,6 +72,9 @@ interface UseVoiceReturn {
   
   /** Stop speech recognition */
   stopListening: () => void;
+
+  /** Abort speech recognition immediately */
+  abortListening: () => void;
   
   /** Reset transcript state (clears all accumulated text) */
   resetTranscript: () => void;
@@ -306,7 +309,7 @@ export function useVoice(options: VoiceOptions = {}): UseVoiceReturn {
     // Start listening
     try {
       recognitionRef.current.start();
-    } catch (e) {
+    } catch {
       setError('Failed to start speech recognition');
     }
   }, []);
@@ -318,6 +321,20 @@ export function useVoice(options: VoiceOptions = {}): UseVoiceReturn {
   const stopListening = useCallback(() => {
     if (!recognitionRef.current) return;
     recognitionRef.current.stop();
+  }, []);
+
+  /**
+   * Abort speech recognition immediately without waiting for normal shutdown.
+   */
+  const abortListening = useCallback(() => {
+    if (!recognitionRef.current) return;
+    try {
+      recognitionRef.current.abort();
+    } catch {
+      setError('Failed to abort speech recognition');
+    }
+    setIsListening(false);
+    setInterimTranscript('');
   }, []);
 
   /**
@@ -399,6 +416,7 @@ export function useVoice(options: VoiceOptions = {}): UseVoiceReturn {
     isSupported,
     startListening,
     stopListening,
+    abortListening,
     resetTranscript,
     speak,
     stopSpeaking,
@@ -453,6 +471,5 @@ declare global {
     webkitSpeechRecognition: any;
   }
 }
-
 
 
