@@ -78,7 +78,6 @@ export default function LivePage() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const speakingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const audioQueueRef = useRef<AudioBufferSourceNode[]>([]);
-  const nextStartTimeRef = useRef(0);
   const workletNodeRef = useRef<AudioWorkletNode | null>(null);
   const userSpeechBufferRef = useRef<string[]>([]);
   const speechRecognitionRef = useRef<any>(null);
