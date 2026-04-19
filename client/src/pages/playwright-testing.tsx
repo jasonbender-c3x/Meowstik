@@ -152,7 +152,7 @@ export default function PlaywrightTestingPage() {
       setSessionId(`session_${Date.now()}`);
       setScreenshot(null);
       addResult("Close Session", true, "Session closed", null);
-    } catch (error) {
+    } catch {
       addResult("Close Session", false, "Failed to close session", null);
     }
   };
@@ -374,6 +374,5 @@ export default function PlaywrightTestingPage() {
     </div>
   );
 }
-
 
 

@@ -18,6 +18,9 @@ import { setupTwilioWebSocket } from "./websocket-twilio.js";
 import { setupExtensionWebSocket } from "./websocket-extension.js";
 import { setupVSCodeWebSocket } from "./websocket-vscode.js";
 import { desktopService } from "./services/desktop-service.js";
+import { workflowExecutor } from "./services/workflow-executor.js";
+import { cronScheduler } from "./services/cron-scheduler.js";
+import { triggerService } from "./services/trigger-service.js";
 
 // --- SONAR: GLOBAL ERROR CATCHERS ---
 process.on('uncaughtException', (err) => {
@@ -162,6 +165,18 @@ async function startServer() {
         client.release();
     } catch(e: any) {
         console.error('⚠️  [Boot] Database Link Failed:', e.message);
+    }
+
+    // Start background pipeline services
+    try {
+        await workflowExecutor.start();
+        console.log('✅ [Boot] Workflow Executor started');
+        await cronScheduler.start();
+        console.log('✅ [Boot] Cron Scheduler started');
+        await triggerService.start();
+        console.log('✅ [Boot] Trigger Service started');
+    } catch(e: any) {
+        console.error('⚠️  [Boot] Pipeline services failed to start:', e.message);
     }
   });
 }

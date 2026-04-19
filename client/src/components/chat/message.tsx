@@ -6,7 +6,7 @@ import { useTTS } from "@/contexts/tts-context";
 interface ChatMessageProps {
   id?: string;
   chatId?: string;
-  role: "user" | "ai" | "assistant" | "system";
+  messageRole: "user" | "ai" | "assistant" | "system";
   content: string;
   createdAt?: string | number | Date | null;
   isThinking?: boolean;
@@ -16,7 +16,7 @@ interface ChatMessageProps {
 }
 
 export function ChatMessage({
-  role,
+  messageRole,
   content,
   createdAt,
   isThinking,
@@ -41,10 +41,10 @@ export function ChatMessage({
     }
   }, [isSpeakingLocal, content, speak, stopSpeaking]);
 
-  const isAI = role === "ai" || role === "assistant";
+  const isAI = messageRole === "ai" || messageRole === "assistant";
 
-  const bgClass = role === "user" ? "bg-background" : role === "system" ? "bg-muted/50" : "bg-card";
-  const avatar = isAI ? "😻" : role === "system" ? "⚙️" : "👨‍💻";
+  const bgClass = messageRole === "user" ? "bg-background" : messageRole === "system" ? "bg-muted/50" : "bg-card";
+  const avatar = isAI ? "😻" : messageRole === "system" ? "⚙️" : "👨‍💻";
 
   const htmlContent = useMemo(() => renderMarkdown(content), [content]);
 

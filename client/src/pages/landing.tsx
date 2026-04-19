@@ -7,29 +7,7 @@ import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { motion } from "framer-motion";
-import { 
-  MessageSquare, 
-  Sparkles, 
-  BookOpen, 
-  Zap, 
-  Image, 
-  Music, 
-  Mic, 
-  Globe, 
-  GitBranch, 
-  FileText,
-  ArrowRight,
-  Bot,
-  Brain,
-  Workflow,
-  Phone,
-  Mail,
-  Calendar,
-  Database,
-  Settings,
-  ChevronRight,
-  Home
-} from "lucide-react";
+import { MessageSquare, Sparkles, BookOpen, Image, Music, Mic, Globe, GitBranch, FileText, ArrowRight, Bot, Phone, Mail, Calendar, Settings, ChevronRight, Home } from "lucide-react";
 import logo from "@assets/generated_images/cute_cat_logo_icon.png";
 
 // Feature cards for the main sections
@@ -235,7 +213,7 @@ export default function LandingPage() {
                   <Link key={integration.name} href={integration.href}>
                     <div 
                       className="cursor-pointer hover:bg-muted/50 transition-colors border border-border rounded-lg p-4 flex items-center gap-3"
-                      data-testid={`card-integration-${integration.name.toLowerCase().replace(/[\/\s]+/g, '-')}`}
+                      data-testid={`card-integration-${integration.name.toLowerCase().replace(/[/\s]+/g, '-')}`}
                     >
                       <Icon className="h-5 w-5 text-muted-foreground" />
                       <span className="font-medium text-sm">{integration.name}</span>
@@ -346,6 +324,5 @@ export default function LandingPage() {
     </div>
   );
 }
-
 
 

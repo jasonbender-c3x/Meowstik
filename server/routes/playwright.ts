@@ -22,6 +22,8 @@ function getChromiumExecutablePath(): string | undefined {
 }
 
 const SCREENSHOTS_DIR = path.join(process.cwd(), ".local", "playwright-screenshots");
+const PLAYWRIGHT_PROFILES_DIR = path.join(process.cwd(), ".local", "playwright-profiles");
+const DEFAULT_PROFILE_ID = "default";
 
 function ensureScreenshotsDir() {
   if (!fs.existsSync(SCREENSHOTS_DIR)) {
@@ -29,11 +31,29 @@ function ensureScreenshotsDir() {
   }
 }
 
+function ensureProfilesDir() {
+  if (!fs.existsSync(PLAYWRIGHT_PROFILES_DIR)) {
+    fs.mkdirSync(PLAYWRIGHT_PROFILES_DIR, { recursive: true });
+  }
+}
+
+function sanitizeProfileId(profileId?: string): string {
+  const normalized = (profileId || DEFAULT_PROFILE_ID).trim() || DEFAULT_PROFILE_ID;
+  return normalized.replace(/[^a-zA-Z0-9._-]/g, "_");
+}
+
+function getProfileDir(profileId?: string): string {
+  ensureProfilesDir();
+  return path.join(PLAYWRIGHT_PROFILES_DIR, sanitizeProfileId(profileId));
+}
+
 interface TestSession {
-  browser: Browser;
+  browser: Browser | null;
   context: BrowserContext;
   page: Page;
   createdAt: Date;
+  profileId: string;
+  headless: boolean;
 }
 
 const sessions = new Map<string, TestSession>();
@@ -46,7 +66,7 @@ async function cleanupOldSessions() {
   for (const [id, session] of entries) {
     if (now - session.createdAt.getTime() > SESSION_TIMEOUT) {
       try {
-        await session.browser.close();
+        await session.context.close();
       } catch (e) {}
       sessions.delete(id);
     }
@@ -59,7 +79,7 @@ async function getValidSession(sessionId: string): Promise<TestSession | null> {
   
   if (Date.now() - session.createdAt.getTime() > SESSION_TIMEOUT) {
     try {
-      await session.browser.close();
+      await session.context.close();
     } catch (e) {}
     sessions.delete(sessionId);
     return null;
@@ -68,40 +88,68 @@ async function getValidSession(sessionId: string): Promise<TestSession | null> {
   return session;
 }
 
-async function getOrCreateSession(sessionId: string, headless: boolean = true): Promise<TestSession> {
+async function closeSession(sessionId: string): Promise<void> {
+  const session = sessions.get(sessionId);
+  if (!session) return;
+
+  try {
+    await session.context.close();
+  } catch (e) {}
+
+  sessions.delete(sessionId);
+}
+
+async function getOrCreateSession(
+  sessionId: string,
+  headless: boolean = true,
+  profileId: string = DEFAULT_PROFILE_ID,
+): Promise<TestSession> {
   await cleanupOldSessions();
   
   if (sessions.has(sessionId)) {
     return sessions.get(sessionId)!;
   }
+
+  for (const [existingSessionId, existingSession] of sessions.entries()) {
+    if (existingSession.profileId === profileId) {
+      if (existingSession.headless === headless) {
+        sessions.set(sessionId, existingSession);
+        if (existingSessionId !== sessionId) {
+          sessions.delete(existingSessionId);
+        }
+        return existingSession;
+      }
+
+      await closeSession(existingSessionId);
+      break;
+    }
+  }
   
   if (sessions.size >= MAX_SESSIONS) {
     const oldestId = sessions.keys().next().value;
     if (oldestId) {
-      const oldSession = sessions.get(oldestId);
-      if (oldSession) {
-        await oldSession.browser.close();
-        sessions.delete(oldestId);
-      }
+      await closeSession(oldestId);
     }
   }
-  
-  const browser = await chromium.launch({ 
+
+  const normalizedProfileId = sanitizeProfileId(profileId);
+  const context = await chromium.launchPersistentContext(getProfileDir(normalizedProfileId), {
     headless,
     executablePath: getChromiumExecutablePath(),
-    args: ['--no-sandbox', '--disable-setuid-sandbox']
-  });
-  const context = await browser.newContext({
+    args: ['--no-sandbox', '--disable-setuid-sandbox'],
     viewport: { width: 1280, height: 720 },
-    userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+    userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
   });
-  const page = await context.newPage();
+  const pages = context.pages();
+  const page = pages.length > 0 ? pages[0] : await context.newPage();
   
   const session: TestSession = {
-    browser,
+    browser: context.browser(),
     context,
     page,
-    createdAt: new Date()
+    createdAt: new Date(),
+    profileId: normalizedProfileId,
+    headless,
   };
   
   sessions.set(sessionId, session);
@@ -111,6 +159,7 @@ async function getOrCreateSession(sessionId: string, headless: boolean = true): 
 const navigateSchema = z.object({
   sessionId: z.string().default(() => `session_${Date.now()}`),
   url: z.string().url("Valid URL required"),
+  profileId: z.string().optional().default(DEFAULT_PROFILE_ID),
   headless: z.boolean().default(true),
   timeout: z.number().min(1000).max(60000).default(30000)
 });
@@ -122,8 +171,8 @@ router.post("/navigate", async (req, res) => {
       return res.status(400).json({ success: false, error: parsed.error.errors[0]?.message });
     }
     
-    const { sessionId, url, headless, timeout } = parsed.data;
-    const session = await getOrCreateSession(sessionId, headless);
+    const { sessionId, url, profileId, headless, timeout } = parsed.data;
+    const session = await getOrCreateSession(sessionId, headless, profileId);
     
     await session.page.goto(url, { timeout, waitUntil: "domcontentloaded" });
     const title = await session.page.title();
@@ -132,7 +181,7 @@ router.post("/navigate", async (req, res) => {
     res.json({
       success: true,
       sessionId,
-      result: { title, url: currentUrl },
+      result: { title, url: currentUrl, profileId: session.profileId },
       message: `Navigated to ${currentUrl}`
     });
   } catch (error) {
@@ -470,8 +519,7 @@ router.post("/close", async (req, res) => {
     const session = sessions.get(sessionId);
     
     if (session) {
-      await session.browser.close();
-      sessions.delete(sessionId);
+      await closeSession(sessionId);
     }
     
     res.json({ success: true, message: "Session closed" });
@@ -485,7 +533,8 @@ router.get("/sessions", (_req, res) => {
   const sessionList = Array.from(sessions.entries()).map(([id, session]) => ({
     id,
     createdAt: session.createdAt,
-    url: session.page.url()
+    url: session.page.url(),
+    profileId: session.profileId,
   }));
   
   res.json({ sessions: sessionList, maxSessions: MAX_SESSIONS });
@@ -495,7 +544,7 @@ router.delete("/sessions", async (_req, res) => {
   try {
     const entries = Array.from(sessions.entries());
     for (const [id, session] of entries) {
-      await session.browser.close();
+      await session.context.close();
       sessions.delete(id);
     }
     res.json({ success: true, message: "All sessions closed" });
@@ -505,6 +554,5 @@ router.delete("/sessions", async (_req, res) => {
 });
 
 export default router;
-
 
 

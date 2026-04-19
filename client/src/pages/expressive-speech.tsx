@@ -7,9 +7,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, Mic, Play, Square, Download, Loader2, Volume2, Users, MessageSquare, Plus, Trash2, HelpCircle } from "lucide-react";
+import { ArrowLeft, Mic, Play, Download, Loader2, Volume2, Users, MessageSquare, Plus, Trash2, HelpCircle } from "lucide-react";
 import { Link } from "wouter";
-import { cn } from "@/lib/utils";
 
 interface Speaker {
   id: string;
@@ -536,6 +535,7 @@ export default function ExpressiveSpeechPage() {
                       <span className="font-medium">Speech Generated!</span>
                     </div>
                     
+                    {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
                     <audio
                       ref={audioRef}
                       src={generation.audioUrl}
@@ -588,7 +588,6 @@ function base64ToBlob(base64: string, mimeType: string): Blob {
   const byteArray = new Uint8Array(byteNumbers);
   return new Blob([byteArray], { type: mimeType });
 }
-
 
 
 

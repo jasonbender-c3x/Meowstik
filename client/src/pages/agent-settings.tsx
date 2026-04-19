@@ -12,25 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { 
-  ArrowLeft, 
-  Bot, 
-  Zap, 
-  MessageSquare, 
-  Settings2, 
-  Wrench,
-  Brain,
-  Volume2,
-  FileText,
-  Mail,
-  Phone,
-  Calendar,
-  GitBranch,
-  Globe,
-  Database,
-  Terminal,
-  BookOpen
-} from "lucide-react";
+import { ArrowLeft, Bot, MessageSquare, Settings2, Wrench, Brain, Volume2, FileText, Mail, Calendar, GitBranch, Globe, Database, Terminal, BookOpen } from "lucide-react";
 
 // Tool categories with their tools
 const toolCategories = [
@@ -117,6 +99,17 @@ const toolCategories = [
       { id: "terminal_read", name: "Read Output", description: "Read terminal output", enabled: true },
     ]
   },
+  {
+    id: "mcp",
+    name: "MCP",
+    icon: Database,
+    description: "Connected MCP servers and tool discovery",
+    tools: [
+      { id: "mcp_list_servers", name: "List MCP Servers", description: "See connected MCP servers", enabled: true },
+      { id: "mcp_list_tools", name: "List MCP Tools", description: "Inspect tools on an MCP server", enabled: true },
+      { id: "mcp_call", name: "Call MCP Tool", description: "Invoke a tool exposed by an MCP server", enabled: true },
+    ]
+  },
 ];
 
 // Personality presets
@@ -132,6 +125,10 @@ export default function AgentSettingsPage() {
   const [personality, setPersonality] = useState("meowstik");
   const [responseLength, setResponseLength] = useState([50]);
   const [proactivity, setProactivity] = useState([70]);
+  const [maxAgenticTurns, setMaxAgenticTurns] = useState<[number]>(() => {
+    const saved = parseInt(localStorage.getItem("meowstik-max-agentic-turns") || "10", 10);
+    return [Number.isFinite(saved) ? Math.min(Math.max(saved, 1), 30) : 10];
+  });
   const [toolSettings, setToolSettings] = useState<Record<string, boolean>>({});
   const [categoryEnabled, setCategoryEnabled] = useState<Record<string, boolean>>({});
 
@@ -236,7 +233,8 @@ export default function AgentSettingsPage() {
                     <p className="text-sm text-muted-foreground mb-4">Choose how the agent communicates</p>
                     <div className="grid gap-4">
                       {personalityPresets.map((preset) => (
-                        <div
+                        <button
+                          type="button"
                           key={preset.id}
                           className={`flex items-center justify-between p-4 rounded-lg border cursor-pointer transition-colors ${
                             personality === preset.id
@@ -253,7 +251,7 @@ export default function AgentSettingsPage() {
                           {personality === preset.id && (
                             <Badge variant="secondary">Active</Badge>
                           )}
-                        </div>
+                        </button>
                       ))}
                     </div>
                   </div>
@@ -265,7 +263,7 @@ export default function AgentSettingsPage() {
                     <div className="space-y-6">
                       <div className="space-y-3">
                         <div className="flex justify-between">
-                          <label className="text-sm font-medium">Response Length</label>
+                          <span className="text-sm font-medium">Response Length</span>
                           <span className="text-sm text-muted-foreground">
                             {responseLength[0] < 30 ? "Concise" : responseLength[0] < 70 ? "Balanced" : "Detailed"}
                           </span>
@@ -286,7 +284,7 @@ export default function AgentSettingsPage() {
 
                       <div className="space-y-3">
                         <div className="flex justify-between">
-                          <label className="text-sm font-medium">Proactivity</label>
+                          <span className="text-sm font-medium">Proactivity</span>
                           <span className="text-sm text-muted-foreground">
                             {proactivity[0] < 30 ? "Ask First" : proactivity[0] < 70 ? "Balanced" : "Take Action"}
                           </span>
@@ -300,6 +298,29 @@ export default function AgentSettingsPage() {
                         />
                         <p className="text-xs text-muted-foreground">
                           How much the agent should act vs. ask for confirmation
+                        </p>
+                      </div>
+
+                      <Separator />
+
+                      <div className="space-y-3">
+                        <div className="flex justify-between">
+                          <span className="text-sm font-medium">Max Agentic Turns</span>
+                          <span className="text-sm text-muted-foreground font-mono">{maxAgenticTurns[0]}</span>
+                        </div>
+                        <Slider
+                          value={maxAgenticTurns}
+                          onValueChange={(v) => {
+                            setMaxAgenticTurns(v as [number]);
+                            localStorage.setItem("meowstik-max-agentic-turns", String(v[0]));
+                          }}
+                          min={1}
+                          max={30}
+                          step={1}
+                          data-testid="slider-max-agentic-turns"
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          Tool-call turns before pausing and asking Continue&nbsp;/&nbsp;Interrupt (1–30, default 10)
                         </p>
                       </div>
                     </div>
@@ -472,6 +493,4 @@ export default function AgentSettingsPage() {
     </div>
   );
 }
-
-
 

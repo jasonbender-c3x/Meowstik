@@ -17,6 +17,7 @@ description: Low-CPU screen recording helper and how it integrates with Meowstik
 - `SCREEN_RECORD_VIDEO_SIZE` (default `1920x1200`)
 - `SCREEN_RECORD_PRESET` / `SCREEN_RECORD_CRF` / `SCREEN_RECORD_AUDIO_BITRATE` control encoder quality
 - `SCREEN_RECORD_SYSTEM_AUDIO_SOURCE` and `SCREEN_RECORD_MIC_AUDIO_SOURCE` override the PulseAudio device names when autodetection fails
+- `SCREEN_RECORD_DISABLE_SYSTEM_AUDIO=1` or `SCREEN_RECORD_DISABLE_MIC=1` let you silence either source for cleaner demo captures
 - If you need a second output size (e.g., `960x600`), run the helper manually or wrap it with a script that sets `SCREEN_RECORD_VIDEO_SIZE`.
 
 Example:

@@ -6,26 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { 
-  ArrowLeft, 
-  Brain, 
-  RefreshCw, 
-  Trash2, 
-  Clock, 
-  Wrench, 
-  Eye, 
-  MessageSquare, 
-  Settings, 
-  FileText, 
-  ChevronDown, 
-  ChevronUp, 
-  Copy, 
-  Check, 
-  Search,
-  Loader2,
-  Network,
-  Zap
-} from "lucide-react";
+import { AlertCircle, ArrowLeft, Brain, RefreshCw, Trash2, Clock, Wrench, MessageSquare, Settings, FileText, ChevronDown, ChevronUp, Copy, Check, Search, Loader2, Network, Zap } from "lucide-react";
 import { Link } from "wouter";
 import { cn } from "@/lib/utils";
 
@@ -850,6 +831,5 @@ export default function DebugPage() {
     </div>
   );
 }
-
 
 

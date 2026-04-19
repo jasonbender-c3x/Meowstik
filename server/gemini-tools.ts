@@ -1056,6 +1056,52 @@ OBJECTIVE TIPS:
     }
   },
   // ═══════════════════════════════════════════════════════════════════════════
+  // MODEL CONTEXT PROTOCOL (MCP)
+  // ═══════════════════════════════════════════════════════════════════════════
+  {
+    name: "mcp_list_servers",
+    description: "List the enabled MCP servers configured for this user. Use this when you need to discover which external tool servers are available before calling them.",
+    parametersJsonSchema: {
+      type: "object",
+      properties: {}
+    }
+  },
+  {
+    name: "mcp_list_tools",
+    description: "List tools exposed by one enabled MCP server, or by all enabled MCP servers if no serverId is provided.",
+    parametersJsonSchema: {
+      type: "object",
+      properties: {
+        serverId: {
+          type: "string",
+          description: "MCP server identifier. You may use the server id, slug, or exact name returned by mcp_list_servers."
+        }
+      }
+    }
+  },
+  {
+    name: "mcp_call",
+    description: "Call a specific tool on an enabled MCP server. First use mcp_list_servers and mcp_list_tools when you need to inspect available capabilities or parameter schemas.",
+    parametersJsonSchema: {
+      type: "object",
+      properties: {
+        serverId: {
+          type: "string",
+          description: "MCP server identifier. You may use the server id, slug, or exact name returned by mcp_list_servers."
+        },
+        toolName: {
+          type: "string",
+          description: "The MCP tool name to invoke on that server."
+        },
+        arguments: {
+          type: "object",
+          description: "Arguments object to pass to the MCP tool."
+        }
+      },
+      required: ["serverId", "toolName"]
+    }
+  },
+  // ═══════════════════════════════════════════════════════════════════════════
   // CHROMECAST
   // ═══════════════════════════════════════════════════════════════════════════
   {
@@ -1112,6 +1158,61 @@ OBJECTIVE TIPS:
       },
       required: ["action"]
     }
+  },
+
+  // ── Schedule Management ────────────────────────────────────────────────────
+
+  {
+    name: "schedule_list",
+    description: "List all cron schedules. Shows name, cron expression, enabled status, and next run time.",
+    parameters: {
+      type: "object",
+      properties: {
+        enabledOnly: {
+          type: "boolean",
+          description: "If true, return only enabled schedules."
+        }
+      },
+      required: []
+    }
+  },
+  {
+    name: "schedule_create",
+    description: "Create a new cron schedule that injects a reminder into the Meowstik Reminders chat. Use standard cron syntax (e.g. '*/15 * * * *' for every 15 min). The prompt field supports {{name}}, {{description}}, {{timestamp}} placeholders.",
+    parameters: {
+      type: "object",
+      properties: {
+        name: { type: "string", description: "Short human-readable name for this schedule." },
+        description: { type: "string", description: "What this schedule is for." },
+        cronExpression: { type: "string", description: "Standard 5-field cron expression." },
+        prompt: { type: "string", description: "Prompt template to inject. Supports {{name}}, {{description}}, {{timestamp}}." },
+        userId: { type: "string", description: "User ID to associate the reminder chat with. Omit to use the first account." }
+      },
+      required: ["name", "cronExpression"]
+    }
+  },
+  {
+    name: "schedule_toggle",
+    description: "Enable or disable an existing schedule by ID.",
+    parameters: {
+      type: "object",
+      properties: {
+        id: { type: "string", description: "Schedule ID." },
+        enabled: { type: "boolean", description: "True to enable, false to disable." }
+      },
+      required: ["id", "enabled"]
+    }
+  },
+  {
+    name: "schedule_delete",
+    description: "Permanently delete a schedule by ID.",
+    parameters: {
+      type: "object",
+      properties: {
+        id: { type: "string", description: "Schedule ID to delete." }
+      },
+      required: ["id"]
+    }
   }
 ];
 
@@ -1132,6 +1233,5 @@ export function getToolDeclarations(toolNames?: string[]): FunctionDeclaration[]
 export function getAllToolNames(): string[] {
   return geminiFunctionDeclarations.map(tool => tool.name).filter((name): name is string => !!name);
 }
-
 
 

@@ -77,25 +77,3 @@ To test prompt changes:
 2. Restart the application
 3. Test with various input types
 4. Verify tool execution works correctly
-
-## Response Schema
-
-All responses must be a JSON object with tool calls:
-
-```json
-{
-  "toolCalls": [
-    {"type": "say", "id": "v1", "operation": "speak", "parameters": {"utterance": "..."}},
-    {"type": "send_chat", "id": "c1", "operation": "respond", "parameters": {"content": "..."}},
-    ...other tool calls...
-  ]
-}
-```
-
-**All output goes through tools:**
-- Text to chat → `send_chat`
-- Voice output → `say`
-- File operations → `file_put`
-- Commands → `terminal_execute`
-
-See `tools.md` for complete tool documentation.

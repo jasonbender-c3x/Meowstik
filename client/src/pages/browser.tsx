@@ -81,15 +81,21 @@ export default function BrowserPage() {
         throw new Error(data.error || "Failed to load page");
       }
 
-      if (addToHistory && history.current && history.current !== normalizedUrl) {
-        setHistory(prev => ({
-          back: [...prev.back, prev.current],
-          forward: [],
-          current: normalizedUrl
-        }));
-      } else if (!history.current) {
-        setHistory(prev => ({ ...prev, current: normalizedUrl }));
-      }
+      setHistory(prev => {
+        if (addToHistory && prev.current && prev.current !== normalizedUrl) {
+          return {
+            back: [...prev.back, prev.current],
+            forward: [],
+            current: normalizedUrl,
+          };
+        }
+
+        if (!prev.current) {
+          return { ...prev, current: normalizedUrl };
+        }
+
+        return prev;
+      });
 
       setSession({
         sessionId: data.sessionId,
@@ -114,7 +120,7 @@ export default function BrowserPage() {
     } finally {
       setIsNavigating(false);
     }
-  }, [history.current]);
+  }, []);
 
   const handleNavigate = (e?: React.FormEvent) => {
     e?.preventDefault();
@@ -147,11 +153,11 @@ export default function BrowserPage() {
     }
   };
 
-  const handleRefresh = () => {
+  const handleRefresh = useCallback(() => {
     if (session?.url) {
       loadPage(session.url, false);
     }
-  };
+  }, [loadPage, session?.url]);
 
   const handleHome = () => {
     loadPage("https://www.google.com");
@@ -176,7 +182,7 @@ export default function BrowserPage() {
         clearInterval(refreshIntervalRef.current);
       }
     };
-  }, [autoRefresh, session?.url]);
+  }, [autoRefresh, handleRefresh, session?.url]);
 
   const quickLinks = [
     { name: "Google", url: "https://www.google.com" },
@@ -418,6 +424,3 @@ export default function BrowserPage() {
     </div>
   );
 }
-
-
-

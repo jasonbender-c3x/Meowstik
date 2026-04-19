@@ -8,7 +8,6 @@
 
 import { useState, useRef, useCallback, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -71,7 +70,6 @@ export default function LivePage() {
   const [enableSTT, setEnableSTT] = useState(true);
 
   const sessionIdRef = useRef<string | null>(null);
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
   const playbackContextRef = useRef<AudioContext | null>(null);
   const nextStartTimeRef = useRef<number>(0);
@@ -80,6 +78,7 @@ export default function LivePage() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const speakingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const audioQueueRef = useRef<AudioBufferSourceNode[]>([]);
+  const nextStartTimeRef = useRef(0);
   const workletNodeRef = useRef<AudioWorkletNode | null>(null);
   const userSpeechBufferRef = useRef<string[]>([]);
   const speechRecognitionRef = useRef<any>(null);
@@ -105,7 +104,9 @@ export default function LivePage() {
 
   const handleBargeIn = useCallback(() => {
     audioQueueRef.current.forEach(source => {
-      try { source.stop(); } catch {}
+      try { source.stop(); } catch {
+        // Ignore stop errors for already-finished sources.
+      }
     });
     audioQueueRef.current = [];
     
@@ -164,7 +165,7 @@ export default function LivePage() {
       if (continuousMode && enableSTT && speechRecognitionRef.current && !speechRecognitionRef.current.isListening) {
         speechRecognitionRef.current.start();
       }
-    }, [continuousMode, isSpeaking, handleBargeIn]),
+    }, [continuousMode, enableSTT, isSpeaking, handleBargeIn]),
     
     onSpeechEnd: useCallback(() => {
       console.log("[Live] User stopped speaking");
@@ -178,7 +179,7 @@ export default function LivePage() {
       setUserInterimTranscript("");
     }, []),
     
-    onVolumeChange: useCallback((volume: number) => {
+    onVolumeChange: useCallback(() => {
       // Could be used for visual feedback in the UI
     }, []),
   };
@@ -199,6 +200,66 @@ export default function LivePage() {
       (+c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> +c / 4).toString(16)
     );
   };
+
+  const playAudioChunk = useCallback((base64Data: string) => {
+    if (isMuted) return;
+
+    try {
+      if (!playbackContextRef.current || playbackContextRef.current.state === "closed") {
+        playbackContextRef.current = new AudioContext({ sampleRate: 24000 });
+        nextStartTimeRef.current = playbackContextRef.current.currentTime + 0.1; // Start with 100ms buffer
+      }
+
+      const audioContext = playbackContextRef.current;
+
+      const binaryString = atob(base64Data);
+      const bytes = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+
+      const audioBuffer = audioContext.createBuffer(1, bytes.length / 2, 24000);
+      const channelData = audioBuffer.getChannelData(0);
+
+      const int16Array = new Int16Array(bytes.buffer);
+      for (let i = 0; i < int16Array.length; i++) {
+        channelData[i] = int16Array[i] / 32768;
+      }
+
+      const source = audioContext.createBufferSource();
+      source.buffer = audioBuffer;
+      source.connect(audioContext.destination);
+
+      // Scheduler Logic (Jitter Buffer)
+      const currentTime = audioContext.currentTime;
+      // If we've fallen behind (underrun), reset nextStartTime to now + small buffer
+      if (nextStartTimeRef.current < currentTime) {
+        nextStartTimeRef.current = currentTime + 0.05; // 50ms catch-up buffer
+      }
+
+      source.start(nextStartTimeRef.current);
+
+      // Advance nextStartTime by the duration of this chunk
+      nextStartTimeRef.current += audioBuffer.duration;
+
+      source.onended = () => {
+        const index = audioQueueRef.current.indexOf(source);
+        if (index > -1) {
+          audioQueueRef.current.splice(index, 1);
+        }
+      };
+      audioQueueRef.current.push(source);
+
+      if (speakingTimeoutRef.current) {
+        clearTimeout(speakingTimeoutRef.current);
+      }
+      speakingTimeoutRef.current = setTimeout(() => {
+        setIsSpeaking(false);
+      }, 500);
+    } catch (err) {
+      console.error("[Live] Failed to play audio:", err);
+    }
+  }, [isMuted]);
 
   const connect = useCallback(async () => {
     setConnectionState("connecting");
@@ -286,47 +347,7 @@ export default function LivePage() {
       setError(err instanceof Error ? err.message : "Failed to connect");
       setConnectionState("error");
     }
-  }, [selectedVoice, addTranscriptEntry, continuousMode]);
-
-  const disconnect = useCallback(async () => {
-    stopListening();
-    
-    if (speakingTimeoutRef.current) {
-      clearTimeout(speakingTimeoutRef.current);
-      speakingTimeoutRef.current = null;
-    }
-    
-    audioQueueRef.current.forEach(source => {
-      try { source.stop(); } catch {}
-    });
-    audioQueueRef.current = [];
-    
-    if (playbackContextRef.current) {
-      try { playbackContextRef.current.close(); } catch {}
-      playbackContextRef.current = null;
-    }
-    
-    if (wsRef.current) {
-      wsRef.current.close();
-      wsRef.current = null;
-    }
-
-    if (sessionIdRef.current) {
-      try {
-        await fetch(`/api/live/session/${sessionIdRef.current}`, {
-          method: "DELETE",
-        });
-      } catch (err) {
-        console.error("[Live] Failed to close session:", err);
-      }
-      sessionIdRef.current = null;
-    }
-
-    setConnectionState("disconnected");
-    setIsListening(false);
-    setIsSpeaking(false);
-    setInterimText("");
-  }, []);
+  }, [selectedVoice, addTranscriptEntry, continuousMode, playAudioChunk]);
 
   const startListening = useCallback(async () => {
     // Use ref to avoid stale closure — connectionState captured at callback creation may be outdated
@@ -433,65 +454,49 @@ export default function LivePage() {
     setIsListening(false);
   }, [vad]);
 
-  const playAudioChunk = useCallback((base64Data: string) => {
-    if (isMuted) return;
+  const disconnect = useCallback(async () => {
+    stopListening();
 
-    try {
-      if (!playbackContextRef.current || playbackContextRef.current.state === "closed") {
-        playbackContextRef.current = new AudioContext({ sampleRate: 24000 });
-        nextStartTimeRef.current = playbackContextRef.current.currentTime + 0.1; // Start with 100ms buffer
-      }
-      
-      const audioContext = playbackContextRef.current;
-
-      const binaryString = atob(base64Data);
-      const bytes = new Uint8Array(binaryString.length);
-      for (let i = 0; i < binaryString.length; i++) {
-        bytes[i] = binaryString.charCodeAt(i);
-      }
-
-      const audioBuffer = audioContext.createBuffer(1, bytes.length / 2, 24000);
-      const channelData = audioBuffer.getChannelData(0);
-
-      const int16Array = new Int16Array(bytes.buffer);
-      for (let i = 0; i < int16Array.length; i++) {
-        channelData[i] = int16Array[i] / 32768;
-      }
-
-      const source = audioContext.createBufferSource();
-      source.buffer = audioBuffer;
-      source.connect(audioContext.destination);
-      
-      // Scheduler Logic (Jitter Buffer)
-      const currentTime = audioContext.currentTime;
-      // If we've fallen behind (underrun), reset nextStartTime to now + small buffer
-      if (nextStartTimeRef.current < currentTime) {
-        nextStartTimeRef.current = currentTime + 0.05; // 50ms catch-up buffer
-      }
-      
-      source.start(nextStartTimeRef.current);
-      
-      // Advance nextStartTime by the duration of this chunk
-      nextStartTimeRef.current += audioBuffer.duration;
-      
-      source.onended = () => {
-        const index = audioQueueRef.current.indexOf(source);
-        if (index > -1) {
-          audioQueueRef.current.splice(index, 1);
-        }
-      };
-      audioQueueRef.current.push(source);
-
-      if (speakingTimeoutRef.current) {
-        clearTimeout(speakingTimeoutRef.current);
-      }
-      speakingTimeoutRef.current = setTimeout(() => {
-        setIsSpeaking(false);
-      }, 500);
-    } catch (err) {
-      console.error("[Live] Failed to play audio:", err);
+    if (speakingTimeoutRef.current) {
+      clearTimeout(speakingTimeoutRef.current);
+      speakingTimeoutRef.current = null;
     }
-  }, [isMuted]);
+
+    audioQueueRef.current.forEach(source => {
+      try { source.stop(); } catch {
+        // Ignore stop errors for drained audio.
+      }
+    });
+    audioQueueRef.current = [];
+
+    if (playbackContextRef.current) {
+      try { playbackContextRef.current.close(); } catch {
+        // Ignore close errors during disconnect.
+      }
+      playbackContextRef.current = null;
+    }
+
+    if (wsRef.current) {
+      wsRef.current.close();
+      wsRef.current = null;
+    }
+
+    if (sessionIdRef.current) {
+      try {
+        await fetch(`/api/live/session/${sessionIdRef.current}`, {
+          method: "DELETE",
+        });
+      } catch (err) {
+        console.error("[Live] Failed to close session:", err);
+      }
+      sessionIdRef.current = null;
+    }
+
+    setConnectionState("disconnected");
+    setIsListening(false);
+    setIsSpeaking(false);
+    setInterimText("");
+  }, [stopListening]);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -837,6 +842,3 @@ export default function LivePage() {
     </div>
   );
 }
-
-
-

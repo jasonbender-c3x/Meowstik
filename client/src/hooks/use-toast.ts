@@ -71,13 +71,6 @@ type ToasterToast = ToastProps & {
  * Available action types for the toast reducer
  * Using const assertion for type safety
  */
-const actionTypes = {
-  ADD_TOAST: "ADD_TOAST",       // Add a new toast
-  UPDATE_TOAST: "UPDATE_TOAST", // Update existing toast
-  DISMISS_TOAST: "DISMISS_TOAST", // Start dismiss animation
-  REMOVE_TOAST: "REMOVE_TOAST", // Remove from state
-} as const
-
 // ============================================================================
 // ID GENERATION
 // ============================================================================
@@ -103,7 +96,12 @@ function genId() {
 // ACTION TYPES
 // ============================================================================
 
-type ActionType = typeof actionTypes
+type ActionType = {
+  ADD_TOAST: "ADD_TOAST"
+  UPDATE_TOAST: "UPDATE_TOAST"
+  DISMISS_TOAST: "DISMISS_TOAST"
+  REMOVE_TOAST: "REMOVE_TOAST"
+}
 
 /**
  * Union type for all possible toast actions
@@ -427,6 +425,5 @@ function useToast() {
 // ============================================================================
 
 export { useToast, toast }
-
 
 

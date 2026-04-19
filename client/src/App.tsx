@@ -84,7 +84,6 @@ import PreviewPage from "@/pages/preview";
 import GoogleServicesPage from "@/pages/google-services";
 import HelpPage from "@/pages/help";
 import MusicGenerationPage from "@/pages/music-generation";
-import ExpressiveSpeechPage from "@/pages/expressive-speech";
 import ImageGenerationPage from "@/pages/image-generation";
 import TerminalPage from "@/pages/terminal";
 import DebugPage from "@/pages/debug";
@@ -96,6 +95,7 @@ import MarkdownPlaygroundPage from "@/pages/markdown-playground";
 import EvolutionPage from "@/pages/evolution";
 import TaskQueuePage from "@/pages/task-queue";
 import SchedulesPage from "@/pages/schedules";
+import TodoPage from "@/pages/todo";
 import BrowserPage from "@/pages/browser";
 import DatabaseExplorerPage from "@/pages/database-explorer";
 import LivePage from "@/pages/live";
@@ -244,6 +244,10 @@ function Router() {
         {() => <ProtectedRoute><TaskQueuePage /></ProtectedRoute>}
       </Route>
       
+      <Route path="/todos">
+        {() => <ProtectedRoute><TodoPage /></ProtectedRoute>}
+      </Route>
+
       <Route path="/schedules">
         {() => <ProtectedRoute><SchedulesPage /></ProtectedRoute>}
       </Route>
@@ -285,7 +289,7 @@ function Router() {
       </Route>
       
       <Route path="/docs/:slug?">
-        {(params) => <ProtectedRoute><DocsPage /></ProtectedRoute>}
+        {() => <ProtectedRoute><DocsPage /></ProtectedRoute>}
       </Route>
       
       <Route path="/agent-settings">
@@ -378,6 +382,4 @@ function App() {
  * This is the single entry point for the React application
  */
 export default App;
-
-
 

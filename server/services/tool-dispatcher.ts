@@ -28,6 +28,7 @@ import {
   httpPostParamsSchema,
   httpPutParamsSchema,
   copilotSendReportParamsSchema,
+  GUEST_USER_ID,
 } from "@shared/schema";
 import { httpGet, httpPost, httpPut, type HttpResponse } from "../integrations/http-client";
 import * as googleTasks from "../integrations/google-tasks";
@@ -56,6 +57,7 @@ import * as path from "path";
 import * as os from "os";
 import { z } from "zod";
 import { copilotService } from "./copilot-service";
+import { mcpService } from "./mcp-service";
 
 const execAsync = promisify(exec);
 
@@ -189,6 +191,23 @@ export class ToolDispatcher {
         case "soundboard": result = this.executeSoundboard(toolCall); break;
         case "cast": result = await this.executeCast(toolCall); break;
         case "camera": result = await this.executeCamera(toolCall); break;
+        case "todo_list": result = await this.executeTodoList(toolCall, chatId); break;
+        case "todo_add": result = await this.executeTodoAdd(toolCall, chatId); break;
+        case "todo_update": result = await this.executeTodoUpdate(toolCall, chatId); break;
+        case "todo_complete": result = await this.executeTodoComplete(toolCall, chatId); break;
+        case "todo_remove": result = await this.executeTodoRemove(toolCall, chatId); break;
+        case "mcp_list_servers": result = await this.executeMcpListServers(chatId); break;
+        case "mcp_list_tools": result = await this.executeMcpListTools(toolCall, chatId); break;
+        case "mcp_call": result = await this.executeMcpCall(toolCall, chatId); break;
+        case "tasks_list": result = await this.executeTasksList(toolCall); break;
+        case "tasks_create": result = await this.executeTasksCreate(toolCall); break;
+        case "tasks_update": result = await this.executeTasksUpdate(toolCall); break;
+        case "tasks_complete": result = await this.executeTasksComplete(toolCall); break;
+        case "tasks_delete": result = await this.executeTasksDelete(toolCall); break;
+        case "schedule_list": result = await this.executeScheduleList(toolCall); break;
+        case "schedule_create": result = await this.executeScheduleCreate(toolCall, chatId); break;
+        case "schedule_toggle": result = await this.executeScheduleToggle(toolCall); break;
+        case "schedule_delete": result = await this.executeScheduleDelete(toolCall); break;
         case "end_turn": result = { success: true, shouldEndTurn: true }; break;
         case "write": case "send_chat": {
           const { content } = toolCall.parameters as { content?: string };
@@ -405,6 +424,256 @@ export class ToolDispatcher {
       return { content, success: true };
     } catch (error: any) {
       return { content: error.message, success: false };
+    }
+  }
+
+  private async getUserIdFromChat(chatId?: number | string): Promise<string | undefined> {
+    if (!chatId) return undefined;
+    const chat = await storage.getChat(String(chatId));
+    return chat?.userId ?? undefined;
+  }
+
+  private async getUserIdForMcp(chatId?: number | string): Promise<string> {
+    return (await this.getUserIdFromChat(chatId)) ?? GUEST_USER_ID;
+  }
+
+  private async executeMcpListServers(chatId?: number | string): Promise<unknown> {
+    try {
+      const userId = await this.getUserIdForMcp(chatId);
+      const servers = await mcpService.listEnabledServers(userId);
+      return {
+        success: true,
+        servers: servers.map((server) => ({
+          id: server.id,
+          name: server.name,
+          slug: server.slug,
+          description: server.description,
+          transport: server.transport,
+          source: server.source,
+        })),
+      };
+    } catch (error: any) {
+      return { success: false, error: error.message };
+    }
+  }
+
+  private async executeMcpListTools(toolCall: ToolCall, chatId?: number | string): Promise<unknown> {
+    try {
+      const userId = await this.getUserIdForMcp(chatId);
+      const { serverId } = toolCall.parameters as { serverId?: string };
+      const servers = await mcpService.listTools(userId, serverId);
+      return { success: true, servers };
+    } catch (error: any) {
+      return { success: false, error: error.message };
+    }
+  }
+
+  private async executeMcpCall(toolCall: ToolCall, chatId?: number | string): Promise<unknown> {
+    try {
+      const userId = await this.getUserIdForMcp(chatId);
+      const { serverId, toolName, arguments: args } = toolCall.parameters as {
+        serverId: string;
+        toolName: string;
+        arguments?: Record<string, unknown>;
+      };
+
+      if (!serverId || !toolName) {
+        return { success: false, error: "serverId and toolName are required" };
+      }
+
+      const result = await mcpService.callTool(userId, serverId, toolName, args ?? {});
+      return { success: true, ...result };
+    } catch (error: any) {
+      return { success: false, error: error.message };
+    }
+  }
+
+  private async executeTodoList(toolCall: ToolCall, chatId?: number | string): Promise<unknown> {
+    try {
+      const { includeCompleted = false } = toolCall.parameters as { includeCompleted?: boolean };
+      const userId = await this.getUserIdFromChat(chatId);
+      if (!userId) return { success: false, error: "No user session — cannot access todo list" };
+      const items = await storage.getTodoItems(userId, includeCompleted);
+      return { success: true, items };
+    } catch (error: any) {
+      return { success: false, error: error.message };
+    }
+  }
+
+  private async executeTodoAdd(toolCall: ToolCall, chatId?: number | string): Promise<unknown> {
+    try {
+      const { title, description, priority = 5, category, tags } = toolCall.parameters as {
+        title: string; description?: string; priority?: number; category?: string; tags?: string[];
+      };
+      const userId = await this.getUserIdFromChat(chatId);
+      if (!userId) return { success: false, error: "No user session — cannot add todo item" };
+      const item = await storage.createTodoItem({ userId, title, description, priority, category, tags });
+      return { success: true, item };
+    } catch (error: any) {
+      return { success: false, error: error.message };
+    }
+  }
+
+  private async executeTodoUpdate(toolCall: ToolCall, chatId?: number | string): Promise<unknown> {
+    try {
+      const { id, ...update } = toolCall.parameters as { id: string; [key: string]: any };
+      const userId = await this.getUserIdFromChat(chatId);
+      const item = await storage.updateTodoItem(id, update, userId);
+      if (!item) return { success: false, error: "Todo item not found" };
+      return { success: true, item };
+    } catch (error: any) {
+      return { success: false, error: error.message };
+    }
+  }
+
+  private async executeTodoComplete(toolCall: ToolCall, chatId?: number | string): Promise<unknown> {
+    try {
+      const { id } = toolCall.parameters as { id: string };
+      const userId = await this.getUserIdFromChat(chatId);
+      const item = await storage.completeTodoItem(id, userId);
+      if (!item) return { success: false, error: "Todo item not found" };
+      return { success: true, item };
+    } catch (error: any) {
+      return { success: false, error: error.message };
+    }
+  }
+
+  private async executeTodoRemove(toolCall: ToolCall, chatId?: number | string): Promise<unknown> {
+    try {
+      const { id } = toolCall.parameters as { id: string };
+      const userId = await this.getUserIdFromChat(chatId);
+      const deleted = await storage.deleteTodoItem(id, userId);
+      return { success: deleted, error: deleted ? undefined : "Todo item not found" };
+    } catch (error: any) {
+      return { success: false, error: error.message };
+    }
+  }
+
+  private async executeTasksList(toolCall: ToolCall): Promise<unknown> {
+    try {
+      const { taskListId = "@default", maxResults } = toolCall.parameters as { taskListId?: string; maxResults?: number };
+      const tasks = await googleTasks.listTasks(taskListId, true, maxResults ?? 100);
+      return { success: true, tasks };
+    } catch (error: any) {
+      return { success: false, error: error.message };
+    }
+  }
+
+  private async executeTasksCreate(toolCall: ToolCall): Promise<unknown> {
+    try {
+      const { title, notes, due, taskListId = "@default" } = toolCall.parameters as {
+        title: string; notes?: string; due?: string; taskListId?: string;
+      };
+      const task = await googleTasks.createTask(taskListId, title, notes, due);
+      return { success: true, task };
+    } catch (error: any) {
+      return { success: false, error: error.message };
+    }
+  }
+
+  private async executeTasksUpdate(toolCall: ToolCall): Promise<unknown> {
+    try {
+      const { taskId, title, notes, due, taskListId = "@default" } = toolCall.parameters as {
+        taskId: string; title?: string; notes?: string; due?: string; taskListId?: string;
+      };
+      const task = await googleTasks.updateTask(taskListId, taskId, { title, notes, due });
+      return { success: true, task };
+    } catch (error: any) {
+      return { success: false, error: error.message };
+    }
+  }
+
+  private async executeTasksComplete(toolCall: ToolCall): Promise<unknown> {
+    try {
+      const { taskId, taskListId = "@default" } = toolCall.parameters as { taskId: string; taskListId?: string };
+      const task = await googleTasks.completeTask(taskListId, taskId);
+      return { success: true, task };
+    } catch (error: any) {
+      return { success: false, error: error.message };
+    }
+  }
+
+  private async executeTasksDelete(toolCall: ToolCall): Promise<unknown> {
+    try {
+      const { taskId, taskListId = "@default" } = toolCall.parameters as { taskId: string; taskListId?: string };
+      await googleTasks.deleteTask(taskListId, taskId);
+      return { success: true };
+    } catch (error: any) {
+      return { success: false, error: error.message };
+    }
+  }
+
+  // ── Schedule tools ──────────────────────────────────────────────────────────
+
+  private async executeScheduleList(toolCall: ToolCall): Promise<unknown> {
+    try {
+      const { enabledOnly } = toolCall.parameters as { enabledOnly?: boolean };
+      const schedules = await storage.getSchedules();
+      const filtered = enabledOnly ? schedules.filter(s => s.isEnabled) : schedules;
+      return {
+        schedules: filtered.map(s => ({
+          id: s.id,
+          name: s.name,
+          description: s.description,
+          cronExpression: s.cronExpression,
+          enabled: s.isEnabled,
+          nextRunAt: s.nextRunAt,
+          lastRunAt: s.lastRunAt,
+        }))
+      };
+    } catch (error: any) {
+      return { success: false, error: error.message };
+    }
+  }
+
+  private async executeScheduleCreate(toolCall: ToolCall, chatId?: number | string): Promise<unknown> {
+    try {
+      const { name, description, cronExpression, prompt, userId: explicitUserId } = toolCall.parameters as {
+        name: string;
+        description?: string;
+        cronExpression: string;
+        prompt?: string;
+        userId?: string;
+      };
+
+      // Resolve userId from explicit param or from the chat
+      const resolvedUserId = explicitUserId ?? (chatId ? await this.getUserIdFromChat(chatId) : undefined);
+
+      const schedule = await storage.createSchedule({
+        name,
+        description: description ?? null,
+        cronExpression,
+        isEnabled: true,
+        taskTemplate: {
+          chatMode: true,
+          prompt: prompt ?? "SCHEDULED CHECK-IN at {{timestamp}}: {{name}}. {{description}}",
+          userId: resolvedUserId,
+        },
+      });
+
+      return { success: true, id: schedule.id, name: schedule.name, cronExpression: schedule.cronExpression };
+    } catch (error: any) {
+      return { success: false, error: error.message };
+    }
+  }
+
+  private async executeScheduleToggle(toolCall: ToolCall): Promise<unknown> {
+    try {
+      const { id, enabled } = toolCall.parameters as { id: string; enabled: boolean };
+      await storage.updateSchedule(id, { isEnabled: enabled });
+      return { success: true, id, enabled };
+    } catch (error: any) {
+      return { success: false, error: error.message };
+    }
+  }
+
+  private async executeScheduleDelete(toolCall: ToolCall): Promise<unknown> {
+    try {
+      const { id } = toolCall.parameters as { id: string };
+      await storage.deleteSchedule(id);
+      return { success: true };
+    } catch (error: any) {
+      return { success: false, error: error.message };
     }
   }
 }

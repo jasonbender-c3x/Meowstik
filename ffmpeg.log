@@ -1,0 +1,37 @@
+ffmpeg version 7.1.3-0+deb13u1 Copyright (c) 2000-2025 the FFmpeg developers
+  built with gcc 14 (Debian 14.2.0-19)
+  configuration: --prefix=/usr --extra-version=0+deb13u1 --toolchain=hardened --libdir=/usr/lib/x86_64-linux-gnu --incdir=/usr/include/x86_64-linux-gnu --arch=amd64 --enable-gpl --disable-stripping --disable-libmfx --disable-omx --enable-gnutls --enable-libaom --enable-libass --enable-libbs2b --enable-libcdio --enable-libcodec2 --enable-libdav1d --enable-libflite --enable-libfontconfig --enable-libfreetype --enable-libfribidi --enable-libglslang --enable-libgme --enable-libgsm --enable-libharfbuzz --enable-libmp3lame --enable-libmysofa --enable-libopenjpeg --enable-libopenmpt --enable-libopus --enable-librubberband --enable-libshine --enable-libsnappy --enable-libsoxr --enable-libspeex --enable-libtheora --enable-libtwolame --enable-libvidstab --enable-libvorbis --enable-libvpx --enable-libwebp --enable-libx265 --enable-libxml2 --enable-libxvid --enable-libzimg --enable-openal --enable-opencl --enable-opengl --disable-sndio --enable-libvpl --enable-libdc1394 --enable-libdrm --enable-libiec61883 --enable-chromaprint --enable-frei0r --enable-ladspa --enable-libbluray --enable-libcaca --enable-libdvdnav --enable-libdvdread --enable-libjack --enable-libpulse --enable-librabbitmq --enable-librist --enable-libsrt --enable-libssh --enable-libsvtav1 --enable-libx264 --enable-libzmq --enable-libzvbi --enable-lv2 --enable-sdl2 --enable-libplacebo --enable-librav1e --enable-pocketsphinx --enable-librsvg --enable-libjxl --enable-shared
+  libavutil      59. 39.100 / 59. 39.100
+  libavcodec     61. 19.101 / 61. 19.101
+  libavformat    61.  7.100 / 61.  7.100
+  libavdevice    61.  3.100 / 61.  3.100
+  libavfilter    10.  4.100 / 10.  4.100
+  libswscale      8.  3.100 /  8.  3.100
+  libswresample   5.  3.100 /  5.  3.100
+  libpostproc    58.  3.100 / 58.  3.100
+[x11grab @ 0x55a961b2a080] Stream #0: not enough frames to estimate rate; consider increasing probesize
+Input #0, x11grab, from ':99':
+  Duration: N/A, start: 1775890192.568636, bitrate: 883852 kb/s
+  Stream #0:0: Video: rawvideo (BGR[0] / 0x524742), bgr0, 1280x720, 883852 kb/s, 29.97 fps, 1000k tbr, 1000k tbn
+Stream mapping:
+  Stream #0:0 -> #0:0 (rawvideo (native) -> mjpeg (native))
+Press [q] to stop, [?] for help
+Output #0, mpjpeg, to 'http://0.0.0.0:8080':
+  Metadata:
+    encoder         : Lavf61.7.100
+  Stream #0:0: Video: mjpeg, yuv444p(pc, progressive), 1280x720, q=2-31, 200 kb/s, 29.97 fps, 29.97 tbn
+      Metadata:
+        encoder         : Lavc61.19.101 mjpeg
+      Side data:
+        cpb: bitrate max/min/avg: 0/0/200000 buffer size: 0 vbv_delay: N/A
+frame=    0 fps=0.0 q=0.0 size=       0KiB time=N/A bitrate=N/A dup=10 drop=0 speed=N/A    [vost#0:0/mjpeg @ 0x55a961b33000] Error submitting a packet to the muxer: Broken pipe
+    Last message repeated 1 times
+[out#0/mpjpeg @ 0x55a961b32800] Error muxing a packet
+[out#0/mpjpeg @ 0x55a961b32800] Task finished with error code: -32 (Broken pipe)
+[out#0/mpjpeg @ 0x55a961b32800] Terminating thread with return code -32 (Broken pipe)
+[out#0/mpjpeg @ 0x55a961b32800] Error writing trailer: Broken pipe
+[http @ 0x55a961b3c500] URL read error: End of file
+[out#0/mpjpeg @ 0x55a961b32800] Error closing file: End of file
+[out#0/mpjpeg @ 0x55a961b32800] video:55KiB audio:0KiB subtitle:0KiB other streams:0KiB global headers:0KiB muxing overhead: unknown
+frame=    4 fps=0.4 q=24.8 Lsize=      41KiB time=00:00:00.20 bitrate=1672.0kbits/s dup=427 drop=5 speed=0.0186x    
+Conversion failed!

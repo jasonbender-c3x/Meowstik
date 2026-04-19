@@ -41,7 +41,9 @@ const AlertTitle = React.forwardRef<
     ref={ref}
     className={cn("mb-1 font-medium leading-none tracking-tight", className)}
     {...props}
-  />
+  >
+    {props.children ?? <span className="sr-only">Alert</span>}
+  </h5>
 ))
 AlertTitle.displayName = "AlertTitle"
 
@@ -58,6 +60,5 @@ const AlertDescription = React.forwardRef<
 AlertDescription.displayName = "AlertDescription"
 
 export { Alert, AlertTitle, AlertDescription }
-
 
 

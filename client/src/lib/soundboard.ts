@@ -22,32 +22,6 @@ function masterGain(ac: AudioContext, vol: number): GainNode {
   return g;
 }
 
-function osc(
-  ac: AudioContext,
-  dest: AudioNode,
-  type: OscillatorType,
-  freq: number,
-  start: number,
-  end: number
-): OscillatorNode {
-  const o = ac.createOscillator();
-  o.type = type;
-  o.frequency.value = freq;
-  o.connect(dest);
-  o.start(start);
-  o.stop(end);
-  return o;
-}
-
-function envelope(ac: AudioContext, dest: AudioNode, atk: number, rel: number, startTime: number, duration: number): GainNode {
-  const g = ac.createGain();
-  g.gain.setValueAtTime(0, startTime);
-  g.gain.linearRampToValueAtTime(1, startTime + atk);
-  g.gain.linearRampToValueAtTime(0, startTime + duration);
-  g.connect(dest);
-  return g;
-}
-
 function noise(ac: AudioContext, bufSize = ac.sampleRate * 2): AudioBufferSourceNode {
   const buf = ac.createBuffer(1, bufSize, ac.sampleRate);
   const data = buf.getChannelData(0);

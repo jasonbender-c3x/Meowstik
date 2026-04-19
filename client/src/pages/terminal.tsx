@@ -263,7 +263,7 @@ export default function TerminalPage() {
             terminalRef.current?.writeln(content);
           }
         }
-      } catch (e) {
+      } catch {
         terminalRef.current?.writeln(event.data);
       }
     };
@@ -518,6 +518,5 @@ export default function TerminalPage() {
     </div>
   );
 }
-
 
 

@@ -26,13 +26,10 @@ const DEFAULT_MODE: VerbosityMode = "normal";
 export function VerbositySlider() {
   const { verbosityMode, setVerbosityMode } = useTTS();
   
-  const currentIndex = modes.findIndex(m => m.id === verbosityMode);
-  const currentMode = modes[currentIndex] !== undefined ? modes[currentIndex] : modes.find(m => m.id === DEFAULT_MODE)!;
-
   return (
     <TooltipProvider>
       <div className="flex items-center gap-1 bg-muted/50 rounded-full p-1" data-testid="verbosity-slider">
-        {modes.map((mode, index) => {
+        {modes.map((mode) => {
           const isActive = mode.id === verbosityMode;
           return (
             <Tooltip key={mode.id}>
@@ -93,6 +90,4 @@ export function VerbosityIndicator() {
     </TooltipProvider>
   );
 }
-
-
 

@@ -1,0 +1,8 @@
+file '/home/runner/workspace/Meowstik/.local/demo-printer-breakthrough/revival.mp3'
+file '/home/runner/workspace/Meowstik/.local/demo-printer-breakthrough/old-way.mp3'
+file '/home/runner/workspace/Meowstik/.local/demo-printer-breakthrough/failure.mp3'
+file '/home/runner/workspace/Meowstik/.local/demo-printer-breakthrough/breakthrough.mp3'
+file '/home/runner/workspace/Meowstik/.local/demo-printer-breakthrough/execution.mp3'
+file '/home/runner/workspace/Meowstik/.local/demo-printer-breakthrough/proof.mp3'
+file '/home/runner/workspace/Meowstik/.local/demo-printer-breakthrough/silicon-edge.mp3'
+file '/home/runner/workspace/Meowstik/.local/demo-printer-breakthrough/future.mp3'

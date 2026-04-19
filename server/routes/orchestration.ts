@@ -16,9 +16,129 @@ import { storage } from "../storage";
 import { workflowExecutor } from "../services/workflow-executor";
 import { cronScheduler } from "../services/cron-scheduler";
 import { triggerService } from "../services/trigger-service";
-import { insertScheduleSchema, insertTriggerSchema, insertWorkflowSchema } from "@shared/schema";
+import {
+  insertScheduleSchema,
+  insertTriggerSchema,
+  insertWorkflowSchema,
+  TriggerTypes,
+  type InsertTrigger,
+  type Trigger,
+} from "@shared/schema";
 
 const router = Router();
+
+function formatExecutorStatus(status: Awaited<ReturnType<typeof workflowExecutor.getStatus>>) {
+  const queueStats = status.stats.queueStats;
+
+  return {
+    isRunning: status.isRunning,
+    isPaused: status.isPaused,
+    activeTaskCount: queueStats.running,
+    pendingTaskCount: queueStats.pending + queueStats.queued,
+    stats: {
+      pending: queueStats.pending + queueStats.queued,
+      running: queueStats.running,
+      completed: queueStats.completed,
+      failed: queueStats.failed,
+    },
+  };
+}
+
+function escapeRegexLiteral(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function normalizeTriggerType(triggerType: string): string {
+  return triggerType === "keyword" ? TriggerTypes.PROMPT_KEYWORD : triggerType;
+}
+
+function buildTriggerInput(body: any): InsertTrigger {
+  const config = body?.config && typeof body.config === "object" ? body.config : {};
+  const triggerType = normalizeTriggerType(body.triggerType);
+
+  let pattern = body.pattern ?? null;
+  let senderFilter = body.senderFilter ?? null;
+  let subjectFilter = body.subjectFilter ?? null;
+  let webhookSecret = body.webhookSecret ?? null;
+
+  if (triggerType === TriggerTypes.PROMPT_KEYWORD) {
+    const keywords = Array.isArray(config.keywords)
+      ? config.keywords.map((keyword) => String(keyword).trim()).filter(Boolean)
+      : [];
+
+    if (keywords.length > 0) {
+      pattern = keywords.map(escapeRegexLiteral).join("|");
+    }
+  }
+
+  if (triggerType === TriggerTypes.EMAIL) {
+    senderFilter = typeof config.senderEmail === "string" && config.senderEmail.trim()
+      ? escapeRegexLiteral(config.senderEmail.trim())
+      : senderFilter;
+    subjectFilter = typeof config.subject === "string" && config.subject.trim()
+      ? escapeRegexLiteral(config.subject.trim())
+      : subjectFilter;
+  }
+
+  if (triggerType === TriggerTypes.SMS) {
+    senderFilter = typeof config.senderPhone === "string" && config.senderPhone.trim()
+      ? escapeRegexLiteral(config.senderPhone.trim())
+      : senderFilter;
+  }
+
+  if (triggerType === TriggerTypes.WEBHOOK) {
+    webhookSecret = typeof config.secret === "string" && config.secret.trim()
+      ? config.secret.trim()
+      : webhookSecret;
+  }
+
+  return insertTriggerSchema.parse({
+    ...body,
+    triggerType,
+    pattern,
+    senderFilter,
+    subjectFilter,
+    webhookSecret,
+  });
+}
+
+function formatTrigger(trigger: Trigger) {
+  const triggerType = trigger.triggerType === TriggerTypes.PROMPT_KEYWORD
+    ? "keyword"
+    : trigger.triggerType;
+
+  const config: Record<string, unknown> = {};
+
+  if (trigger.triggerType === TriggerTypes.PROMPT_KEYWORD && trigger.pattern) {
+    config.keywords = trigger.pattern.split("|");
+  }
+
+  if (trigger.triggerType === TriggerTypes.EMAIL && trigger.senderFilter) {
+    config.senderEmail = trigger.senderFilter;
+  }
+
+  if (trigger.triggerType === TriggerTypes.SMS && trigger.senderFilter) {
+    config.senderPhone = trigger.senderFilter;
+  }
+
+  if (trigger.triggerType === TriggerTypes.WEBHOOK && trigger.webhookSecret) {
+    config.secret = trigger.webhookSecret;
+  }
+
+  return {
+    id: trigger.id,
+    name: trigger.name,
+    description: trigger.description,
+    triggerType,
+    config,
+    workflowId: trigger.workflowId,
+    taskTemplate: trigger.taskTemplate,
+    enabled: trigger.enabled,
+    lastFiredAt: trigger.lastTriggeredAt,
+    fireCount: trigger.triggerCount,
+    createdAt: trigger.createdAt,
+  };
+}
 
 // ============================================================================
 // EXECUTOR CONTROL
@@ -27,7 +147,7 @@ const router = Router();
 router.get("/executor/status", async (req: Request, res: Response) => {
   try {
     const status = await workflowExecutor.getStatus();
-    res.json(status);
+    res.json(formatExecutorStatus(status));
   } catch (error) {
     res.status(500).json({ error: "Failed to get executor status" });
   }
@@ -39,7 +159,7 @@ router.post("/executor/start", async (req: Request, res: Response) => {
     await cronScheduler.start();
     await triggerService.start();
     const status = await workflowExecutor.getStatus();
-    res.json({ message: "Executor started", status });
+    res.json({ message: "Executor started", status: formatExecutorStatus(status) });
   } catch (error) {
     res.status(500).json({ error: "Failed to start executor" });
   }
@@ -51,7 +171,7 @@ router.post("/executor/stop", async (req: Request, res: Response) => {
     await cronScheduler.stop();
     await triggerService.stop();
     const status = await workflowExecutor.getStatus();
-    res.json({ message: "Executor stopped", status });
+    res.json({ message: "Executor stopped", status: formatExecutorStatus(status) });
   } catch (error) {
     res.status(500).json({ error: "Failed to stop executor" });
   }
@@ -61,7 +181,7 @@ router.post("/executor/pause", async (req: Request, res: Response) => {
   try {
     await workflowExecutor.pause();
     const status = await workflowExecutor.getStatus();
-    res.json({ message: "Executor paused", status });
+    res.json({ message: "Executor paused", status: formatExecutorStatus(status) });
   } catch (error) {
     res.status(500).json({ error: "Failed to pause executor" });
   }
@@ -71,7 +191,7 @@ router.post("/executor/resume", async (req: Request, res: Response) => {
   try {
     await workflowExecutor.resume();
     const status = await workflowExecutor.getStatus();
-    res.json({ message: "Executor resumed", status });
+    res.json({ message: "Executor resumed", status: formatExecutorStatus(status) });
   } catch (error) {
     res.status(500).json({ error: "Failed to resume executor" });
   }
@@ -155,14 +275,15 @@ router.get("/schedules/:id", async (req: Request, res: Response) => {
 
 router.post("/schedules", async (req: Request, res: Response) => {
   try {
-    const validation = cronScheduler.isValidCronExpression(req.body.cronExpression);
+    const scheduleInput = insertScheduleSchema.parse(req.body);
+    const validation = cronScheduler.isValidCronExpression(scheduleInput.cronExpression);
     if (!validation.valid) {
       return res.status(400).json({ error: validation.error });
     }
     
-    const nextRunAt = cronScheduler.getNextRunTime(req.body.cronExpression);
+    const nextRunAt = cronScheduler.getNextRunTime(scheduleInput.cronExpression);
     const schedule = await storage.createSchedule({
-      ...req.body,
+      ...scheduleInput,
       nextRunAt
     });
     res.status(201).json(schedule);
@@ -174,16 +295,17 @@ router.post("/schedules", async (req: Request, res: Response) => {
 router.put("/schedules/:id", async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
+    const updates = insertScheduleSchema.partial().parse(req.body);
     
-    if (req.body.cronExpression) {
-      const validation = cronScheduler.isValidCronExpression(req.body.cronExpression);
+    if (updates.cronExpression) {
+      const validation = cronScheduler.isValidCronExpression(updates.cronExpression);
       if (!validation.valid) {
         return res.status(400).json({ error: validation.error });
       }
-      req.body.nextRunAt = cronScheduler.getNextRunTime(req.body.cronExpression);
+      updates.nextRunAt = cronScheduler.getNextRunTime(updates.cronExpression);
     }
     
-    const schedule = await storage.updateSchedule(id, req.body);
+    const schedule = await storage.updateSchedule(id, updates);
     res.json(schedule);
   } catch (error) {
     res.status(500).json({ error: "Failed to update schedule" });
@@ -214,7 +336,7 @@ router.post("/schedules/:id/run", async (req: Request, res: Response) => {
       priority?: number;
     };
     
-    const task = await storage.createQueuedTask({
+    const task = await workflowExecutor.submitTask({
       title: template.title,
       description: template.description || null,
       taskType: template.taskType || "action",
@@ -257,9 +379,9 @@ router.get("/triggers", async (req: Request, res: Response) => {
   try {
     const enabled = req.query.enabled === "true" ? true : 
                     req.query.enabled === "false" ? false : undefined;
-    const triggerType = req.query.type as string | undefined;
+    const triggerType = req.query.type ? normalizeTriggerType(String(req.query.type)) : undefined;
     const triggers = await storage.getTriggers({ enabled, triggerType });
-    res.json(triggers);
+    res.json(triggers.map(formatTrigger));
   } catch (error) {
     res.status(500).json({ error: "Failed to get triggers" });
   }
@@ -271,7 +393,7 @@ router.get("/triggers/:id", async (req: Request, res: Response) => {
     if (!trigger) {
       return res.status(404).json({ error: "Trigger not found" });
     }
-    res.json(trigger);
+    res.json(formatTrigger(trigger));
   } catch (error) {
     res.status(500).json({ error: "Failed to get trigger" });
   }
@@ -279,8 +401,8 @@ router.get("/triggers/:id", async (req: Request, res: Response) => {
 
 router.post("/triggers", async (req: Request, res: Response) => {
   try {
-    const trigger = await storage.createTrigger(req.body);
-    res.status(201).json(trigger);
+    const trigger = await storage.createTrigger(buildTriggerInput(req.body));
+    res.status(201).json(formatTrigger(trigger));
   } catch (error) {
     res.status(500).json({ error: "Failed to create trigger" });
   }
@@ -288,8 +410,8 @@ router.post("/triggers", async (req: Request, res: Response) => {
 
 router.put("/triggers/:id", async (req: Request, res: Response) => {
   try {
-    const trigger = await storage.updateTrigger(req.params.id, req.body);
-    res.json(trigger);
+    const trigger = await storage.updateTrigger(req.params.id, buildTriggerInput({ ...req.body }));
+    res.json(trigger ? formatTrigger(trigger) : null);
   } catch (error) {
     res.status(500).json({ error: "Failed to update trigger" });
   }
@@ -363,7 +485,7 @@ router.get("/workflows/:id", async (req: Request, res: Response) => {
 
 router.post("/workflows", async (req: Request, res: Response) => {
   try {
-    const workflow = await storage.createWorkflow(req.body);
+    const workflow = await storage.createWorkflow(insertWorkflowSchema.parse(req.body));
     res.status(201).json(workflow);
   } catch (error) {
     res.status(500).json({ error: "Failed to create workflow" });
@@ -372,7 +494,7 @@ router.post("/workflows", async (req: Request, res: Response) => {
 
 router.put("/workflows/:id", async (req: Request, res: Response) => {
   try {
-    const workflow = await storage.updateWorkflow(req.params.id, req.body);
+    const workflow = await storage.updateWorkflow(req.params.id, insertWorkflowSchema.partial().parse(req.body));
     res.json(workflow);
   } catch (error) {
     res.status(500).json({ error: "Failed to update workflow" });
@@ -421,6 +543,5 @@ router.post("/workflows/:id/run", async (req: Request, res: Response) => {
 });
 
 export default router;
-
 
 

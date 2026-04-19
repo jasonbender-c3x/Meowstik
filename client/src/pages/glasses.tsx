@@ -1,7 +1,7 @@
 
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { ArrowLeft, Glasses, Camera, Eye, Cpu, Wifi, Zap, Brain, Scan } from "lucide-react";
+import { ArrowLeft, Glasses, Camera, Eye, Wifi, Zap, Brain, Scan } from "lucide-react";
 import { Link } from "wouter";
 
 import arGlassesImage from "@assets/generated_images/ar_smart_glasses_with_holographic_display.png";

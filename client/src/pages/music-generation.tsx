@@ -6,9 +6,8 @@ import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { ArrowLeft, Music, Play, Square, Download, Loader2, Volume2, Sparkles } from "lucide-react";
+import { ArrowLeft, Music, Play, Square, Download, Volume2, Sparkles } from "lucide-react";
 import { Link } from "wouter";
-import { cn } from "@/lib/utils";
 
 interface GenerationState {
   status: "idle" | "generating" | "complete" | "error";
@@ -347,7 +346,9 @@ export default function MusicGenerationPage() {
                       controls
                       className="w-full"
                       data-testid="audio-player"
-                    />
+                    >
+                      <track kind="captions" />
+                    </audio>
                     
                     <div className="flex justify-center">
                       <Button
@@ -415,6 +416,4 @@ function base64ToBlob(base64: string, mimeType: string): Blob {
   const byteArray = new Uint8Array(byteNumbers);
   return new Blob([byteArray], { type: mimeType });
 }
-
-
 

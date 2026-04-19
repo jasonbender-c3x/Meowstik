@@ -266,7 +266,8 @@ export default function WebSearchPage() {
                         </p>
                         <div className="space-y-3 max-h-96">
                           {searchState.results.map((result, index) => (
-                            <div
+                            <button
+                              type="button"
                               key={index}
                               className={cn(
                                 "p-3 rounded-lg border border-border cursor-pointer transition-colors hover:bg-muted/50",
@@ -304,7 +305,7 @@ export default function WebSearchPage() {
                                   </a>
                                 )}
                               </div>
-                            </div>
+                            </button>
                           ))}
                         </div>
                       </div>
@@ -411,6 +412,5 @@ export default function WebSearchPage() {
     </div>
   );
 }
-
 
 

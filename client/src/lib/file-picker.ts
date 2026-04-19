@@ -329,9 +329,7 @@ async function readDirectory(
  * @param options - Directory picker options
  * @returns Promise with directory entries
  */
-function openDirectoryPickerFallback(
-  options: OpenDirectoryOptions
-): Promise<DirectoryEntry[]> {
+function openDirectoryPickerFallback(): Promise<DirectoryEntry[]> {
   return new Promise((resolve) => {
     const input = document.createElement('input');
     input.type = 'file';
@@ -474,7 +472,7 @@ export async function checkDirectoryPermission(
   try {
     const permission = await (handle as any).queryPermission({ mode: 'readwrite' });
     return permission === 'granted';
-  } catch (error) {
+  } catch {
     return false;
   }
 }
@@ -599,6 +597,5 @@ export async function existsInHandle(
     return false;
   }
 }
-
 
 

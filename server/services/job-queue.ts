@@ -111,8 +111,8 @@ class JobQueueService {
 
     this.isInitialized = true;
     console.log("[JobQueue] Initialized with PGlite/Polling (No pg-boss)");
-    
-    // Start polling loop
+
+    // Start a lightweight promotion loop; execution is owned by JobDispatcher.
     this.pollInterval = setInterval(() => this.poll(), this.config.pollInterval);
   }
 
@@ -130,25 +130,7 @@ class JobQueueService {
     this.isProcessing = true;
 
     try {
-      // Check for scheduled jobs that are ready to run
-      await this.checkScheduledJobs();
-
-      // Find jobs that are "queued"
-      // We process them based on priority (lower number = higher priority usually, but check logic)
-      // Original code: priority 10 - (job.priority ?? 5) for pg-boss. 
-      // Here we assume standard priority field.
-      
-      const pendingJobs = await getDb().select()
-        .from(agentJobs)
-        .where(eq(agentJobs.status, "queued"))
-        .orderBy(asc(agentJobs.priority), asc(agentJobs.createdAt))
-        .limit(this.config.concurrency);
-
-      if (pendingJobs.length === 0) return;
-
-      // Process in parallel (up to concurrency limit fetched)
-      await Promise.all(pendingJobs.map(job => this.processJob(job.id)));
-      
+      await this.promoteReadyJobs();
     } catch (err) {
       console.error("[JobQueue] Polling error:", err);
     } finally {
@@ -156,29 +138,38 @@ class JobQueueService {
     }
   }
 
-  private async checkScheduledJobs(): Promise<void> {
+  async promoteReadyJobs(): Promise<number> {
     try {
-      // 1. Move pending jobs with passed scheduledFor time to queued
-      const dueJobs = await getDb().update(agentJobs)
-        .set({ status: "queued" })
-        .where(and(
-          eq(agentJobs.status, "pending"),
-          lte(agentJobs.scheduledFor, new Date())
-        ))
-        .returning();
+      const pendingJobs = await getDb().select()
+        .from(agentJobs)
+        .where(eq(agentJobs.status, "pending"))
+        .orderBy(asc(agentJobs.priority), asc(agentJobs.createdAt));
 
-      if (dueJobs.length > 0) {
-        console.log(`[JobQueue] Moved ${dueJobs.length} scheduled jobs to queue`);
+      const now = new Date();
+      let promotedCount = 0;
+
+      for (const job of pendingJobs) {
+        if (job.scheduledFor && job.scheduledFor > now) {
+          continue;
+        }
+
+        const depsReady = await this.areDependenciesMet(job.dependencies ?? []);
+        if (!depsReady) {
+          continue;
+        }
+
+        await this.enqueueJob(job);
+        promotedCount++;
       }
 
-      // 2. Handle recurring jobs (cron)
-      // We look for jobs that are "completed" but have a cron expression, 
-      // AND we haven't already scheduled the next run.
-      // But actually, the standard pattern is: when a cron job runs, we schedule the NEXT one.
-      // So we should do this in processJob completion handler.
-      
+      if (promotedCount > 0) {
+        console.log(`[JobQueue] Promoted ${promotedCount} pending job(s) to queued`);
+      }
+
+      return promotedCount;
     } catch (error) {
-      console.error("[JobQueue] Error checking scheduled jobs:", error);
+      console.error("[JobQueue] Error promoting ready jobs:", error);
+      return 0;
     }
   }
 
@@ -205,9 +196,9 @@ class JobQueueService {
 
     const [job] = await getDb().insert(agentJobs).values(jobData).returning();
 
-    // Check if dependencies are met before enqueuing
+    const isDue = !job.scheduledFor || job.scheduledFor <= new Date();
     const depsReady = await this.areDependenciesMet(job.dependencies ?? []);
-    if (depsReady) {
+    if (isDue && depsReady) {
       await this.enqueueJob(job);
     }
 
@@ -242,6 +233,10 @@ class JobQueueService {
     }
     this.processingCallbacks.set(type, callback);
     console.log(`[JobQueue] Registered processor for ${type}`);
+  }
+
+  publishEvent(event: JobEvent): void {
+    this.emitEvent(event);
   }
 
   private async processJob(jobId: string): Promise<void> {

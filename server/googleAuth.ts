@@ -103,6 +103,41 @@ async function findOrCreateUser(profile: GoogleUser) {
 // Create a router for auth endpoints
 export const authRouter = Router();
 
+const GOOGLE_STATUS_TIMEOUT_MS = 1500;
+
+// Google API auth status — always available, no OAuth creds required
+authRouter.get("/google/status", async (req, res) => {
+  const timeout = Symbol("google-status-timeout");
+
+  try {
+    const result = await Promise.race([
+      (async () => {
+        const { isAuthenticated, isAuthenticatedSync, hasFullScopes, getAuthUrl } = await import("./integrations/google-auth.js");
+
+        if (isAuthenticatedSync()) {
+          return { authenticated: true, hasFullScopes: hasFullScopes(), authUrl: hasFullScopes() ? null : getAuthUrl() };
+        }
+
+        const auth = await isAuthenticated();
+        return { authenticated: auth, hasFullScopes: auth ? hasFullScopes() : false, authUrl: auth && !hasFullScopes() ? getAuthUrl() : (!auth ? getAuthUrl() : null) };
+      })(),
+      new Promise<typeof timeout>((resolve) => {
+        setTimeout(() => resolve(timeout), GOOGLE_STATUS_TIMEOUT_MS);
+      }),
+    ]);
+
+    if (result === timeout) {
+      console.warn(`[Google Auth] Status check timed out after ${GOOGLE_STATUS_TIMEOUT_MS}ms`);
+      return res.json({ authenticated: false, hasTokens: false, degraded: true });
+    }
+
+    return res.json({ authenticated: result.authenticated, hasTokens: result.authenticated, hasFullScopes: result.hasFullScopes, authUrl: result.authUrl });
+  } catch (err) {
+    console.error("[Google Auth] Status check error:", err);
+    return res.json({ authenticated: false, hasTokens: false });
+  }
+});
+
 export async function setupAuth(app: Express) {
   app.set("trust proxy", 1);
   app.use(getSession());

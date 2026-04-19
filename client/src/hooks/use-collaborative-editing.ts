@@ -54,6 +54,19 @@ interface EditOperation {
   baseVersion: number;
 }
 
+interface RemoteCursorData {
+  participantId: string;
+  filePath: string;
+  line: number;
+  column: number;
+  selection?: {
+    startLine: number;
+    startColumn: number;
+    endLine: number;
+    endColumn: number;
+  };
+}
+
 interface UseCollaborativeEditingOptions {
   sessionId: string | null;
   displayName: string;
@@ -102,6 +115,10 @@ export function useCollaborativeEditing(options: UseCollaborativeEditingOptions)
   const fileVersionsRef = useRef<Map<string, number>>(new Map());
   const pendingAcksRef = useRef<Map<string, (version: number) => void>>(new Map());
   const currentFilePathRef = useRef<string>("");
+  const handleMessageRef = useRef<(message: { type: string; data: unknown }) => void>(() => undefined);
+  const clearAllCursorDecorationsRef = useRef<() => void>(() => undefined);
+  const updateRemoteCursorRef = useRef<(data: RemoteCursorData) => void>(() => undefined);
+  const removeCursorDecorationRef = useRef<(participantId: string) => void>(() => undefined);
 
   const connect = useCallback(() => {
     if (!sessionId || wsRef.current?.readyState === WebSocket.OPEN) return;
@@ -125,7 +142,7 @@ export function useCollaborativeEditing(options: UseCollaborativeEditingOptions)
     ws.onmessage = (event) => {
       try {
         const message = JSON.parse(event.data);
-        handleMessage(message);
+        handleMessageRef.current(message);
       } catch (error) {
         console.error("[Collab] Failed to parse message:", error);
       }
@@ -134,7 +151,7 @@ export function useCollaborativeEditing(options: UseCollaborativeEditingOptions)
     ws.onclose = () => {
       console.log("[Collab] Disconnected from session");
       setSession(prev => ({ ...prev, isConnected: false }));
-      clearAllCursorDecorations();
+      clearAllCursorDecorationsRef.current();
     };
 
     ws.onerror = (error) => {
@@ -147,7 +164,7 @@ export function useCollaborativeEditing(options: UseCollaborativeEditingOptions)
       wsRef.current.close();
       wsRef.current = null;
     }
-    clearAllCursorDecorations();
+    clearAllCursorDecorationsRef.current();
   }, []);
 
   useEffect(() => {
@@ -197,7 +214,7 @@ export function useCollaborativeEditing(options: UseCollaborativeEditingOptions)
           ...prev,
           participants: prev.participants.filter(p => p.id !== participantId),
         }));
-        removeCursorDecoration(participantId);
+        removeCursorDecorationRef.current(participantId);
         onParticipantLeft?.(participantId);
         break;
       }
@@ -215,7 +232,7 @@ export function useCollaborativeEditing(options: UseCollaborativeEditingOptions)
             endColumn: number;
           };
         };
-        updateRemoteCursor(cursorData);
+        updateRemoteCursorRef.current(cursorData);
         break;
       }
 
@@ -336,12 +353,16 @@ export function useCollaborativeEditing(options: UseCollaborativeEditingOptions)
       }
 
       case "screenshot": {
-        const { image } = message.data as { participantId: string; image: string };
-        console.log("[Collab] Screenshot received");
+        const screenshotData = message.data as { participantId: string; image: string };
+        console.log("[Collab] Screenshot received from:", screenshotData.participantId);
         break;
       }
     }
   }, [onRemoteEdit, onParticipantJoined, onParticipantLeft, onVoiceStarted, onVoiceStopped, onVoiceAudio]);
+
+  useEffect(() => {
+    handleMessageRef.current = handleMessage;
+  }, [handleMessage]);
 
   const send = useCallback((type: string, data: unknown) => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
@@ -349,18 +370,7 @@ export function useCollaborativeEditing(options: UseCollaborativeEditingOptions)
     }
   }, []);
 
-  const updateRemoteCursor = useCallback((data: {
-    participantId: string;
-    filePath: string;
-    line: number;
-    column: number;
-    selection?: {
-      startLine: number;
-      startColumn: number;
-      endLine: number;
-      endColumn: number;
-    };
-  }) => {
+  const updateRemoteCursor = useCallback((data: RemoteCursorData) => {
     if (!editorRef.current || !monacoRef.current) return;
     if (data.filePath !== currentFilePathRef.current) return;
 
@@ -422,6 +432,10 @@ export function useCollaborativeEditing(options: UseCollaborativeEditingOptions)
     }));
   }, [session.participants]);
 
+  useEffect(() => {
+    updateRemoteCursorRef.current = updateRemoteCursor;
+  }, [updateRemoteCursor]);
+
   const removeCursorDecoration = useCallback((participantId: string) => {
     const decoration = cursorDecorationsRef.current.get(participantId);
     if (decoration && editorRef.current) {
@@ -429,6 +443,10 @@ export function useCollaborativeEditing(options: UseCollaborativeEditingOptions)
     }
     cursorDecorationsRef.current.delete(participantId);
   }, []);
+
+  useEffect(() => {
+    removeCursorDecorationRef.current = removeCursorDecoration;
+  }, [removeCursorDecoration]);
 
   const clearAllCursorDecorations = useCallback(() => {
     if (editorRef.current) {
@@ -438,6 +456,10 @@ export function useCollaborativeEditing(options: UseCollaborativeEditingOptions)
     }
     cursorDecorationsRef.current.clear();
   }, []);
+
+  useEffect(() => {
+    clearAllCursorDecorationsRef.current = clearAllCursorDecorations;
+  }, [clearAllCursorDecorations]);
 
   const sendCursorUpdate = useCallback((filePath: string, line: number, column: number, selection?: {
     startLine: number;
@@ -665,6 +687,3 @@ export async function joinCollabSession(sessionId: string): Promise<boolean> {
     return false;
   }
 }
-
-
-

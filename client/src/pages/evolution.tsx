@@ -283,7 +283,7 @@ export default function EvolutionPage() {
               {/* Repo Selection */}
               <div className="flex items-end gap-4">
                 <div className="flex-1 space-y-2">
-                  <label className="text-sm font-medium">Target Repository</label>
+                  <span className="text-sm font-medium">Target Repository</span>
                   <Select
                     value={selectedRepo}
                     onValueChange={setSelectedRepo}
@@ -336,6 +336,14 @@ export default function EvolutionPage() {
                             selectedFeedback.has(item.id) ? "bg-primary/10 border-primary" : "hover:bg-muted/50"
                           }`}
                           onClick={() => toggleFeedbackSelection(item.id)}
+                          onKeyDown={(event) => {
+                            if (event.key === "Enter" || event.key === " ") {
+                              event.preventDefault();
+                              toggleFeedbackSelection(item.id);
+                            }
+                          }}
+                          role="button"
+                          tabIndex={0}
                           data-testid={`feedback-item-${item.id}`}
                         >
                           <Checkbox
@@ -391,6 +399,5 @@ export default function EvolutionPage() {
     </div>
   );
 }
-
 
 

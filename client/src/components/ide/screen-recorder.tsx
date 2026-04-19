@@ -1,6 +1,6 @@
 
 import { Button } from "@/components/ui/button";
-import { Loader2, Monitor, Mic, StopCircle, Video } from "lucide-react";
+import { StopCircle, Video } from "lucide-react";
 import { useState, useRef } from "react";
 import { toast } from "sonner";
 
@@ -46,7 +46,7 @@ export function ScreenRecorder() {
         } else {
              mediaRecorderRef.current = new MediaRecorder(stream, { mimeType: 'video/webm; codecs=vp9' });
         }
-      } catch (e) {
+      } catch {
         console.warn("Microphone access denied or not available, recording system audio only if present.");
         mediaRecorderRef.current = new MediaRecorder(stream, { mimeType: 'video/webm; codecs=vp9' });
       }
@@ -124,6 +124,5 @@ export function ScreenRecorder() {
     </Button>
   );
 }
-
 
 

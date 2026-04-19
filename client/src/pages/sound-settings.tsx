@@ -14,7 +14,6 @@ import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, DollarSign, Gauge, Volume2, Zap, TrendingUp } from "lucide-react";
 import { Link } from "wouter";
@@ -83,8 +82,6 @@ const COST_BREAKDOWN = {
 export default function SoundSettingsPage() {
   const { verbosityMode, setVerbosityMode } = useTTS();
   const [monthlyMessages, setMonthlyMessages] = useState(1000);
-  const [useGeminiLive, setUseGeminiLive] = useState(false);
-
   const calculateCosts = () => {
     const config = VERBOSITY_CONFIGS.find(c => c.mode === verbosityMode) || VERBOSITY_CONFIGS[2];
     
@@ -451,6 +448,5 @@ export default function SoundSettingsPage() {
     </div>
   );
 }
-
 
 

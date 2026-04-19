@@ -1,0 +1,168 @@
+# Tools Reference
+
+This file should match the callable tool surface declared in `server/gemini-tools.ts`.
+
+## Core agent loop
+
+| Tool | What it does |
+|---|---|
+| `terminal` | Execute a shell command and return stdout/stderr. Use this for installed CLIs and local shell workflows. |
+| `get` | Read a file or URL. Supports `editor:` and `client:` prefixes. |
+| `put` | Write content to a file. Supports `editor:` and `client:` prefixes. |
+| `write` | Write markdown content into the chat window without ending the turn. |
+| `end_turn` | End the current tool-response loop and return control to the user. |
+| `append` | Append content to a named log file. |
+| `say` | Generate HD voice output asynchronously. |
+| `soundboard` | Play a browser-side synthesized sound effect such as `ding`, `success`, `rimshot`, `airhorn`, or `womp_womp`. |
+
+## Google Workspace and communications
+
+### Gmail
+
+| Tool | What it does |
+|---|---|
+| `gmail_list` | List recent inbox messages. |
+| `gmail_read` | Read a message by ID. |
+| `gmail_search` | Search Gmail using Gmail query syntax. |
+| `gmail_send` | Send an email. |
+
+### Drive
+
+| Tool | What it does |
+|---|---|
+| `drive_list` | List Google Drive files. |
+| `drive_read` | Read a Drive file by ID. |
+| `drive_search` | Search Google Drive files. |
+| `drive_create` | Create a new Drive file. |
+| `drive_update` | Update a Drive file. |
+| `drive_delete` | Delete a Drive file. |
+
+### Calendar
+
+| Tool | What it does |
+|---|---|
+| `calendar_list` | List calendars. |
+| `calendar_events` | Get events from a calendar. |
+| `calendar_create` | Create a calendar event. |
+| `calendar_update` | Update a calendar event. |
+| `calendar_delete` | Delete a calendar event. |
+
+### Docs
+
+| Tool | What it does |
+|---|---|
+| `docs_read` | Read a Google Doc. |
+| `docs_create` | Create a Google Doc. |
+| `docs_append` | Append content to a Google Doc. |
+| `docs_replace` | Find and replace text in a Google Doc. |
+
+### Sheets
+
+| Tool | What it does |
+|---|---|
+| `sheets_read` | Read a range from a Google Sheet. |
+| `sheets_write` | Write data to a Google Sheet. |
+| `sheets_append` | Append rows to a Google Sheet. |
+| `sheets_create` | Create a Google Sheet. |
+| `sheets_clear` | Clear a range in a Google Sheet. |
+
+### Tasks
+
+| Tool | What it does |
+|---|---|
+| `tasks_list` | List tasks. |
+| `tasks_create` | Create a task. |
+| `tasks_update` | Update a task. |
+| `tasks_complete` | Mark a task complete. |
+| `tasks_delete` | Delete a task. |
+
+### Contacts
+
+| Tool | What it does |
+|---|---|
+| `contacts_list` | List contacts. |
+| `contacts_search` | Search contacts by name, email, or phone. |
+| `contacts_create` | Create a contact. |
+| `contacts_update` | Update a contact. |
+
+### Twilio
+
+| Tool | What it does |
+|---|---|
+| `sms_send` | Send an SMS message. |
+| `sms_list` | List recent SMS messages. |
+| `call_make` | Place a phone call and give Meowstik an objective for the conversation. |
+| `call_list` | List recent phone calls. |
+
+## Search, web, and API access
+
+| Tool | What it does |
+|---|---|
+| `web_search` | Search the web using Google or Exa-backed search. |
+| `exa_search` | Search the web using Exa directly. |
+| `http_get` | Make an authenticated or unauthenticated HTTP GET request. |
+| `http_post` | Make an HTTP POST request. |
+| `http_put` | Make an HTTP PUT request. |
+| `http_patch` | Make an HTTP PATCH request. |
+| `http_delete` | Make an HTTP DELETE request. |
+
+## Browser and computer control
+
+### Puppeteer browser automation
+
+| Tool | What it does |
+|---|---|
+| `puppeteer_navigate` | Navigate the browser to a URL. |
+| `puppeteer_click` | Click an element by selector. |
+| `puppeteer_type` | Type text into an element by selector. |
+| `puppeteer_screenshot` | Capture a browser screenshot. |
+| `puppeteer_evaluate` | Execute JavaScript in the page context. |
+| `puppeteer_content` | Return current page content as HTML or text. |
+
+### Desktop computer-use tools
+
+| Tool | What it does |
+|---|---|
+| `computer_screenshot` | Capture the current desktop state. |
+| `computer_click` | Click screen coordinates. |
+| `computer_move` | Move the mouse without clicking. |
+| `computer_type` | Type text into the focused desktop target. |
+| `computer_key` | Press a key, optionally with modifiers. |
+| `computer_scroll` | Scroll the active window. |
+| `computer_wait` | Wait before taking the next action. |
+
+## Data and persistence
+
+### Database tools
+
+| Tool | What it does |
+|---|---|
+| `db_tables` | List database tables and schemas. |
+| `db_query` | Run a read-only `SELECT` query. |
+| `db_insert` | Insert a row into a table. |
+| `db_delete` | Delete rows from a table with a required `WHERE` condition. |
+
+### To-do tools
+
+| Tool | What it does |
+|---|---|
+| `todo_list` | List active to-do items. |
+| `todo_add` | Add a to-do item. |
+| `todo_update` | Update a to-do item. |
+| `todo_complete` | Mark a to-do item complete. |
+| `todo_remove` | Remove a to-do item permanently. |
+
+## Environment and device control
+
+| Tool | What it does |
+|---|---|
+| `cast` | Control Chromecast and Google Nest devices through the `catt` CLI. |
+| `camera` | Control the PTZ IP camera. |
+| `set_mood_light` | Set the HP mood light state. This is currently a stub. |
+
+## Guidance
+
+1. When you need shell access, say explicitly that you are using the **`terminal` tool**.
+2. When you need spoken output, use **`say`**.
+3. When you need short feedback, comic timing, alerts, or cues, use **`soundboard`**.
+4. Use **`end_turn`** to finish the turn. No other tool ends the loop.

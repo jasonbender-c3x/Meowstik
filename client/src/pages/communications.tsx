@@ -424,17 +424,6 @@ export default function CommunicationsPage() {
     setActiveTab("messages");
   };
 
-  // ── Badge helper ───────────────────────────────────────────────────────────
-
-  function BadgeCount({ n }: { n: number }) {
-    if (!n) return null;
-    return (
-      <Badge variant="destructive" className="h-4 min-w-[1rem] px-1 text-[10px]">
-        {n > 99 ? "99+" : n}
-      </Badge>
-    );
-  }
-
   // ── Tab definitions ────────────────────────────────────────────────────────
 
   const tabs: Array<{ key: Tab; Icon: React.ComponentType<{ className?: string }>; label: string; badge?: number }> = [
@@ -1071,6 +1060,5 @@ export default function CommunicationsPage() {
     </div>
   );
 }
-
 
 

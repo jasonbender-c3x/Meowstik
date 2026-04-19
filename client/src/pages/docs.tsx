@@ -10,7 +10,7 @@ import remarkGfm from "remark-gfm";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Input } from "@/components/ui/input";
-import { ArrowLeft, FileText, FolderOpen, Home, ExternalLink, Search, Download, MonitorSmartphone, Globe } from "lucide-react";
+import { ArrowLeft, FileText, Search, Download, MonitorSmartphone } from "lucide-react";
 
 // Documentation structure
 const docCategories = [

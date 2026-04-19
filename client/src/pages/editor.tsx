@@ -37,7 +37,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Link, useLocation } from "wouter";
-import { Play, Eye, Save, Menu, FileCode, Moon, Sun, X, Plus, Send, XCircle, SaveAll, ArrowLeft } from "lucide-react";
+import { Eye, Save, FileCode, Moon, Sun, X, Plus, Send, XCircle, SaveAll, ArrowLeft } from "lucide-react";
 
 // ============================================================================
 // TYPES

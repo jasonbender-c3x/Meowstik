@@ -348,7 +348,7 @@ export function FeedbackPanel({ messageId, chatId, promptSnapshot, responseSnaps
               {/* What did you like? */}
               {(rating === "positive" || rating === null) && (
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">What did you like?</label>
+                  <p className="text-sm font-medium">What did you like?</p>
                   <div className="flex flex-wrap gap-2">
                     {positiveAspects.map((aspect) => (
                       <AspectChip
@@ -366,7 +366,7 @@ export function FeedbackPanel({ messageId, chatId, promptSnapshot, responseSnaps
               {/* What could be improved? */}
               {(rating === "negative" || rating === null) && (
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">What could be improved?</label>
+                  <p className="text-sm font-medium">What could be improved?</p>
                   <div className="flex flex-wrap gap-2">
                     {negativeAspects.map((aspect) => (
                       <AspectChip
@@ -383,7 +383,7 @@ export function FeedbackPanel({ messageId, chatId, promptSnapshot, responseSnaps
 
               {/* Category Ratings */}
               <div className="space-y-3">
-                <label className="text-sm font-medium">Rate specific aspects:</label>
+                  <p className="text-sm font-medium">Rate specific aspects:</p>
                 <div className="space-y-2">
                   <CategorySlider
                     label="Accuracy"
@@ -410,7 +410,7 @@ export function FeedbackPanel({ messageId, chatId, promptSnapshot, responseSnaps
 
               {/* Freeform Text */}
               <div className="space-y-2">
-                <label className="text-sm font-medium">Anything else? (optional)</label>
+                  <p className="text-sm font-medium">Anything else? (optional)</p>
                 <Textarea
                   value={freeformText}
                   onChange={(e) => setFreeformText(e.target.value)}
@@ -467,6 +467,5 @@ export function FeedbackPanel({ messageId, chatId, promptSnapshot, responseSnaps
 }
 
 export default FeedbackPanel;
-
 
 

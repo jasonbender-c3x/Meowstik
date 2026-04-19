@@ -72,6 +72,9 @@ import {
   userAgents,
   type UserAgent,
   type InsertUserAgent,
+  mcpServers,
+  type McpServer,
+  type InsertMcpServer,
   conversationSummaries,
   type ConversationSummaryRecord,
   type InsertConversationSummary,
@@ -106,6 +109,11 @@ export class DatabaseStorage {
       console.error(`❌ getUser Error (ID: ${id}):`, e);
       return undefined;
     }
+  }
+
+  /** Return all non-guest users, newest first. Used by scheduled tasks to find an owner. */
+  async getUsers(): Promise<User[]> {
+    return db.select().from(users).orderBy(desc(users.createdAt));
   }
 
   async getUserByEmail(email: string): Promise<User | undefined> {
@@ -467,13 +475,55 @@ export class DatabaseStorage {
     }
   }
 
+  // MCP Servers
+  async createMcpServer(server: InsertMcpServer): Promise<McpServer> {
+    const [saved] = await db.insert(mcpServers).values(server).returning();
+    return saved;
+  }
+
+  async getMcpServers(userId: string): Promise<McpServer[]> {
+    return await db.select().from(mcpServers)
+      .where(eq(mcpServers.userId, userId))
+      .orderBy(desc(mcpServers.updatedAt));
+  }
+
+  async getEnabledMcpServers(userId: string): Promise<McpServer[]> {
+    return await db.select().from(mcpServers)
+      .where(and(eq(mcpServers.userId, userId), eq(mcpServers.enabled, true)))
+      .orderBy(desc(mcpServers.updatedAt));
+  }
+
+  async getMcpServerById(id: string): Promise<McpServer | undefined> {
+    const [server] = await db.select().from(mcpServers).where(eq(mcpServers.id, id));
+    return server;
+  }
+
+  async getMcpServerBySlug(userId: string, slug: string): Promise<McpServer | undefined> {
+    const [server] = await db.select().from(mcpServers)
+      .where(and(eq(mcpServers.userId, userId), eq(mcpServers.slug, slug)));
+    return server;
+  }
+
+  async updateMcpServer(id: string, update: Partial<InsertMcpServer>): Promise<McpServer | undefined> {
+    const [saved] = await db.update(mcpServers)
+      .set({ ...update, updatedAt: new Date() })
+      .where(eq(mcpServers.id, id))
+      .returning();
+    return saved;
+  }
+
+  async deleteMcpServer(id: string): Promise<boolean> {
+    const deleted = await db.delete(mcpServers).where(eq(mcpServers.id, id)).returning();
+    return deleted.length > 0;
+  }
+
   // Todo Items
   async getPendingTodoItems(userId: string): Promise<TodoItem[]> {
     try {
       return await db.select().from(todoItems).where(
         and(
           eq(todoItems.userId, userId),
-          ne(todoItems.status, 'completed')
+          sql`${todoItems.status} NOT IN ('completed', 'cancelled')`
         )
       ).orderBy(desc(todoItems.priority));
     } catch (e) {
@@ -629,14 +679,21 @@ export class DatabaseStorage {
     return saved;
   }
 
-  async getTriggers(filter?: { enabled?: boolean; triggerType?: string }): Promise<Trigger[]> {
-    if (filter?.triggerType) {
-      return await db.select().from(triggers).where(eq(triggers.triggerType, filter.triggerType));
+  async getTriggers(filters?: { enabled?: boolean; triggerType?: string }): Promise<Trigger[]> {
+    const conditions = [];
+
+    if (filters?.enabled !== undefined) {
+      conditions.push(eq(triggers.enabled, filters.enabled));
     }
-    if (filter?.enabled !== undefined) {
-      return await db.select().from(triggers).where(eq(triggers.enabled, filter.enabled));
+
+    if (filters?.triggerType) {
+      conditions.push(eq(triggers.triggerType, filters.triggerType));
     }
-    return await db.select().from(triggers);
+
+    const query = db.select().from(triggers);
+    return conditions.length > 0
+      ? await query.where(and(...conditions)).orderBy(desc(triggers.createdAt))
+      : await query.orderBy(desc(triggers.createdAt));
   }
 
   async getTriggersByType(type: string): Promise<Trigger[]> {
@@ -664,11 +721,14 @@ export class DatabaseStorage {
     return saved;
   }
 
-  async getWorkflows(filter?: { enabled?: boolean }): Promise<Workflow[]> {
-    if (filter?.enabled !== undefined) {
-      return await db.select().from(workflows).where(eq(workflows.enabled, filter.enabled));
+  async getWorkflows(filters?: { enabled?: boolean }): Promise<Workflow[]> {
+    const query = db.select().from(workflows);
+
+    if (filters?.enabled !== undefined) {
+      return await query.where(eq(workflows.enabled, filters.enabled)).orderBy(desc(workflows.updatedAt));
     }
-    return await db.select().from(workflows);
+
+    return await query.orderBy(desc(workflows.updatedAt));
   }
 
   async getWorkflowById(id: string): Promise<Workflow | undefined> {
@@ -677,7 +737,10 @@ export class DatabaseStorage {
   }
 
   async updateWorkflow(id: string, update: Partial<InsertWorkflow>): Promise<Workflow | undefined> {
-    const [updated] = await db.update(workflows).set({ ...update, updatedAt: new Date() }).where(eq(workflows.id, id)).returning();
+    const [updated] = await db.update(workflows)
+      .set({ ...update, updatedAt: new Date() })
+      .where(eq(workflows.id, id))
+      .returning();
     return updated;
   }
 
@@ -692,8 +755,26 @@ export class DatabaseStorage {
     return saved;
   }
 
+  async getSchedules(filters?: { enabled?: boolean }): Promise<Schedule[]> {
+    const query = db.select().from(schedules);
+
+    if (filters?.enabled !== undefined) {
+      return await query.where(eq(schedules.enabled, filters.enabled)).orderBy(desc(schedules.createdAt));
+    }
+
+    return await query.orderBy(desc(schedules.createdAt));
+  }
+
+  async getScheduleById(id: string): Promise<Schedule | undefined> {
+    const [schedule] = await db.select().from(schedules).where(eq(schedules.id, id));
+    return schedule;
+  }
+
   async updateSchedule(id: string, update: Partial<InsertSchedule>): Promise<Schedule | undefined> {
-    const [updated] = await db.update(schedules).set(update).where(eq(schedules.id, id)).returning();
+    const [updated] = await db.update(schedules)
+      .set({ ...update, updatedAt: new Date() })
+      .where(eq(schedules.id, id))
+      .returning();
     return updated;
   }
 
@@ -708,8 +789,8 @@ export class DatabaseStorage {
   }
 
   async getDueSchedules(): Promise<Schedule[]> {
-    const now = new Date();
-    return await db.select().from(schedules).where(and(eq(schedules.enabled, true), sql`${schedules.nextRunAt} <= ${now}`));
+    const nowMs = Date.now();
+    return await db.select().from(schedules).where(and(eq(schedules.enabled, true), sql`${schedules.nextRunAt} <= ${nowMs}`));
   }
 
   async getSchedules(filter?: { enabled?: boolean }): Promise<Schedule[]> {
@@ -803,8 +884,28 @@ export class DatabaseStorage {
     return await db.insert(queuedTasks).values(tasks).returning();
   }
 
-  async getQueuedTasks(limit: number = 50): Promise<QueuedTask[]> {
-    return await db.select().from(queuedTasks).orderBy(desc(queuedTasks.createdAt)).limit(limit);
+  async getQueuedTasks(
+    filtersOrLimit: number | { status?: string; chatId?: string; limit?: number } = 50
+  ): Promise<QueuedTask[]> {
+    const filters = typeof filtersOrLimit === "number" ? { limit: filtersOrLimit } : filtersOrLimit;
+    const conditions = [];
+
+    if (filters.status) {
+      conditions.push(eq(queuedTasks.status, filters.status));
+    }
+
+    if (filters.chatId) {
+      conditions.push(eq(queuedTasks.chatId, filters.chatId));
+    }
+
+    const query = db.select().from(queuedTasks);
+    const limit = filters.limit ?? 50;
+
+    if (conditions.length > 0) {
+      return await query.where(and(...conditions)).orderBy(desc(queuedTasks.createdAt)).limit(limit);
+    }
+
+    return await query.orderBy(desc(queuedTasks.createdAt)).limit(limit);
   }
 
   async getQueuedTaskById(id: string): Promise<QueuedTask | undefined> {
@@ -849,29 +950,71 @@ export class DatabaseStorage {
     };
   }
 
+  async getTodoItems(userId: string, includeCompleted: boolean = false): Promise<TodoItem[]> {
+    const conditions = [eq(todoItems.userId, userId)];
+
+    if (!includeCompleted) {
+      conditions.push(sql`${todoItems.status} NOT IN ('completed', 'cancelled')` as never);
+    }
+
+    return await db.select()
+      .from(todoItems)
+      .where(and(...conditions))
+      .orderBy(desc(todoItems.priority), desc(todoItems.updatedAt));
+  }
+
+  async getTodoItem(id: string, userId?: string): Promise<TodoItem | undefined> {
+    const conditions = [eq(todoItems.id, id)];
+
+    if (userId) {
+      conditions.push(eq(todoItems.userId, userId));
+    }
+
+    const [todo] = await db.select().from(todoItems).where(and(...conditions));
+    return todo;
+  }
+
   // Todo CRUD
   async createTodoItem(item: InsertTodoItem): Promise<TodoItem> {
     const [saved] = await db.insert(todoItems).values(item).returning();
     return saved;
   }
 
-  async updateTodoItem(id: string, update: Partial<InsertTodoItem>): Promise<TodoItem | undefined> {
+  async updateTodoItem(id: string, update: Partial<InsertTodoItem>, userId?: string): Promise<TodoItem | undefined> {
+    const conditions = [eq(todoItems.id, id)];
+
+    if (userId) {
+      conditions.push(eq(todoItems.userId, userId));
+    }
+
     const [updated] = await db.update(todoItems)
       .set({ ...update, updatedAt: new Date() })
-      .where(eq(todoItems.id, id))
+      .where(and(...conditions))
       .returning();
     return updated;
   }
 
-  async deleteTodoItem(id: string): Promise<boolean> {
-    const result = await db.delete(todoItems).where(eq(todoItems.id, id)).returning();
+  async deleteTodoItem(id: string, userId?: string): Promise<boolean> {
+    const conditions = [eq(todoItems.id, id)];
+
+    if (userId) {
+      conditions.push(eq(todoItems.userId, userId));
+    }
+
+    const result = await db.delete(todoItems).where(and(...conditions)).returning();
     return result.length > 0;
   }
 
-  async completeTodoItem(id: string): Promise<TodoItem | undefined> {
+  async completeTodoItem(id: string, userId?: string): Promise<TodoItem | undefined> {
+    const conditions = [eq(todoItems.id, id)];
+
+    if (userId) {
+      conditions.push(eq(todoItems.userId, userId));
+    }
+
     const [updated] = await db.update(todoItems)
       .set({ status: 'completed', completedAt: new Date(), updatedAt: new Date() })
-      .where(eq(todoItems.id, id))
+      .where(and(...conditions))
       .returning();
     return updated;
   }
@@ -885,13 +1028,14 @@ export class DatabaseStorage {
     };
   }
 
-  async reorderTodoItems(userId: string, itemIds: string[]): Promise<void> {
-    // Basic implementation: set priority based on index in reverse
+  async reorderTodoItems(userId: string, itemIds: string[]): Promise<TodoItem[]> {
     for (let i = 0; i < itemIds.length; i++) {
       await db.update(todoItems)
         .set({ priority: itemIds.length - i })
         .where(and(eq(todoItems.id, itemIds[i]), eq(todoItems.userId, userId)));
     }
+
+    return this.getTodoItems(userId, true);
   }
 
   // Debug & System
@@ -961,6 +1105,3 @@ export class DatabaseStorage {
 }
 
 export const storage = new DatabaseStorage();
-
-
-

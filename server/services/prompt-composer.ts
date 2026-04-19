@@ -37,6 +37,7 @@
  */
 
 import { storage } from "../storage";
+import { mcpService } from "./mcp-service";
 import type { Draft, Attachment, Message } from "@shared/schema";
 import { DEFAULT_AGENT_NAME, DEFAULT_DISPLAY_NAME } from "@shared/schema";
 import { tavilySearch } from "../integrations/tavily";
@@ -118,7 +119,6 @@ export class PromptComposer {
     if (this.promptsLoaded) return;
 
     const promptsDir = path.join(process.cwd(), "prompts");
-    const logsDir = path.join(process.cwd(), "logs");
 
     try {
       this.coreDirectives = fs.readFileSync(
@@ -150,10 +150,14 @@ export class PromptComposer {
       this.tools = this.getFallbackTools();
     }
 
-    // Process STM_APPEND.md -> append to Short_Term_Memory.md
+    this.promptsLoaded = true;
+  }
+
+  private refreshDynamicContext(): void {
+    const logsDir = path.join(process.cwd(), "logs");
+
     this.processSTMAppend(logsDir);
 
-    // Load Short_Term_Memory.md (the main memory file)
     try {
       this.shortTermMemory = fs.readFileSync(
         path.join(logsDir, "Short_Term_Memory.md"),
@@ -164,7 +168,6 @@ export class PromptComposer {
       this.shortTermMemory = "# Short-Term Memory\n\n*(No instructions)*";
     }
 
-    // Load cache.md (thoughts forward from last turn)
     try {
       this.cache = fs.readFileSync(
         path.join(logsDir, "cache.md"),
@@ -175,7 +178,6 @@ export class PromptComposer {
       this.cache = "";
     }
 
-    // Load todo.md (to-do list)
     try {
       this.todoList = fs.readFileSync(
         path.join(logsDir, "todo.md"),
@@ -186,7 +188,6 @@ export class PromptComposer {
       this.todoList = "";
     }
 
-    // Load execution_log.md (tail last 20 lines)
     try {
       const logPath = path.join(logsDir, "execution_log.md");
       if (fs.existsSync(logPath)) {
@@ -201,8 +202,6 @@ export class PromptComposer {
       console.warn("Could not load execution_log.md", error);
       this.executionLog = "";
     }
-
-    this.promptsLoaded = true;
   }
 
   /**
@@ -336,6 +335,10 @@ Before you call 'end_turn' to end your turn, you MUST perform the following acti
         **Reflection**: Brief analysis of this turn's performance and user intent.
         **Next Step**: Primary goal for the next interaction.
         **Anticipated Needs**: Information or tools you might need next.
+        **Speak While Thinking**:
+        - 1 to 3 very short, context-aware lines to speak at the start of the next turn while the new response is still generating
+        - keep them natural, playful, and interruptible
+        - do not reveal private reasoning or hidden chain-of-thought
         \`\`\`
 
 2.  **Append Execution Log & Personal Log (Optional)**:
@@ -405,6 +408,8 @@ These steps are mandatory before sending your response via end_turn.
       this.loadPrompts();
     }
 
+    this.refreshDynamicContext();
+
     // Inject branding into core directives and personality
     const brandedCoreDirectives = this.applyBrandingToText(this.coreDirectives, agentName);
     const brandedPersonality = this.applyBrandingToText(this.personality, agentName);
@@ -461,6 +466,45 @@ These steps are mandatory before sending your response via end_turn.
     components.push(this.getFinalInstructions());
 
     return components.join("\n\n---\n\n");
+  }
+
+  public getForwardThoughtSpeechPlan(options?: { forceReload?: boolean }): {
+    lines: string[];
+    rawCache: string;
+  } {
+    if (options?.forceReload || !this.promptsLoaded) {
+      this.promptsLoaded = false;
+      this.loadPrompts();
+    }
+
+    this.refreshDynamicContext();
+
+    return {
+      lines: this.extractSpeakWhileThinkingLines(this.cache),
+      rawCache: this.cache,
+    };
+  }
+
+  private extractSpeakWhileThinkingLines(cacheContent: string): string[] {
+    if (!cacheContent.trim()) {
+      return [];
+    }
+
+    const sectionMatch = cacheContent.match(
+      /\*\*Speak While Thinking\*\*:\s*([\s\S]*?)(?:\n\*\*|$)/
+    );
+
+    if (!sectionMatch) {
+      return [];
+    }
+
+    return sectionMatch[1]
+      .split("\n")
+      .map((line) => line.trim())
+      .filter((line) => line.startsWith("- "))
+      .map((line) => line.replace(/^- /, "").trim())
+      .filter(Boolean)
+      .slice(0, 3);
   }
 
   /**
@@ -630,6 +674,17 @@ You can analyze data, read and write files, search the web, and interact with Go
     // Build base system prompt from modular files with custom branding
     let systemPrompt = await this.getSystemPrompt(agentName, displayName, { userId: options.userId });
 
+    if (options.userId) {
+      try {
+        const mcpSummary = await mcpService.buildPromptSummary(options.userId);
+        if (mcpSummary) {
+          systemPrompt += `\n\n${mcpSummary}`;
+        }
+      } catch (error) {
+        console.warn("Failed to build MCP prompt summary:", error);
+      }
+    }
+
     // Process attachments into composed format
     const composedAttachments: ComposedAttachment[] = [];
     let hasScreenshots = false;
@@ -686,6 +741,4 @@ You can analyze data, read and write files, search the web, and interact with Go
 }
 
 export const promptComposer = new PromptComposer();
-
-
 

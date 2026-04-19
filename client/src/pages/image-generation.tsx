@@ -6,28 +6,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Slider } from "@/components/ui/slider";
-import { 
-  ArrowLeft, 
-  Loader2, 
-  Download, 
-  Trash2, 
-  Pencil, 
-  Eraser, 
-  Square, 
-  Circle, 
-  Type,
-  Undo2,
-  Redo2,
-  Sparkles,
-  Image as ImageIcon,
-  Paintbrush,
-  ZoomIn,
-  ZoomOut,
-  Move,
-  RotateCcw
-} from "lucide-react";
+import { ArrowLeft, Loader2, Download, Trash2, Pencil, Eraser, Square, Circle, Undo2, Redo2, Sparkles, Image as ImageIcon, Paintbrush, ZoomIn, ZoomOut, Move } from "lucide-react";
 import { Link } from "wouter";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
@@ -120,6 +100,7 @@ export default function ImageGenerationPage() {
     }
     
     saveToHistory();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [aspectRatio]);
 
   const saveToHistory = useCallback(() => {
@@ -781,6 +762,5 @@ export default function ImageGenerationPage() {
     </div>
   );
 }
-
 
 

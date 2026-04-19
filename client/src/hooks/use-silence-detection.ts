@@ -31,7 +31,6 @@ export function useSilenceDetection(
   const {
     silenceThreshold = 0.02,
     silenceDuration = 2000,
-    sampleInterval = 100,
     enabled = true,
   } = options;
 
@@ -178,6 +177,5 @@ export function useSilenceDetection(
     resetSilenceTimer,
   };
 }
-
 
 

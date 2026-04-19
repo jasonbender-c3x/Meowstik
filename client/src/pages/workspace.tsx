@@ -16,25 +16,7 @@ import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/componen
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { 
-  Send, 
-  Play, 
-  Moon, 
-  Sun, 
-  Plus, 
-  X, 
-  Save,
-  Code2,
-  MessageSquare,
-  Eye,
-  Maximize2,
-  Minimize2,
-  RefreshCw,
-  FileCode,
-  ArrowLeft
-} from "lucide-react";
+import { Send, Moon, Sun, Plus, X, Code2, MessageSquare, Eye, RefreshCw, FileCode, ArrowLeft } from "lucide-react";
 import { Link } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 import type { Message } from "@shared/schema";
@@ -84,19 +66,6 @@ const defaultHtmlCode = `<!DOCTYPE html>
   </div>
 </body>
 </html>`;
-
-function getLanguageFromFilename(filename: string): string {
-  const ext = filename.split('.').pop()?.toLowerCase() || '';
-  const languageMap: Record<string, string> = {
-    'html': 'html', 'htm': 'html',
-    'css': 'css', 'scss': 'scss', 'less': 'less',
-    'js': 'javascript', 'jsx': 'javascript',
-    'ts': 'typescript', 'tsx': 'typescript',
-    'json': 'json', 'py': 'python',
-    'md': 'markdown', 'xml': 'xml',
-  };
-  return languageMap[ext] || 'plaintext';
-}
 
 export default function WorkspacePage() {
   const [isDark, setIsDark] = useState(true);
@@ -153,7 +122,7 @@ export default function WorkspacePage() {
 
   useEffect(() => {
     updatePreview();
-  }, [files]);
+  }, [updatePreview]);
 
   const updatePreview = useCallback(() => {
     if (!iframeRef.current) return;
@@ -496,6 +465,15 @@ export default function WorkspacePage() {
                       : "hover:bg-muted"
                   }`}
                   onClick={() => setActiveFileId(file.id)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      setActiveFileId(file.id);
+                    }
+                  }}
+                  role="tab"
+                  tabIndex={0}
+                  aria-selected={activeFileId === file.id}
                   data-testid={`tab-file-${file.id}`}
                 >
                   <FileCode className="h-3.5 w-3.5" />
@@ -582,5 +560,3 @@ export default function WorkspacePage() {
     </div>
   );
 }
-
-

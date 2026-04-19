@@ -11,12 +11,6 @@ import {
 import { useAppSession } from "@/hooks/use-app-session";
 import { Loader2, CheckCircle, XCircle, ExternalLink } from "lucide-react";
 
-interface ConnectorStatus {
-  name: string;
-  connected: boolean;
-  error?: string;
-}
-
 interface ConnectorsGateProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -221,6 +215,5 @@ export function useConnectorsGate() {
     )
   };
 }
-
 
 

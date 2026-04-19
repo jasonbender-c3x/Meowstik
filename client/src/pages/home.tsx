@@ -51,6 +51,7 @@ import { ChatInputArea } from "@/components/chat/input-area";
  * - Button: Consistent styled button component
  */
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 
 /**
  * Lucide Icons - Used for visual elements
@@ -60,7 +61,7 @@ import { Button } from "@/components/ui/button";
  * - Lightbulb: Icon for brainstorming prompt
  * - Code2: Icon for coding/debug prompt
  */
-import { Menu, Sparkles, Compass, Lightbulb, Code2, Volume2, VolumeX, ChevronLeft, ChevronRight, PawPrint, Moon, Fish, Heart, Zap, BookOpen, AlertTriangle, Link, Mail, Calendar, FileText, Github, PanelRight, PanelRightClose, Terminal } from "lucide-react";
+import { Menu, Sparkles, Compass, Lightbulb, Code2, ChevronLeft, ChevronRight, PawPrint, Moon, Fish, Heart, Zap, BookOpen, AlertTriangle, Mail, Calendar, FileText, Github, PanelRight, PanelRightClose, Terminal } from "lucide-react";
 import { VerbositySlider } from "@/components/ui/verbosity-slider";
 import { LocalDriveButton } from "@/components/ui/local-drive-button";
 import { useLocation } from "wouter";
@@ -171,6 +172,7 @@ export default function Home() {
    * Used to show "thinking" animation and disable input
    */
   const [isLoading, setIsLoading] = useState(false);
+  const [agenticPaused, setAgenticPaused] = useState<{ turns: number } | null>(null);
 
   /**
    * AbortController reference for canceling in-flight requests
@@ -207,10 +209,10 @@ export default function Home() {
    * Includes verbosity mode for controlling what gets spoken
    */
   const { 
-    isMuted, toggleMuted, speak, isSpeaking, stopSpeaking, 
-    isSupported: isTTSSupported, isUsingBrowserTTS,
-    shouldPlayHDAudio, shouldPlayBrowserTTS, unlockAudio, isAudioUnlocked, playTestTone,
-    registerHDAudio, verbosityMode, playAudioBase64
+    speak,
+    isSupported: isTTSSupported,
+    shouldPlayHDAudio, shouldPlayBrowserTTS, unlockAudio,
+    registerHDAudio, verbosityMode, playAudioBase64, stopSpeaking
   } = useTTS();
 
   /**
@@ -246,6 +248,7 @@ export default function Home() {
    */
   useEffect(() => {
     loadChats(true); // Auto-select default chat on initial load
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -290,6 +293,7 @@ export default function Home() {
       }, 300);
       return () => clearTimeout(timer);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pendingEditorMessage, chats, isLoading]);
 
   /**
@@ -340,7 +344,9 @@ export default function Home() {
           const data = await res.json();
           setErrorCount(data.errorCount || 0);
         }
-      } catch {}
+      } catch {
+        // Ignore transient status polling failures.
+      }
     };
     checkErrors();
     const interval = setInterval(checkErrors, 30000);
@@ -511,7 +517,8 @@ export default function Home() {
       // Step 3: Send message to backend with optional attachments
       // Get model preference from localStorage settings
       const storedSettings = localStorage.getItem('meowstic-settings');
-      const modelMode = storedSettings ? JSON.parse(storedSettings).model : 'pro';
+      const parsedSettings = storedSettings ? JSON.parse(storedSettings) : {};
+      const modelMode = parsedSettings.model || 'pro';
       
       // Create AbortController for this request
       const abortController = new AbortController();
@@ -526,6 +533,12 @@ export default function Home() {
           content,
           model: modelMode, // "pro" or "flash"
           verbosityMode: verbosityMode, // "mute", "low", "normal", "high", "demo-hd", "podcast"
+          maxAgenticTurns: parseInt(localStorage.getItem("meowstik-max-agentic-turns") || "10", 10),
+          preResponseFiller: {
+            enabled: parsedSettings.preResponseFillerEnabled !== false,
+            interruptMode: parsedSettings.preResponseFillerInterruptMode || "stop-immediately-on-first-model-text",
+            cadence: parsedSettings.preResponseFillerCadence || "5-10-seconds-random",
+          },
           attachments: attachments.map(a => ({
             filename: a.filename,
             type: a.type,
@@ -672,7 +685,14 @@ export default function Home() {
                   ];
                 });
               }
-              
+
+              if (data.speechControl?.action === "stop") {
+                console.log("[TTS] Received speech stop control event");
+                audioQueue.length = 0;
+                isPlayingAudio = false;
+                stopSpeaking();
+              }
+               
               // Handle finalContent event - authoritative final content from server
               if (data.finalContent !== undefined) {
                 aiMessageContent = data.finalContent;
@@ -754,6 +774,11 @@ export default function Home() {
                 const { sound, volume } = data.soundboard as { sound: string; volume?: number };
                 console.log(`[SOUNDBOARD] Playing: ${sound}`);
                 playSound(sound, volume ?? 0.8);
+              }
+
+              // Agentic loop paused — show Continue / Interrupt dialog
+              if (data.agenticPaused) {
+                setAgenticPaused(data.agenticPaused as { turns: number });
               }
 
               // Handle metadata event (tool results, file ops, autoexec)
@@ -1224,16 +1249,16 @@ export default function Home() {
               <div className="mt-8 w-full max-w-4xl">
                 <h3 className="text-sm font-medium text-muted-foreground mb-3 text-center">Quick Links</h3>
                 <div className="flex flex-wrap justify-center gap-2">
-                  <a href="https://mail.google.com" target="_blank" rel="noopener" className="flex items-center gap-2 px-3 py-2 bg-secondary/30 hover:bg-secondary/60 rounded-lg text-sm transition-colors" data-testid="link-gmail">
+                  <a href="https://mail.google.com" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 px-3 py-2 bg-secondary/30 hover:bg-secondary/60 rounded-lg text-sm transition-colors" data-testid="link-gmail">
                     <Mail className="h-4 w-4 text-red-500" /> Gmail
                   </a>
-                  <a href="https://calendar.google.com" target="_blank" rel="noopener" className="flex items-center gap-2 px-3 py-2 bg-secondary/30 hover:bg-secondary/60 rounded-lg text-sm transition-colors" data-testid="link-calendar">
+                  <a href="https://calendar.google.com" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 px-3 py-2 bg-secondary/30 hover:bg-secondary/60 rounded-lg text-sm transition-colors" data-testid="link-calendar">
                     <Calendar className="h-4 w-4 text-blue-500" /> Calendar
                   </a>
-                  <a href="https://drive.google.com" target="_blank" rel="noopener" className="flex items-center gap-2 px-3 py-2 bg-secondary/30 hover:bg-secondary/60 rounded-lg text-sm transition-colors" data-testid="link-drive">
+                  <a href="https://drive.google.com" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 px-3 py-2 bg-secondary/30 hover:bg-secondary/60 rounded-lg text-sm transition-colors" data-testid="link-drive">
                     <FileText className="h-4 w-4 text-yellow-500" /> Drive
                   </a>
-                  <a href="https://github.com" target="_blank" rel="noopener" className="flex items-center gap-2 px-3 py-2 bg-secondary/30 hover:bg-secondary/60 rounded-lg text-sm transition-colors" data-testid="link-github">
+                  <a href="https://github.com" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 px-3 py-2 bg-secondary/30 hover:bg-secondary/60 rounded-lg text-sm transition-colors" data-testid="link-github">
                     <Github className="h-4 w-4" /> GitHub
                   </a>
                 </div>
@@ -1299,8 +1324,8 @@ export default function Home() {
                * Shows animated "thinking" state while waiting for response
                */}
               {isLoading && (
-                <ChatMessage role="ai" content="" isThinking={true} />
-              )}
+                  <ChatMessage messageRole="ai" content="" isThinking={true} />
+                )}
               
               {/* Scroll anchor - auto-scroll target */}
               <div ref={scrollRef} className="h-4" />
@@ -1334,6 +1359,34 @@ export default function Home() {
           )}
         </ResizablePanelGroup>
       </div>
+
+      {/* Continue / Interrupt dialog — shown when agentic loop hits the turn limit */}
+      <Dialog open={!!agenticPaused} onOpenChange={(open) => { if (!open) { setAgenticPaused(null); setIsLoading(false); } }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>⏸️ Tool Loop Paused</DialogTitle>
+            <DialogDescription>
+              The AI used <strong>{agenticPaused?.turns}</strong> tool turns — the configured limit. Should it keep going or stop here?
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              variant="outline"
+              onClick={() => { setAgenticPaused(null); setIsLoading(false); }}
+            >
+              Interrupt
+            </Button>
+            <Button
+              onClick={() => {
+                setAgenticPaused(null);
+                handleSendMessage("Continue where you left off.", []);
+              }}
+            >
+              Continue
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -1523,23 +1576,3 @@ function CatCardCarousel({ onSendMessage }: { onSendMessage: (content: string, a
  *   testId="button-prompt-trip"
  * />
  */
-function CardButton({ icon, text, subtext, onClick, testId }: { icon: React.ReactNode, text: string, subtext: string, onClick: () => void, testId: string }) {
-    return (
-        <button 
-            onClick={onClick}
-            data-testid={testId}
-            className="flex flex-col items-start p-4 h-40 bg-secondary/30 hover:bg-secondary/60 border border-transparent hover:border-primary/10 rounded-2xl transition-all duration-200 text-left group relative overflow-hidden"
-        >
-            {/* Icon container with hover scale effect */}
-            <div className="mb-auto p-2 bg-background rounded-full shadow-sm group-hover:scale-110 transition-transform duration-200">
-                {icon}
-            </div>
-            
-            {/* Text content */}
-            <div className="mt-4">
-                <div className="font-medium text-foreground">{text}</div>
-                <div className="text-sm text-muted-foreground opacity-80">{subtext}</div>
-            </div>
-        </button>
-    )
-}

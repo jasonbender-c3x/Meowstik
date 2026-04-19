@@ -648,9 +648,17 @@ export function SideWorkbench({
 
           <div className="flex items-center gap-1 overflow-x-auto border-b bg-muted/40 px-2 py-1.5">
             {files.map((file) => (
-              <button
+              <div
                 key={file.id}
                 onClick={() => setActiveFileId(file.id)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    setActiveFileId(file.id);
+                  }
+                }}
+                role="button"
+                tabIndex={0}
                 className={cn(
                   "group flex max-w-[180px] items-center gap-2 rounded-md px-3 py-1.5 text-sm transition-colors",
                   activeFileId === file.id ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:bg-muted",
@@ -661,8 +669,8 @@ export function SideWorkbench({
                   {!file.isSaved && <span className="mr-1 text-primary">●</span>}
                   {file.filename}
                 </span>
-                <span
-                  role="button"
+                <button
+                  type="button"
                   onClick={(event) => {
                     event.stopPropagation();
                     handleCloseFile(file.id);
@@ -670,8 +678,8 @@ export function SideWorkbench({
                   className="rounded p-0.5 opacity-0 transition-opacity group-hover:opacity-100 hover:bg-muted"
                 >
                   <X className="h-3 w-3" />
-                </span>
-              </button>
+                </button>
+              </div>
             ))}
           </div>
 

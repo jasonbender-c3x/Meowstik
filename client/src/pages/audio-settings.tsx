@@ -1,12 +1,12 @@
 
 import { useEffect, useState } from "react";
-import { useTTS, VerbosityMode } from "@/contexts/tts-context";
+import { useTTS } from "@/contexts/tts-context";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { Textarea } from "@/components/ui/textarea";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Play, Square, Volume2, Mic, ArrowLeft } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
@@ -154,7 +154,8 @@ export default function AudioSettings() {
                 <p className="text-sm text-muted-foreground mb-4">Choose the persona for your AI.</p>
                 <div className="grid grid-cols-1 gap-3">
                   {VOICES.map(voice => (
-                    <div 
+                    <button
+                      type="button"
                       key={voice.id} 
                       onClick={() => setSelectedVoice(voice.id)}
                       className={`flex items-center justify-between p-3 rounded-lg border cursor-pointer transition-all ${selectedVoice === voice.id ? 'border-primary bg-primary/5 ring-1 ring-primary' : 'hover:bg-muted'}`}
@@ -169,7 +170,7 @@ export default function AudioSettings() {
                         </div>
                       </div>
                       {selectedVoice === voice.id && <div className="text-xs font-bold text-primary">Active</div>}
-                    </div>
+                    </button>
                   ))}
                 </div>
               </div>
@@ -221,6 +222,5 @@ export default function AudioSettings() {
     </div>
   );
 }
-
 
 

@@ -30,7 +30,7 @@ import React, { useState, useMemo } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { cn } from "@/lib/utils";
-import { ChevronDown, ChevronRight, Info, AlertTriangle, CheckCircle, XCircle, Lightbulb, Copy, Check } from "lucide-react";
+import { ChevronRight, Info, AlertTriangle, CheckCircle, XCircle, Lightbulb, Copy, Check } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 // ============================================================================
@@ -423,7 +423,6 @@ function parseCustomBlocks(content: string): ParsedBlock[] {
 
 function parseInlineElements(text: string): React.ReactNode[] {
   const elements: React.ReactNode[] = [];
-  let remaining = text;
   let keyCounter = 0;
 
   // Confidence badge: [confidence:high]
@@ -600,6 +599,5 @@ export function EnhancedMarkdown({ content, className }: EnhancedMarkdownProps) 
 }
 
 export default EnhancedMarkdown;
-
 
 

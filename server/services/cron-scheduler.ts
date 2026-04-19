@@ -17,6 +17,7 @@
 import { storage } from "../storage";
 import { type Schedule } from "@shared/schema";
 import { workflowExecutor } from "./workflow-executor";
+import { runScheduleAsChatMessage } from "./scheduled-chat-runner.js";
 
 // Cron field positions
 const MINUTE = 0;
@@ -135,6 +136,13 @@ class CronScheduler {
    * Run a schedule - create task(s) from its template
    */
   private async runSchedule(schedule: Schedule) {
+    // Chat-injection mode: cron fires → message appears in Reminders chat
+    const template = schedule.taskTemplate as { chatMode?: boolean; title?: string; description?: string; taskType?: string; priority?: number; input?: Record<string, unknown> };
+    if (template?.chatMode) {
+      await runScheduleAsChatMessage(schedule);
+      return;
+    }
+
     // If schedule has a workflow, instantiate it
     if (schedule.workflowId) {
       const workflow = await storage.getWorkflowById(schedule.workflowId);
@@ -164,16 +172,8 @@ class CronScheduler {
     }
     
     // Create task from template using the new job system
-    const template = schedule.taskTemplate as {
-      title: string;
-      description?: string;
-      taskType: string;
-      priority?: number;
-      input?: Record<string, unknown>;
-    };
-    
     await workflowExecutor.submitTask({
-      title: template.title,
+      title: template.title ?? schedule.name,
       description: template.description,
       taskType: template.taskType || "action",
       priority: template.priority || 5,

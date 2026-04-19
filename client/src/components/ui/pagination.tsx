@@ -56,7 +56,9 @@ const PaginationLink = ({
       className
     )}
     {...props}
-  />
+  >
+    {props.children ?? <span className="sr-only">{props["aria-label"] ?? "Pagination link"}</span>}
+  </a>
 )
 PaginationLink.displayName = "PaginationLink"
 
@@ -116,6 +118,5 @@ export {
   PaginationNext,
   PaginationEllipsis,
 }
-
 
 

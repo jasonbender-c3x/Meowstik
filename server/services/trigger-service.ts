@@ -17,6 +17,7 @@
 import { storage } from "../storage";
 import { type Trigger, TriggerTypes } from "@shared/schema";
 import { workflowExecutor } from "./workflow-executor";
+import { runTriggerAsChatMessage } from "./scheduled-chat-runner.js";
 
 class TriggerService {
   private isRunning = false;
@@ -221,12 +222,19 @@ class TriggerService {
     // If trigger has a task template, create task from it using the new job system
     if (trigger.taskTemplate) {
       const template = trigger.taskTemplate as {
+        chatMode?: boolean;
         title: string;
         description?: string;
         taskType: string;
         priority?: number;
       };
-      
+
+      // Chat-injection mode: trigger fires → message appears in Reminders chat
+      if (template.chatMode) {
+        await runTriggerAsChatMessage(trigger, context);
+        return null;
+      }
+
       const job = await workflowExecutor.submitTask({
         title: template.title.replace(/\{\{(\w+)\}\}/g, (_, key) => String(context[key] || "")),
         description: template.description,

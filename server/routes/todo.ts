@@ -37,6 +37,24 @@ function getUserId(req: Request): string {
   return (req as any).authStatus?.userId || "guest";
 }
 
+function parseReorderIds(items: unknown): string[] {
+  if (!Array.isArray(items)) {
+    throw new Error("Invalid request: items must be an array");
+  }
+
+  return items.map((item) => {
+    if (typeof item === "string") {
+      return item;
+    }
+
+    if (item && typeof item === "object" && typeof (item as { id?: unknown }).id === "string") {
+      return (item as { id: string }).id;
+    }
+
+    throw new Error("Invalid request: each item must be an ID string or an object with an id");
+  });
+}
+
 /**
  * Helper to write to-do list to logs/todo.md for introspection
  */
@@ -227,7 +245,8 @@ router.post("/", async (req: Request, res: Response) => {
  */
 router.get("/:id", async (req: Request, res: Response) => {
   try {
-    const todo = await storage.getTodoItem(req.params.id);
+    const userId = getUserId(req);
+    const todo = await storage.getTodoItem(req.params.id, userId);
     
     if (!todo) {
       return res.status(404).json({
@@ -260,7 +279,7 @@ router.patch("/:id", async (req: Request, res: Response) => {
     // Validate partial update data
     const updates = insertTodoItemSchema.partial().parse(req.body);
     
-    const todo = await storage.updateTodoItem(req.params.id, updates);
+    const todo = await storage.updateTodoItem(req.params.id, updates, userId);
     
     if (!todo) {
       return res.status(404).json({
@@ -301,7 +320,7 @@ router.patch("/:id", async (req: Request, res: Response) => {
 router.delete("/:id", async (req: Request, res: Response) => {
   try {
     const userId = getUserId(req);
-    const deleted = await storage.deleteTodoItem(req.params.id);
+    const deleted = await storage.deleteTodoItem(req.params.id, userId);
     
     if (!deleted) {
       return res.status(404).json({
@@ -335,16 +354,8 @@ router.delete("/:id", async (req: Request, res: Response) => {
 router.post("/reorder", async (req: Request, res: Response) => {
   try {
     const userId = getUserId(req);
-    const { items } = req.body;
-    
-    if (!Array.isArray(items)) {
-      return res.status(400).json({
-        success: false,
-        error: "Invalid request: items must be an array",
-      });
-    }
-    
-    const updated = await storage.reorderTodoItems(items);
+    const itemIds = parseReorderIds(req.body?.items);
+    const updated = await storage.reorderTodoItems(userId, itemIds);
     
     // Update cache file
     await writeTodoCache(userId);
@@ -370,7 +381,7 @@ router.post("/reorder", async (req: Request, res: Response) => {
 router.post("/:id/complete", async (req: Request, res: Response) => {
   try {
     const userId = getUserId(req);
-    const todo = await storage.completeTodoItem(req.params.id);
+    const todo = await storage.completeTodoItem(req.params.id, userId);
     
     if (!todo) {
       return res.status(404).json({
@@ -396,6 +407,5 @@ router.post("/:id/complete", async (req: Request, res: Response) => {
 });
 
 export default router;
-
 
 

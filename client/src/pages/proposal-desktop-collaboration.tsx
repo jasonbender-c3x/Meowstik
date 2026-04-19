@@ -1,29 +1,10 @@
 
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { 
-  ArrowLeft, 
-  Monitor, 
-  Globe, 
-  Cpu, 
-  Eye, 
-  MousePointer2, 
-  Keyboard, 
-  Volume2, 
-  Mic,
-  Cloud,
-  Laptop,
-  ArrowRight,
-  CheckCircle2,
-  Circle,
-  Zap,
-  Brain,
-  User,
-  Server
-} from "lucide-react";
+import { ArrowLeft, Monitor, Globe, Eye, MousePointer2, Keyboard, Volume2, Mic, Cloud, Laptop, ArrowRight, CheckCircle2, Circle, Zap, Brain, User, Server } from "lucide-react";
 import { Link } from "wouter";
 
 export default function ProposalDesktopCollaborationPage() {

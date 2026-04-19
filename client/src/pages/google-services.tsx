@@ -42,7 +42,7 @@ import { useState } from "react";
  * - useMutation: Handle data mutations (POST, PUT, DELETE)
  * - useQueryClient: Access query cache for invalidation
  */
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 
 /**
  * shadcn/ui Components
@@ -117,9 +117,6 @@ import { cn } from "@/lib/utils";
  * @returns {JSX.Element} Drive panel component
  */
 function DrivePanel() {
-  const { toast } = useToast();
-  const queryClient = useQueryClient();
-  
   /**
    * Search query state
    * When empty, shows recent files; when filled, shows search results
@@ -421,7 +418,6 @@ function GmailPanel() {
  */
 function CalendarPanel() {
   const { toast } = useToast();
-  const queryClient = useQueryClient();
   
   /**
    * Create mode state
@@ -925,15 +921,7 @@ function TasksPanel() {
   /**
    * Selected task list (defaults to @default)
    */
-  const [selectedList, setSelectedList] = useState<string>('@default');
-
-  /**
-   * Query: Fetch list of task lists
-   */
-  const { data: taskLists = [], isLoading: listsLoading } = useQuery({
-    queryKey: ['/api/tasks/lists'],
-    queryFn: () => fetch('/api/tasks/lists').then(res => res.json()),
-  });
+  const selectedList = '@default';
 
   /**
    * Query: Fetch tasks from selected list
@@ -1240,6 +1228,4 @@ export default function GoogleServicesPage() {
     </div>
   );
 }
-
-
 

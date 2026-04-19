@@ -2,14 +2,13 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
   ArrowLeft, 
   Database, 
@@ -111,7 +110,8 @@ function CellValue({ value, columnName, recordId }: { value: unknown; columnName
 
   if (isUuid(value)) {
     return (
-      <code 
+      <button
+        type="button"
         className="text-xs bg-muted px-1.5 py-0.5 rounded font-mono text-primary cursor-pointer hover:bg-muted/80 transition-colors"
         onClick={(e) => {
           e.stopPropagation();
@@ -120,13 +120,14 @@ function CellValue({ value, columnName, recordId }: { value: unknown; columnName
         title={expanded ? "Click to collapse" : "Click to expand"}
       >
         {expanded ? strValue : `${strValue.slice(0, 5)}...`}
-      </code>
+      </button>
     );
   }
 
   if (isHash(value)) {
     return (
-      <code 
+      <button
+        type="button"
         className="text-xs bg-muted px-1.5 py-0.5 rounded font-mono text-primary cursor-pointer hover:bg-muted/80 transition-colors"
         onClick={(e) => {
           e.stopPropagation();
@@ -135,7 +136,7 @@ function CellValue({ value, columnName, recordId }: { value: unknown; columnName
         title={expanded ? "Click to collapse" : "Click to expand"}
       >
         {expanded ? strValue : `${strValue.slice(0, 5)}...`}
-      </code>
+      </button>
     );
   }
 
@@ -150,7 +151,8 @@ function CellValue({ value, columnName, recordId }: { value: unknown; columnName
   if (typeof value === "object") {
     const isTruncated = strValue.length > 50;
     return (
-      <code 
+      <button
+        type="button"
         className={cn(
           "text-xs bg-muted px-1.5 py-0.5 rounded font-mono max-w-xs block",
           isTruncated && "cursor-pointer hover:bg-muted/80 transition-colors"
@@ -164,16 +166,17 @@ function CellValue({ value, columnName, recordId }: { value: unknown; columnName
         title={isTruncated ? (expanded ? "Click to collapse" : "Click to expand") : undefined}
       >
         {expanded ? strValue : `${strValue.slice(0, 50)}${isTruncated ? "..." : ""}`}
-      </code>
+      </button>
     );
   }
 
   const isTruncated = strValue.length > 100;
   const displayValue = isTruncated && !expanded ? strValue.slice(0, 100) + "..." : strValue;
   return (
-    <span 
+    <button
+      type="button"
       className={cn(
-        "max-w-xs block",
+        "max-w-xs block text-left",
         isTruncated && "cursor-pointer hover:underline",
         !expanded && "truncate"
       )}
@@ -186,7 +189,7 @@ function CellValue({ value, columnName, recordId }: { value: unknown; columnName
       title={isTruncated ? (expanded ? "Click to collapse" : "Click to expand") : undefined}
     >
       {displayValue}
-    </span>
+    </button>
   );
 }
 
@@ -1307,6 +1310,5 @@ export default function DatabaseExplorerPage() {
     </div>
   );
 }
-
 
 

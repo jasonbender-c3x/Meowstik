@@ -19,7 +19,7 @@ const SCOPES = [
   'https://www.googleapis.com/auth/drive.file',
   'https://www.googleapis.com/auth/documents',
   'https://www.googleapis.com/auth/spreadsheets.readonly',
-  'https://www.googleapis.com/auth/tasks.readonly',
+  'https://www.googleapis.com/auth/tasks',
   'https://www.googleapis.com/auth/contacts.readonly',
   'https://www.googleapis.com/auth/contacts',
   'https://www.googleapis.com/auth/cloud-platform',
@@ -198,6 +198,13 @@ export async function isAuthenticated(): Promise<boolean> {
 
 export function isAuthenticatedSync(): boolean {
   return cachedTokens !== null && cachedTokens.access_token !== undefined;
+}
+
+/** Check if stored token includes the API scopes (Tasks, Gmail, Drive, etc.). */
+export function hasFullScopes(): boolean {
+  const scope = cachedTokens?.scope ?? "";
+  // Must have at least tasks scope to be considered "full"
+  return scope.includes("tasks") && scope.includes("gmail");
 }
 
 export async function refreshTokensIfNeeded(): Promise<void> {

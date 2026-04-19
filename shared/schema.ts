@@ -74,7 +74,7 @@ export const sessions = sqliteTable(
   {
     sid: text("sid").primaryKey(),
     sess: text("sess", { mode: "json" }).notNull(),
-    expire: integer("expire", { mode: "timestamp" }).notNull(),
+    expire: integer("expire", { mode: "timestamp_ms" }).notNull(),
   },
   (table) => [index("IDX_session_expire").on(table.expire)],
 );
@@ -94,8 +94,8 @@ export const users = sqliteTable("users", {
   avatarUrl: text("avatar_url"),
   googleAccessToken: text("google_access_token"),
   googleRefreshToken: text("google_refresh_token"),
-  createdAt: integer("created_at", { mode: "timestamp" }).default(sql`(unixepoch() * 1000)`),
-  updatedAt: integer("updated_at", { mode: "timestamp" }).default(sql`(unixepoch() * 1000)`),
+  createdAt: integer("created_at", { mode: "timestamp_ms" }).default(sql`(unixepoch() * 1000)`),
+  updatedAt: integer("updated_at", { mode: "timestamp_ms" }).default(sql`(unixepoch() * 1000)`),
 });
 
 export type InsertUser = typeof users.$inferInsert;
@@ -127,8 +127,8 @@ export const userBranding = sqliteTable("user_branding", {
   canonicalDomain: text("canonical_domain"), // e.g., "catpilot.pro"
   
   // Timestamps
-  createdAt: integer("created_at", { mode: "timestamp" }).default(sql`(unixepoch() * 1000)`).notNull(),
-  updatedAt: integer("updated_at", { mode: "timestamp" }).default(sql`(unixepoch() * 1000)`).notNull(),
+  createdAt: integer("created_at", { mode: "timestamp_ms" }).default(sql`(unixepoch() * 1000)`).notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp_ms" }).default(sql`(unixepoch() * 1000)`).notNull(),
 });
 
 export const insertUserBrandingSchema = createInsertSchema(userBranding).omit({
@@ -178,8 +178,8 @@ export const userAgents = sqliteTable("user_agents", {
   tags: text("tags", { mode: "json" }).$type<string[]>(), // For categorization/search
   
   // Timestamps
-  createdAt: integer("created_at", { mode: "timestamp" }).default(sql`(unixepoch() * 1000)`).notNull(),
-  updatedAt: integer("updated_at", { mode: "timestamp" }).default(sql`(unixepoch() * 1000)`).notNull(),
+  createdAt: integer("created_at", { mode: "timestamp_ms" }).default(sql`(unixepoch() * 1000)`).notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp_ms" }).default(sql`(unixepoch() * 1000)`).notNull(),
 });
 
 export const insertUserAgentSchema = createInsertSchema(userAgents).omit({
@@ -189,6 +189,44 @@ export const insertUserAgentSchema = createInsertSchema(userAgents).omit({
 });
 export type InsertUserAgent = z.infer<typeof insertUserAgentSchema>;
 export type UserAgent = typeof userAgents.$inferSelect;
+
+/**
+ * MCP SERVERS TABLE
+ * -----------------
+ * Stores user-configured Model Context Protocol server connections.
+ * Supports standard stdio, streamable HTTP, and legacy SSE transports.
+ */
+export const mcpServers = sqliteTable("mcp_servers", {
+  id: text("id").primaryKey().$defaultFn(() => nanoid()),
+  userId: text("user_id").notNull(),
+  name: text("name").notNull(),
+  slug: text("slug").notNull(),
+  description: text("description"),
+  transport: text("transport").notNull(), // "stdio" | "streamable-http" | "sse"
+  enabled: integer("enabled", { mode: "boolean" }).default(true).notNull(),
+  source: text("source").default("custom").notNull(), // "custom" | "library"
+  libraryKey: text("library_key"),
+  endpointUrl: text("endpoint_url"),
+  command: text("command"),
+  args: text("args", { mode: "json" }).$type<string[]>(),
+  env: text("env", { mode: "json" }).$type<Record<string, string>>(),
+  headers: text("headers", { mode: "json" }).$type<Record<string, string>>(),
+  cwd: text("cwd"),
+  createdAt: integer("created_at", { mode: "timestamp_ms" }).default(sql`(unixepoch() * 1000)`).notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp_ms" }).default(sql`(unixepoch() * 1000)`).notNull(),
+}, (table) => [
+  index("idx_mcp_servers_user").on(table.userId),
+  index("idx_mcp_servers_slug").on(table.slug),
+  index("idx_mcp_servers_enabled").on(table.enabled),
+]);
+
+export const insertMcpServerSchema = createInsertSchema(mcpServers).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export type InsertMcpServer = z.infer<typeof insertMcpServerSchema>;
+export type McpServer = typeof mcpServers.$inferSelect;
 
 /**
  * CHATS TABLE
@@ -256,14 +294,14 @@ export const chats = sqliteTable("chats", {
    * Automatically set by PostgreSQL using defaultNow()
    * Used for sorting chats chronologically
    */
-  createdAt: integer("created_at", { mode: "timestamp" }).default(sql`(unixepoch() * 1000)`).notNull(),
+  createdAt: integer("created_at", { mode: "timestamp_ms" }).default(sql`(unixepoch() * 1000)`).notNull(),
   
   /**
    * Timestamp when this chat was last updated
    * Updated whenever a new message is added to the chat
    * Used for sorting chats by "most recent activity"
    */
-  updatedAt: integer("updated_at", { mode: "timestamp" }).default(sql`(unixepoch() * 1000)`).notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp_ms" }).default(sql`(unixepoch() * 1000)`).notNull(),
 });
 
 /**
@@ -329,7 +367,7 @@ export const messages = sqliteTable("messages", {
    * Timestamp when this message was created/sent
    * Used for chronological ordering of messages within a chat
    */
-  createdAt: integer("created_at", { mode: "timestamp" }).default(sql`(unixepoch() * 1000)`).notNull(),
+  createdAt: integer("created_at", { mode: "timestamp_ms" }).default(sql`(unixepoch() * 1000)`).notNull(),
   
   /**
    * Optional JSON metadata for AI messages
@@ -434,7 +472,7 @@ export const attachments = sqliteTable("attachments", {
   content: text("content"), // Base64 encoded content or text
   path: text("path"), // Optional file path for created files
   permissions: text("permissions"), // Unix permission string (e.g., "755")
-  createdAt: integer("created_at", { mode: "timestamp" }).default(sql`(unixepoch() * 1000)`).notNull(),
+  createdAt: integer("created_at", { mode: "timestamp_ms" }).default(sql`(unixepoch() * 1000)`).notNull(),
 });
 
 export const insertAttachmentSchema = createInsertSchema(attachments).omit({
@@ -466,8 +504,8 @@ export const drafts = sqliteTable("drafts", {
   textContent: text("text_content").default(""),
   voiceTranscript: text("voice_transcript").default(""),
   status: text("status").default("active").notNull(), // "active" | "submitted" | "cancelled"
-  createdAt: integer("created_at", { mode: "timestamp" }).default(sql`(unixepoch() * 1000)`).notNull(),
-  updatedAt: integer("updated_at", { mode: "timestamp" }).default(sql`(unixepoch() * 1000)`).notNull(),
+  createdAt: integer("created_at", { mode: "timestamp_ms" }).default(sql`(unixepoch() * 1000)`).notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp_ms" }).default(sql`(unixepoch() * 1000)`).notNull(),
 });
 
 export const insertDraftSchema = createInsertSchema(drafts).omit({
@@ -505,8 +543,8 @@ export const toolTasks = sqliteTable("tool_tasks", {
   status: text("status").default("pending").notNull(), // "pending" | "running" | "completed" | "failed"
   result: text("result", { mode: "json" }), // Execution result as JSONB
   error: text("error"), // Error message if failed
-  executedAt: integer("executed_at", { mode: "timestamp" }),
-  createdAt: integer("created_at", { mode: "timestamp" }).default(sql`(unixepoch() * 1000)`).notNull(),
+  executedAt: integer("executed_at", { mode: "timestamp_ms" }),
+  createdAt: integer("created_at", { mode: "timestamp_ms" }).default(sql`(unixepoch() * 1000)`).notNull(),
 });
 
 export const insertToolTaskSchema = createInsertSchema(toolTasks).omit({
@@ -549,12 +587,12 @@ export const toolCallLogs = sqliteTable("tool_call_logs", {
   errorMessage: text("error_message"), // Error details if failed
   
   // Timing
-  startedAt: integer("started_at", { mode: "timestamp" }).default(sql`(unixepoch() * 1000)`).notNull(),
-  completedAt: integer("completed_at", { mode: "timestamp" }),
+  startedAt: integer("started_at", { mode: "timestamp_ms" }).default(sql`(unixepoch() * 1000)`).notNull(),
+  completedAt: integer("completed_at", { mode: "timestamp_ms" }),
   duration: integer("duration"), // Duration in milliseconds
   
-  createdAt: integer("created_at", { mode: "timestamp" }).default(sql`(unixepoch() * 1000)`).notNull(),
-  updatedAt: integer("updated_at", { mode: "timestamp" }).default(sql`(unixepoch() * 1000)`).notNull(),
+  createdAt: integer("created_at", { mode: "timestamp_ms" }).default(sql`(unixepoch() * 1000)`).notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp_ms" }).default(sql`(unixepoch() * 1000)`).notNull(),
 }, (table) => [
   index("idx_tool_call_logs_chat").on(table.chatId),
   index("idx_tool_call_logs_message").on(table.messageId),
@@ -587,7 +625,7 @@ export const executionLogs = sqliteTable("execution_logs", {
   output: text("output", { mode: "json" }), // Output/result as JSONB
   exitCode: text("exit_code"),
   duration: text("duration"), // Execution time in milliseconds
-  createdAt: integer("created_at", { mode: "timestamp" }).default(sql`(unixepoch() * 1000)`).notNull(),
+  createdAt: integer("created_at", { mode: "timestamp_ms" }).default(sql`(unixepoch() * 1000)`).notNull(),
 });
 
 export const insertExecutionLogSchema = createInsertSchema(executionLogs).omit({
@@ -617,8 +655,8 @@ export const feedback = sqliteTable("feedback", {
   freeformText: text("freeform_text"),
   promptSnapshot: text("prompt_snapshot"), // Full prompt at time of response
   responseSnapshot: text("response_snapshot"), // Full AI response
-  createdAt: integer("created_at", { mode: "timestamp" }).default(sql`(unixepoch() * 1000)`).notNull(),
-  submittedAt: integer("submitted_at", { mode: "timestamp" }), // Set when feedback is submitted to GitHub PR
+  createdAt: integer("created_at", { mode: "timestamp_ms" }).default(sql`(unixepoch() * 1000)`).notNull(),
+  submittedAt: integer("submitted_at", { mode: "timestamp_ms" }), // Set when feedback is submitted to GitHub PR
 });
 
 export const insertFeedbackSchema = createInsertSchema(feedback).omit({
@@ -650,8 +688,8 @@ export const geminiCaches = sqliteTable("gemini_caches", {
   messageId: text("message_id").notNull(),
   cacheName: text("cache_name").notNull(), // The unique ID from Gemini API
   contentHash: text("content_hash").notNull(),
-  expiresAt: integer("expires_at", { mode: "timestamp" }).notNull(),
-  createdAt: integer("created_at", { mode: "timestamp" }).default(sql`(unixepoch() * 1000)`).notNull(),
+  expiresAt: integer("expires_at", { mode: "timestamp_ms" }).notNull(),
+  createdAt: integer("created_at", { mode: "timestamp_ms" }).default(sql`(unixepoch() * 1000)`).notNull(),
 });
 
 export const insertGeminiCacheSchema = createInsertSchema(geminiCaches).omit({
@@ -670,7 +708,7 @@ export const llmUsage = sqliteTable("llm_usage", {
   totalTokens: integer("total_tokens").notNull(), // Total tokens
   durationMs: integer("duration_ms"), // Request duration in milliseconds
   metadata: text("metadata", { mode: "json" }), // Additional metadata (e.g., thoughtsTokenCount for thinking models)
-  createdAt: integer("created_at", { mode: "timestamp" }).default(sql`(unixepoch() * 1000)`).notNull(),
+  createdAt: integer("created_at", { mode: "timestamp_ms" }).default(sql`(unixepoch() * 1000)`).notNull(),
 });
 
 export const insertLlmUsageSchema = createInsertSchema(llmUsage).omit({
@@ -845,6 +883,11 @@ export const ToolTypes = {
   CONTACTS_CREATE: "contacts_create",
   CONTACTS_UPDATE: "contacts_update",
   CONTACTS_DELETE: "contacts_delete",
+
+  // MCP operations
+  MCP_LIST_SERVERS: "mcp_list_servers",
+  MCP_LIST_TOOLS: "mcp_list_tools",
+  MCP_CALL: "mcp_call",
 } as const;
 
 export type ToolType = typeof ToolTypes[keyof typeof ToolTypes];
@@ -922,6 +965,8 @@ export const toolCallSchema = z.object({
     // Contacts
     "contacts_list", "contacts_search", "contacts_get", "contacts_create", "contacts_update", "contacts_delete",
     "copilot_send_report",
+    // MCP
+    "mcp_list_servers", "mcp_list_tools", "mcp_call",
     // Twilio SMS/Voice
     "sms_send", "sms_list", "call_make", "call_list",
     // Arduino/Hardware IoT
@@ -1323,8 +1368,8 @@ export const googleOAuthTokens = sqliteTable("google_oauth_tokens", {
   expiryDate: integer("expiry_date"),
   tokenType: text("token_type"),
   scope: text("scope"),
-  createdAt: integer("created_at", { mode: "timestamp" }).default(sql`(unixepoch() * 1000)`).notNull(),
-  updatedAt: integer("updated_at", { mode: "timestamp" }).default(sql`(unixepoch() * 1000)`).notNull(),
+  createdAt: integer("created_at", { mode: "timestamp_ms" }).default(sql`(unixepoch() * 1000)`).notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp_ms" }).default(sql`(unixepoch() * 1000)`).notNull(),
 });
 
 export const insertGoogleOAuthTokensSchema = createInsertSchema(googleOAuthTokens).omit({
@@ -1565,9 +1610,9 @@ export const queuedTasks = sqliteTable("queued_tasks", {
   maxRetries: integer("max_retries").default(3),
   
   // Timestamps
-  createdAt: integer("created_at", { mode: "timestamp" }).default(sql`(unixepoch() * 1000)`).notNull(),
-  startedAt: integer("started_at", { mode: "timestamp" }),
-  completedAt: integer("completed_at", { mode: "timestamp" }),
+  createdAt: integer("created_at", { mode: "timestamp_ms" }).default(sql`(unixepoch() * 1000)`).notNull(),
+  startedAt: integer("started_at", { mode: "timestamp_ms" }),
+  completedAt: integer("completed_at", { mode: "timestamp_ms" }),
 });
 
 export const insertQueuedTaskSchema = createInsertSchema(queuedTasks).omit({
@@ -1642,8 +1687,8 @@ export const schedules = sqliteTable("schedules", {
   
   // State
   enabled: integer("enabled", { mode: "boolean" }).default(true).notNull(),
-  lastRunAt: integer("last_run_at", { mode: "timestamp" }),
-  nextRunAt: integer("next_run_at", { mode: "timestamp" }),
+  lastRunAt: integer("last_run_at", { mode: "timestamp_ms" }),
+  nextRunAt: integer("next_run_at", { mode: "timestamp_ms" }),
   runCount: integer("run_count").default(0).notNull(),
   
   // Error handling
@@ -1652,8 +1697,8 @@ export const schedules = sqliteTable("schedules", {
   maxConsecutiveFailures: integer("max_consecutive_failures").default(3),
   
   // Timestamps
-  createdAt: integer("created_at", { mode: "timestamp" }).default(sql`(unixepoch() * 1000)`).notNull(),
-  updatedAt: integer("updated_at", { mode: "timestamp" }).default(sql`(unixepoch() * 1000)`).notNull(),
+  createdAt: integer("created_at", { mode: "timestamp_ms" }).default(sql`(unixepoch() * 1000)`).notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp_ms" }).default(sql`(unixepoch() * 1000)`).notNull(),
 });
 
 export const insertScheduleSchema = createInsertSchema(schedules).omit({
@@ -1698,12 +1743,12 @@ export const triggers = sqliteTable("triggers", {
   
   // State
   enabled: integer("enabled", { mode: "boolean" }).default(true).notNull(),
-  lastTriggeredAt: integer("last_triggered_at", { mode: "timestamp" }),
+  lastTriggeredAt: integer("last_triggered_at", { mode: "timestamp_ms" }),
   triggerCount: integer("trigger_count").default(0).notNull(),
   
   // Timestamps
-  createdAt: integer("created_at", { mode: "timestamp" }).default(sql`(unixepoch() * 1000)`).notNull(),
-  updatedAt: integer("updated_at", { mode: "timestamp" }).default(sql`(unixepoch() * 1000)`).notNull(),
+  createdAt: integer("created_at", { mode: "timestamp_ms" }).default(sql`(unixepoch() * 1000)`).notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp_ms" }).default(sql`(unixepoch() * 1000)`).notNull(),
 });
 
 export const insertTriggerSchema = createInsertSchema(triggers).omit({
@@ -1753,8 +1798,8 @@ export const workflows = sqliteTable("workflows", {
   version: integer("version").default(1).notNull(),
   
   // Timestamps
-  createdAt: integer("created_at", { mode: "timestamp" }).default(sql`(unixepoch() * 1000)`).notNull(),
-  updatedAt: integer("updated_at", { mode: "timestamp" }).default(sql`(unixepoch() * 1000)`).notNull(),
+  createdAt: integer("created_at", { mode: "timestamp_ms" }).default(sql`(unixepoch() * 1000)`).notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp_ms" }).default(sql`(unixepoch() * 1000)`).notNull(),
 });
 
 export const insertWorkflowSchema = createInsertSchema(workflows).omit({
@@ -1783,15 +1828,15 @@ export const executorState = sqliteTable("executor_state", {
   // Statistics
   tasksProcessed: integer("tasks_processed").default(0).notNull(),
   tasksFailed: integer("tasks_failed").default(0).notNull(),
-  lastActivityAt: integer("last_activity_at", { mode: "timestamp" }),
+  lastActivityAt: integer("last_activity_at", { mode: "timestamp_ms" }),
   
   // Settings
   maxParallelTasks: integer("max_parallel_tasks").default(3),
   pollIntervalMs: integer("poll_interval_ms").default(5000),
   
   // Timestamps
-  startedAt: integer("started_at", { mode: "timestamp" }),
-  updatedAt: integer("updated_at", { mode: "timestamp" }).default(sql`(unixepoch() * 1000)`).notNull(),
+  startedAt: integer("started_at", { mode: "timestamp_ms" }),
+  updatedAt: integer("updated_at", { mode: "timestamp_ms" }).default(sql`(unixepoch() * 1000)`).notNull(),
 });
 
 export type ExecutorState = typeof executorState.$inferSelect;
@@ -1828,9 +1873,9 @@ export const collaborativeSessions = sqliteTable("collaborative_sessions", {
   status: text("status").default("active").notNull(), // active, paused, ended
   
   // Timestamps
-  createdAt: integer("created_at", { mode: "timestamp" }).default(sql`(unixepoch() * 1000)`).notNull(),
-  updatedAt: integer("updated_at", { mode: "timestamp" }).default(sql`(unixepoch() * 1000)`).notNull(),
-  endedAt: integer("ended_at", { mode: "timestamp" }),
+  createdAt: integer("created_at", { mode: "timestamp_ms" }).default(sql`(unixepoch() * 1000)`).notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp_ms" }).default(sql`(unixepoch() * 1000)`).notNull(),
+  endedAt: integer("ended_at", { mode: "timestamp_ms" }),
 });
 
 export const insertCollaborativeSessionSchema = createInsertSchema(collaborativeSessions).omit({
@@ -1865,11 +1910,11 @@ export const sessionParticipants = sqliteTable("session_participants", {
   
   // Current state
   isActive: integer("is_active", { mode: "boolean" }).default(true).notNull(),
-  lastSeenAt: integer("last_seen_at", { mode: "timestamp" }).default(sql`(unixepoch() * 1000)`).notNull(),
+  lastSeenAt: integer("last_seen_at", { mode: "timestamp_ms" }).default(sql`(unixepoch() * 1000)`).notNull(),
   
   // Timestamps
-  joinedAt: integer("joined_at", { mode: "timestamp" }).default(sql`(unixepoch() * 1000)`).notNull(),
-  leftAt: integer("left_at", { mode: "timestamp" }),
+  joinedAt: integer("joined_at", { mode: "timestamp_ms" }).default(sql`(unixepoch() * 1000)`).notNull(),
+  leftAt: integer("left_at", { mode: "timestamp_ms" }),
 });
 
 export const insertSessionParticipantSchema = createInsertSchema(sessionParticipants).omit({
@@ -1907,7 +1952,7 @@ export const cursorPositions = sqliteTable("cursor_positions", {
   selectionEndColumn: integer("selection_end_column"),
   
   // Timestamps
-  updatedAt: integer("updated_at", { mode: "timestamp" }).default(sql`(unixepoch() * 1000)`).notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp_ms" }).default(sql`(unixepoch() * 1000)`).notNull(),
 });
 
 export type CursorPosition = typeof cursorPositions.$inferSelect;
@@ -1939,7 +1984,7 @@ export const editOperations = sqliteTable("edit_operations", {
   resultVersion: integer("result_version").notNull(),
   
   // Timestamps
-  createdAt: integer("created_at", { mode: "timestamp" }).default(sql`(unixepoch() * 1000)`).notNull(),
+  createdAt: integer("created_at", { mode: "timestamp_ms" }).default(sql`(unixepoch() * 1000)`).notNull(),
 }, (table) => [
   index("idx_edit_ops_session").on(table.sessionId),
   index("idx_edit_ops_version").on(table.sessionId, table.baseVersion),
@@ -1994,13 +2039,13 @@ export const agentJobs = sqliteTable("agent_jobs", {
   timeout: integer("timeout").default(300000), // 5 minutes default
   
   // Scheduling
-  scheduledFor: integer("scheduled_for", { mode: "timestamp" }),
+  scheduledFor: integer("scheduled_for", { mode: "timestamp_ms" }),
   cronExpression: text("cron_expression"),
   
   // Timestamps
-  createdAt: integer("created_at", { mode: "timestamp" }).default(sql`(unixepoch() * 1000)`).notNull(),
-  startedAt: integer("started_at", { mode: "timestamp" }),
-  completedAt: integer("completed_at", { mode: "timestamp" }),
+  createdAt: integer("created_at", { mode: "timestamp_ms" }).default(sql`(unixepoch() * 1000)`).notNull(),
+  startedAt: integer("started_at", { mode: "timestamp_ms" }),
+  completedAt: integer("completed_at", { mode: "timestamp_ms" }),
   
   // User association
   userId: text("user_id"),
@@ -2045,7 +2090,7 @@ export const jobResults = sqliteTable("job_results", {
   durationMs: integer("duration_ms"),
   
   // Timestamps
-  createdAt: integer("created_at", { mode: "timestamp" }).default(sql`(unixepoch() * 1000)`).notNull(),
+  createdAt: integer("created_at", { mode: "timestamp_ms" }).default(sql`(unixepoch() * 1000)`).notNull(),
 }, (table) => [
   index("idx_job_results_job").on(table.jobId),
 ]);
@@ -2081,7 +2126,7 @@ export const agentWorkers = sqliteTable("agent_workers", {
   activeJobs: integer("active_jobs").default(0),
   
   // Health tracking
-  lastHeartbeat: integer("last_heartbeat", { mode: "timestamp" }).default(sql`(unixepoch() * 1000)`).notNull(),
+  lastHeartbeat: integer("last_heartbeat", { mode: "timestamp_ms" }).default(sql`(unixepoch() * 1000)`).notNull(),
   consecutiveFailures: integer("consecutive_failures").default(0),
   
   // Metrics
@@ -2089,7 +2134,7 @@ export const agentWorkers = sqliteTable("agent_workers", {
   totalTokensUsed: integer("total_tokens_used").default(0),
   
   // Timestamps
-  createdAt: integer("created_at", { mode: "timestamp" }).default(sql`(unixepoch() * 1000)`).notNull(),
+  createdAt: integer("created_at", { mode: "timestamp_ms" }).default(sql`(unixepoch() * 1000)`).notNull(),
 }, (table) => [
   index("idx_agent_workers_status").on(table.status),
   index("idx_agent_workers_heartbeat").on(table.lastHeartbeat),
@@ -2140,8 +2185,8 @@ export const agentIdentities = sqliteTable("agent_identities", {
   enabled: integer("enabled", { mode: "boolean" }).default(true).notNull(),
   
   // Timestamps
-  createdAt: integer("created_at", { mode: "timestamp" }).default(sql`(unixepoch() * 1000)`).notNull(),
-  updatedAt: integer("updated_at", { mode: "timestamp" }).default(sql`(unixepoch() * 1000)`).notNull(),
+  createdAt: integer("created_at", { mode: "timestamp_ms" }).default(sql`(unixepoch() * 1000)`).notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp_ms" }).default(sql`(unixepoch() * 1000)`).notNull(),
 });
 
 export const insertAgentIdentitySchema = createInsertSchema(agentIdentities).omit({
@@ -2183,7 +2228,7 @@ export const agentActivityLog = sqliteTable("agent_activity_log", {
   errorMessage: text("error_message"),
   
   // Timestamps
-  createdAt: integer("created_at", { mode: "timestamp" }).default(sql`(unixepoch() * 1000)`).notNull(),
+  createdAt: integer("created_at", { mode: "timestamp_ms" }).default(sql`(unixepoch() * 1000)`).notNull(),
 }, (table) => [
   index("idx_agent_activity_agent").on(table.agentId),
   index("idx_agent_activity_type").on(table.activityType),
@@ -2244,7 +2289,7 @@ export const sshHosts = sqliteTable("ssh_hosts", {
   passwordSecretName: text("password_secret_name"), // Alternative: password auth
   
   // Connection state
-  lastConnected: integer("last_connected", { mode: "timestamp" }),
+  lastConnected: integer("last_connected", { mode: "timestamp_ms" }),
   lastError: text("last_error"),
   
   // Metadata
@@ -2252,8 +2297,8 @@ export const sshHosts = sqliteTable("ssh_hosts", {
   tags: text("tags", { mode: "json" }).$type<string[]>(), // For categorization
   
   // Timestamps
-  createdAt: integer("created_at", { mode: "timestamp" }).default(sql`(unixepoch() * 1000)`).notNull(),
-  updatedAt: integer("updated_at", { mode: "timestamp" }).default(sql`(unixepoch() * 1000)`).notNull(),
+  createdAt: integer("created_at", { mode: "timestamp_ms" }).default(sql`(unixepoch() * 1000)`).notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp_ms" }).default(sql`(unixepoch() * 1000)`).notNull(),
 });
 
 export const insertSshHostSchema = createInsertSchema(sshHosts).omit({
@@ -2281,7 +2326,7 @@ export const sshKeys = sqliteTable("ssh_keys", {
   keyType: text("key_type").default("ed25519").notNull(), // ed25519, rsa, etc.
   fingerprint: text("fingerprint"), // SSH key fingerprint
   
-  createdAt: integer("created_at", { mode: "timestamp" }).default(sql`(unixepoch() * 1000)`).notNull(),
+  createdAt: integer("created_at", { mode: "timestamp_ms" }).default(sql`(unixepoch() * 1000)`).notNull(),
 });
 
 export const insertSshKeySchema = createInsertSchema(sshKeys).omit({
@@ -2329,8 +2374,8 @@ export const smsMessages = sqliteTable("sms_messages", {
   errorMessage: text("error_message"), // Error details
   
   // Timestamps
-  createdAt: integer("created_at", { mode: "timestamp" }).default(sql`(unixepoch() * 1000)`).notNull(),
-  processedAt: integer("processed_at", { mode: "timestamp" }), // When AI processed the message
+  createdAt: integer("created_at", { mode: "timestamp_ms" }).default(sql`(unixepoch() * 1000)`).notNull(),
+  processedAt: integer("processed_at", { mode: "timestamp_ms" }), // When AI processed the message
 });
 
 export const insertSmsMessageSchema = createInsertSchema(smsMessages).omit({
@@ -2380,15 +2425,15 @@ export const callConversations = sqliteTable("call_conversations", {
   transcriptionStatus: text("transcription_status"), // pending, completed, failed
   
   // Timing
-  startedAt: integer("started_at", { mode: "timestamp" }).default(sql`(unixepoch() * 1000)`).notNull(),
-  endedAt: integer("ended_at", { mode: "timestamp" }),
+  startedAt: integer("started_at", { mode: "timestamp_ms" }).default(sql`(unixepoch() * 1000)`).notNull(),
+  endedAt: integer("ended_at", { mode: "timestamp_ms" }),
   duration: integer("duration"), // Call duration in seconds
   
   // Error tracking
   errorMessage: text("error_message"),
   
-  createdAt: integer("created_at", { mode: "timestamp" }).default(sql`(unixepoch() * 1000)`).notNull(),
-  updatedAt: integer("updated_at", { mode: "timestamp" }).default(sql`(unixepoch() * 1000)`).notNull(),
+  createdAt: integer("created_at", { mode: "timestamp_ms" }).default(sql`(unixepoch() * 1000)`).notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp_ms" }).default(sql`(unixepoch() * 1000)`).notNull(),
 }, (table) => [
   index("idx_call_conversations_sid").on(table.callSid),
   index("idx_call_conversations_status").on(table.status),
@@ -2428,7 +2473,7 @@ export const callTurns = sqliteTable("call_turns", {
   aiResponseAudio: text("ai_response_audio"), // TwiML or audio URL if custom TTS
   
   // Timing
-  createdAt: integer("created_at", { mode: "timestamp" }).default(sql`(unixepoch() * 1000)`).notNull(),
+  createdAt: integer("created_at", { mode: "timestamp_ms" }).default(sql`(unixepoch() * 1000)`).notNull(),
   duration: integer("duration"), // Turn duration in seconds
 }, (table) => [
   index("idx_call_turns_conversation").on(table.conversationId),
@@ -2469,11 +2514,11 @@ export const voicemails = sqliteTable("voicemails", {
   
   // Status
   heard: integer("heard", { mode: "boolean" }).default(false).notNull(), // Whether voicemail has been listened to
-  heardAt: integer("heard_at", { mode: "timestamp" }), // When it was marked as heard
+  heardAt: integer("heard_at", { mode: "timestamp_ms" }), // When it was marked as heard
   
   // Timestamps
-  createdAt: integer("created_at", { mode: "timestamp" }).default(sql`(unixepoch() * 1000)`).notNull(),
-  updatedAt: integer("updated_at", { mode: "timestamp" }).default(sql`(unixepoch() * 1000)`).notNull(),
+  createdAt: integer("created_at", { mode: "timestamp_ms" }).default(sql`(unixepoch() * 1000)`).notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp_ms" }).default(sql`(unixepoch() * 1000)`).notNull(),
 }, (table) => [
   index("idx_voicemails_recording_sid").on(table.recordingSid),
   index("idx_voicemails_from_number").on(table.fromNumber),
@@ -2645,7 +2690,7 @@ export const llmInteractions = sqliteTable("llm_interactions", {
   /**
    * Timestamp when this interaction occurred
    */
-  createdAt: integer("created_at", { mode: "timestamp" }).default(sql`(unixepoch() * 1000)`).notNull(),
+  createdAt: integer("created_at", { mode: "timestamp_ms" }).default(sql`(unixepoch() * 1000)`).notNull(),
 });
 
 // Create insert schema for LLM interactions
@@ -2706,9 +2751,9 @@ export const todoItems = sqliteTable("todo_items", {
   relatedChatId: text("related_chat_id").references(() => chats.id, { onDelete: "set null" }),
   
   // Timestamps
-  createdAt: integer("created_at", { mode: "timestamp" }).default(sql`(unixepoch() * 1000)`).notNull(),
-  updatedAt: integer("updated_at", { mode: "timestamp" }).default(sql`(unixepoch() * 1000)`).notNull(),
-  completedAt: integer("completed_at", { mode: "timestamp" }),
+  createdAt: integer("created_at", { mode: "timestamp_ms" }).default(sql`(unixepoch() * 1000)`).notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp_ms" }).default(sql`(unixepoch() * 1000)`).notNull(),
+  completedAt: integer("completed_at", { mode: "timestamp_ms" }),
 }, (table) => [
   index("idx_todo_items_user").on(table.userId),
   index("idx_todo_items_status").on(table.status),
@@ -2741,7 +2786,7 @@ export const conversationSummaries = sqliteTable("conversation_summaries", {
   keyTopics: text("key_topics", { mode: "json" }).$type<string[]>(),
   sentiment: text("sentiment"), // "positive" | "neutral" | "negative"
   modelUsed: text("model_used"),
-  createdAt: integer("created_at", { mode: "timestamp" }).default(sql`(unixepoch() * 1000)`).notNull(),
+  createdAt: integer("created_at", { mode: "timestamp_ms" }).default(sql`(unixepoch() * 1000)`).notNull(),
 });
 
 export const insertConversationSummarySchema = createInsertSchema(conversationSummaries).omit({

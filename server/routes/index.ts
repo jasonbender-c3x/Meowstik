@@ -37,10 +37,24 @@ import brandingRouter from "./branding";
 import userAgentsRouter from "./user-agents";
 import hardwareRouter from "./hardware";
 import todoRouter from "./todo";
+import chatRouter from "./chat";
+import debugRouter from "./debug";
+import analysisRouter from "./analysis";
+import mcpRouter from "./mcp";
 import { errorHandler } from "./middleware";
 
 export function createApiRouter(): Router {
   const router = Router();
+
+  // Chat, tool-calls, messages — mounted at / so full paths like /api/chats, /api/tool-calls/:id
+  // and /api/messages/:id/metadata all resolve correctly.
+  router.use("/", chatRouter);
+
+  // Debug, LLM usage
+  router.use("/", debugRouter);
+
+  // JIT, codebase analysis, browser, documentation
+  router.use("/", analysisRouter);
 
   router.use("/auth", authRouter);
   router.use("/drive", driveRouter);
@@ -80,6 +94,7 @@ export function createApiRouter(): Router {
   router.use("/user-agents", userAgentsRouter);
   router.use("/hardware", hardwareRouter);
   router.use("/todos", todoRouter);
+  router.use("/mcp", mcpRouter);
 
   router.use(errorHandler);
 
@@ -87,6 +102,5 @@ export function createApiRouter(): Router {
 }
 
 export { errorHandler };
-
 
 

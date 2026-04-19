@@ -3,7 +3,6 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
@@ -13,44 +12,7 @@ import { Slider } from "@/components/ui/slider";
 import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
 import { useSilenceDetection } from "@/hooks/use-silence-detection";
-import { 
-  Monitor, 
-  Globe, 
-  MousePointer2, 
-  Keyboard, 
-  Volume2, 
-  VolumeX,
-  Eye,
-  EyeOff,
-  Maximize2,
-  Minimize2,
-  Settings,
-  Play,
-  Square,
-  RefreshCw,
-  Download,
-  Upload,
-  Cpu,
-  User,
-  MessageSquare,
-  Send,
-  Mic,
-  MicOff,
-  Laptop,
-  Smartphone,
-  ArrowLeft,
-  Copy,
-  Check,
-  Wifi,
-  WifiOff,
-  Lock,
-  Unlock,
-  Zap,
-  Brain,
-  Radio,
-  Timer,
-  AudioLines
-} from "lucide-react";
+import { Monitor, Globe, MousePointer2, Keyboard, Volume2, VolumeX, Eye, EyeOff, Maximize2, Minimize2, Play, Square, Cpu, User, MessageSquare, Send, Mic, MicOff, ArrowLeft, Copy, Check, Wifi, Unlock, Zap, Radio, Timer, AudioLines } from "lucide-react";
 import { Link } from "wouter";
 
 interface Message {
@@ -148,13 +110,11 @@ export default function CollaboratePage() {
   }, [session.collabMode, session.isAiTurn, isMicOn, toast]);
   
   const {
-    isListening,
     isSpeaking,
     silenceProgress,
     audioLevel,
     startListening,
     stopListening,
-    resetSilenceTimer,
   } = useSilenceDetection(handleSilenceDetected, {
     silenceDuration: session.silenceDuration,
     enabled: session.collabMode === "mode_a" && isMicOn && !session.isAiTurn,
@@ -234,7 +194,7 @@ export default function CollaboratePage() {
               timestamp: new Date(),
             }]);
             break;
-          case "frame":
+          case "frame": {
             const frameData = message.data as { width: number; height: number; data: string };
             if (canvasRef.current && frameData.data) {
               const ctx = canvasRef.current.getContext("2d");
@@ -251,6 +211,7 @@ export default function CollaboratePage() {
               }
             }
             break;
+          }
           case "control_changed":
             setSession(prev => ({ ...prev, controlling: message.data.controlling }));
             break;
@@ -858,6 +819,5 @@ export default function CollaboratePage() {
     </div>
   );
 }
-
 
 

@@ -66,38 +66,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
  * - History: Activity menu item
  * - Sparkles: AI branding (unused)
  */
-import { 
-  Plus, 
-  MessageSquare, 
-  Settings, 
-  HelpCircle, 
-  Menu, 
-  X,
-  History,
-  Sparkles,
-  PanelLeftClose,
-  PanelLeft,
-  Bug,
-  Terminal,
-  Code,
-  Music,
-  Mic,
-  Image,
-  Cloud,
-  FileCode,
-  TestTube,
-  Globe,
-  Radio,
-  RefreshCw,
-  Brain,
-  Calendar,
-  LogIn,
-  LogOut,
-  User,
-  Info,
-  Search,
-  Phone
-} from "lucide-react";
+import { Plus, MessageSquare, Settings, HelpCircle, X, History, Sparkles, PanelLeftClose, PanelLeft, Bug, Terminal, Code, Music, Mic, Image, Cloud, FileCode, TestTube, Globe, Radio, RefreshCw, Brain, Calendar, ListTodo, LogIn, LogOut, User, Info, Phone } from "lucide-react";
 
 import { useAppSession } from "@/hooks/use-app-session";
 import { useAuth } from "@/hooks/useAuth";
@@ -105,19 +74,9 @@ import { useAuth } from "@/hooks/useAuth";
 import { Link, useLocation } from "wouter";
 
 /**
- * Meowstic logo image asset
- */
-import logo from "@assets/generated_images/cute_cat_logo_icon.png";
-
-/**
  * Chat type from shared schema
  */
 import type { Chat } from "@shared/schema";
-
-/**
- * date-fns utility for relative time formatting
- */
-import { formatDistanceToNow } from "date-fns";
 
 // ============================================================================
 // TYPE DEFINITIONS
@@ -177,7 +136,7 @@ interface SidebarProps {
  */
 export function Sidebar({ isOpen, setIsOpen, onNewChat, chats, currentChatId, onChatSelect, isCollapsed, setIsCollapsed }: SidebarProps) {
   const [location] = useLocation();
-  const { liveMode, revision, uiRevision, refresh, isLoading, googleConnected, githubConnected } = useAppSession();
+  const { liveMode, revision, refresh, isLoading, googleConnected, githubConnected } = useAppSession();
   const { user, isAuthenticated } = useAuth();
   
   // Track if we're on desktop (lg breakpoint = 1024px)
@@ -268,7 +227,9 @@ export function Sidebar({ isOpen, setIsOpen, onNewChat, chats, currentChatId, on
        * Semi-transparent background that closes sidebar when clicked
        * Only visible on mobile (hidden on lg+)
        */}
-      <div 
+      <button
+        type="button"
+        aria-label="Close sidebar"
         className={cn(
           "fixed inset-0 bg-background/80 backdrop-blur-sm z-40 lg:hidden",
           isOpen ? "block" : "hidden"
@@ -745,6 +706,23 @@ export function Sidebar({ isOpen, setIsOpen, onNewChat, chats, currentChatId, on
                   </Button>
                 </Link>
 
+                {/* To-Do List Button */}
+                <Link href="/todos">
+                  <Button 
+                    variant="ghost" 
+                    className={cn(
+                      "font-normal text-muted-foreground hover:text-foreground",
+                      effectiveCollapsed ? "w-12 h-9 p-0 justify-center" : "w-full justify-start gap-3",
+                      location === "/todos" && "bg-secondary/50 text-foreground"
+                    )}
+                    title={effectiveCollapsed ? "To-Do List" : undefined}
+                    data-testid="button-todos"
+                  >
+                    <ListTodo className="h-4 w-4" />
+                    {!effectiveCollapsed && "To-Do List"}
+                  </Button>
+                </Link>
+
                 {/* Schedules & Triggers Button */}
                 <Link href="/schedules">
                   <Button 
@@ -1025,6 +1003,4 @@ export function Sidebar({ isOpen, setIsOpen, onNewChat, chats, currentChatId, on
     </>
   );
 }
-
-
 

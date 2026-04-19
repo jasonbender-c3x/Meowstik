@@ -117,7 +117,7 @@ export function TTSProvider({ children }: { children: ReactNode }) {
     }
   }, [getOrCreateAudioContext]);
 
-  const playAudioBase64 = useCallback(async (base64: string, mimeType?: string): Promise<boolean> => {
+  const playAudioBase64 = useCallback(async (base64: string): Promise<boolean> => {
     try {
       const ctx = getOrCreateAudioContext();
       if (!ctx) {
@@ -130,7 +130,9 @@ export function TTSProvider({ children }: { children: ReactNode }) {
           // Some browsers complete resume() asynchronously; wait one tick
           // to allow the state transition to propagate before checking.
           await new Promise<void>(resolve => setTimeout(resolve, AUDIO_CONTEXT_RESUME_DELAY_MS));
-        } catch {}
+        } catch {
+          // Ignore resume failures and fall through to the state check below.
+        }
       }
       if (ctx.state !== 'running') {
         console.warn("[TTS] AudioContext not running after resume, state:", ctx.state);
@@ -152,7 +154,9 @@ export function TTSProvider({ children }: { children: ReactNode }) {
       }
       
       if (activeSourceRef.current) {
-        try { activeSourceRef.current.stop(); } catch {}
+        try { activeSourceRef.current.stop(); } catch {
+          // Ignore stop errors for stale sources.
+        }
         activeSourceRef.current = null;
       }
       
@@ -236,7 +240,7 @@ export function TTSProvider({ children }: { children: ReactNode }) {
       // Mute mode should always be muted
       setIsMutedState(true);
     }
-  }, []); // Only run on mount
+  }, [verbosityMode, isMuted]);
 
   // Register an external HD audio element so stopSpeaking can halt it
   const registerHDAudio = useCallback((audio: HTMLAudioElement | null) => {
@@ -261,7 +265,9 @@ export function TTSProvider({ children }: { children: ReactNode }) {
       audioRef.current = null;
     }
     if (activeSourceRef.current) {
-      try { activeSourceRef.current.stop(); } catch {}
+      try { activeSourceRef.current.stop(); } catch {
+        // Ignore stop errors during cleanup.
+      }
       activeSourceRef.current = null;
     }
     if ("speechSynthesis" in window) {
@@ -412,6 +418,3 @@ export function useTTS() {
   }
   return context;
 }
-
-
-

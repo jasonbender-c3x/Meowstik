@@ -17,7 +17,7 @@
  * 
  * Models:
  * - Gemini 2.5: gemini-2.5-flash-native-audio-preview-12-2025 (audio only, working)
- * - Gemini 3.0: gemini-3-flash-preview (audio + video streaming)
+ * - Gemini 3.0: gemini-3-flash-preview-native-audio-preview-12-2025 (native audio Live API)
  * Audio Format: 16-bit PCM, 16kHz input / 24kHz output
  */
 
@@ -50,6 +50,10 @@ You are having a real-time voice conversation. Be concise and natural in your re
 Respond conversationally as if speaking to a friend. Avoid long lists or overly formal language.`;
 
 const DEFAULT_VOICE = DEFAULT_TTS_VOICE;
+const DEFAULT_LIVE_AUDIO_MODEL =
+  process.env.GEMINI_LIVE_AUDIO_MODEL || "gemini-2.5-flash-native-audio-preview-12-2025";
+const DEFAULT_LIVE_NATIVE_AUDIO_MODEL =
+  process.env.GEMINI_LIVE_NATIVE_AUDIO_MODEL || "gemini-3-flash-preview-native-audio-preview-12-2025";
 
 /**
  * Create a new Gemini Live session
@@ -71,7 +75,7 @@ export async function createLiveSession(
     const ai = new GoogleGenAI({ apiKey });
     
     const sessionConfig: any = {
-      responseModalities: [Modality.AUDIO], // Try AUDIO only first
+      responseModalities: [Modality.AUDIO, Modality.TEXT],
       /* speechConfig: {
         voiceConfig: {
           prebuiltVoiceConfig: {
@@ -125,8 +129,12 @@ Use these tools to help the user accomplish tasks hands-free through voice comma
       sessionConfig.tools.push(...config.tools);
     }
 
-    // Select model based on configuration
-    const modelName = "gemini-3-flash-preview";
+    // Plain preview text models are rejected by bidiGenerateContent.
+    // Use native-audio Live models only.
+    const modelName =
+      config.useGemini3 || config.enableVideoStreaming
+        ? DEFAULT_LIVE_NATIVE_AUDIO_MODEL
+        : DEFAULT_LIVE_AUDIO_MODEL;
 
     const emitter = new EventEmitter();
 
@@ -666,6 +674,5 @@ export const AVAILABLE_VOICES = [
   { value: "Orus", label: "Orus - Authoritative Male", gender: "male" },
   { value: "Zephyr", label: "Zephyr - Gentle Neutral", gender: "neutral" },
 ] as const;
-
 
 

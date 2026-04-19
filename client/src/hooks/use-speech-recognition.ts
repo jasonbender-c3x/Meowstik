@@ -82,7 +82,7 @@ export function useSpeechRecognition(
     if (recognitionRef.current) {
       try {
         recognitionRef.current.stop();
-      } catch (e) {
+      } catch {
         // Ignore errors when stopping
       }
     }
@@ -156,7 +156,7 @@ export function useSpeechRecognition(
       console.error('[SpeechRecognition] Failed to start:', e);
       setError('Failed to start speech recognition');
     }
-  }, [isSupported, config, onResult, onEnd]);
+  }, [SpeechRecognition, isSupported, config, onResult, onEnd]);
 
   const stop = useCallback(() => {
     if (recognitionRef.current) {
@@ -179,7 +179,7 @@ export function useSpeechRecognition(
         isManualStopRef.current = true;
         try {
           recognitionRef.current.stop();
-        } catch (e) {
+        } catch {
           // Ignore cleanup errors
         }
       }
@@ -196,6 +196,3 @@ export function useSpeechRecognition(
     error,
   };
 }
-
-
-
