@@ -14,7 +14,7 @@
 
 import { getDb } from "../db";
 import { agentWorkers, type AgentWorker } from "@shared/schema";
-import { eq, lt, sql } from "drizzle-orm";
+import { and, eq, lt, ne, sql } from "drizzle-orm";
 import AgentWorkerService, { createAgentWorker, type WorkerConfig } from "./agent-worker";
 
 export interface PoolConfig {
@@ -118,7 +118,10 @@ class WorkerPoolService {
 
     const unhealthyWorkers = await getDb().select()
       .from(agentWorkers)
-      .where(lt(agentWorkers.lastHeartbeat, unhealthyThreshold));
+      .where(and(
+        lt(agentWorkers.lastHeartbeat, unhealthyThreshold),
+        ne(agentWorkers.status, "offline"),
+      ));
 
     for (const unhealthy of unhealthyWorkers) {
       console.warn(`[WorkerPool] Worker ${unhealthy.id} is unhealthy (last heartbeat: ${unhealthy.lastHeartbeat})`);
@@ -134,7 +137,10 @@ class WorkerPoolService {
 
     const failedWorkers = await getDb().select()
       .from(agentWorkers)
-      .where(sql`${agentWorkers.consecutiveFailures} >= ${this.config.maxConsecutiveFailures}`);
+      .where(and(
+        sql`${agentWorkers.consecutiveFailures} >= ${this.config.maxConsecutiveFailures}`,
+        ne(agentWorkers.status, "offline"),
+      ));
 
     for (const failed of failedWorkers) {
       console.warn(`[WorkerPool] Worker ${failed.id} has ${failed.consecutiveFailures} consecutive failures, restarting...`);
@@ -223,6 +229,5 @@ class WorkerPoolService {
 
 export const workerPool = new WorkerPoolService();
 export default workerPool;
-
 
 

@@ -1,6 +1,8 @@
 # Architecture
 
-Meowstik uses a hub-and-spoke architecture. The **server** is the single orchestration point — it runs the AI inference pipeline, dispatches tool calls, manages state, and coordinates all connected agents.
+Meowstik is now best understood as a **local-first runtime**. The codebase still contains clear frontend/backend boundaries for development, but for a local install the important model is one app/runtime coordinating UI, tools, memory, and integrations.
+
+Older references to **server**, **client**, or **desktop agent** in this document should be read as implementation details or optional relay paths.
 
 ---
 
@@ -8,10 +10,11 @@ Meowstik uses a hub-and-spoke architecture. The **server** is the single orchest
 
 ```mermaid
 graph TD
-    User[User] <--> Client[Web Client\nReact + Vite]
-    Client <-->|"REST + SSE"| Server[Meowstik Server\nExpress + Node.js]
+    User[User] <--> Runtime[Meowstik Local Runtime]
 
-    subgraph "Server Core"
+    subgraph "Runtime Core"
+        Runtime --> Client[React UI\nVite]
+        Runtime --> Server[Node Services\nExpress + Node.js]
         Server --> Gemini[Google Gemini AI\ngemini-2.0-flash / 2.5-pro]
         Server --> TTS[Google Cloud TTS\nChirp3-HD]
         Server --> DB[(SQLite Database\nbetter-sqlite3 + Drizzle ORM)]
@@ -21,11 +24,13 @@ graph TD
         Server --> Dispatcher[Tool Dispatcher\nserver/services/tool-dispatcher.ts]
         Server --> JIT[JIT Tool Loader\nserver/services/jit-tool-protocol.ts]
         Server --> Cron[Cron Scheduler\nserver/services/cron-scheduler.ts]
+        Server --> CU[Computer Use\ncomputer-use + desktop-service]
     end
 
-    subgraph "Agents"
-        Server <-->|"WebSocket"| Desktop[Desktop Agent\ndesktop-agent/]
+    subgraph "Optional Connections"
+        Server <-->|"MCP"| MCP[MCP Servers]
         Server <-->|"WebSocket"| Extension[Browser Extension\nbrowser-extension/]
+        Server <-->|"WebSocket"| Desktop[Desktop Relay\nlegacy/advanced]
     end
 
     subgraph "External"
@@ -36,7 +41,7 @@ graph TD
         Server --> Search["Web Search\nExa + Google CSE"]
     end
 
-    Desktop --> LocalOS["Local OS\nScreen · Mouse · Keyboard"]
+    CU --> LocalOS["Local OS\nScreen · Mouse · Keyboard"]
     Extension --> Browser["User's Browser\nTabs · DOM · Forms"]
 ```
 
@@ -193,12 +198,20 @@ erDiagram
 
 The system prompt is assembled dynamically per request by `server/services/prompt-composer.ts`:
 
-1. **Core directives** (`prompts/core-directives.md`) — operational rules
-2. **Personality** (`prompts/personality.md`) — character, tone, voice style tags
-3. **Tool instructions** (`prompts/tools.md`) — how to use tools correctly
-4. **User branding** — custom persona name/style if user has configured it
-5. **Chat history** — recent messages (windowed)
-6. **Attachments** — any files/images in the current message
+1. **Agent identity** — runtime branding (`You are {displayName}, referred to as {agentName}`)
+2. **Environment metadata** — machine/runtime context from `formatEnvironmentMetadata()`
+3. **Core directives** (`prompts/core-directives.md`) — operational rules
+4. **Personality** (`prompts/personality.md`) — character, tone, voice style tags
+5. **Tool instructions** (`prompts/tools.md`) — how to use tools correctly
+6. **Short-term memory** — `logs/Short_Term_Memory.md` when present
+7. **Recent execution history** — tail of `logs/execution_log.md` when present
+8. **Database-backed to-do list** — pending/in-progress tasks for the current user
+9. **Family context** — injected by `getFamilyContext()` when present
+10. **Thoughts forward cache** — `logs/cache.md` from the last turn when enabled
+11. **External skills summary** — discovered instruction/skill summaries from `externalSkillsService`
+12. **Final instructions** — mandatory end-of-turn instructions appended by `getFinalInstructions()`
+
+Only three prompt files are currently loaded from `prompts/`: `core-directives.md`, `personality.md`, and `tools.md`. Earlier stray files in that directory that were not referenced by the runtime loader were removed.
 
 ---
 

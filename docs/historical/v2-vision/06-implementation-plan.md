@@ -26,7 +26,7 @@
    - `file_get` → `get`
    - `file_put` → `put`
    - `send_chat` → `write`
-   - `log_append` → `log`
+   - `append` → `log`
    - `say` → `say` (no change)
 
 2. **Create unified `ssh` tool**

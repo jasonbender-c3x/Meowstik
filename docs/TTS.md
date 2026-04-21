@@ -152,7 +152,3 @@ The AI can also trigger sound effects using the `soundboard` tool:
 Available sounds: `womp_womp`, `rimshot`, `fart`, `fart_long`, `airhorn`, `crickets`, `price_is_wrong`, `laugh_track`, `jingle`, `news_intro`, `alarm_clock`, `gentle_wake`, `pill_reminder`, `urgent_alarm`, `ding`, `success`, `error_buzz`, `level_up`, `incoming`, `traffic_alert`, `weather_beep`
 
 ---
-
-## ElevenLabs Fallback
-
-An optional ElevenLabs TTS integration exists at `server/integrations/elevenlabs-tts.ts`. It's not the primary TTS system but can be enabled by setting `TTS_PROVIDER=elevenlabs` and `ELEVENLABS_API_KEY`.

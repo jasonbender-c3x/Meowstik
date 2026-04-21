@@ -14,11 +14,12 @@ Meowstik is a personal AI assistant built on Google Gemini. It's not just a chat
 | **[ARCHITECTURE.md](./ARCHITECTURE.md)** | System design, data flow, component overview |
 | **[FEATURES.md](./FEATURES.md)** | Full feature list with status |
 | **[TOOLS.md](./TOOLS.md)** | Every tool Gemini can call, with parameters |
+| **[APRIL_2026_UPDATE.md](./APRIL_2026_UPDATE.md)** | This month's shipped changes and doc refresh |
 | **[TTS.md](./TTS.md)** | Voice synthesis — Chirp3-HD, voices, expressive styles |
 | **[SUMMARIZATION_ENGINE.md](./SUMMARIZATION_ENGINE.md)** | Conversation & feedback summarization |
 | **[EVOLUTION_ENGINE.md](./EVOLUTION_ENGINE.md)** | Self-improvement loop via feedback → GitHub PRs |
-| **[AGENTS.md](./AGENTS.md)** | Desktop Agent and Browser Extension setup |
-| **[INTEGRATIONS.md](./INTEGRATIONS.md)** | Google, Twilio, GitHub, ElevenLabs |
+| **[AGENTS.md](./AGENTS.md)** | Optional desktop relay + browser extension notes |
+| **[INTEGRATIONS.md](./INTEGRATIONS.md)** | Google, Twilio, GitHub, MCP |
 | **[DEPLOYMENT.md](./DEPLOYMENT.md)** | Local dev, Replit, env vars |
 | **[copilot/index.md](./copilot/index.md)** | Instructions for GitHub Copilot working on this repo |
 
@@ -26,19 +27,21 @@ Meowstik is a personal AI assistant built on Google Gemini. It's not just a chat
 
 ## What Meowstik Is
 
-Meowstik is a **hub-and-spoke meta-agent platform**. The server is the central brain; agents ("limbs") connect via WebSocket to receive instructions and stream results back.
+Meowstik is a **local-first AI runtime** built on Google Gemini. In normal use it runs on your machine as one app/runtime, even though the codebase is still organized into a React UI, Node services, and SQLite storage.
+
+Older docs may still use terms like **server**, **client**, or **desktop agent**. In current usage, those are implementation details or optional relay modes — not the primary mental model for a local Meowstik install.
 
 ```
-User ──► Web UI ──► Server (Express + Gemini + SQLite)
-                       │
-            ┌──────────┼──────────┐
-            ▼          ▼          ▼
-       Desktop      Browser     Twilio
-        Agent      Extension   SMS/Voice
-       (OS ctrl)  (tab ctrl)  (phone AI)
+User ──► Meowstik Local Runtime
+          (React UI + Node services + SQLite)
+                  │
+        ┌─────────┼─────────┬────────────┐
+        ▼         ▼         ▼            ▼
+   Computer Use   MCP     Browser     Twilio
+   (same machine) Servers  Extension  SMS/Voice
 ```
 
-The AI has direct tool access to: filesystem, shell, Gmail, Google Calendar/Drive/Docs, GitHub, phone calls, web search, desktop clicks, database queries, and more.
+The AI has direct tool access to: filesystem, shell, Gmail, Google Calendar/Drive/Docs, GitHub, phone calls, local computer-use actions, MCP tools, database queries, and more.
 
 ---
 
@@ -46,26 +49,29 @@ The AI has direct tool access to: filesystem, shell, Gmail, Google Calendar/Driv
 
 ```mermaid
 graph TD
-    User[User] <--> Client[React Web UI]
-    Client <-->|SSE + REST| Server[Meowstik Server]
+    User[User] <--> Runtime[Meowstik Local Runtime]
 
-    subgraph Brain
-        Server --> Gemini[Google Gemini]
-        Server --> DB[(SQLite / Drizzle)]
-        Server --> SE[Summarization Engine]
-        Server --> EE[Evolution Engine]
+    subgraph Local Runtime
+        Runtime --> UI[React UI]
+        Runtime --> Node[Node Services]
+        Runtime --> DB[(SQLite / Drizzle)]
+        Runtime --> Gemini[Google Gemini]
+        Runtime --> SE[Summarization Engine]
+        Runtime --> EE[Evolution Engine]
+        Runtime --> CU[Computer Use / desktop-service]
     end
 
-    subgraph Agents
-        Server <-->|WS| Desktop[Desktop Agent]
-        Server <-->|WS| Ext[Browser Extension]
+    subgraph Optional Connections
+        Runtime <-->|MCP| MCP[MCP Servers]
+        Runtime <-->|WS| Ext[Browser Extension]
+        Runtime <-->|WS| Relay[Desktop Relay (legacy/advanced)]
     end
 
     subgraph Integrations
-        Server --> TTS[Cloud TTS · Chirp3-HD]
-        Server --> Google[Google Workspace]
-        Server --> Twilio[Twilio SMS/Voice]
-        Server --> GitHub[GitHub API]
+        Runtime --> TTS[Cloud TTS · Chirp3-HD]
+        Runtime --> Google[Google Workspace]
+        Runtime --> Twilio[Twilio SMS/Voice]
+        Runtime --> GitHub[GitHub API]
     end
 ```
 
@@ -78,7 +84,7 @@ graph TD
 | AI Model | Google Gemini (`gemini-2.0-flash`, `gemini-2.5-pro`) |
 | Backend | Node.js 20 + Express 4 |
 | Database | SQLite via `better-sqlite3` + Drizzle ORM |
-| Frontend | React 18 + Vite + Tailwind CSS + shadcn/ui |
+| Frontend | React 19 + Vite + Tailwind CSS + shadcn/ui |
 | Voice | Google Cloud TTS Chirp3-HD |
 | Real-time | Server-Sent Events (SSE) |
 | Auth | Google OAuth 2.0 + `passport` |

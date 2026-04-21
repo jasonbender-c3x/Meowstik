@@ -186,15 +186,6 @@ export function createTtsPipeline(res: Response, useVoice: boolean): TtsPipeline
     utterance: string,
     voice?: string,
   ): Promise<{ audioBase64?: string; mimeType?: string; duration?: number; error?: string }> {
-    const provider = process.env.TTS_PROVIDER || "google";
-
-    if (provider === "elevenlabs" || provider === "11labs") {
-      const { generateSingleSpeakerAudio, DEFAULT_ELEVENLABS_VOICE } = await import(
-        "../integrations/elevenlabs-tts"
-      );
-      return generateSingleSpeakerAudio(utterance, voice || DEFAULT_ELEVENLABS_VOICE);
-    }
-
     const { generateSingleSpeakerAudio, DEFAULT_TTS_VOICE } = await import(
       "../integrations/expressive-tts"
     );

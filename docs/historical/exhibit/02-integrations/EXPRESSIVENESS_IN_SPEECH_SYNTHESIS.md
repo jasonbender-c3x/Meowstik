@@ -2,7 +2,7 @@
 
 ## Overview
 
-Meowstik implements **text-based expressiveness** for speech synthesis, where emotional tone and speaking style are controlled through **prefix directives** prepended to the text being synthesized. This approach works across multiple TTS providers (Google Cloud TTS and ElevenLabs).
+Meowstik implements **text-based expressiveness** for speech synthesis, where emotional tone and speaking style are controlled through **prefix directives** prepended to the text being synthesized. This approach works with Google Cloud TTS.
 
 ## Architecture
 
@@ -30,7 +30,7 @@ Instead of using SSML tags or API-specific emotion parameters, Meowstik uses **n
    - Passes through to TTS provider unchanged
    - Neural models interpret style directive naturally
 
-3. **TTS Provider** (Google Cloud TTS or ElevenLabs)
+3. **TTS Provider** (Google Cloud TTS)
    - Neural networks trained on diverse speech data
    - Understand natural language instructions
    - Apply appropriate prosody, intonation, and emotion
@@ -151,26 +151,13 @@ const generateAudio = useCallback(async () => {
 
 ```typescript
 router.post("/tts", asyncHandler(async (req, res) => {
-  const { text, speakers, model, provider } = req.body;
-  
-  // Determine TTS provider
-  const ttsProvider = provider || process.env.TTS_PROVIDER || "google";
-  
-  let result;
-  if (ttsProvider === "elevenlabs" || ttsProvider === "11labs") {
-    // ElevenLabs interprets style prefixes naturally
-    const { generateMultiSpeakerAudio } = await import("../integrations/elevenlabs-tts");
-    result = await generateMultiSpeakerAudio({ speakers });
-  } else {
-    // Google Cloud TTS interprets style prefixes naturally
-    const { generateMultiSpeakerAudio } = await import("../integrations/expressive-tts");
-    result = await generateMultiSpeakerAudio({
-      text,
-      speakers,
-      model: model || "flash"
-    });
-  }
-  
+  const { text, speakers, model } = req.body;
+  const { generateMultiSpeakerAudio } = await import("../integrations/expressive-tts");
+  const result = await generateMultiSpeakerAudio({
+    text,
+    speakers,
+    model: model || "flash"
+  });
   res.json(result);
 }));
 ```
@@ -201,31 +188,6 @@ export async function generateSingleSpeakerAudio(
         pitch: 0,
         effectsProfileId: ["headphone-class-device"]
       }
-    }
-  });
-  
-  // Returns MP3 base64
-}
-```
-
-**ElevenLabs** (`server/integrations/elevenlabs-tts.ts`):
-
-```typescript
-export async function generateSingleSpeakerAudio(
-  text: string,  // Text with style prefix
-  voice: string = DEFAULT_ELEVENLABS_VOICE,
-  maxRetries: number = 2
-): Promise<TTSResponse> {
-  // ...authentication...
-  
-  const audioStream = await client.textToSpeech.convert(voiceConfig.voiceId, {
-    text: text,  // Style prefix interpreted by ElevenLabs neural models
-    model_id: "eleven_turbo_v2_5",
-    voice_settings: {
-      stability: 0.5,
-      similarity_boost: 0.75,
-      style: 0.0,  // ElevenLabs-specific style parameter
-      use_speaker_boost: true
     }
   });
   
@@ -341,28 +303,6 @@ audioConfig: {
 }
 ```
 
-### ElevenLabs
-
-**Voices**: Premium voices
-- Rachel (Female, balanced)
-- Antoni (Male, well-rounded)
-- [10 voices total]
-
-**Strengths**:
-- Highly expressive and emotional
-- Natural-sounding with emotional range
-- Excellent at interpreting style directives
-
-**Configuration**:
-```typescript
-voice_settings: {
-  stability: 0.5,          // Balance between consistency and variation
-  similarity_boost: 0.75,  // How closely to match the voice
-  style: 0.0,              // ElevenLabs-specific style parameter
-  use_speaker_boost: true  // Enhance speaker characteristics
-}
-```
-
 ## Usage in Chat
 
 The same expressiveness system is available in the main chat via the "say" tool:
@@ -380,15 +320,8 @@ private async executeSay(toolCall: ToolCall): Promise<unknown> {
   // Text can include style prefix
   // e.g., "Say cheerfully: Hello there!"
   
-  const ttsProvider = process.env.TTS_PROVIDER || "google";
-  
-  if (ttsProvider === "elevenlabs") {
-    const { generateSingleSpeakerAudio } = await import("../integrations/elevenlabs-tts");
-    ttsResult = await generateSingleSpeakerAudio(params.utterance, voice);
-  } else {
-    const { generateSingleSpeakerAudio } = await import("../integrations/expressive-tts");
-    ttsResult = await generateSingleSpeakerAudio(params.utterance, voice);
-  }
+  const { generateSingleSpeakerAudio } = await import("../integrations/expressive-tts");
+  ttsResult = await generateSingleSpeakerAudio(params.utterance, voice);
   
   return {
     type: "say",
@@ -396,7 +329,7 @@ private async executeSay(toolCall: ToolCall): Promise<unknown> {
     audioBase64: ttsResult.audioBase64,
     mimeType: ttsResult.mimeType,
     duration: ttsResult.duration,
-    provider: ttsProvider
+    provider: "google"
   };
 }
 ```
@@ -464,9 +397,9 @@ private async executeSay(toolCall: ToolCall): Promise<unknown> {
    - Relies on model interpretation of natural language
 
 2. **Style Interpretation Varies**
-   - Different models interpret styles differently
-   - Google Cloud TTS vs ElevenLabs may produce different results
-   - No guaranteed consistency across providers
+   - Different voice models interpret styles differently
+   - Results can vary by voice and prompt wording
+   - No guaranteed consistency across prompts
 
 3. **Single Style Per Utterance**
    - Cannot mix multiple styles in one sentence
@@ -485,10 +418,10 @@ private async executeSay(toolCall: ToolCall): Promise<unknown> {
    - Fine-grained prosody control
    - Precise timing and emphasis
 
-2. **Provider-Specific Features**
-   - Leverage ElevenLabs' emotion API
+2. **Voice-Specific Features**
    - Use Google's speaking rate/pitch parameters
-   - Provider-specific style enhancements
+   - Improve per-voice style tuning
+   - Add richer style enhancements
 
 3. **Dynamic Style Adjustment**
    - Real-time style parameter tuning

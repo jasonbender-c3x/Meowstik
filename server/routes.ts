@@ -1030,14 +1030,26 @@ The user has MUTE mode enabled. Minimize all output.
       const MAX_TOTAL_TOOLS = 50; // Absolute limit across all turns
       let shouldEndTurn = false;
       let agenticHistory = [...history, { role: "user", parts: userParts }];
+      const failedToolTypeCounts = new Map<string, number>();
+      const MAX_REPEATED_TOOL_FAILURES = 3;
+      let loopAbortMessage: string | null = null;
       
       // Set SSE response for real-time tool call events
       toolDispatcher.setSseResponse(res);
+
+      const recordToolFailure = (toolType: string) => {
+        const nextCount = (failedToolTypeCounts.get(toolType) || 0) + 1;
+        failedToolTypeCounts.set(toolType, nextCount);
+        if (!loopAbortMessage && nextCount >= MAX_REPEATED_TOOL_FAILURES) {
+          loopAbortMessage = `Stopping repeated attempts for ${toolType} after ${nextCount} failures.`;
+          console.warn(`[AGENTIC LOOP] ${loopAbortMessage}`);
+        }
+      };
       
       // Helper function to execute tools and return results
       const executeToolsAndGetResults = async (
         toolCalls: ToolCall[],
-        messageId: string
+      messageId: string
       ): Promise<{ results: typeof toolResults; shouldEndTurn: boolean; sendChatContent: string }> => {
         const results: typeof toolResults = [];
         let endTurn = false;
@@ -1081,7 +1093,7 @@ The user has MUTE mode enabled. Minimize all output.
 
 `);
                 // Accumulate for storage
-                sendChatContent += cleanContent;
+                sendChatContent += (sendChatContent ? "\n\n" : "") + cleanContent;
               }
             }
             
@@ -1103,20 +1115,12 @@ The user has MUTE mode enabled. Minimize all output.
                 res.write(`data: ${JSON.stringify({ text: cleanUtterance })}
 
 `);
-                sendChatContent += cleanUtterance + "\\n\\n";
 
                 // Generate and stream TTS audio
                 if (useVoice) {
                   try {
-                    const provider = process.env.TTS_PROVIDER || "google";
-                    let ttsResult;
-                    if (provider === "elevenlabs" || provider === "11labs") {
-                      const { generateSingleSpeakerAudio, DEFAULT_ELEVENLABS_VOICE } = await import("./integrations/elevenlabs-tts");
-                      ttsResult = await generateSingleSpeakerAudio(utterance, voice || DEFAULT_ELEVENLABS_VOICE);
-                    } else {
-                      const { generateSingleSpeakerAudio, DEFAULT_TTS_VOICE } = await import("./integrations/expressive-tts");
-                      ttsResult = await generateSingleSpeakerAudio(utterance, voice || DEFAULT_TTS_VOICE);
-                    }
+                    const { generateSingleSpeakerAudio, DEFAULT_TTS_VOICE } = await import("./integrations/expressive-tts");
+                    const ttsResult = await generateSingleSpeakerAudio(utterance, voice || DEFAULT_TTS_VOICE);
                     if (ttsResult.audioBase64) {
                       console.log(`[Routes][SAY] ✓ Audio generated, length: ${ttsResult.audioBase64.length}`);
                       res.write(`data: ${JSON.stringify({
@@ -1137,6 +1141,13 @@ The user has MUTE mode enabled. Minimize all output.
                     console.error(`[Routes][SAY] TTS failed:`, ttsErr);
                   }
                 }
+              }
+            }
+
+            if (!toolResult.success) {
+              recordToolFailure(toolCall.type);
+              if (loopAbortMessage) {
+                endTurn = true;
               }
             }
             
@@ -1188,6 +1199,10 @@ The user has MUTE mode enabled. Minimize all output.
 
 `,
             );
+            recordToolFailure(toolCall.type);
+            if (loopAbortMessage) {
+              endTurn = true;
+            }
           }
         }
         
@@ -1228,7 +1243,7 @@ The user has MUTE mode enabled. Minimize all output.
         });
         
         // AGENTIC LOOP: Continue if end_turn was NOT called
-        while (!shouldEndTurn && loopIteration < MAX_LOOP_ITERATIONS && totalToolsExecuted < MAX_TOTAL_TOOLS) {
+        while (!shouldEndTurn && !loopAbortMessage && loopIteration < MAX_LOOP_ITERATIONS && totalToolsExecuted < MAX_TOTAL_TOOLS) {
           loopIteration++;
           console.log(`\\n${"═".repeat(60)}`);
           console.log(`[AGENTIC LOOP] Turn ${loopIteration} - Feeding tool results back to LLM`);
@@ -1381,7 +1396,9 @@ The user has MUTE mode enabled. Minimize all output.
         
         if (!shouldEndTurn) {
           let warningMessage = "";
-          if (loopIteration >= MAX_LOOP_ITERATIONS) {
+          if (loopAbortMessage) {
+            warningMessage = loopAbortMessage;
+          } else if (loopIteration >= MAX_LOOP_ITERATIONS) {
             console.warn(`[AGENTIC LOOP] Hit max iterations (${MAX_LOOP_ITERATIONS}), forcing termination`);
             warningMessage = "[Loop limit reached - response truncated]";
           } else if (totalToolsExecuted >= MAX_TOTAL_TOOLS) {
@@ -1561,19 +1578,11 @@ The user has MUTE mode enabled. Minimize all output.
       if (useVoice && !sayToolCalled && finalContent && finalContent.trim().length > 0) {
         console.log(`[Routes][TTS-Fallback] No streaming TTS or say tool, generating single fallback`);
         try {
-          const provider = process.env.TTS_PROVIDER || "google";
-          let ttsResult;
           const ttsText = finalContent.length > 500 
             ? finalContent.substring(0, 500) + "..."
             : finalContent;
-
-          if (provider === "elevenlabs" || provider === "11labs") {
-            const { generateSingleSpeakerAudio, DEFAULT_ELEVENLABS_VOICE } = await import("./integrations/elevenlabs-tts");
-            ttsResult = await generateSingleSpeakerAudio(ttsText, DEFAULT_ELEVENLABS_VOICE);
-          } else {
-            const { generateSingleSpeakerAudio, DEFAULT_TTS_VOICE } = await import("./integrations/expressive-tts");
-            ttsResult = await generateSingleSpeakerAudio(ttsText, DEFAULT_TTS_VOICE);
-          }
+          const { generateSingleSpeakerAudio, DEFAULT_TTS_VOICE } = await import("./integrations/expressive-tts");
+          const ttsResult = await generateSingleSpeakerAudio(ttsText, DEFAULT_TTS_VOICE);
 
           if (ttsResult.audioBase64) {
             console.log(`[Routes][TTS-Fallback] ✓ Generated fallback audio via ${provider}, length: ${ttsResult.audioBase64.length}`);

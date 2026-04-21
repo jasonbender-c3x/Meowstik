@@ -139,7 +139,7 @@ Already persists "thoughts forward" between turns:
 **Opportunity:** Expand this to include structured CoT traces.
 
 #### 3. Execution Log
-**Location:** `logs/execution.md` via `log_append` tool
+**Location:** `logs/execution.md` via the `append` tool
 
 Records tool usage and results each turn.
 

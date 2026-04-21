@@ -349,13 +349,9 @@ export function ChatInputArea({ onSend, isLoading, promptHistory = [], onStop }:
    */
   useEffect(() => {
     if (voiceError) {
-      toast({
-        title: "Voice Error",
-        description: voiceError,
-        variant: "destructive"
-      });
+      console.warn("[Voice]", voiceError);
     }
-  }, [voiceError, toast]);
+  }, [voiceError]);
 
   const stopVoiceInput = useCallback((immediate: boolean = false) => {
     if (isListening) {
@@ -997,9 +993,14 @@ export function ChatInputArea({ onSend, isLoading, promptHistory = [], onStop }:
           </div>
         </div>
 
+        {voiceError && (
+          <div className="mt-2 px-3 text-sm text-destructive" data-testid="text-voice-error">
+            {voiceError}
+          </div>
+        )}
+
       </div>
     </div>
   );
 }
-
 

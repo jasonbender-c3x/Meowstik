@@ -30,7 +30,7 @@ The system has **102 native tool definitions**. Many are redundant, unused, or r
 | 12 | `drive_create` | 7 | drive |
 | 13 | `sms_send` | 5 | communication |
 | 14 | `github_issue_comment` | 5 | github |
-| 15 | `log_append` | 4 | logging |
+| 15 | `append` | 4 | logging |
 | 16 | `github_file_read` | 3 | github |
 | 17 | `github_file_create` | 3 | github |
 | 18 | `github_contents` | 3 | github |
@@ -78,7 +78,7 @@ The core primitives dominate: `say`, `terminal`, `send_chat`, `file_get`, `file_
 | `file_get` | `get` | Read file or URL |
 | `file_put` | `put` | Write file |
 | `send_chat` | `write` | Output to chat |
-| `log_append` | `log` | Append to log file |
+| `append` | `log` | Append to log file |
 | `say` | `say` | HD voice output |
 | *(new)* | `ssh` | Persistent 2-way connection |
 
@@ -258,7 +258,7 @@ github_release_create, github_workflows_list, github_actions_trigger
 | 6 | `file_get` → `get` | ✅ CORE |
 | 7 | `file_put` → `put` | ✅ CORE |
 | 8 | `terminal_execute` → `terminal` | ✅ CORE |
-| 9 | `log_append` → `log` | ✅ CORE |
+| 9 | `append` → `log` | ✅ CORE |
 
 ### Voice Calls (2)
 | # | Tool | Status |

@@ -85,6 +85,7 @@ export default function LivePage() {
   const connectionStateRef = useRef<ConnectionState>("disconnected");
   // Ref to startListening so ws.onopen can call the latest version without a circular dep
   const startListeningRef = useRef<(() => Promise<void>) | null>(null);
+  const disconnectRef = useRef<(() => Promise<void>) | null>(null);
 
   // Keep connectionStateRef in sync so WS callbacks always have the latest value
   useEffect(() => {
@@ -498,6 +499,10 @@ export default function LivePage() {
   }, [stopListening]);
 
   useEffect(() => {
+    disconnectRef.current = disconnect;
+  }, [disconnect]);
+
+  useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
@@ -505,9 +510,9 @@ export default function LivePage() {
 
   useEffect(() => {
     return () => {
-      disconnect();
+      void disconnectRef.current?.();
     };
-  }, [disconnect]);
+  }, []);
 
   return (
     <div className="min-h-screen bg-background flex flex-col">

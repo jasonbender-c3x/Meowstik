@@ -1,6 +1,6 @@
 /**
  * Voice Showcase — Investor Demo
- * ElevenLabs Multilingual v2 · Nine voices · Nine personalities
+ * Google Chirp3-HD voices
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -20,72 +20,72 @@ interface ShowcaseVoice {
 
 const VOICES: ShowcaseVoice[] = [
   {
-    id: "Rachel",
-    name: "Rachel",
+    id: "Kore",
+    name: "Kore",
     gender: "F",
     label: "Warm · Professional",
     color: "#a78bfa",
     demo: "Welcome to Meowstik. We've been looking forward to showing you what's possible.",
   },
   {
-    id: "Bella",
-    name: "Bella",
+    id: "Leda",
+    name: "Leda",
     gender: "F",
     label: "Soft · Intimate",
     color: "#f472b6",
     demo: "(whispering) You know what the others don't? The real magic is what happens when no one's watching.",
   },
   {
-    id: "Elli",
-    name: "Elli",
+    id: "Aoede",
+    name: "Aoede",
     gender: "F",
     label: "Bright · Playful",
     color: "#fb923c",
     demo: "Oh! [giggles softly] Sorry — I just get so excited when I get to show off. Okay. Watch this.",
   },
   {
-    id: "Domi",
-    name: "Domi",
+    id: "Zephyr",
+    name: "Zephyr",
     gender: "F",
     label: "Strong · Confident",
     color: "#ef4444",
     demo: "Meowstik doesn't ask for permission. It identifies the problem, solves it, and moves on.",
   },
   {
-    id: "Freya",
-    name: "Freya",
+    id: "Sulafat",
+    name: "Sulafat",
     gender: "F",
     label: "Mature · Authoritative",
     color: "#14b8a6",
     demo: "In ten years, every competitive advantage will be measured in how intelligently you operate. The question is whether you start now.",
   },
   {
-    id: "Antoni",
-    name: "Antoni",
+    id: "Puck",
+    name: "Puck",
     gender: "M",
     label: "Smooth · Reassuring",
     color: "#38bdf8",
     demo: "Whatever's been keeping you up at night? That's exactly what we built this for. You can sleep now.",
   },
   {
-    id: "Josh",
-    name: "Josh",
+    id: "Charon",
+    name: "Charon",
     gender: "M",
     label: "Deep · Cinematic",
     color: "#818cf8",
     demo: "The future doesn't wait. It doesn't ask if you're ready. Meowstik doesn't either.",
   },
   {
-    id: "Adam",
-    name: "Adam",
+    id: "Orus",
+    name: "Orus",
     gender: "M",
     label: "Commanding · Deep",
     color: "#22c55e",
     demo: "Three seconds. That's all it takes for Meowstik to understand your entire operation.",
   },
   {
-    id: "Sam",
-    name: "Sam",
+    id: "Fenrir",
+    name: "Fenrir",
     gender: "M",
     label: "Casual · Direct",
     color: "#eab308",
@@ -249,7 +249,7 @@ export default function VoiceLabPage() {
       const res = await fetch("/api/tts/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: voice.demo, voice: voiceId, provider: "elevenlabs" }),
+        body: JSON.stringify({ text: voice.demo, voice: voiceId }),
       });
       if (!res.ok) throw new Error("TTS failed");
       const data = await res.json();
@@ -311,7 +311,7 @@ export default function VoiceLabPage() {
         </Link>
         <div style={{ flex: 1 }}>
           <div style={{ fontSize: 18, fontWeight: 700, letterSpacing: "-0.01em" }}>Voice Showcase</div>
-          <div style={{ fontSize: 12, color: "#6b7280" }}>ElevenLabs Multilingual v2 · {VOICES.length} voices · HD quality</div>
+          <div style={{ fontSize: 12, color: "#6b7280" }}>Google Chirp3-HD · {VOICES.length} voices · HD quality</div>
         </div>
         <button
           onClick={showcaseRunning ? stopShowcase : runShowcase}
@@ -366,7 +366,7 @@ export default function VoiceLabPage() {
 
       {/* Footer note */}
       <div style={{ textAlign: "center", padding: "24px", fontSize: 12, color: "#374151" }}>
-        Voices powered by ElevenLabs Multilingual v2 — the industry standard for expressive synthetic speech
+        Voices powered by Google Chirp3-HD
       </div>
     </div>
   );

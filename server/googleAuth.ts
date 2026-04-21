@@ -5,10 +5,12 @@
 
 import passport from "passport";
 import { Strategy as GoogleStrategy } from "passport-google-oauth20";
+import { google } from "googleapis";
 import session from "express-session";
 import { Router, type Express, type RequestHandler } from "express";
 import FileStoreFactory from "session-file-store"; // Import FileStore
 import { storage } from "./storage.js";
+import { SCOPES as GOOGLE_API_SCOPES } from "./integrations/google-auth.js";
 // import { pool } from "./db.js"; // Not needed for file store
 import { isHomeDevMode, getHomeDevUser } from "./homeDevAuth.js";
 import csurf from "csurf";
@@ -17,6 +19,7 @@ import crypto from "crypto";
 // Session duration: 1 week (in milliseconds)
 const SESSION_TTL = 7 * 24 * 60 * 60 * 1000;
 const SESSION_TTL_SECONDS = 7 * 24 * 60 * 60;
+const GOOGLE_OAUTH_SCOPES = ["profile", "email", ...GOOGLE_API_SCOPES];
 
 const FileStore = FileStoreFactory(session);
 
@@ -108,18 +111,23 @@ const GOOGLE_STATUS_TIMEOUT_MS = 1500;
 // Google API auth status — always available, no OAuth creds required
 authRouter.get("/google/status", async (req, res) => {
   const timeout = Symbol("google-status-timeout");
+  const reauthPath = "/api/auth/google";
 
   try {
     const result = await Promise.race([
       (async () => {
-        const { isAuthenticated, isAuthenticatedSync, hasFullScopes, getAuthUrl } = await import("./integrations/google-auth.js");
+        const { isAuthenticated, isAuthenticatedSync, hasFullScopes } = await import("./integrations/google-auth.js");
 
         if (isAuthenticatedSync()) {
-          return { authenticated: true, hasFullScopes: hasFullScopes(), authUrl: hasFullScopes() ? null : getAuthUrl() };
+          return { authenticated: true, hasFullScopes: hasFullScopes(), authUrl: hasFullScopes() ? null : reauthPath };
         }
 
         const auth = await isAuthenticated();
-        return { authenticated: auth, hasFullScopes: auth ? hasFullScopes() : false, authUrl: auth && !hasFullScopes() ? getAuthUrl() : (!auth ? getAuthUrl() : null) };
+        return {
+          authenticated: auth,
+          hasFullScopes: auth ? hasFullScopes() : false,
+          authUrl: auth && !hasFullScopes() ? reauthPath : (!auth ? reauthPath : null),
+        };
       })(),
       new Promise<typeof timeout>((resolve) => {
         setTimeout(() => resolve(timeout), GOOGLE_STATUS_TIMEOUT_MS);
@@ -180,6 +188,17 @@ export async function setupAuth(app: Express) {
         async (accessToken, refreshToken, profile, done) => {
           try {
             const dbUser = await findOrCreateUser(profile as GoogleUser);
+            let grantedScope = GOOGLE_OAUTH_SCOPES.join(" ");
+
+            try {
+              const oauthClient = new google.auth.OAuth2(clientId, clientSecret, callbackURL);
+              const tokenInfo = await oauthClient.getTokenInfo(accessToken);
+              if (tokenInfo.scopes.length > 0) {
+                grantedScope = tokenInfo.scopes.join(" ");
+              }
+            } catch (scopeError) {
+              console.warn("[Google Auth] Failed to verify granted scopes from token info:", scopeError);
+            }
             
             // Link tokens to the global singleton for tool access
             await storage.saveGoogleTokens({
@@ -188,7 +207,7 @@ export async function setupAuth(app: Express) {
               refreshToken: refreshToken || null,
               expiryDate: Math.floor(Date.now() / 1000) + SESSION_TTL_SECONDS,
               tokenType: 'Bearer',
-              scope: profile._json?.scope || null,
+              scope: grantedScope,
             });
 
             const user = {
@@ -216,10 +235,7 @@ export async function setupAuth(app: Express) {
     );
 
     const authHandler = passport.authenticate("google", {
-      scope: [
-        "profile", 
-        "email"
-      ],
+      scope: GOOGLE_OAUTH_SCOPES,
       accessType: 'offline',
       prompt: 'consent'
     });

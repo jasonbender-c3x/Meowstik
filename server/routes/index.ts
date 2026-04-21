@@ -41,6 +41,7 @@ import chatRouter from "./chat";
 import debugRouter from "./debug";
 import analysisRouter from "./analysis";
 import mcpRouter from "./mcp";
+import externalSkillsRouter from "./external-skills";
 import { errorHandler } from "./middleware";
 
 export function createApiRouter(): Router {
@@ -95,6 +96,7 @@ export function createApiRouter(): Router {
   router.use("/hardware", hardwareRouter);
   router.use("/todos", todoRouter);
   router.use("/mcp", mcpRouter);
+  router.use("/external-skills", externalSkillsRouter);
 
   router.use(errorHandler);
 
@@ -102,5 +104,4 @@ export function createApiRouter(): Router {
 }
 
 export { errorHandler };
-
 

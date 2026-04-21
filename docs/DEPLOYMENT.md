@@ -25,6 +25,8 @@ The dev server runs on `http://localhost:5000`.
 
 Vite hot-reloads the React client automatically. The Express server restarts via `tsx --watch`.
 
+> In day-to-day use, treat this as a **local Meowstik runtime**. The repo still has internal UI/backend splits for development, but you are not expected to think in terms of a separate client and server install.
+
 ---
 
 ## Environment Variables
@@ -45,8 +47,6 @@ Vite hot-reloads the React client automatically. The Express server restarts via
 |----------|-------------|
 | `GOOGLE_SERVICE_ACCOUNT_JSON` | Service account JSON for Cloud TTS (recommended) |
 | `GOOGLE_APPLICATION_CREDENTIALS` | Path to service account key file (alternative) |
-| `TTS_PROVIDER` | `google` (default) or `elevenlabs` |
-| `ELEVENLABS_API_KEY` | ElevenLabs API key (if using ElevenLabs TTS) |
 
 ### Twilio
 
@@ -70,20 +70,23 @@ Vite hot-reloads the React client automatically. The Express server restarts via
 |----------|-------------|
 | `GITHUB_TOKEN` | GitHub PAT (or configure via OAuth in UI) |
 
-### Agents
+### Computer Use / Relay
 
 | Variable | Description |
 |----------|-------------|
-| `ENABLE_DESKTOP_AGENT` | `true` to enable desktop agent WebSocket endpoint |
+| `ENABLE_DESKTOP_AGENT` | `true` to enable the optional desktop-relay WebSocket endpoint |
+| `COMPUTER_USE_MODEL` | Override the Gemini Computer Use model (default: `gemini-3-flash-preview-exp`) |
 
 ### Browser Automation
 
 | Variable | Description |
 |----------|-------------|
-| `BROWSERBASE_API_KEY` | Browserbase API key (optional, for cloud headless browser) |
-| `BROWSERBASE_PROJECT_ID` | Browserbase project ID |
 | `CUSTOM_BROWSER_WS_ENDPOINT` | Custom Puppeteer WS endpoint |
 | `CUSTOM_BROWSER_AUTH_TOKEN` | Auth token for custom browser |
+
+### MCP
+
+MCP server credentials depend on the servers you connect. Meowstik itself does not require global MCP env vars; configure each MCP server from Settings or via the app's MCP routes.
 
 ### Misc
 

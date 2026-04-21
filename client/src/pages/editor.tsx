@@ -262,56 +262,65 @@ export default function EditorPage() {
    * Allows the chat to send code to the editor in real-time
    */
   useEffect(() => {
+    const syncIncomingCode = () => {
+      const llmCode = localStorage.getItem("meowstik-editor-llm-code");
+      if (!llmCode) return;
+
+      const llmLanguage = localStorage.getItem("meowstik-editor-llm-language");
+      const llmFilename = localStorage.getItem("meowstik-editor-llm-filename");
+      const filename = llmFilename || `untitled.${llmLanguage || 'txt'}`;
+      const newFile = createNewFile(filename, llmCode, llmLanguage || undefined);
+      newFile.isSaved = false;
+
+      setFiles(prev => {
+        const existingIndex = prev.findIndex(f => f.filename === filename);
+        if (existingIndex >= 0) {
+          const existingFile = prev[existingIndex];
+          const updated = [...prev];
+
+          if (!existingFile.isSaved) {
+            const bakFilename = `${existingFile.filename}~bak`;
+            const bakFile: EditorFile = {
+              id: `file-${Date.now()}-bak`,
+              filename: bakFilename,
+              code: existingFile.code,
+              language: existingFile.language,
+              isSaved: true
+            };
+            updated.push(bakFile);
+            console.log(`[Editor] Created backup: ${bakFilename}`);
+          }
+
+          updated[existingIndex] = { ...existingFile, code: llmCode, isSaved: false };
+          setActiveFileId(updated[existingIndex].id);
+          return updated;
+        }
+
+        setActiveFileId(newFile.id);
+        return [...prev, newFile];
+      });
+
+      localStorage.removeItem("meowstik-editor-llm-code");
+      localStorage.removeItem("meowstik-editor-llm-language");
+      localStorage.removeItem("meowstik-editor-llm-filename");
+    };
+
     const handleStorageChange = (e: StorageEvent) => {
       if (e.key === "meowstik-editor-llm-code" && e.newValue) {
-        const llmLanguage = localStorage.getItem("meowstik-editor-llm-language");
-        const llmFilename = localStorage.getItem("meowstik-editor-llm-filename");
-        
-        const filename = llmFilename || `untitled.${llmLanguage || 'txt'}`;
-        const newFile = createNewFile(filename, e.newValue, llmLanguage || undefined);
-        newFile.isSaved = false;
-        
-        setFiles(prev => {
-          // Check if a file with this filename already exists
-          const existingIndex = prev.findIndex(f => f.filename === filename);
-          if (existingIndex >= 0) {
-            const existingFile = prev[existingIndex];
-            const updated = [...prev];
-            
-            // If existing file has unsaved changes, create a backup first
-            if (!existingFile.isSaved) {
-              const bakFilename = `${existingFile.filename}~bak`;
-              // Clone the file directly to preserve exact content (even empty strings)
-              const bakFile: EditorFile = {
-                id: `file-${Date.now()}-bak`,
-                filename: bakFilename,
-                code: existingFile.code, // Preserve exact content
-                language: existingFile.language,
-                isSaved: true // Backup is considered saved
-              };
-              updated.push(bakFile);
-              console.log(`[Editor] Created backup: ${bakFilename}`);
-            }
-            
-            // Update existing file and focus it
-            updated[existingIndex] = { ...existingFile, code: e.newValue!, isSaved: false };
-            setActiveFileId(updated[existingIndex].id); // Use existing file's ID
-            return updated;
-          }
-          // Add new file and focus it
-          setActiveFileId(newFile.id);
-          return [...prev, newFile];
-        });
-        
-        // Clear after loading
-        localStorage.removeItem("meowstik-editor-llm-code");
-        localStorage.removeItem("meowstik-editor-llm-language");
-        localStorage.removeItem("meowstik-editor-llm-filename");
+        syncIncomingCode();
       }
     };
-    
+
+    const handleEditorUpdate = () => {
+      syncIncomingCode();
+    };
+
     window.addEventListener("storage", handleStorageChange);
-    return () => window.removeEventListener("storage", handleStorageChange);
+    window.addEventListener("meowstik-editor-llm-update", handleEditorUpdate);
+    return () => {
+      window.removeEventListener("storage", handleStorageChange);
+      window.removeEventListener("meowstik-editor-llm-update", handleEditorUpdate);
+    };
   }, []);
 
   // ===========================================================================
@@ -682,6 +691,5 @@ export default function EditorPage() {
     </div>
   );
 }
-
 
 

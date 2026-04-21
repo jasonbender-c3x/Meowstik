@@ -278,7 +278,7 @@ export const toolTasks = pgTable("tool_tasks", {
 | `api_call` | External API requests |
 | `file_create` | Create new text file |
 | `file_replace` | Replace existing file |
-| `file_append` | Append to existing file |
+| `append` | Append to existing file |
 | `binary_create` | Create binary file from base64 |
 | `search` | Search operations |
 | `autoexec` | Execute script (disabled by default) |

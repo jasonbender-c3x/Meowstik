@@ -119,21 +119,6 @@ GITHUB_TOKEN=ghp_your_personal_access_token
 
 ---
 
-## ElevenLabs TTS (Optional Fallback)
-
-**Not the primary TTS.** Used only when `TTS_PROVIDER=elevenlabs`.
-
-```env
-ELEVENLABS_API_KEY=your_key
-TTS_PROVIDER=elevenlabs
-```
-
-**Location:** `server/integrations/elevenlabs-tts.ts`
-
-**Library:** `@elevenlabs/elevenlabs-js`
-
----
-
 ## Exa (Neural Web Search)
 
 ```env
@@ -157,16 +142,44 @@ Traditional keyword search via Google's Custom Search JSON API. Used by the `web
 
 ---
 
-## Browserbase (Remote Headless Browser)
+## MCP Servers
 
-```env
-BROWSERBASE_API_KEY=your_key
-BROWSERBASE_PROJECT_ID=your_project_id
-```
+**Library:** `@modelcontextprotocol/sdk`
 
-**Library:** `@browserbasehq/sdk`
+Meowstik can connect to external MCP (Model Context Protocol) servers and expose their tools directly to the agent.
 
-Optional — provides cloud-hosted Chromium for browser automation when a local Puppeteer instance isn't available. Used as a fallback in `server/integrations/custom-browser.ts`.
+**Current support:**
+- `stdio`
+- Streamable HTTP
+- Legacy SSE
+
+**Agent-facing MCP tools:**
+- `mcp_list_servers`
+- `mcp_list_tools`
+- `mcp_call`
+
+**Built-in library:**
+- Official/reference servers:
+  - `filesystem`
+  - `fetch`
+  - `git`
+  - `memory`
+  - `time`
+  - `sequentialthinking`
+  - `everything`
+- Includes **Nelson MCP** for LibreOffice workflows
+
+**Configuration:**
+- MCP servers are managed from the Settings UI
+- Built-in library entries can be added as configured servers
+- Only enabled configured servers are callable by the agent
+
+**Related prompt context:**
+- Meowstik also discovers local assistant instruction/skill markdown files from common roots such as `.claude`, `.github`, `~/.claude`, `~/.gemini`, and `~/.copilot`
+- Those discovered skills are summarized into the runtime system prompt via `externalSkillsService`
+- This is prompt enrichment, not MCP transport
+
+> Browserbase has been removed from the live integration set. Browser automation should use the current Puppeteer / Playwright flows or MCP servers where appropriate.
 
 ---
 

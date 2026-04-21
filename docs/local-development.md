@@ -168,7 +168,7 @@ grep -r "ERROR" logs/
 // In server code
 console.log('[MyService]', { action: 'doing thing', data });
 
-// For important events - use the log_append tool pattern
+// For important events - use the append tool pattern
 import fs from 'fs';
 fs.appendFileSync('logs/execution.md', `\n## ${new Date().toISOString()}\n${content}\n`);
 ```
@@ -544,49 +544,33 @@ git pull && docker-compose -f docker-compose.prod.yml up -d --build
 MCP (Model Context Protocol) servers provide tool access to AI models.
 
 ### Current MCP Integrations
-- Notion (custom-mcp)
-- Miro (custom-mcp)
-- Figma (figma)
+- Built-in library/catalog in Meowstik settings
+- Built-in **Nelson MCP** entry for LibreOffice workflows
+- User-configurable external MCP servers
 
 ### Running MCP Locally
 
 ```bash
-# The meowstik-agent package includes MCP support
-cd workspace/meowstik-agent
-npm install
-npm start
+# Example: run an MCP server locally, then add it in Meowstik Settings
+# Supported transports: stdio, streamable HTTP, legacy SSE
 ```
 
 ### Connecting MCP
 
-```typescript
-// WebSocket connection to MCP server
-const ws = new WebSocket('ws://localhost:3001/mcp');
-
-ws.onmessage = (event) => {
-  const response = JSON.parse(event.data);
-  // Handle MCP tool responses
-};
-
-// Send MCP request
-ws.send(JSON.stringify({
-  type: 'tool_call',
-  tool: 'notion_search',
-  params: { query: 'project notes' }
-}));
-```
+1. Open **Settings → MCP**
+2. Browse the built-in library or add a custom server
+3. Choose the transport (`stdio`, streamable HTTP, or legacy SSE)
+4. Save and test the server
+5. Once enabled, the agent can use `mcp_list_servers`, `mcp_list_tools`, and `mcp_call`
 
 ### Environment Variables for MCP
 
 ```bash
-# Notion MCP
-NOTION_API_KEY=secret_xxx
-
-# Miro MCP
-MIRO_ACCESS_TOKEN=xxx
-
-# Figma MCP
-FIGMA_ACCESS_TOKEN=xxx
+# MCP credentials are server-specific.
+# Example:
+#   NOTION_API_KEY=...
+#   FIGMA_ACCESS_TOKEN=...
+#   CUSTOM_MCP_TOKEN=...
 ```
 
 ---

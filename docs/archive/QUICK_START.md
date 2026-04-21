@@ -454,7 +454,6 @@ grep GEMINI_API_KEY .env
 | `TWILIO_PHONE_NUMBER` | ✅ (SMS) | Your Twilio number |
 | `OWNER_PHONE_NUMBER` | ✅ (SMS) | Your personal phone |
 | `HOME_DEV_MODE` | ⚠️ | Dev-only auth bypass |
-| `ELEVENLABS_API_KEY` | ⚪ | Premium TTS |
 | `OWNER_USER_ID` | ⚪ | Link SMS to user |
 
 ---
@@ -517,4 +516,3 @@ If you've made it here, you should have:
 ---
 
 **Happy coding!** 🚀
-

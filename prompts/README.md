@@ -1,4 +1,4 @@
-npm run dev# Meowstik - System Prompt Architecture
+# Meowstik - System Prompt Architecture
 
 ## Overview
 
@@ -16,21 +16,51 @@ prompts/
 
 ## How It Works
 
-The `PromptComposer` service in `server/services/prompt-composer.ts` loads these files at startup and assembles them into a complete system prompt. The order of assembly is:
+The `PromptComposer` service in `server/services/prompt-composer.ts` loads these files at startup and assembles them into a complete system prompt. The static prompt files it actually loads are:
 
 1. **Core Directives** - Establishes fundamental rules and constraints
 2. **Personality** - Defines character and communication style
 3. **Tools** - Provides detailed tool specifications
+
+Two old prompt files that were present in this directory but **not used by the runtime loader** were removed:
+
+- `database-instructions.md`
+- `llm-instructions.o;`
+
+## What `PromptComposer` actually adds
+
+The final system prompt is larger than just the three files above. `PromptComposer` currently assembles it in this order:
+
+1. **Agent Identity** - injected branding (`You are {displayName}, referred to as {agentName}`)
+2. **Environment Metadata** - runtime / environment details from `formatEnvironmentMetadata()`
+3. **Core Directives** - `prompts/core-directives.md`
+4. **Personality** - `prompts/personality.md`
+5. **Tools** - `prompts/tools.md`
+6. **Short-Term Memory** - `logs/Short_Term_Memory.md` when present
+7. **Recent Execution History** - last lines of `logs/execution_log.md` when present
+8. **To-Do List** - database-backed pending/in-progress tasks when a user ID is available
+9. **Family Context** - injected from `getFamilyContext()` when present
+10. **Thoughts Forward** - `logs/cache.md` from the previous turn when enabled
+11. **External Skills Summary** - discovered skill/instruction summaries from `externalSkillsService`
+12. **Final Instructions** - mandatory end-of-turn instructions appended by `getFinalInstructions()`
 
 ## Prompt Assembly
 
 ```typescript
 // server/services/prompt-composer.ts
 const systemPrompt = [
+  identity,
+  environmentMetadata,
   coreDirectives,
   personality,
   tools,
-  contextualInstructions  // Added dynamically based on attachments
+  shortTermMemory,
+  executionLog,
+  todoList,
+  familyContext,
+  cache,
+  externalSkillsSummary,
+  finalInstructions,
 ].join('\n\n');
 ```
 
@@ -53,27 +83,3 @@ Edit `tools.md` to:
 - Add new tool types
 - Modify tool parameters
 - Update implementation details
-
-## Dynamic Context
-
-The prompt composer adds contextual instructions based on:
-- **Screenshots present**: Image analysis instructions
-- **Files attached**: Document processing instructions
-- **Voice input**: Speech-to-text context
-
-## Version Control
-
-Each prompt file should be version-controlled. Consider adding version headers:
-
-```markdown
-<!-- Version: 1.0.0 -->
-<!-- Last Updated: 2024-12-07 -->
-```
-
-## Testing Prompts
-
-To test prompt changes:
-1. Modify the relevant file
-2. Restart the application
-3. Test with various input types
-4. Verify tool execution works correctly

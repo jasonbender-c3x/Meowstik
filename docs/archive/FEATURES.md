@@ -254,7 +254,7 @@ Meowstik uses "Stage Directions" to add emotion to its voice. The AI automatical
 | Feature | Description |
 |---------|-------------|
 | **Read Aloud** | AI responses can be spoken out loud |
-| **Natural Voice** | Uses Google Cloud TTS or ElevenLabs for high-quality audio |
+| **Natural Voice** | Uses Google Cloud TTS for high-quality audio |
 | **Expressive Styling** | Applies emotional tone based on context |
 | **Pause/Resume** | Control playback as needed |
 | **Per-Message Control** | Choose which messages to hear |

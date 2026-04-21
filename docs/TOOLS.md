@@ -21,8 +21,9 @@ The 7 foundational tools that form the base layer.
 ### Notes
 - **`end_turn` is mandatory** — the AI must call it to finish its turn in the agentic loop
 - **`say` is non-blocking** — speech runs concurrently; you still must call `end_turn`
-- **`get`** supports `editor:` and `client:` prefixes for Monaco canvas and remote desktop
+- **`get`** supports `editor:` and `client:` prefixes for Monaco canvas and optional relay modes
 - **`put`** supports `editor:` and `client:` prefixes similarly
+- Local computer-use is handled by the `computer_*` tools, not by `client:` file prefixes
 
 ---
 
@@ -95,6 +96,23 @@ The 7 foundational tools that form the base layer.
 | `sheets_append` | Append rows | `spreadsheetId`, `range`, `values` |
 | `sheets_create` | Create a new spreadsheet | `title` |
 | `sheets_clear` | Clear a range | `spreadsheetId`, `range` |
+
+---
+
+## MCP
+
+| Tool | Description | Required params |
+|------|-------------|-----------------|
+| `mcp_list_servers` | List configured and built-in MCP servers | *(none)* |
+| `mcp_list_tools` | Inspect tools exposed by one MCP server | `serverId` or `serverSlug` |
+| `mcp_call` | Call a tool exposed by an MCP server | `serverId` or `serverSlug`, `toolName` |
+
+**Supported transports:** `stdio`, streamable HTTP, legacy SSE
+
+**Notes:**
+- Meowstik keeps a built-in MCP catalog plus user-configured server entries
+- Built-in library entries can be turned into configured servers from the Settings UI
+- The current built-in catalog includes **Nelson MCP** for LibreOffice workflows
 
 ---
 
@@ -241,10 +259,11 @@ The `call_make` tool places a Twilio call where **Meowstik itself acts as the vo
 | Google Contacts | 4 |
 | Web search | 2 |
 | Browser automation | 6 |
+| MCP | 3 |
 | HTTP | 5 |
 | Twilio SMS/Voice | 4 |
 | Computer use | 7 |
 | Database | 4 |
 | Todo list | 5 |
 | Hardware | 1 |
-| **Total** | **~85** |
+| **Total** | **~88** |

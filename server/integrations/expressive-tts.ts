@@ -130,7 +130,7 @@ function buildSSML(cleanText: string, style: VoiceStyle, voiceName?: string): st
   const isUnsupportedSSML = voiceName?.includes("Journey") || voiceName?.includes("Chirp3");
   if (isUnsupportedSSML) return `<speak>${escapeXml(cleanText)}</speak>`;
 
-  const p = VOICE_STYLE_MAPPING[style]?.google ?? VOICE_STYLE_MAPPING[VoiceStyle.Neutral].google;
+  const p = VOICE_STYLE_MAPPING[style] ?? VOICE_STYLE_MAPPING[VoiceStyle.Neutral];
   const attrs: string[] = [];
   if (p.rate && p.rate !== "1.0") attrs.push(`rate="${p.rate}"`);
   if (p.pitch && p.pitch !== "0st") attrs.push(`pitch="${semitoneToPercent(p.pitch)}"`);
@@ -277,6 +277,5 @@ export async function generateMultiSpeakerAudio(request: { text: string; speaker
   const voice = request.speakers[0]?.voice || DEFAULT_TTS_VOICE;
   return generateSingleSpeakerAudio(request.text, voice);
 }
-
 
 

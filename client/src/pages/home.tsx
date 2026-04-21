@@ -234,7 +234,7 @@ export default function Home() {
    */
   const [errorCount, setErrorCount] = useState(0);
   const [, navigate] = useLocation();
-  const [isWorkbenchOpen, setIsWorkbenchOpen] = useState(true);
+  const [isWorkbenchOpen, setIsWorkbenchOpen] = useState(false);
   const [workbenchTab, setWorkbenchTab] = useState<"editor" | "terminal">("editor");
   const [isDesktopViewport, setIsDesktopViewport] = useState(false);
 
@@ -781,55 +781,61 @@ export default function Home() {
                 setAgenticPaused(data.agenticPaused as { turns: number });
               }
 
-              // Handle metadata event (tool results, file ops, autoexec)
-              if (data.metadata) {
-                streamMetadata = data.metadata;
-                
-                // Handle tool results - check for send_chat and file_put
-                if (streamMetadata.toolResults) {
-                  for (const toolResult of streamMetadata.toolResults) {
-                    // Handle send_chat tool - extract content for TTS
-                    if (toolResult.type === 'send_chat' && toolResult.success && toolResult.result) {
-                      const { content } = toolResult.result as { content: string };
-                      // Track clean content for browser TTS (avoid speaking raw JSON)
-                      // Note: Don't replace aiMessageContent here - send_chat content is already
-                      // streamed via text events, so replacing would overwrite say/thinking content
-                      if (content) {
-                        cleanContentForTTS = content;
-                      }
+              const applyToolResults = (
+                incomingToolResults: Array<{
+                  type: string;
+                  success: boolean;
+                  result?: unknown;
+                }> | undefined,
+              ) => {
+                if (!incomingToolResults) return;
+
+                for (const toolResult of incomingToolResults) {
+                  // Handle send_chat tool - extract content for TTS
+                  if (toolResult.type === 'send_chat' && toolResult.success && toolResult.result) {
+                    const { content } = toolResult.result as { content: string };
+                    // Track clean content for browser TTS (avoid speaking raw JSON)
+                    // Note: Don't replace aiMessageContent here - send_chat content is already
+                    // streamed via text events, so replacing would overwrite say/thinking content
+                    if (content) {
+                      cleanContentForTTS = content;
                     }
-                    
-                    // Handle file_put tool - save to editor when destination is 'editor'
-                    if (toolResult.type === 'file_put' && toolResult.success && toolResult.result) {
-                      const result = toolResult.result as { 
-                        path: string; 
-                        destination: string; 
-                        content: string;
-                        mimeType?: string;
+                  }
+
+                  // Handle file_put tool - save to editor when destination is 'editor'
+                  if ((toolResult.type === 'file_put' || toolResult.type === 'put') && toolResult.success && toolResult.result) {
+                    const result = toolResult.result as {
+                      path: string;
+                      destination: string;
+                      content: string;
+                      mimeType?: string;
+                    };
+                    if (result.destination === 'editor' && result.content) {
+                      const filename = result.path.split('/').pop() || 'untitled';
+                      const ext = filename.split('.').pop()?.toLowerCase() || '';
+                      const langMap: Record<string, string> = {
+                        'js': 'javascript', 'ts': 'typescript', 'tsx': 'typescript',
+                        'jsx': 'javascript', 'py': 'python', 'css': 'css', 'html': 'html',
+                        'json': 'json', 'md': 'markdown', 'sql': 'sql'
                       };
-                      if (result.destination === 'editor' && result.content) {
-                        // Extract filename from path
-                        const filename = result.path.split('/').pop() || 'untitled';
-                        // Detect language from mimeType or filename
-                        const ext = filename.split('.').pop()?.toLowerCase() || '';
-                        const langMap: Record<string, string> = {
-                          'js': 'javascript', 'ts': 'typescript', 'tsx': 'typescript',
-                          'jsx': 'javascript', 'py': 'python', 'css': 'css', 'html': 'html',
-                          'json': 'json', 'md': 'markdown', 'sql': 'sql'
-                        };
-                        const language = langMap[ext] || 'plaintext';
-                        
-                        localStorage.setItem("meowstik-editor-llm-code", result.content);
-                        localStorage.setItem("meowstik-editor-llm-language", language);
-                        localStorage.setItem("meowstik-editor-llm-filename", filename);
-                        window.dispatchEvent(new CustomEvent("meowstik-editor-llm-update"));
-                        setIsWorkbenchOpen(true);
-                        setWorkbenchTab("editor");
-                        console.log(`[Chat] File saved to editor canvas: ${filename}`);
-                      }
+                      const language = langMap[ext] || 'plaintext';
+
+                      localStorage.setItem("meowstik-editor-llm-code", result.content);
+                      localStorage.setItem("meowstik-editor-llm-language", language);
+                      localStorage.setItem("meowstik-editor-llm-filename", filename);
+                      window.dispatchEvent(new CustomEvent("meowstik-editor-llm-update"));
+                      setIsWorkbenchOpen(true);
+                      setWorkbenchTab("editor");
+                      console.log(`[Chat] File saved to editor canvas: ${filename}`);
                     }
                   }
                 }
+              };
+
+              // Handle metadata event (tool results, file ops, autoexec)
+              if (data.metadata) {
+                streamMetadata = data.metadata;
+                applyToolResults(streamMetadata.toolResults);
                 
                 // Update the temp message with metadata
                 setMessages((prev) => {
@@ -853,6 +859,10 @@ export default function Home() {
                 console.log('[SSE] Done event received');
                 if (sseTimeoutId !== null) { clearTimeout(sseTimeoutId); sseTimeoutId = null; }
                 setIsLoading(false);
+                applyToolResults(data.toolResults);
+                if (data.savedMessage?.metadata?.toolResults) {
+                  applyToolResults(data.savedMessage.metadata.toolResults);
+                }
                 
                 // Only use browser TTS if NO speech events arrived (no HD audio or streaming TTS)
                 const textToSpeak = cleanContentForTTS || aiMessageContent;
@@ -1352,7 +1362,6 @@ export default function Home() {
                   activeTab={workbenchTab}
                   onActiveTabChange={setWorkbenchTab}
                   onCollapse={() => setIsWorkbenchOpen(false)}
-                  onSendToChat={(message) => handleSendMessage(message, [])}
                 />
               </ResizablePanel>
             </>

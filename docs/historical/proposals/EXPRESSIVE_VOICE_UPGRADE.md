@@ -1,7 +1,7 @@
 # Proposal: Highly Expressive Voice for Meowstik
 
 ## Executive Summary
-Meowstik currently has the technical capability for expressive speech (via ElevenLabs and Google Neural2), but lacks the **autonomy** to use it. Currently, expressiveness is a manual "effect" applied by the user in a specific tool.
+Meowstik currently has the technical capability for expressive speech via Google TTS, but lacks the **autonomy** to use it. Currently, expressiveness is a manual "effect" applied by the user in a specific tool.
 
 This proposal outlines an architecture to give Meowstik **emotional agency**, allowing her to autonomously modulate her voice tone, speed, and style based on the conversation context.
 
@@ -30,17 +30,12 @@ We will map abstract styles to concrete provider parameters to maximize quality.
 
 ### Mapping Table
 
-| Style Tag | Google TTS Implementation (SSML) | ElevenLabs Implementation (Settings) |
-| :--- | :--- | :--- |
-| `[style: cheerful]` | `<speak><prosody pitch="+2st" rate="1.05">...</prosody></speak>` | `stability: 0.4`, `style: 0.6` (High variability) |
-| `[style: serious]` | `<speak><prosody pitch="-1st" rate="0.95">...</prosody></speak>` | `stability: 0.8`, `style: 0.0` (High consistency) |
-| `[style: whisper]` | `<speak><emphasis level="reduced">...</emphasis></speak>` | `style: 0.0` (Use "Whisper" model if avail) |
-| `[style: dramatic]` | `<speak><prosody rate="0.9">...</prosody></speak>` | `stability: 0.3`, `style: 1.0` (Max exaggeration) |
-
-### ElevenLabs "Turbo" Specifics
-ElevenLabs Turbo v2.5 is extremely sensitive to prompt context. We can enhance the "Prefix Trick" currently used:
-*   Instead of just prepending "Say cheerfully:", we can use the `previous_text` or `prompt` context window if available, or continue using the prefix hack but stripped from the final audio if possible (hard with current API).
-*   **Better Approach**: Dynamic `stability` modulation. Lower stability = more emotion/randomness. Higher style = more exaggeration.
+| Style Tag | Google TTS Implementation (SSML) |
+| :--- | :--- |
+| `[style: cheerful]` | `<speak><prosody pitch="+2st" rate="1.05">...</prosody></speak>` |
+| `[style: serious]` | `<speak><prosody pitch="-1st" rate="0.95">...</prosody></speak>` |
+| `[style: whisper]` | `<speak><emphasis level="reduced">...</emphasis></speak>` |
+| `[style: dramatic]` | `<speak><prosody rate="0.9">...</prosody></speak>` |
 
 ## 3. Personality & Prompting Updates
 
@@ -66,7 +61,7 @@ To "encourage" her to be expressive, we implement a feedback mechanism:
 
 1.  **Phase 1 (The Parser)**: Implement `SpeechProcessor` to strip `[style: x]` tags and route them to TTS.
 2.  **Phase 2 (The Actor)**: Update System Prompt to start generating these tags.
-3.  **Phase 3 (The Tuner)**: Fine-tune the mapping of `[style: x]` to specific ElevenLabs/Google parameters.
+3.  **Phase 3 (The Tuner)**: Fine-tune the mapping of `[style: x]` to specific Google TTS parameters.
 4.  **Phase 4 (The Critic)**: Implement user feedback for voice style.
 
 ## Immediate Next Steps

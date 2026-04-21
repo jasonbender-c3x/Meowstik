@@ -65,6 +65,7 @@ Persistent memory stored in `logs/Short_Term_Memory.md` and managed by `server/s
 - AI appends to `logs/STM_APPEND.md`; `prompt-composer.ts` auto-merges it into the main memory file
 - `logs/cache.md` holds "thoughts forward" from the previous turn
 - Named log files via `append` tool (e.g., `logs/execution.md`, `logs/thoughts.md`)
+- Append/log tool calls now close out their `tool_call_logs` rows correctly, so append activity no longer gets stuck as permanently pending in the chat UI
 - Human-readable — memory can be directly edited by the user
 
 ---
@@ -96,16 +97,15 @@ Closes the feedback loop:
 
 ---
 
-## ✅ Desktop Agent
+## ✅ Local Computer Use Runtime
 
-**Status: Active** — See [AGENTS.md](./AGENTS.md)
+**Status: Active** — See [DESKTOP_APP.md](./DESKTOP_APP.md)
 
-Node.js agent that connects to the server via WebSocket and provides full OS control:
-- Screen capture (screenshots + video stream)
-- Mouse injection (click, move, scroll, drag)
-- Keyboard injection (type text, press keys, modifiers)
-- Global hotkey registration
-- Tools: `computer_click`, `computer_type`, `computer_key`, `computer_scroll`, `computer_screenshot`
+Primary computer-use now runs **on the same machine as Meowstik** through `server/services/desktop-service.ts` and `server/services/computer-use.ts`:
+- Screen capture via `screenshot-desktop`
+- Mouse and keyboard control via `@nut-tree-fork/nut-js`
+- Gemini Computer Use toolset: `computer_click`, `computer_type`, `computer_key`, `computer_scroll`, `computer_move`, `computer_screenshot`, `computer_wait`
+- Optional WebSocket relay modes still exist for advanced/legacy setups, but they are not the main local-install path
 
 ---
 
@@ -119,6 +119,32 @@ Chrome extension with a side-panel chat interface:
 - Form filling
 - Tab management
 - Connects to server via WebSocket
+
+---
+
+## ✅ MCP Servers
+
+**Status: Active**
+
+Meowstik now supports configurable MCP servers through a built-in catalog plus user-managed entries:
+- Persistent MCP server configuration stored in the app database
+- Supported transports: `stdio`, streamable HTTP, and legacy SSE
+- Agent tools: `mcp_list_servers`, `mcp_list_tools`, `mcp_call`
+- Settings UI for browsing the MCP library, enabling servers, testing connections, and inspecting exposed tools
+- Built-in library entries for the official/reference servers: `filesystem`, `fetch`, `git`, `memory`, `time`, `sequentialthinking`, and `everything`
+- Built-in Nelson MCP entry for LibreOffice-compatible workflows
+
+---
+
+## ✅ External Skills Discovery
+
+**Status: Active**
+
+Meowstik now discovers local assistant instruction/skill markdown files and summarizes them into the system prompt:
+- Scans common roots such as the current repo, `~/.claude`, `~/.gemini`, `~/.copilot`, and the local Claude code mirror
+- Exposes discovered entries in the Settings UI
+- Injects a prompt-safe summary through `server/services/prompt-composer.ts`
+- Current support is discovery + prompt inclusion, not execution of third-party skill DSLs
 
 ---
 
@@ -221,7 +247,7 @@ Schedule recurring tasks using cron expressions:
 
 Gemini-powered vision automation that analyzes screenshots to control the desktop:
 - Takes a screenshot, analyzes it, determines where to click
-- Works without explicit coordinates — just describe what to do
+- Works directly against the local runtime's desktop service on the same machine
 - Tools: `computer_screenshot` → `computer_click` / `computer_type` / `computer_key` / `computer_scroll`
 
 ---
@@ -235,6 +261,20 @@ Real-time voice conversation using Gemini's Live API:
 - Streaming bidirectional audio
 - Low-latency responses
 - Available at `/live` route
+- Unmount-only disconnect cleanup so clicking **Connect** no longer immediately tears the session down on ordinary re-renders
+
+---
+
+## ✅ Main Chat + Workbench UX
+
+**Status: Active**
+
+The right-side workbench is now a lighter secondary surface instead of a second prompt entry point:
+- Workbench starts closed by default
+- Main chat input is the primary place to talk to Meowstik
+- Workbench-local prompt/send row was removed
+- Workbench screen-record button was removed from the header
+- Voice input failures in the main chat are shown inline instead of as destructive toast popups
 
 ---
 

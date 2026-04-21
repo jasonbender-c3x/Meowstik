@@ -7,7 +7,6 @@ import { FitAddon } from "@xterm/addon-fit";
 import { WebLinksAddon } from "@xterm/addon-web-links";
 import "@xterm/xterm/css/xterm.css";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import {
@@ -18,7 +17,6 @@ import {
   PanelRightClose,
   Plus,
   Save,
-  Send,
   Sun,
   Terminal,
   Trash2,
@@ -28,7 +26,6 @@ import {
   Square,
   X,
 } from "lucide-react";
-import { ScreenRecorder } from "@/components/ide/screen-recorder";
 
 interface EditorFile {
   id: string;
@@ -44,7 +41,6 @@ interface SideWorkbenchProps {
   activeTab: WorkbenchTab;
   onActiveTabChange: (tab: WorkbenchTab) => void;
   onCollapse: () => void;
-  onSendToChat: (message: string) => void | Promise<void>;
 }
 
 const defaultCode = `<!DOCTYPE html>
@@ -89,40 +85,14 @@ function createNewFile(filename = "untitled.html", code = defaultCode): EditorFi
   };
 }
 
-function buildEditorMessage(activeFile: EditorFile, files: EditorFile[], prompt: string): string {
-  const payload = {
-    type: "editor_content",
-    filename: activeFile.filename,
-    language: activeFile.language,
-    code: activeFile.code,
-    prompt: prompt.trim() || null,
-    metadata: {
-      lineCount: activeFile.code.split("\n").length,
-      charCount: activeFile.code.length,
-      timestamp: new Date().toISOString(),
-      allOpenFiles: files.map((file) => ({
-        filename: file.filename,
-        language: file.language,
-        isSaved: file.isSaved,
-      })),
-    },
-  };
-
-  return prompt.trim()
-    ? `${prompt}\n\n\`\`\`json\n${JSON.stringify(payload, null, 2)}\n\`\`\``
-    : `Here's my code from the editor:\n\n\`\`\`json\n${JSON.stringify(payload, null, 2)}\n\`\`\``;
-}
-
 export function SideWorkbench({
   activeTab,
   onActiveTabChange,
   onCollapse,
-  onSendToChat,
 }: SideWorkbenchProps) {
   const [files, setFiles] = useState<EditorFile[]>(() => [createNewFile()]);
   const [activeFileId, setActiveFileId] = useState("");
   const [theme, setTheme] = useState<"vs-dark" | "light">("vs-dark");
-  const [prompt, setPrompt] = useState("");
   const [wsConnected, setWsConnected] = useState(false);
   const [isInteractive, setIsInteractive] = useState(false);
 
@@ -360,21 +330,6 @@ export function SideWorkbench({
     window.open(url, "_blank");
   };
 
-  const handleSend = useCallback(async () => {
-    if (!activeFile) {
-      return;
-    }
-
-    const nextFiles = files.map((file) =>
-      file.id === activeFile.id ? { ...file, isSaved: true } : file,
-    );
-    setFiles(nextFiles);
-    persistEditorState(nextFiles, activeFile.id);
-
-    await onSendToChat(buildEditorMessage(activeFile, nextFiles, prompt));
-    setPrompt("");
-  }, [activeFile, files, onSendToChat, persistEditorState, prompt]);
-
   const startShell = useCallback(() => {
     if (wsRef.current?.readyState !== WebSocket.OPEN || !fitAddonRef.current) {
       return;
@@ -558,7 +513,6 @@ export function SideWorkbench({
     <div className="flex h-full flex-col border-l bg-background">
       <div className="flex items-center justify-between border-b bg-card px-3 py-2">
         <div className="flex items-center gap-1 rounded-lg border bg-muted/40 p-1">
-          <ScreenRecorder />
           <Button
             variant={activeTab === "editor" ? "secondary" : "ghost"}
             size="sm"
@@ -703,27 +657,6 @@ export function SideWorkbench({
                 bracketPairColorization: { enabled: true },
               }}
             />
-          </div>
-
-          <div className="border-t bg-card/50 p-3">
-            <div className="flex items-center gap-2">
-              <Input
-                value={prompt}
-                onChange={(event) => setPrompt(event.target.value)}
-                placeholder="Send this file to chat with an instruction..."
-                data-testid="input-workbench-prompt"
-                onKeyDown={(event) => {
-                  if (event.key === "Enter" && !event.shiftKey) {
-                    event.preventDefault();
-                    void handleSend();
-                  }
-                }}
-              />
-              <Button size="sm" className="gap-2" onClick={() => void handleSend()} data-testid="button-workbench-send">
-                <Send className="h-4 w-4" />
-                Send
-              </Button>
-            </div>
           </div>
         </div>
       ) : (

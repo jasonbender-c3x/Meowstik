@@ -89,11 +89,6 @@ export function formatEnvironmentMetadata(): string {
 **Environment**: \`${metadata.environment}\`
 **Server Hostname**: \`${metadata.server_hostname}\`
 
-*This metadata allows you to make context-aware decisions about:*
-- Which tools are available (e.g., ssh-keygen may be available locally but not in production)
-- Which secrets to use (production vs. development credentials)
-- Network constraints and firewall rules
-- Available system resources and capabilities`;
 }
 
 

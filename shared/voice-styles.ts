@@ -1,6 +1,6 @@
 /**
  * Expressive Voice Style Definitions
- * Maps abstract styles to concrete parameters for different TTS providers
+ * Maps abstract styles to concrete Google TTS parameters
  */
 
 export enum VoiceStyle {
@@ -28,73 +28,48 @@ export interface GoogleStyleParams {
   emphasis?: "strong" | "moderate" | "reduced" | "none";
 }
 
-// ElevenLabs parameters
-export interface ElevenLabsStyleParams {
-  stability: number;       // 0.0 to 1.0 (lower = more variable/expressive)
-  similarity_boost: number; // 0.0 to 1.0
-  style: number;           // 0.0 to 1.0 (exaggeration)
-  use_speaker_boost?: boolean;
-}
-
 // Mapping configuration
-export const VOICE_STYLE_MAPPING: Record<VoiceStyle, {
-  google: GoogleStyleParams;
-  elevenlabs: ElevenLabsStyleParams;
-}> = {
+export const VOICE_STYLE_MAPPING: Record<VoiceStyle, GoogleStyleParams> = {
   [VoiceStyle.Neutral]: {
-    google: { rate: "1.0", pitch: "0st" },
-    elevenlabs: { stability: 0.5, similarity_boost: 0.75, style: 0.0 }
+    rate: "1.0", pitch: "0st"
   },
   [VoiceStyle.Cheerful]: {
-    google: { rate: "1.05", pitch: "+2st" },
-    elevenlabs: { stability: 0.4, similarity_boost: 0.75, style: 0.5 }
+    rate: "1.05", pitch: "+2st"
   },
   [VoiceStyle.Serious]: {
-    google: { rate: "0.95", pitch: "-2st" },
-    elevenlabs: { stability: 0.8, similarity_boost: 0.75, style: 0.0 }
+    rate: "0.95", pitch: "-2st"
   },
   [VoiceStyle.Excited]: {
-    google: { rate: "1.1", pitch: "+4st" },
-    elevenlabs: { stability: 0.3, similarity_boost: 0.8, style: 0.8 }
+    rate: "1.1", pitch: "+4st"
   },
   [VoiceStyle.Calm]: {
-    google: { rate: "0.9", pitch: "-1st" },
-    elevenlabs: { stability: 0.7, similarity_boost: 0.75, style: 0.0 }
+    rate: "0.9", pitch: "-1st"
   },
   [VoiceStyle.Dramatic]: {
-    google: { rate: "0.9", pitch: "-2st", volume: "+6.0dB" },
-    elevenlabs: { stability: 0.3, similarity_boost: 0.8, style: 1.0 }
+    rate: "0.9", pitch: "-2st", volume: "+6.0dB"
   },
   [VoiceStyle.Whisper]: {
-    google: { volume: "-6.0dB", rate: "0.9" },
-    elevenlabs: { stability: 0.5, similarity_boost: 0.5, style: 0.0 } // Requires Whisper model if available, otherwise just soft
+    volume: "-6.0dB", rate: "0.9"
   },
   [VoiceStyle.News]: {
-    google: { rate: "1.0", pitch: "0st" },
-    elevenlabs: { stability: 0.7, similarity_boost: 0.75, style: 0.2 }
+    rate: "1.0", pitch: "0st"
   },
   [VoiceStyle.Warm]: {
-    google: { rate: "0.95", pitch: "-1st" },
-    elevenlabs: { stability: 0.6, similarity_boost: 0.8, style: 0.2 }
+    rate: "0.95", pitch: "-1st"
   },
   [VoiceStyle.Professional]: {
-    google: { rate: "1.0", pitch: "0st" },
-    elevenlabs: { stability: 0.8, similarity_boost: 0.8, style: 0.0 }
+    rate: "1.0", pitch: "0st"
   },
   [VoiceStyle.Triumphant]: {
-    google: { rate: "1.05", pitch: "+2st", volume: "+6.0dB" },
-    elevenlabs: { stability: 0.4, similarity_boost: 0.8, style: 0.7 }
+    rate: "1.05", pitch: "+2st", volume: "+6.0dB"
   },
   [VoiceStyle.Empathetic]: {
-    google: { rate: "0.9", pitch: "-1st" },
-    elevenlabs: { stability: 0.6, similarity_boost: 0.8, style: 0.3 }
+    rate: "0.9", pitch: "-1st"
   },
   [VoiceStyle.Uncertain]: {
-    google: { rate: "0.9", pitch: "+1st" },
-    elevenlabs: { stability: 0.4, similarity_boost: 0.6, style: 0.2 }
+    rate: "0.9", pitch: "+1st"
   },
   [VoiceStyle.Relieved]: {
-    google: { rate: "0.9", pitch: "-2st" },
-    elevenlabs: { stability: 0.5, similarity_boost: 0.75, style: 0.1 }
+    rate: "0.9", pitch: "-2st"
   }
 };

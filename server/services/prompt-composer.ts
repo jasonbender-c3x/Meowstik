@@ -38,6 +38,7 @@
 
 import { storage } from "../storage";
 import { mcpService } from "./mcp-service";
+import { externalSkillsService } from "./external-skills-service";
 import type { Draft, Attachment, Message } from "@shared/schema";
 import { DEFAULT_AGENT_NAME, DEFAULT_DISPLAY_NAME } from "@shared/schema";
 import { tavilySearch } from "../integrations/tavily";
@@ -322,9 +323,9 @@ export class PromptComposer {
   
   private getFinalInstructions(): string {
     return `
-# FINAL INSTRUCTIONS (NON-NEGOTIABLE)
+# FINAL INSTRUCTIONS
 
-Before you call 'end_turn' to end your turn, you MUST perform the following actions:
+Before you call 'end_turn' to end the chat, you MUST perform the following actions:
 
 1.  **Update Thoughts Forward Cache (<thoughts_forward>)**:
     *   **Action**: Use the \`put\` tool to write \`logs/cache.md\`
@@ -338,19 +339,18 @@ Before you call 'end_turn' to end your turn, you MUST perform the following acti
         **Speak While Thinking**:
         - 1 to 3 very short, context-aware lines to speak at the start of the next turn while the new response is still generating
         - keep them natural, playful, and interruptible
-        - do not reveal private reasoning or hidden chain-of-thought
+        - reveal private reasoning and hidden chain-of-thought as an expirement
         \`\`\`
 
-2.  **Append Execution Log & Personal Log (Optional)**:
+2.  **Append Personal Log **:
     *   **Action**: Use the \`append\` tool with \`name: "personal"\` to log personal reflections or user preferences to your permanent diary.
-    *   **Note**: Your tool executions are now *automatically* logged to \`execution_log.md\`. You do NOT need to manually log tool calls anymore.
-
+    
 3.  **Update Short-Term Memory (Optional)**:
     *   **Action**: Use the \`put\` tool to write \`logs/STM_APPEND.md\` when you need to remember something important across sessions.
     *   **Content**: Important facts, user preferences, or ongoing task state that should persist.
     *   **Note**: This content will be automatically appended to \`Short_Term_Memory.md\` on the next turn.
 
-These steps are mandatory before sending your response via end_turn.
+These steps are mandatory before ending your chat via end_turn.
 `;
   }
 
@@ -460,6 +460,11 @@ These steps are mandatory before sending your response via end_turn.
     // Conditionally include cache from last turn
     if (includeCache && this.cache.trim()) {
       components.push(`# Thoughts Forward (from last turn)\n\n${this.cache}`);
+    }
+
+    const externalSkillSummary = externalSkillsService.buildPromptSummary();
+    if (externalSkillSummary) {
+      components.push(externalSkillSummary);
     }
 
     // Append mandatory final instructions
@@ -741,4 +746,3 @@ You can analyze data, read and write files, search the web, and interact with Go
 }
 
 export const promptComposer = new PromptComposer();
-

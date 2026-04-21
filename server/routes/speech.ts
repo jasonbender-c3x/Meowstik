@@ -30,7 +30,7 @@ router.post(
 );
 
 const generateTTS = asyncHandler(async (req, res) => {
-  const { text, speakers, voice, model, provider } = req.body;
+  const { text, speakers, voice, model } = req.body;
   
   if (!text) {
     throw badRequest("text is required");
@@ -47,21 +47,12 @@ const generateTTS = asyncHandler(async (req, res) => {
     speakersList = [{ voice: "Kore" }];
   }
   
-  // Determine TTS provider (from request or environment)
-  const ttsProvider = provider || process.env.TTS_PROVIDER || "google";
-  
-  let result;
-  if (ttsProvider === "elevenlabs" || ttsProvider === "11labs") {
-    const { generateMultiSpeakerAudio } = await import("../integrations/elevenlabs-tts");
-    result = await generateMultiSpeakerAudio({ text, speakers: speakersList });
-  } else {
-    const { generateMultiSpeakerAudio } = await import("../integrations/expressive-tts");
-    result = await generateMultiSpeakerAudio({
-      text,
-      speakers: speakersList,
-      model: model || "flash"
-    });
-  }
+  const { generateMultiSpeakerAudio } = await import("../integrations/expressive-tts");
+  const result = await generateMultiSpeakerAudio({
+    text,
+    speakers: speakersList,
+    model: model || "flash"
+  });
   
   if (!result.success) {
     res.status(400).json({ error: result.error });
@@ -77,22 +68,12 @@ router.post("/generate", generateTTS);
 router.get(
   "/voices",
   asyncHandler(async (req, res) => {
-    const provider = req.query.provider as string || process.env.TTS_PROVIDER || "google";
-    
-    let voices;
-    if (provider === "elevenlabs" || provider === "11labs") {
-      const { getAvailableVoices } = await import("../integrations/elevenlabs-tts");
-      voices = getAvailableVoices();
-    } else {
-      const { getAvailableVoices } = await import("../integrations/expressive-tts");
-      voices = getAvailableVoices();
-    }
-    
-    res.json({ voices, provider });
+    const { getAvailableVoices } = await import("../integrations/expressive-tts");
+    const voices = getAvailableVoices();
+    res.json({ voices, provider: "google" });
   })
 );
 
 export default router;
-
 
 

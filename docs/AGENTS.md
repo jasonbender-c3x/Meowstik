@@ -1,14 +1,16 @@
 # Agents
 
-Meowstik extends to external devices via two agent types: a Desktop Agent (for OS-level control and screen sharing) and a Browser Extension (for in-browser assistance and automation).
+For most current local installs, Meowstik's primary computer-use path is the **local runtime** (`desktop-service.ts` + `computer-use.ts`) rather than a separately managed desktop client.
+
+This document now focuses on the **optional relay/extension pieces** that still exist in the codebase.
 
 ---
 
-## Desktop Collaboration
+## Optional Desktop Relay
 
 **Server:** `server/websocket-desktop.ts`
 
-The Desktop Collaboration system streams screen frames and routes input over WebSocket, enabling AI to see and control the user's desktop in real-time.
+The desktop relay system streams screen frames and routes input over WebSocket for advanced or legacy setups where local computer use is being proxied instead of executed directly on the same machine.
 
 ### Architecture
 
@@ -33,7 +35,7 @@ Two client types connect to the same session:
 
 ### Computer Use Tools
 
-Once a Desktop Agent session is active, the AI can use the `computer_*` tools:
+Once a relay session is active, the AI can use the `computer_*` tools:
 
 ```
 computer_screenshot  → capture current screen
@@ -47,7 +49,7 @@ computer_wait        → wait N milliseconds
 
 **Workflow:** `computer_screenshot` → analyze what's visible → `computer_click` or `computer_type` to interact.
 
-### How to Connect a Desktop Agent
+### How to Connect the Optional Desktop Relay
 
 1. The desktop-side client connects to:
    ```
@@ -56,7 +58,7 @@ computer_wait        → wait N milliseconds
 2. It streams compressed screenshots at ~1–5 fps
 3. It receives back mouse/keyboard event messages to execute locally
 
-> **Note:** A reference desktop agent client is not included in this repo. Any WebSocket client that implements the frame protocol can act as the agent.
+> **Note:** This is not the primary local-install path anymore. It remains useful for relay scenarios, remote viewing, or compatibility with older workflows.
 
 ---
 
@@ -86,7 +88,7 @@ A Chrome/Chromium extension that embeds a Meowstik chat panel directly in the br
 
 1. Click the extension icon
 2. Go to **Settings** tab
-3. Enter your server URL, e.g. `wss://your-meowstik-server.com`
+3. Enter your Meowstik runtime URL, e.g. `ws://localhost:5000` for local dev or your deployed URL
 4. Click **Connect**
 
 ### Keyboard Shortcuts
@@ -112,6 +114,6 @@ browser-extension/
 
 ## Agent Authentication
 
-Both the Desktop Agent and Browser Extension authenticate using session tokens issued by the Meowstik server. Tokens are validated on every WebSocket upgrade request.
+Both the desktop relay and browser extension authenticate using session tokens issued by the Meowstik runtime. Tokens are validated on every WebSocket upgrade request.
 
 The server enforces that agents can only access sessions they're authorized for.

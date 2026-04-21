@@ -1,48 +1,51 @@
-# Meowstik Desktop App
+# Meowstik Desktop / Local Runtime
 
-The **Meowstik Desktop App** wraps the core server in an Electron shell, providing:
-1.  **Computer Use**: Enables the AI to see your screen and control your mouse/keyboard.
-2.  **Native Integration**: Runs as a native application rather than just a web server.
-3.  **Unified Runtime**: Manages the backend server process automatically.
+Meowstik is now best understood as a **local runtime**. The app runs on your machine, and computer use can execute on that same machine through the built-in desktop services.
 
-## Architecture
+Older docs may still talk about a separate **server**, **client**, or **desktop agent**. Those terms are now legacy implementation language or optional relay modes, not the default user model.
 
-The desktop app is located in `desktop-app/` and uses a multi-process architecture:
--   **Main Process (Electron)**: Handles window management and system integration.
--   **Server Process (Child)**: Spawns the main Meowstik server (`server/index.ts`) as a forked Node.js process.
--   **Renderer Process (Web)**: Displays the frontend UI (served by the Server Process).
+## Current Computer-Use Path
 
-## Installation
+The live computer-use stack is:
 
-The desktop app is part of the monorepo workspace.
+- `server/services/desktop-service.ts` — local screenshots, mouse, keyboard, app launching
+- `server/services/computer-use.ts` — Gemini Computer Use orchestration and tool declarations
+- `server/websocket-live.ts` — live-mode routing for computer-use actions where needed
+
+### Available local computer-use tools
+
+- `computer_screenshot`
+- `computer_click`
+- `computer_type`
+- `computer_key`
+- `computer_scroll`
+- `computer_move`
+- `computer_wait`
+- `computer_open`
+
+## Running Meowstik Locally
+
+### Development runtime
 
 ```bash
-# Install all dependencies (from root)
 pnpm install
-
-# Build the desktop app TypeScript
-cd desktop-app
-pnpm run build
+pnpm run dev
 ```
 
-## Running the App
+This starts the local runtime from the repository root.
 
-To start the full system (Server + UI + Desktop Agent):
+### Optional Electron shell
+
+An Electron wrapper still exists in `desktop-app/`, but it should be treated as an optional shell around the same local runtime rather than a separate client.
 
 ```bash
-# From the root directory
 cd desktop-app
+npm install
 npm start
 ```
 
-> **Note:** `npm start` in `desktop-app` will launch the Electron window and automatically start the backend server on port 5000.
+## Notes
 
-## Computer Use Capabilities
-
-When running in Desktop App mode, the AI gains the following capabilities:
--   **Screen Vision**: Can take screenshots of your active desktop.
--   **Mouse Control**: Can move, click, and drag the mouse.
--   **Keyboard Control**: Can type text and press key combinations.
--   **App Launching**: Can open applications by name.
-
-These features are exposed to the AI via the `computer_*` toolset (e.g., `computer_click`, `computer_type`, `computer_screenshot`).
+- Local computer use depends on OS-level screenshot/input capabilities (`screenshot-desktop`, `@nut-tree-fork/nut-js`)
+- Optional WebSocket desktop-relay paths still exist in the codebase for advanced or legacy setups
+- MCP support is separate from computer use; MCP adds external tool servers, while `computer_*` controls the local machine

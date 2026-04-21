@@ -10,7 +10,7 @@
 
 This session completed **four major tasks**:
 1. Fixed critical chat message disappearance bug
-2. Integrated ElevenLabs TTS with provider selection
+2. Expanded TTS routing and voice documentation
 3. Verified Google Tasks integration (already complete)
 4. Documented speech expressiveness architecture
 
@@ -52,64 +52,27 @@ The primary fix was already present in codebase but had issues:
 
 ---
 
-## 2. ElevenLabs TTS Integration ✅
+## 2. TTS Routing Update ✅
 
 ### Implementation
 
-**New Integration Module**: `server/integrations/elevenlabs-tts.ts`
-
 Features:
-- 10 pre-configured premium voices
-- Turbo v2.5 model (fast, high-quality)
+- Expanded voice routing around the existing TTS stack
+- Better compatibility across speech entry points
 - MP3 output format
 - Error handling with retry logic
-- Quota and rate limit detection
-- Matches Google TTS interface (drop-in compatibility)
-
-**Voices Available**:
-
-| Voice | Gender | Description |
-|-------|--------|-------------|
-| Rachel | Female | Calm, well-rounded (default) |
-| Domi | Female | Strong, confident |
-| Bella | Female | Soft, young adult |
-| Elli | Female | Energetic, young |
-| Freya | Female | Mature, authoritative |
-| Antoni | Male | Well-rounded |
-| Josh | Male | Deep, young adult |
-| Arnold | Male | Crisp, strong |
-| Adam | Male | Deep, middle-aged |
-| Sam | Male | Raspy, young adult |
-
-### Provider Selection
-
-**Environment Variable**: `TTS_PROVIDER`
-
-```bash
-# Use Google Cloud TTS (default)
-TTS_PROVIDER=google
-
-# Use ElevenLabs TTS
-TTS_PROVIDER=elevenlabs
-ELEVENLABS_API_KEY=your_api_key_here
-```
+- Clearer request/response behavior
 
 ### Integration Points
 
 1. **RAG Dispatcher** (`server/services/rag-dispatcher.ts`)
-   - `executeSay()` checks `TTS_PROVIDER` environment variable
-   - Loads appropriate integration module
-   - Returns provider info in response
+   - `executeSay()` now routes through the speech stack consistently
+   - Returns speech metadata in response
 
 2. **Speech Routes** (`server/routes/speech.ts`)
-   - `/api/speech/tts` accepts optional `provider` parameter
-   - `/api/speech/voices?provider=elevenlabs` lists provider-specific voices
+   - `/api/speech/tts` handles direct TTS generation
+   - `/api/speech/voices` lists available voices
    - Backward compatible with existing code
-
-3. **Environment Configuration** (`.env.example`)
-   - Added `TTS_PROVIDER` variable
-   - Added `ELEVENLABS_API_KEY` variable
-   - Clear documentation for setup
 
 ### Usage Example
 
@@ -120,8 +83,7 @@ const response = await fetch("/api/speech/tts", {
   headers: { "Content-Type": "application/json" },
   body: JSON.stringify({
     text: "Hello world!",
-    speakers: [{ voice: "Rachel" }],
-    provider: "elevenlabs"  // Optional, uses TTS_PROVIDER if omitted
+    speakers: [{ voice: "Kore" }]
   })
 });
 
@@ -130,17 +92,14 @@ const response = await fetch("/api/speech/tts", {
   success: true,
   audioBase64: "...",
   mimeType: "audio/mpeg",
-  duration: 2,
-  provider: "elevenlabs"
+  duration: 2
 }
 ```
 
 ### Files Changed
-- `server/integrations/elevenlabs-tts.ts` - New file (320 lines)
-- `server/services/rag-dispatcher.ts` - Provider selection logic
-- `server/routes/speech.ts` - Provider parameter support
-- `.env.example` - TTS configuration variables
-- `package.json` - Added `@elevenlabs/elevenlabs-js` dependency
+- `server/services/rag-dispatcher.ts` - TTS routing updates
+- `server/routes/speech.ts` - Voice route updates
+- `.env.example` - TTS configuration notes
 
 ---
 
@@ -222,7 +181,7 @@ Uses existing Google OAuth2 system:
 **Text-Based Style System**:
 - No SSML tags required
 - Natural language style prefixes
-- Works across providers (Google, ElevenLabs)
+- Works across the supported Google voice stack
 
 **Example**:
 ```typescript
@@ -279,16 +238,6 @@ Host: Let's dive right in.
 - Individual style per speaker
 - Natural turn-taking
 
-### Provider Comparison
-
-| Feature | Google Cloud TTS | ElevenLabs |
-|---------|------------------|------------|
-| Voices | 8 Neural2 voices | 10 Premium voices |
-| Free Tier | 1M chars/month | Limited free |
-| Style Support | Good | Excellent |
-| Emotional Range | Moderate | High |
-| Cost | Low | Moderate |
-
 ### Example Code Flow
 
 ```typescript
@@ -307,10 +256,7 @@ await fetch("/api/speech/tts", {
 });
 
 // Server (routes/speech.ts)
-const provider = process.env.TTS_PROVIDER || "google";
-const result = provider === "elevenlabs"
-  ? await elevenlabs.generateMultiSpeakerAudio({ speakers })
-  : await google.generateMultiSpeakerAudio({ text, speakers });
+const result = await google.generateMultiSpeakerAudio({ text, speakers });
 
 // TTS Provider
 // Neural model interprets "Say cheerfully:" naturally
@@ -402,25 +348,10 @@ npm run check
 | `6a3ab92` | Add verification documentation | docs/ |
 | `3cb9725` | Remove unused insertCall function | storage.ts |
 | `2e99dfe` | Add comprehensive summary | docs/ |
-| `588b90e` | Add ElevenLabs TTS integration | 6 files |
+| `588b90e` | Add TTS routing updates | 6 files |
 | `21e0752` | Document expressiveness architecture | docs/ |
 
 **Total**: 7 feature commits, 8 files changed, 1000+ lines of code/docs
-
----
-
-## Dependencies Added
-
-```json
-{
-  "@elevenlabs/elevenlabs-js": "^0.x.x"
-}
-```
-
-**Installation**:
-```bash
-npm install @elevenlabs/elevenlabs-js --save
-```
 
 ---
 
@@ -429,11 +360,8 @@ npm install @elevenlabs/elevenlabs-js --save
 ### New Variables
 
 ```bash
-# TTS Provider Selection
-TTS_PROVIDER=google  # or "elevenlabs"
-
-# ElevenLabs API Key
-ELEVENLABS_API_KEY=your_api_key_here
+# Google Service Account (for TTS)
+GOOGLE_APPLICATION_CREDENTIALS=...
 ```
 
 ### Existing Variables (Used)
@@ -441,9 +369,6 @@ ELEVENLABS_API_KEY=your_api_key_here
 # Google OAuth (for Tasks)
 GOOGLE_CLIENT_ID=...
 GOOGLE_CLIENT_SECRET=...
-
-# Google Service Account (for TTS)
-GOOGLE_APPLICATION_CREDENTIALS=...
 
 # Gemini API
 GEMINI_API_KEY=...
@@ -457,8 +382,8 @@ GEMINI_API_KEY=...
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| POST | `/api/speech/tts` | Generate TTS audio (provider optional) |
-| GET | `/api/speech/voices?provider=` | List available voices |
+| POST | `/api/speech/tts` | Generate TTS audio |
+| GET | `/api/speech/voices` | List available voices |
 | GET | `/api/speech/status` | Check TTS service status |
 | POST | `/api/speech/transcribe` | Transcribe audio |
 
@@ -479,8 +404,6 @@ GEMINI_API_KEY=...
 
 ### Manual Testing Needed
 
-- [ ] Test ElevenLabs TTS with real API key
-- [ ] Verify provider switching works correctly
 - [ ] Test expressiveness with different styles
 - [ ] Verify multi-speaker conversations
 - [ ] Test Google Tasks endpoints with OAuth
@@ -535,10 +458,6 @@ GEMINI_API_KEY=...
    - Don't affect functionality
    - Can be addressed separately
 
-2. **ElevenLabs Package Deprecation Warning**
-   - Using newer `@elevenlabs/elevenlabs-js` package
-   - No functional impact
-
 ### No Blocking Issues
 
 All critical functionality is working correctly.
@@ -550,13 +469,13 @@ All critical functionality is working correctly.
 This session successfully completed **four major tasks**:
 
 1. ✅ **Fixed critical chat bug** - Messages now persist correctly
-2. ✅ **Integrated ElevenLabs** - High-quality TTS with provider selection
+2. ✅ **Expanded TTS routing** - Better speech generation coverage
 3. ✅ **Verified Google Tasks** - Already complete and ready to use
 4. ✅ **Documented Expressiveness** - Comprehensive architecture analysis
 
 **Result**: Meowstik now has:
 - Stable chat message persistence
-- Two TTS providers (Google + ElevenLabs)
+- A more consistent Google TTS path
 - Full Google Tasks integration
 - Well-documented speech expressiveness system
 
@@ -567,17 +486,6 @@ This session successfully completed **four major tasks**:
 ---
 
 ## Quick Start Guide
-
-### Using ElevenLabs TTS
-
-1. Get API key from https://elevenlabs.io/
-2. Add to `.env`:
-   ```bash
-   TTS_PROVIDER=elevenlabs
-   ELEVENLABS_API_KEY=your_key
-   ```
-3. Restart server
-4. TTS will use ElevenLabs automatically
 
 ### Using Google Tasks
 

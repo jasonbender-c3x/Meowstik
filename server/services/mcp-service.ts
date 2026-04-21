@@ -51,6 +51,90 @@ const MCP_LIBRARY: McpLibraryEntry[] = [
       cwd: "servers/puppeteer-mcp",
     },
   },
+  {
+    key: "filesystem-mcp",
+    name: "Filesystem MCP",
+    description: "Official reference MCP server for controlled local file access.",
+    transport: "stdio",
+    homepage: "https://github.com/modelcontextprotocol/servers",
+    docsUrl: "https://registry.modelcontextprotocol.io/",
+    template: {
+      command: "npx",
+      args: ["-y", "@modelcontextprotocol/server-filesystem", process.cwd()],
+    },
+  },
+  {
+    key: "fetch-mcp",
+    name: "Fetch MCP",
+    description: "Official reference MCP server for web fetching and page conversion.",
+    transport: "stdio",
+    homepage: "https://github.com/modelcontextprotocol/servers",
+    docsUrl: "https://registry.modelcontextprotocol.io/",
+    template: {
+      command: "npx",
+      args: ["-y", "@modelcontextprotocol/server-fetch"],
+    },
+  },
+  {
+    key: "git-mcp",
+    name: "Git MCP",
+    description: "Official reference MCP server for reading and manipulating Git repositories.",
+    transport: "stdio",
+    homepage: "https://github.com/modelcontextprotocol/servers",
+    docsUrl: "https://registry.modelcontextprotocol.io/",
+    template: {
+      command: "npx",
+      args: ["-y", "@modelcontextprotocol/server-git"],
+    },
+  },
+  {
+    key: "memory-mcp",
+    name: "Memory MCP",
+    description: "Official reference MCP server for persistent knowledge-graph memory.",
+    transport: "stdio",
+    homepage: "https://github.com/modelcontextprotocol/servers",
+    docsUrl: "https://registry.modelcontextprotocol.io/",
+    template: {
+      command: "npx",
+      args: ["-y", "@modelcontextprotocol/server-memory"],
+    },
+  },
+  {
+    key: "time-mcp",
+    name: "Time MCP",
+    description: "Official reference MCP server for time and timezone utilities.",
+    transport: "stdio",
+    homepage: "https://github.com/modelcontextprotocol/servers",
+    docsUrl: "https://registry.modelcontextprotocol.io/",
+    template: {
+      command: "npx",
+      args: ["-y", "@modelcontextprotocol/server-time"],
+    },
+  },
+  {
+    key: "sequentialthinking-mcp",
+    name: "Sequential Thinking MCP",
+    description: "Official reference MCP server for reflective step-by-step reasoning support.",
+    transport: "stdio",
+    homepage: "https://github.com/modelcontextprotocol/servers",
+    docsUrl: "https://registry.modelcontextprotocol.io/",
+    template: {
+      command: "npx",
+      args: ["-y", "@modelcontextprotocol/server-sequentialthinking"],
+    },
+  },
+  {
+    key: "everything-mcp",
+    name: "Everything MCP",
+    description: "Official reference test server that exposes prompts, resources, and tools.",
+    transport: "stdio",
+    homepage: "https://github.com/modelcontextprotocol/servers",
+    docsUrl: "https://registry.modelcontextprotocol.io/",
+    template: {
+      command: "npx",
+      args: ["-y", "@modelcontextprotocol/server-everything"],
+    },
+  },
 ];
 
 function slugify(value: string): string {

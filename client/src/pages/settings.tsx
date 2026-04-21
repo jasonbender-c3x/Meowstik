@@ -76,6 +76,16 @@ interface McpTestResult {
   toolCount: number;
 }
 
+interface ExternalSkillEntry {
+  id: string;
+  source: "claude" | "gemini" | "copilot" | "generic";
+  kind: "skill" | "agent" | "instructions";
+  path: string;
+  name: string;
+  description: string;
+  whenToUse?: string;
+}
+
 const defaultSettings: AppSettings = {
   model: "pro",
   theme: "system",
@@ -207,6 +217,15 @@ export default function SettingsPage() {
       const res = await fetch("/api/mcp/servers");
       if (!res.ok) throw new Error("Failed to load MCP servers");
       return res.json() as Promise<{ servers: McpServer[] }>;
+    },
+  });
+
+  const { data: externalSkillsData, isLoading: externalSkillsLoading } = useQuery({
+    queryKey: ["/api/external-skills"],
+    queryFn: async () => {
+      const res = await fetch("/api/external-skills");
+      if (!res.ok) throw new Error("Failed to load external skills");
+      return res.json() as Promise<{ skills: ExternalSkillEntry[] }>;
     },
   });
 
@@ -877,7 +896,7 @@ export default function SettingsPage() {
                     <div>
                       <Label className="font-medium">Google Account</Label>
                       <p className="text-sm text-muted-foreground">
-                      {authLoading ? 'Checking...' : authStatus?.authenticated && authStatus?.hasFullScopes ? 'Connected — Gmail, Calendar, Drive, Docs, Sheets, Tasks' : authStatus?.authenticated ? '⚠️ Limited access — re-authorize to enable Tasks & Gmail' : 'Not connected'}
+                      {authLoading ? 'Checking...' : authStatus?.authenticated && authStatus?.hasFullScopes ? 'Connected — Gmail, Calendar, Drive, Docs, Sheets, Tasks' : authStatus?.authenticated ? '⚠️ Limited access — re-authorize Google to restore Drive and other workspace tools' : 'Not connected'}
                       </p>
                     </div>
                   </div>
@@ -1175,6 +1194,45 @@ export default function SettingsPage() {
                     ))
                   )}
                 </div>
+              </div>
+            </section>
+
+            <section className="border border-border rounded-lg bg-muted/20 p-6">
+              <div className="flex items-center gap-3 mb-6">
+                <Sparkles className="h-5 w-5 text-primary" />
+                <h2 className="text-xl font-semibold">External Skills</h2>
+              </div>
+
+              <div className="space-y-4">
+                <p className="text-sm text-muted-foreground">
+                  Meowstik now scans common assistant instruction files and skill markdown locally, then makes discovered guidance available during prompt composition.
+                </p>
+
+                {externalSkillsLoading ? (
+                  <p className="text-sm text-muted-foreground">Scanning for external skills...</p>
+                ) : (externalSkillsData?.skills.length ?? 0) === 0 ? (
+                  <p className="text-sm text-muted-foreground">No external assistant skills were found in the scanned locations.</p>
+                ) : (
+                  <div className="space-y-3">
+                    {externalSkillsData?.skills.map((skill) => (
+                      <div key={skill.id} className="rounded-lg border border-border bg-background p-4 space-y-2">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p className="font-medium">{skill.name}</p>
+                          <Badge variant="outline">{skill.source}</Badge>
+                          <Badge variant="outline">{skill.kind}</Badge>
+                          <Badge variant="secondary">auto-loaded</Badge>
+                        </div>
+                        <p className="text-sm text-muted-foreground">{skill.description}</p>
+                        {skill.whenToUse && (
+                          <p className="text-xs text-muted-foreground">
+                            <span className="font-medium text-foreground">When to use:</span> {skill.whenToUse}
+                          </p>
+                        )}
+                        <p className="text-xs text-muted-foreground break-all">{skill.path}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </section>
 

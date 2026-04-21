@@ -25,6 +25,15 @@ const SCOPES = [
   'https://www.googleapis.com/auth/cloud-platform',
 ];
 
+function normalizeScopes(scope: string | null | undefined): Set<string> {
+  return new Set(
+    (scope ?? "")
+      .split(/\s+/)
+      .map((value) => value.trim())
+      .filter(Boolean),
+  );
+}
+
 let cachedTokens: Auth.Credentials | null = null;
 let oauth2Client: Auth.OAuth2Client | null = null;
 let initialized = false;
@@ -202,9 +211,12 @@ export function isAuthenticatedSync(): boolean {
 
 /** Check if stored token includes the API scopes (Tasks, Gmail, Drive, etc.). */
 export function hasFullScopes(): boolean {
-  const scope = cachedTokens?.scope ?? "";
-  // Must have at least tasks scope to be considered "full"
-  return scope.includes("tasks") && scope.includes("gmail");
+  return getMissingScopes().length === 0;
+}
+
+export function getMissingScopes(scope: string | null | undefined = cachedTokens?.scope): string[] {
+  const granted = normalizeScopes(scope);
+  return SCOPES.filter((requiredScope) => !granted.has(requiredScope));
 }
 
 export async function refreshTokensIfNeeded(): Promise<void> {
@@ -214,11 +226,15 @@ export async function refreshTokensIfNeeded(): Promise<void> {
   const expiryDate = cachedTokens.expiry_date;
   if (expiryDate && expiryDate < Date.now() + 60000) {
     const previousRefreshToken = cachedTokens.refresh_token;
+    const previousScope = cachedTokens.scope;
     try {
       const { credentials } = await oauth2Client.refreshAccessToken();
       cachedTokens = credentials;
       if (!cachedTokens.refresh_token && previousRefreshToken) {
         cachedTokens.refresh_token = previousRefreshToken;
+      }
+      if (!cachedTokens.scope && previousScope) {
+        cachedTokens.scope = previousScope;
       }
       oauth2Client.setCredentials(cachedTokens);
       
@@ -230,7 +246,7 @@ export async function refreshTokensIfNeeded(): Promise<void> {
         refreshToken: cachedTokens.refresh_token || null,
         expiryDate: credentials.expiry_date || null,
         tokenType: credentials.token_type || null,
-        scope: credentials.scope || null,
+        scope: cachedTokens.scope || null,
       });
       
       console.log('Refreshed and saved Google OAuth tokens');
@@ -262,6 +278,5 @@ export async function revokeAccess(): Promise<void> {
 }
 
 export { SCOPES };
-
 
 

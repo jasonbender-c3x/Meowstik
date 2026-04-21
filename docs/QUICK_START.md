@@ -51,9 +51,6 @@ TWILIO_ACCOUNT_SID=ACxxxxxx
 TWILIO_AUTH_TOKEN=your_auth_token
 TWILIO_PHONE_NUMBER=+15551234567
 
-# ElevenLabs (fallback TTS)
-ELEVENLABS_API_KEY=your_key
-
 # Web Search
 EXA_API_KEY=your_exa_key
 GOOGLE_SEARCH_API_KEY=your_key

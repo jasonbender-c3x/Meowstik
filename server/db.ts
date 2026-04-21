@@ -1,11 +1,49 @@
 import { drizzle } from "drizzle-orm/better-sqlite3";
 import Database from "better-sqlite3";
 import * as schema from "@shared/schema";
+import fs from "fs";
 import path from "path";
 
-// Ensure data directory exists
-const dataDir = path.join(process.cwd(), "data");
-// DB file path
+const repoDataDir = path.join(process.cwd(), "data");
+const configuredDataDir = process.env.MEOWSTIK_DATA_DIR
+  ? path.resolve(process.env.MEOWSTIK_DATA_DIR)
+  : repoDataDir;
+
+function ensureDataDir(dir: string) {
+  fs.mkdirSync(dir, { recursive: true });
+}
+
+function copyIfExists(source: string, target: string) {
+  if (fs.existsSync(source) && !fs.existsSync(target)) {
+    fs.copyFileSync(source, target);
+  }
+}
+
+function migrateLegacyDbIfNeeded(targetDir: string) {
+  if (targetDir === repoDataDir) {
+    return;
+  }
+
+  const legacyDbPath = path.join(repoDataDir, "meowstik.db");
+  const targetDbPath = path.join(targetDir, "meowstik.db");
+
+  if (!fs.existsSync(legacyDbPath) || fs.existsSync(targetDbPath)) {
+    return;
+  }
+
+  ensureDataDir(targetDir);
+  copyIfExists(legacyDbPath, targetDbPath);
+  copyIfExists(`${legacyDbPath}-wal`, `${targetDbPath}-wal`);
+  copyIfExists(`${legacyDbPath}-shm`, `${targetDbPath}-shm`);
+
+  console.log(`[db] Migrated SQLite data from ${legacyDbPath} to ${targetDbPath}`);
+}
+
+ensureDataDir(repoDataDir);
+ensureDataDir(configuredDataDir);
+migrateLegacyDbIfNeeded(configuredDataDir);
+
+const dataDir = configuredDataDir;
 const dbPath = path.join(dataDir, "meowstik.db");
 
 console.log(`[db] Using SQLite at: ${dbPath}`);
