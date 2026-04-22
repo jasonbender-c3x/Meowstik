@@ -41,6 +41,19 @@ const MCP_LIBRARY: McpLibraryEntry[] = [
     },
   },
   {
+    key: "libreoffice-mcp",
+    name: "LibreOffice MCP",
+    description: "Local stdio MCP server from mcp-libre for creating, converting, reading, and editing LibreOffice documents.",
+    transport: "stdio",
+    homepage: "https://github.com/patrup/mcp-libre",
+    docsUrl: "https://github.com/patrup/mcp-libre#readme",
+    template: {
+      command: "uv",
+      args: ["run", "python", "src/main.py"],
+      cwd: "mcp-libre",
+    },
+  },
+  {
     key: "puppeteer-mcp",
     name: "Puppeteer MCP",
     description: "Local browser automation MCP server bundled with Meowstik.",
