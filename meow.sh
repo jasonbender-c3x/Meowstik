@@ -95,7 +95,7 @@ NODE_OPTIONS="--max-old-space-size=2048" PORT="$PORT" pnpm run dev 2>&1 | tee -a
 # Mount Google Drive if not already mounted
 if ! mountpoint -q /mnt/MyDrive 2>/dev/null; then
   sudo mkdir -p /mnt/MyDrive
-  rclone mount gdrive: /mnt/MyDrive --daemon --vfs-cache-mode minimal --allow-other --drive-export-format odt &
+  rclone mount gdrive: /mnt/MyDrive --daemon --vfs-cache-mode minimal --allow-other --drive-export-formats odt,pdf &
   sleep 3
   echo "✅ Google Drive mounted at /mnt/MyDrive"
 fi

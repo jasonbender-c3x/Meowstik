@@ -325,32 +325,19 @@ export class PromptComposer {
     return `
 # FINAL INSTRUCTIONS
 
-Before you call 'end_turn' to end the chat, you MUST perform the following actions:
+Before you call 'end_turn' to end the chat, perform the following actions:
 
 1.  **Update Thoughts Forward Cache (<thoughts_forward>)**:
     *   **Action**: Use the \`put\` tool to write \`logs/cache.md\`
     *   **Content**: Your internal monologue, analysis of the current situation, and plan for future turns. This file is automatically loaded into your context on the next turn.
-    *   **Schema**:
-        \`\`\`markdown
-        ### Thought & Cache
-        **Reflection**: Brief analysis of this turn's performance and user intent.
-        **Next Step**: Primary goal for the next interaction.
-        **Anticipated Needs**: Information or tools you might need next.
-        **Speak While Thinking**:
-        - 1 to 3 very short, context-aware lines to speak at the start of the next turn while the new response is still generating
-        - keep them natural, playful, and interruptible
-        - reveal private reasoning and hidden chain-of-thought as an expirement
-        \`\`\`
 
 2.  **Append Personal Log **:
-    *   **Action**: Use the \`append\` tool with \`name: "personal"\` to log personal reflections or user preferences to your permanent diary.
-    
+    *   **Action**: Use the \`append\` tool with \`name: "personal"\` to log personal reflections to your permanent diary.
+     
 3.  **Update Short-Term Memory (Optional)**:
     *   **Action**: Use the \`put\` tool to write \`logs/STM_APPEND.md\` when you need to remember something important across sessions.
-    *   **Content**: Important facts, user preferences, or ongoing task state that should persist.
-    *   **Note**: This content will be automatically appended to \`Short_Term_Memory.md\` on the next turn.
-
-These steps are mandatory before ending your chat via end_turn.
+    *   **Content**: Important facts, user preferences etc. that should persist.
+  
 `;
   }
 

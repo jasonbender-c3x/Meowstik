@@ -122,7 +122,7 @@ export function getFamilyContext(): string {
 [FAMILY MEMBER RECOGNIZED]
 Name: ${currentFamilyMember.name}
 Relationship: ${currentFamilyMember.relationship}
-Personalize responses for ${currentFamilyMember.name}. Use a friendly, appropriate tone for this ${currentFamilyMember.relationship}.
+Personalize responses for ${currentFamilyMember.name}. Use a friendly, appropriate tone for your ${currentFamilyMember.relationship}.
 `;
 }
 
@@ -164,6 +164,5 @@ export default {
   getAllFamilyMembers,
   addCatchPhrase,
 };
-
 
 
