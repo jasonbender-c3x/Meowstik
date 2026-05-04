@@ -1,22 +1,172 @@
 {
   "mcpServers": {
-    "github": {
-      "command": "npx",
+    "filesystem": {
+      "command": "/home/runner/.local/share/pnpm/mcp-server-filesystem",
       "args": [
-        "-y",
-        "@modelcontextprotocol/server-github"
+        "/home/runner"
+      ],
+      "type": "stdio"
+    },
+    "memory": {
+      "command": "/home/runner/.local/share/pnpm/mcp-server-memory",
+      "args": [],
+      "type": "stdio"
+    },
+    "everything": {
+      "command": "/home/runner/.local/share/pnpm/mcp-server-everything",
+      "args": [],
+      "type": "stdio"
+    },
+    "sequential-thinking": {
+      "command": "/home/runner/.local/share/pnpm/mcp-server-sequential-thinking",
+      "args": [],
+      "type": "stdio"
+    },
+    "playwright": {
+      "command": "/bin/bash",
+      "args": [
+        "/home/runner/.config/mcp/start-playwright-headed.sh"
       ],
       "env": {
-        "GITHUB_PERSONAL_ACCESS_TOKEN": "${input:github_mcp_pat}"
+        "MCP_SOURCE_USER_DATA_DIR": "/home/runner/.config/google-chrome",
+        "MCP_SOURCE_PROFILE_DIR": "Default",
+        "MCP_PLAYWRIGHT_USER_DATA_DIR": "/home/runner/.config/mcp/playwright-headed-chrome"
+      },
+      "type": "stdio"
+    },
+    "sqlite": {
+      "command": "/home/runner/.local/share/pnpm/mcp-server-sqlite-npx",
+      "args": [
+        "/home/runner/mcp.db"
+      ],
+      "type": "stdio"
+    },
+    "libreoffice": {
+      "command": "/home/runner/.local/share/pnpm/libreoffice-mcp",
+      "args": [],
+      "env": {
+        "SOFFICE_PATH": "/usr/bin/soffice"
+      },
+      "type": "stdio"
+    },
+    "github": {
+      "command": "/home/runner/.local/share/pnpm/mcp-server-github",
+      "args": [],
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_PERSONAL_ACCESS_TOKEN}"
+      },
+      "type": "stdio"
+    },
+    "brave-search": {
+      "command": "/home/runner/.local/share/pnpm/mcp-server-brave-search",
+      "args": [],
+      "env": {
+        "BRAVE_SEARCH_API_KEY": "${BRAVE_SEARCH_API_KEY}"
+      },
+      "type": "stdio"
+    },
+    "google-drive": {
+      "command": "/bin/bash",
+      "args": [
+        "/home/runner/.config/mcp/start-gdrive.sh"
+      ]
+    },
+    "gmail": {
+      "command": "/home/runner/.local/share/pnpm/gmail-mcp-server",
+      "args": [
+        "--client-id",
+        "110152468289181607553",
+        "--client-secret",
+        "service-account"
+      ],
+      "env": {
+        "GOOGLE_APPLICATION_CREDENTIALS": "/home/runner/meowstik-key.json"
       }
+    },
+    "google-sheets": {
+      "command": "/bin/bash",
+      "args": [
+        "/home/runner/.config/mcp/start-sheets.sh"
+      ]
+    },
+    "google-search": {
+      "command": "/bin/bash",
+      "args": [
+        "/home/runner/.config/mcp/start-google-search.sh"
+      ],
+      "type": "stdio"
+    },
+    "notion": {
+      "command": "/home/runner/.local/share/pnpm/notion-mcp-server",
+      "args": [],
+      "env": {
+        "NOTION_TOKEN": "${NOTION_TOKEN}"
+      },
+      "type": "stdio"
+    },
+    "supabase": {
+      "command": "/home/runner/.local/share/pnpm/mcp-server-supabase",
+      "args": [],
+      "env": {
+        "SUPABASE_ACCESS_TOKEN": "${SUPABASE_ACCESS_TOKEN}"
+      },
+      "type": "stdio"
+    },
+    "cloudflare": {
+      "command": "/home/runner/.local/share/pnpm/mcp-server-cloudflare",
+      "args": [
+        "run",
+        "${CLOUDFLARE_ACCOUNT_ID}"
+      ],
+      "env": {
+        "CLOUDFLARE_API_TOKEN": "${CLOUDFLARE_API_TOKEN}"
+      },
+      "type": "stdio"
+    },
+    "computer-use": {
+      "command": "/home/runner/.local/share/pnpm/computer-use-mcp",
+      "args": [],
+      "env": {
+        "DISPLAY": ":0"
+      },
+      "type": "stdio"
+    },
+    "upstash": {
+      "command": "node",
+      "args": [
+        "/home/runner/.local/share/pnpm/global/5/.pnpm/@upstash+mcp-server@0.2.3/node_modules/@upstash/mcp-server/dist/index.js"
+      ],
+      "env": {
+        "UPSTASH_REDIS_REST_URL": "${UPSTASH_REDIS_REST_URL}",
+        "UPSTASH_REDIS_REST_TOKEN": "${UPSTASH_REDIS_REST_TOKEN}"
+      },
+      "type": "stdio"
+    },
+    "redis": {
+      "command": "/home/runner/.local/share/pnpm/mcp-server-redis",
+      "args": [
+        "${REDIS_URL}"
+      ],
+      "type": "stdio"
+    },
+    "obsidian": {
+      "command": "/home/runner/.local/share/pnpm/mcp-obsidian",
+      "args": [
+        "/home/runner/Documents"
+      ],
+      "type": "stdio"
+    },
+    "postgres": {
+      "command": "/home/runner/.local/share/pnpm/mcp-server-postgres",
+      "args": [
+        "${DATABASE_URL}"
+      ],
+      "type": "stdio"
+    },
+    "puppeteer": {
+      "command": "/home/runner/.local/share/pnpm/mcp-server-puppeteer",
+      "args": [],
+      "type": "stdio"
     }
-  },
-  "inputs": [
-    {
-      "type": "promptString",
-      "id": "github_mcp_pat",
-      "description": "GitHub Personal Access Token for MCP Server",
-      "password": true
-    }
-  ]
+  }
 }

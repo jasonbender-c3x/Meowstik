@@ -16,8 +16,8 @@ import Vision from "@/pages/vision";
 import Glasses from "@/pages/glasses";
 import Watch from "@/pages/watch";
 import Editor from "@/pages/editor";
-import Live from "@/pages/live";
 import Settings from "@/pages/settings";
+import McpStudio from "@/pages/mcp-studio";
 import Browser from "@/pages/browser";
 import WebSearch from "@/pages/web-search";
 import TaskQueue from "@/pages/task-queue";
@@ -57,8 +57,8 @@ export default function MainLayout() {
         <Route path="/glasses" component={Glasses} />
         <Route path="/watch" component={Watch} />
         <Route path="/editor" component={Editor} />
-        <Route path="/live" component={Live} />
         <Route path="/settings" component={Settings} />
+        <Route path="/mcp-studio" component={McpStudio} />
         <Route path="/browser" component={Browser} />
         <Route path="/web-search" component={WebSearch} />
         <Route path="/task-queue" component={TaskQueue} />
@@ -79,6 +79,4 @@ export default function MainLayout() {
     </TTSProvider>
   );
 }
-
-
 

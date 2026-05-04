@@ -28,6 +28,16 @@ const mcpCallSchema = z.object({
   arguments: z.record(z.unknown()).optional(),
 });
 
+const mcpLoggingSettingsSchema = z.object({
+  level: z.enum(["errors", "basic", "verbose"]).optional(),
+  captureResponses: z.boolean().optional(),
+  verboseBudget: z.number().int().min(0).max(50).optional(),
+});
+
+const mcpArmVerboseSchema = z.object({
+  operations: z.number().int().min(1).max(50),
+});
+
 function getUserId(req: any): string {
   return req.authStatus?.userId || GUEST_USER_ID;
 }
@@ -40,6 +50,39 @@ router.get("/servers", async (req, res) => {
   const userId = getUserId(req);
   const servers = await mcpService.listServers(userId);
   res.json({ servers });
+});
+
+router.get("/logging", async (req, res) => {
+  const userId = getUserId(req);
+  const settings = await mcpService.getLoggingSettings(userId);
+  res.json({ settings });
+});
+
+router.put("/logging", async (req, res) => {
+  const userId = getUserId(req);
+  const body = mcpLoggingSettingsSchema.parse(req.body ?? {});
+  const settings = await mcpService.updateLoggingSettings(userId, body);
+  res.json({ settings });
+});
+
+router.post("/logging/arm-verbose", async (req, res) => {
+  const userId = getUserId(req);
+  const body = mcpArmVerboseSchema.parse(req.body ?? {});
+  const settings = await mcpService.armVerboseLogging(userId, body.operations);
+  res.json({ settings });
+});
+
+router.get("/logs", async (req, res) => {
+  const userId = getUserId(req);
+  const limit = Number.parseInt(String(req.query.limit ?? "50"), 10);
+  const logs = await mcpService.listTrafficLogs(userId, Number.isFinite(limit) ? limit : 50);
+  res.json({ logs });
+});
+
+router.delete("/logs", async (req, res) => {
+  const userId = getUserId(req);
+  await mcpService.clearTrafficLogs(userId);
+  res.status(204).end();
 });
 
 router.post("/servers", async (req, res) => {

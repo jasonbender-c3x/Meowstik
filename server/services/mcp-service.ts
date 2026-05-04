@@ -3,6 +3,7 @@ import { SSEClientTransport } from "@modelcontextprotocol/sdk/client/sse.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import type { McpServer } from "@shared/schema";
+import { nanoid } from "nanoid";
 import { storage } from "../storage";
 import { rawDb } from "../db";
 
@@ -26,6 +27,32 @@ export type McpLibraryEntry = {
 type ActiveClient = {
   client: Client;
   close: () => Promise<void>;
+};
+
+export type McpLoggingLevel = "errors" | "basic" | "verbose";
+
+export type McpLoggingSettings = {
+  userId: string;
+  level: McpLoggingLevel;
+  verboseBudget: number;
+  captureResponses: boolean;
+  updatedAt: number;
+};
+
+export type McpTrafficLog = {
+  id: string;
+  userId: string;
+  serverId: string | null;
+  serverName: string;
+  transport: McpServer["transport"] | null;
+  eventType: "list_tools" | "test_server" | "call_tool";
+  toolName: string | null;
+  status: "ok" | "error";
+  summary: string;
+  requestPayload: unknown;
+  responsePayload: unknown;
+  errorMessage: string | null;
+  createdAt: number;
 };
 
 const MCP_LIBRARY: McpLibraryEntry[] = [
@@ -187,6 +214,18 @@ function resolveCwd(cwd: string | null | undefined): string | undefined {
   return `${process.cwd()}/${cwd}`;
 }
 
+function parseJsonPayload(value: unknown): unknown {
+  if (typeof value !== "string" || value.length === 0) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(value);
+  } catch {
+    return value;
+  }
+}
+
 export class McpService {
   private clients = new Map<string, ActiveClient>();
   private schemaReady = false;
@@ -217,6 +256,30 @@ export class McpService {
       CREATE INDEX IF NOT EXISTS idx_mcp_servers_user ON mcp_servers(user_id);
       CREATE INDEX IF NOT EXISTS idx_mcp_servers_slug ON mcp_servers(slug);
       CREATE INDEX IF NOT EXISTS idx_mcp_servers_enabled ON mcp_servers(enabled);
+      CREATE TABLE IF NOT EXISTS mcp_logging_settings (
+        user_id TEXT PRIMARY KEY,
+        level TEXT NOT NULL DEFAULT 'errors',
+        verbose_budget INTEGER NOT NULL DEFAULT 0,
+        capture_responses INTEGER NOT NULL DEFAULT 1,
+        updated_at INTEGER NOT NULL DEFAULT (unixepoch() * 1000)
+      );
+      CREATE TABLE IF NOT EXISTS mcp_traffic_logs (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        server_id TEXT,
+        server_name TEXT NOT NULL,
+        transport TEXT,
+        event_type TEXT NOT NULL,
+        tool_name TEXT,
+        status TEXT NOT NULL,
+        summary TEXT NOT NULL,
+        request_payload TEXT,
+        response_payload TEXT,
+        error_message TEXT,
+        created_at INTEGER NOT NULL DEFAULT (unixepoch() * 1000)
+      );
+      CREATE INDEX IF NOT EXISTS idx_mcp_traffic_logs_user_created
+        ON mcp_traffic_logs(user_id, created_at DESC);
     `);
 
     this.schemaReady = true;
@@ -238,6 +301,146 @@ export class McpService {
   async listEnabledServers(userId: string): Promise<McpServer[]> {
     this.ensureSchema();
     return storage.getEnabledMcpServers(userId);
+  }
+
+  async getLoggingSettings(userId: string): Promise<McpLoggingSettings> {
+    this.ensureSchema();
+    rawDb
+      .prepare(`
+        INSERT OR IGNORE INTO mcp_logging_settings (user_id)
+        VALUES (?)
+      `)
+      .run(userId);
+
+    const row = rawDb
+      .prepare(`
+        SELECT user_id, level, verbose_budget, capture_responses, updated_at
+        FROM mcp_logging_settings
+        WHERE user_id = ?
+      `)
+      .get(userId) as
+      | {
+          user_id: string;
+          level: McpLoggingLevel;
+          verbose_budget: number;
+          capture_responses: number;
+          updated_at: number;
+        }
+      | undefined;
+
+    return {
+      userId,
+      level: row?.level ?? "errors",
+      verboseBudget: Math.max(0, row?.verbose_budget ?? 0),
+      captureResponses: Boolean(row?.capture_responses ?? 1),
+      updatedAt: row?.updated_at ?? Date.now(),
+    };
+  }
+
+  async updateLoggingSettings(
+    userId: string,
+    input: Partial<Pick<McpLoggingSettings, "level" | "verboseBudget" | "captureResponses">>,
+  ): Promise<McpLoggingSettings> {
+    const current = await this.getLoggingSettings(userId);
+    const next: McpLoggingSettings = {
+      userId,
+      level: input.level ?? current.level,
+      verboseBudget:
+        input.verboseBudget !== undefined ? Math.max(0, Math.floor(input.verboseBudget)) : current.verboseBudget,
+      captureResponses: input.captureResponses ?? current.captureResponses,
+      updatedAt: Date.now(),
+    };
+
+    rawDb
+      .prepare(`
+        INSERT INTO mcp_logging_settings (user_id, level, verbose_budget, capture_responses, updated_at)
+        VALUES (?, ?, ?, ?, ?)
+        ON CONFLICT(user_id) DO UPDATE SET
+          level = excluded.level,
+          verbose_budget = excluded.verbose_budget,
+          capture_responses = excluded.capture_responses,
+          updated_at = excluded.updated_at
+      `)
+      .run(
+        next.userId,
+        next.level,
+        next.verboseBudget,
+        next.captureResponses ? 1 : 0,
+        next.updatedAt,
+      );
+
+    return next;
+  }
+
+  async armVerboseLogging(userId: string, operations: number): Promise<McpLoggingSettings> {
+    const current = await this.getLoggingSettings(userId);
+    return this.updateLoggingSettings(userId, {
+      level: current.level,
+      captureResponses: current.captureResponses,
+      verboseBudget: Math.max(1, Math.floor(operations)),
+    });
+  }
+
+  async listTrafficLogs(userId: string, limit = 50): Promise<McpTrafficLog[]> {
+    this.ensureSchema();
+    const safeLimit = Math.min(Math.max(Math.floor(limit), 1), 200);
+    const rows = rawDb
+      .prepare(`
+        SELECT
+          id,
+          user_id,
+          server_id,
+          server_name,
+          transport,
+          event_type,
+          tool_name,
+          status,
+          summary,
+          request_payload,
+          response_payload,
+          error_message,
+          created_at
+        FROM mcp_traffic_logs
+        WHERE user_id = ?
+        ORDER BY created_at DESC
+        LIMIT ?
+      `)
+      .all(userId, safeLimit) as Array<{
+        id: string;
+        user_id: string;
+        server_id: string | null;
+        server_name: string;
+        transport: McpServer["transport"] | null;
+        event_type: McpTrafficLog["eventType"];
+        tool_name: string | null;
+        status: McpTrafficLog["status"];
+        summary: string;
+        request_payload: string | null;
+        response_payload: string | null;
+        error_message: string | null;
+        created_at: number;
+      }>;
+
+    return rows.map((row) => ({
+      id: row.id,
+      userId: row.user_id,
+      serverId: row.server_id,
+      serverName: row.server_name,
+      transport: row.transport,
+      eventType: row.event_type,
+      toolName: row.tool_name,
+      status: row.status,
+      summary: row.summary,
+      requestPayload: parseJsonPayload(row.request_payload),
+      responsePayload: parseJsonPayload(row.response_payload),
+      errorMessage: row.error_message,
+      createdAt: row.created_at,
+    }));
+  }
+
+  async clearTrafficLogs(userId: string): Promise<void> {
+    this.ensureSchema();
+    rawDb.prepare(`DELETE FROM mcp_traffic_logs WHERE user_id = ?`).run(userId);
   }
 
   async createServer(input: {
@@ -359,28 +562,7 @@ export class McpService {
       ? [await this.resolveServer(userId, identifier)]
       : await this.listEnabledServers(userId);
 
-    return Promise.all(
-      servers.map(async (server) => {
-        const client = await this.getClient(server);
-        const result = await client.listTools();
-
-        return {
-          server: {
-            id: server.id,
-            name: server.name,
-            slug: server.slug,
-            transport: server.transport,
-            enabled: server.enabled,
-          },
-          tools: result.tools.map((tool) => ({
-            name: tool.name,
-            title: tool.title,
-            description: tool.description,
-            inputSchema: (tool.inputSchema ?? { type: "object", properties: {} }) as Record<string, unknown>,
-          })),
-        };
-      }),
-    );
+    return Promise.all(servers.map((server) => this.inspectServerTools(userId, server, "list_tools")));
   }
 
   async testServer(userId: string, identifier: string): Promise<{
@@ -388,7 +570,8 @@ export class McpService {
     server: Pick<McpServer, "id" | "name" | "slug" | "transport">;
     toolCount: number;
   }> {
-    const [result] = await this.listTools(userId, identifier);
+    const server = await this.resolveServer(userId, identifier);
+    const result = await this.inspectServerTools(userId, server, "test_server");
 
     return {
       ok: true,
@@ -403,22 +586,56 @@ export class McpService {
     result: unknown;
   }> {
     const server = await this.resolveServer(userId, identifier);
-    const client = await this.getClient(server);
-    const result = await client.callTool({
-      name: toolName,
-      arguments: args,
-    });
-
-    return {
-      server: {
-        id: server.id,
-        name: server.name,
-        slug: server.slug,
-        transport: server.transport,
+    const requestPayload = {
+      jsonrpc: "2.0",
+      method: "tools/call",
+      params: {
+        name: toolName,
+        arguments: args,
       },
-      toolName,
-      result,
     };
+
+    try {
+      const client = await this.getClient(server);
+      const result = await client.callTool({
+        name: toolName,
+        arguments: args,
+      });
+
+      await this.logTrafficExchange({
+        userId,
+        server,
+        eventType: "call_tool",
+        toolName,
+        status: "ok",
+        summary: `Called ${toolName} on ${server.name}`,
+        requestPayload,
+        responsePayload: result,
+      });
+
+      return {
+        server: {
+          id: server.id,
+          name: server.name,
+          slug: server.slug,
+          transport: server.transport,
+        },
+        toolName,
+        result,
+      };
+    } catch (error) {
+      await this.logTrafficExchange({
+        userId,
+        server,
+        eventType: "call_tool",
+        toolName,
+        status: "error",
+        summary: `Failed to call ${toolName} on ${server.name}`,
+        requestPayload,
+        errorMessage: error instanceof Error ? error.message : String(error),
+      });
+      throw error;
+    }
   }
 
   async buildPromptSummary(userId: string): Promise<string | null> {
@@ -439,6 +656,137 @@ export class McpService {
       "Enabled MCP servers:",
       ...lines,
     ].join("\n");
+  }
+
+  private async logTrafficExchange(input: {
+    userId: string;
+    server: Pick<McpServer, "id" | "name" | "transport">;
+    eventType: McpTrafficLog["eventType"];
+    toolName?: string;
+    status: McpTrafficLog["status"];
+    summary: string;
+    requestPayload?: unknown;
+    responsePayload?: unknown;
+    errorMessage?: string;
+  }): Promise<void> {
+    const settings = await this.getLoggingSettings(input.userId);
+    const verboseCapture = settings.level === "verbose" || settings.verboseBudget > 0;
+    const shouldPersist =
+      input.status === "error" || settings.level === "basic" || settings.level === "verbose" || settings.verboseBudget > 0;
+
+    if (!shouldPersist) {
+      return;
+    }
+
+    rawDb
+      .prepare(`
+        INSERT INTO mcp_traffic_logs (
+          id,
+          user_id,
+          server_id,
+          server_name,
+          transport,
+          event_type,
+          tool_name,
+          status,
+          summary,
+          request_payload,
+          response_payload,
+          error_message,
+          created_at
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `)
+      .run(
+        nanoid(),
+        input.userId,
+        input.server.id,
+        input.server.name,
+        input.server.transport,
+        input.eventType,
+        input.toolName ?? null,
+        input.status,
+        input.summary,
+        input.requestPayload !== undefined ? JSON.stringify(input.requestPayload) : null,
+        settings.captureResponses && input.responsePayload !== undefined
+          ? JSON.stringify(input.responsePayload)
+          : null,
+        input.errorMessage ?? null,
+        Date.now(),
+      );
+
+    if (verboseCapture && settings.level !== "verbose" && settings.verboseBudget > 0) {
+      await this.updateLoggingSettings(input.userId, {
+        level: settings.level,
+        captureResponses: settings.captureResponses,
+        verboseBudget: settings.verboseBudget - 1,
+      });
+    }
+  }
+
+  private async inspectServerTools(
+    userId: string,
+    server: McpServer,
+    eventType: Extract<McpTrafficLog["eventType"], "list_tools" | "test_server">,
+  ): Promise<{
+    server: Pick<McpServer, "id" | "name" | "slug" | "transport" | "enabled">;
+    tools: Array<{
+      name: string;
+      title?: string;
+      description?: string;
+      inputSchema: Record<string, unknown>;
+    }>;
+  }> {
+    const requestPayload = {
+      jsonrpc: "2.0",
+      method: "tools/list",
+      params: {},
+    };
+
+    try {
+      const client = await this.getClient(server);
+      const result = await client.listTools();
+      const responsePayload = {
+        tools: result.tools.map((tool) => ({
+          name: tool.name,
+          title: tool.title,
+          description: tool.description,
+          inputSchema: tool.inputSchema ?? { type: "object", properties: {} },
+        })),
+      };
+
+      await this.logTrafficExchange({
+        userId,
+        server,
+        eventType,
+        status: "ok",
+        summary: `Discovered ${responsePayload.tools.length} tool(s) on ${server.name}`,
+        requestPayload,
+        responsePayload,
+      });
+
+      return {
+        server: {
+          id: server.id,
+          name: server.name,
+          slug: server.slug,
+          transport: server.transport,
+          enabled: server.enabled,
+        },
+        tools: responsePayload.tools,
+      };
+    } catch (error) {
+      await this.logTrafficExchange({
+        userId,
+        server,
+        eventType,
+        status: "error",
+        summary: `Failed to inspect tools on ${server.name}`,
+        requestPayload,
+        errorMessage: error instanceof Error ? error.message : String(error),
+      });
+      throw error;
+    }
   }
 
   private async getUniqueSlug(userId: string, baseSlug: string): Promise<string> {

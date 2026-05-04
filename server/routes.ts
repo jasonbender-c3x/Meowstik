@@ -761,7 +761,7 @@ The user has EXPERIMENTAL mode enabled - generate a two-voice discussion format.
             break;
         }
         
-        finalSystemPrompt = voiceInstruction + "\\n\\n" + finalSystemPrompt;
+        finalSystemPrompt = voiceInstruction + "\n\n" + finalSystemPrompt;
       } else {
         // Mute mode - minimal output, alerts only
         const muteInstruction = `
@@ -772,18 +772,18 @@ The user has MUTE mode enabled. Minimize all output.
 - No voice output whatsoever
 - Skip conversational niceties and get straight to the essential information
 `;
-        finalSystemPrompt = muteInstruction + "\\n\\n" + finalSystemPrompt;
+        finalSystemPrompt = muteInstruction + "\n\n" + finalSystemPrompt;
       }
       
       // Add content verbosity instruction
       if (contentVerbosity === "low") {
-        const verbosityNote = "\\n\\n**Content Verbosity: LOW** - Keep all responses concise and focused. Maximum 1-3 sentences.\\n";
+        const verbosityNote = "\n\n**Content Verbosity: LOW** - Keep all responses concise and focused. Maximum 1-3 sentences.\n";
         finalSystemPrompt = finalSystemPrompt + verbosityNote;
       } else if (contentVerbosity === "minimal") {
-        const verbosityNote = "\\n\\n**Content Verbosity: MINIMAL** - Only respond to critical alerts or explicit queries. Maximum 1 sentence.\\n";
+        const verbosityNote = "\n\n**Content Verbosity: MINIMAL** - Only respond to critical alerts or explicit queries. Maximum 1 sentence.\n";
         finalSystemPrompt = finalSystemPrompt + verbosityNote;
       } else if (contentVerbosity === "verbose") {
-        const verbosityNote = "\\n\\n**Content Verbosity: VERBOSE** - Provide comprehensive, detailed explanations with context and examples.\\n";
+        const verbosityNote = "\n\n**Content Verbosity: VERBOSE** - Provide comprehensive, detailed explanations with context and examples.\n";
         finalSystemPrompt = finalSystemPrompt + verbosityNote;
       }
       
@@ -904,8 +904,8 @@ The user has MUTE mode enabled. Minimize all output.
           tools: [{ functionDeclarations: toolDeclarations }],
           toolConfig: {
             functionCallingConfig: {
-              // ANY mode forces the model to always call at least one function
-              mode: FunctionCallingConfigMode.ANY,
+              // AUTO mode lets the model either call tools or finish naturally in plain text
+              mode: FunctionCallingConfigMode.AUTO,
             },
           },
         },
@@ -1020,7 +1020,7 @@ The user has MUTE mode enabled. Minimize all output.
       // Function calls are already extracted above from chunk.functionCalls
 
       // ─────────────────────────────────────────────────────────────────────
-      // AGENTIC LOOP: Execute tools repeatedly until end_turn terminates
+      // AGENTIC LOOP: Execute tools repeatedly until the model finishes in plain text
       // ─────────────────────────────────────────────────────────────────────
       
       let loopIteration = 0;
@@ -1094,14 +1094,6 @@ The user has MUTE mode enabled. Minimize all output.
 `);
                 // Accumulate for storage
                 sendChatContent += (sendChatContent ? "\n\n" : "") + cleanContent;
-              }
-            }
-            
-            // Check for end_turn - this terminates the agentic loop
-            if (toolCall.type === "end_turn" && toolResult.success) {
-              const endTurnResult = toolResult.result as { shouldEndTurn?: boolean };
-              if (endTurnResult?.shouldEndTurn) {
-                endTurn = true;
               }
             }
             
@@ -1242,7 +1234,7 @@ The user has MUTE mode enabled. Minimize all output.
           parts: collectedFunctionCalls.map(fc => ({ functionCall: fc })) as any
         });
         
-        // AGENTIC LOOP: Continue if end_turn was NOT called
+        // AGENTIC LOOP: Continue until the model finishes with plain text
         while (!shouldEndTurn && !loopAbortMessage && loopIteration < MAX_LOOP_ITERATIONS && totalToolsExecuted < MAX_TOTAL_TOOLS) {
           loopIteration++;
           console.log(`\\n${"═".repeat(60)}`);
@@ -1294,7 +1286,7 @@ The user has MUTE mode enabled. Minimize all output.
           // Provide tool results to the model as a user message
           agenticHistory.push({
             role: "user", 
-            parts: [{ text: `Tool results:\\n${toolResultsText}\\n\\nContinue with more tools or call end_turn when ready.` }]
+            parts: [{ text: `Tool results:\\n${toolResultsText}\\n\\nContinue with more tools, or reply to the user in plain text when you're ready to finish.` }]
           });
           
           // Call LLM again with native function calling
@@ -1382,10 +1374,11 @@ The user has MUTE mode enabled. Minimize all output.
             });
             parsedResponse = loopParsedResponse;
           } else {
-            // No function calls - LLM responded with plain text, treat as implicit end_turn
-            console.log(`[AGENTIC LOOP] Turn ${loopIteration} - No function calls, treating as implicit end_turn`);
+            // No function calls - LLM responded with plain text, so end the turn
+            console.log(`[AGENTIC LOOP] Turn ${loopIteration} - No function calls, ending turn with plain text`);
             const plainTextResponse = stripAllVoiceTags(loopResponse.trim());
             if (plainTextResponse) {
+              cleanContentForStorage += (cleanContentForStorage ? "\n\n" : "") + plainTextResponse;
               res.write(`data: ${JSON.stringify({ text: plainTextResponse })}
 
 `);

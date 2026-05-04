@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, Settings, Palette, Mic, Brain, Bell, Shield, Link2, Check, ExternalLink, Loader2, Database, FileText, Sparkles } from "lucide-react";
 import { Link } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { defaultLiveModeSettings } from "@/lib/live-mode-settings";
 
 interface AppSettings {
   model: "pro" | "flash";
@@ -24,6 +25,11 @@ interface AppSettings {
   preResponseFillerEnabled: boolean;
   preResponseFillerInterruptMode: "stop-immediately-on-first-model-text" | "finish-current-sentence-then-stop";
   preResponseFillerCadence: "5-10-seconds-random" | "fixed-6-seconds" | "fixed-8-seconds";
+  liveModeContinuousListening: boolean;
+  liveModeSTTEnabled: boolean;
+  liveModeVADSensitivity: number;
+  liveModeVadSilenceDurationMs: number;
+  liveModeVadSpeechDurationMs: number;
   notifications: boolean;
   saveHistory: boolean;
   streamResponses: boolean;
@@ -39,41 +45,6 @@ interface BrandingSettings {
   githubSignature?: string;
   emailSignature?: string;
   canonicalDomain?: string;
-}
-
-interface McpLibraryEntry {
-  key: string;
-  name: string;
-  description: string;
-  transport: "stdio" | "streamable-http" | "sse";
-  docsUrl?: string;
-  homepage?: string;
-  template: {
-    endpointUrl?: string;
-    command?: string;
-    args?: string[];
-    cwd?: string;
-  };
-}
-
-interface McpServer {
-  id: string;
-  name: string;
-  slug: string;
-  description?: string | null;
-  transport: "stdio" | "streamable-http" | "sse";
-  enabled: boolean;
-  source: "custom" | "library";
-  libraryKey?: string | null;
-  endpointUrl?: string | null;
-  command?: string | null;
-  args?: string[] | null;
-  cwd?: string | null;
-}
-
-interface McpTestResult {
-  ok: boolean;
-  toolCount: number;
 }
 
 interface ExternalSkillEntry {
@@ -97,6 +68,11 @@ const defaultSettings: AppSettings = {
   preResponseFillerEnabled: true,
   preResponseFillerInterruptMode: "stop-immediately-on-first-model-text",
   preResponseFillerCadence: "5-10-seconds-random",
+  liveModeContinuousListening: defaultLiveModeSettings.liveModeContinuousListening,
+  liveModeSTTEnabled: defaultLiveModeSettings.liveModeSTTEnabled,
+  liveModeVADSensitivity: defaultLiveModeSettings.liveModeVADSensitivity,
+  liveModeVadSilenceDurationMs: defaultLiveModeSettings.liveModeVadSilenceDurationMs,
+  liveModeVadSpeechDurationMs: defaultLiveModeSettings.liveModeVadSpeechDurationMs,
   notifications: true,
   saveHistory: true,
   streamResponses: true,
@@ -118,19 +94,6 @@ const API_VOICES = [
 export default function SettingsPage() {
   const [settings, setSettings] = useState<AppSettings>(defaultSettings);
   const [saved, setSaved] = useState(false);
-  const [mcpFormError, setMcpFormError] = useState<string | null>(null);
-  const [mcpTestResults, setMcpTestResults] = useState<Record<string, McpTestResult>>({});
-  const [customMcp, setCustomMcp] = useState({
-    name: "",
-    description: "",
-    transport: "streamable-http" as "stdio" | "streamable-http" | "sse",
-    endpointUrl: "http://localhost:8766/mcp",
-    command: "",
-    argsText: "[]",
-    cwd: "",
-    headersText: "{}",
-    envText: "{}",
-  });
   const queryClient = useQueryClient();
 
   // Branding settings
@@ -202,24 +165,6 @@ export default function SettingsPage() {
     refetchInterval: 30000,
   });
 
-  const { data: mcpLibraryData, isLoading: mcpLibraryLoading } = useQuery({
-    queryKey: ["/api/mcp/library"],
-    queryFn: async () => {
-      const res = await fetch("/api/mcp/library");
-      if (!res.ok) throw new Error("Failed to load MCP library");
-      return res.json() as Promise<{ library: McpLibraryEntry[] }>;
-    },
-  });
-
-  const { data: mcpServersData, isLoading: mcpServersLoading } = useQuery({
-    queryKey: ["/api/mcp/servers"],
-    queryFn: async () => {
-      const res = await fetch("/api/mcp/servers");
-      if (!res.ok) throw new Error("Failed to load MCP servers");
-      return res.json() as Promise<{ servers: McpServer[] }>;
-    },
-  });
-
   const { data: externalSkillsData, isLoading: externalSkillsLoading } = useQuery({
     queryKey: ["/api/external-skills"],
     queryFn: async () => {
@@ -238,84 +183,6 @@ export default function SettingsPage() {
     },
   });
 
-  const addLibraryMcpMutation = useMutation({
-    mutationFn: async (libraryKey: string) => {
-      const res = await fetch("/api/mcp/servers", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ libraryKey }),
-      });
-      if (!res.ok) throw new Error("Failed to add MCP server from library");
-      return res.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/mcp/servers"] });
-    },
-  });
-
-  const createCustomMcpMutation = useMutation({
-    mutationFn: async (payload: Record<string, unknown>) => {
-      const res = await fetch("/api/mcp/servers", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      if (!res.ok) throw new Error("Failed to create MCP server");
-      return res.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/mcp/servers"] });
-      setMcpFormError(null);
-      setCustomMcp({
-        name: "",
-        description: "",
-        transport: "streamable-http",
-        endpointUrl: "http://localhost:8766/mcp",
-        command: "",
-        argsText: "[]",
-        cwd: "",
-        headersText: "{}",
-        envText: "{}",
-      });
-    },
-  });
-
-  const toggleMcpMutation = useMutation({
-    mutationFn: async ({ id, enabled }: { id: string; enabled: boolean }) => {
-      const res = await fetch(`/api/mcp/servers/${id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ enabled }),
-      });
-      if (!res.ok) throw new Error("Failed to update MCP server");
-      return res.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/mcp/servers"] });
-    },
-  });
-
-  const deleteMcpMutation = useMutation({
-    mutationFn: async (id: string) => {
-      const res = await fetch(`/api/mcp/servers/${id}`, { method: "DELETE" });
-      if (!res.ok) throw new Error("Failed to delete MCP server");
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/mcp/servers"] });
-    },
-  });
-
-  const testMcpMutation = useMutation({
-    mutationFn: async (id: string) => {
-      const res = await fetch(`/api/mcp/servers/${id}/test`, { method: "POST" });
-      if (!res.ok) throw new Error("Failed to test MCP server");
-      return res.json() as Promise<McpTestResult>;
-    },
-    onSuccess: (data, id) => {
-      setMcpTestResults((prev) => ({ ...prev, [id]: data }));
-    },
-  });
-
   const handleConnectGoogle = () => {
     // Use server-provided authUrl if available (ensures correct scopes), else fallback
     const url = authStatus?.authUrl ?? '/api/auth/google';
@@ -324,61 +191,6 @@ export default function SettingsPage() {
 
   const handleDisconnectGoogle = () => {
     revokeMutation.mutate();
-  };
-
-  const parseJsonRecord = (value: string, fieldName: string): Record<string, string> => {
-    if (!value.trim()) return {};
-    let parsed: unknown;
-    try {
-      parsed = JSON.parse(value);
-    } catch {
-      throw new Error(`${fieldName} must be valid JSON`);
-    }
-
-    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
-      throw new Error(`${fieldName} must be a JSON object`);
-    }
-
-    return Object.fromEntries(
-      Object.entries(parsed as Record<string, unknown>).map(([key, entryValue]) => [key, String(entryValue)]),
-    );
-  };
-
-  const parseJsonArray = (value: string, fieldName: string): string[] => {
-    if (!value.trim()) return [];
-    let parsed: unknown;
-    try {
-      parsed = JSON.parse(value);
-    } catch {
-      throw new Error(`${fieldName} must be valid JSON`);
-    }
-
-    if (!Array.isArray(parsed)) {
-      throw new Error(`${fieldName} must be a JSON array`);
-    }
-
-    return parsed.map((entry) => String(entry));
-  };
-
-  const handleCreateCustomMcp = () => {
-    try {
-      const payload = {
-        name: customMcp.name,
-        description: customMcp.description,
-        transport: customMcp.transport,
-        endpointUrl: customMcp.transport !== "stdio" ? customMcp.endpointUrl : undefined,
-        command: customMcp.transport === "stdio" ? customMcp.command : undefined,
-        args: customMcp.transport === "stdio" ? parseJsonArray(customMcp.argsText, "Args") : undefined,
-        cwd: customMcp.transport === "stdio" ? customMcp.cwd : undefined,
-        headers: customMcp.transport !== "stdio" ? parseJsonRecord(customMcp.headersText, "Headers") : undefined,
-        env: parseJsonRecord(customMcp.envText, "Environment") ,
-      };
-
-      setMcpFormError(null);
-      createCustomMcpMutation.mutate(payload);
-    } catch (error) {
-      setMcpFormError(error instanceof Error ? error.message : "Invalid MCP configuration");
-    }
   };
 
   useEffect(() => {
@@ -816,8 +628,105 @@ export default function SettingsPage() {
                         </div>
                       </>
                     )}
+
                   </>
                 )}
+
+                <div className="pt-2 border-t border-border/60 space-y-4">
+                  <div>
+                    <Label className="font-medium">Live Mode & Barge-in</Label>
+                    <p className="text-sm text-muted-foreground">
+                      These settings control the Live Mode button in the main chat composer.
+                    </p>
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label htmlFor="live-mode-continuous" className="font-medium">Continuous listening</Label>
+                      <p className="text-sm text-muted-foreground">
+                        Automatically listen for speech and interrupt Meowstik when you start talking.
+                      </p>
+                    </div>
+                    <Switch
+                      id="live-mode-continuous"
+                      checked={settings.liveModeContinuousListening}
+                      onCheckedChange={(checked) => updateSetting('liveModeContinuousListening', checked)}
+                      data-testid="switch-live-mode-continuous"
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label htmlFor="live-mode-stt" className="font-medium">Speech-to-text assist</Label>
+                      <p className="text-sm text-muted-foreground">
+                        Use browser STT for faster endpointing and interim captions during Live Mode.
+                      </p>
+                    </div>
+                    <Switch
+                      id="live-mode-stt"
+                      checked={settings.liveModeSTTEnabled}
+                      onCheckedChange={(checked) => updateSetting('liveModeSTTEnabled', checked)}
+                      data-testid="switch-live-mode-stt"
+                    />
+                  </div>
+
+                  <div className="space-y-3">
+                    <div className="flex justify-between">
+                      <Label htmlFor="live-mode-vad-sensitivity">Voice detection sensitivity</Label>
+                      <span className="text-sm text-muted-foreground">
+                        {settings.liveModeVADSensitivity.toFixed(3)}
+                      </span>
+                    </div>
+                    <Slider
+                      id="live-mode-vad-sensitivity"
+                      min={0.005}
+                      max={0.05}
+                      step={0.001}
+                      value={[settings.liveModeVADSensitivity]}
+                      onValueChange={([value]) => updateSetting('liveModeVADSensitivity', value)}
+                      data-testid="slider-live-mode-vad-sensitivity"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Lower values make barge-in trigger on quieter speech.
+                    </p>
+                  </div>
+
+                  <div className="space-y-3">
+                    <div className="flex justify-between">
+                      <Label htmlFor="live-mode-silence-duration">Silence required to stop listening</Label>
+                      <span className="text-sm text-muted-foreground">
+                        {settings.liveModeVadSilenceDurationMs} ms
+                      </span>
+                    </div>
+                    <Slider
+                      id="live-mode-silence-duration"
+                      min={200}
+                      max={2000}
+                      step={50}
+                      value={[settings.liveModeVadSilenceDurationMs]}
+                      onValueChange={([value]) => updateSetting('liveModeVadSilenceDurationMs', value)}
+                      data-testid="slider-live-mode-silence-duration"
+                    />
+                  </div>
+
+                  <div className="space-y-3">
+                    <div className="flex justify-between">
+                      <Label htmlFor="live-mode-speech-duration">Speech required to start barge-in</Label>
+                      <span className="text-sm text-muted-foreground">
+                        {settings.liveModeVadSpeechDurationMs} ms
+                      </span>
+                    </div>
+                    <Slider
+                      id="live-mode-speech-duration"
+                      min={50}
+                      max={1000}
+                      step={50}
+                      value={[settings.liveModeVadSpeechDurationMs]}
+                      onValueChange={([value]) => updateSetting('liveModeVadSpeechDurationMs', value)}
+                      data-testid="slider-live-mode-speech-duration"
+                    />
+                  </div>
+                </div>
               </div>
             </section>
 
@@ -954,245 +863,19 @@ export default function SettingsPage() {
               </div>
 
               <div className="space-y-6">
-                <div>
-                  <p className="text-sm text-muted-foreground mb-4">
-                    Connect Model Context Protocol servers so Meowstik can discover and use their tools. Library entries give one-click setup, and the custom form supports stdio, streamable HTTP, and legacy SSE MCP servers.
-                  </p>
-
-                  <div className="grid gap-3 md:grid-cols-2">
-                    {mcpLibraryLoading ? (
-                      <div className="text-sm text-muted-foreground">Loading MCP library...</div>
-                    ) : (
-                      mcpLibraryData?.library.map((entry) => (
-                        <div key={entry.key} className="rounded-lg border border-border bg-background p-4 space-y-3">
-                          <div className="flex items-start justify-between gap-3">
-                            <div>
-                              <div className="flex items-center gap-2">
-                                <p className="font-medium">{entry.name}</p>
-                                <Badge variant="outline">{entry.transport}</Badge>
-                              </div>
-                              <p className="text-sm text-muted-foreground mt-1">{entry.description}</p>
-                            </div>
-                            <Button
-                              size="sm"
-                              onClick={() => addLibraryMcpMutation.mutate(entry.key)}
-                              disabled={addLibraryMcpMutation.isPending}
-                            >
-                              {addLibraryMcpMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Add"}
-                            </Button>
-                          </div>
-                          <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
-                            {entry.template.endpointUrl && <span>{entry.template.endpointUrl}</span>}
-                            {entry.homepage && (
-                              <a className="underline" href={entry.homepage} target="_blank" rel="noreferrer">
-                                Homepage
-                              </a>
-                            )}
-                            {entry.docsUrl && (
-                              <a className="underline" href={entry.docsUrl} target="_blank" rel="noreferrer">
-                                Docs
-                              </a>
-                            )}
-                          </div>
-                        </div>
-                      ))
-                    )}
-                  </div>
-                </div>
-
-                <div className="rounded-lg border border-border bg-background p-4 space-y-4">
-                  <div>
-                    <h3 className="font-medium">Add custom MCP server</h3>
+                <p className="text-sm text-muted-foreground">
+                  Manage Model Context Protocol servers, logging levels, and structured request/response examples in the dedicated MCP Studio.
+                </p>
+                <div className="rounded-lg border border-border bg-background p-4 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                  <div className="space-y-1">
+                    <p className="font-medium">Open MCP Studio</p>
                     <p className="text-sm text-muted-foreground">
-                      Use this for any other MCP server Meowstik should connect to.
+                      Includes the reusable JSON/XML visualizer, traffic explorer, and bounded verbose capture controls.
                     </p>
                   </div>
-
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <div className="space-y-2">
-                      <Label htmlFor="mcp-name">Name</Label>
-                      <Input
-                        id="mcp-name"
-                        value={customMcp.name}
-                        onChange={(e) => setCustomMcp((prev) => ({ ...prev, name: e.target.value }))}
-                        placeholder="My MCP Server"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="mcp-transport">Transport</Label>
-                      <Select
-                        value={customMcp.transport}
-                        onValueChange={(value: "stdio" | "streamable-http" | "sse") =>
-                          setCustomMcp((prev) => ({ ...prev, transport: value }))
-                        }
-                      >
-                        <SelectTrigger id="mcp-transport">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="streamable-http">HTTP</SelectItem>
-                          <SelectItem value="sse">SSE</SelectItem>
-                          <SelectItem value="stdio">stdio</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="mcp-description">Description</Label>
-                    <Textarea
-                      id="mcp-description"
-                      value={customMcp.description}
-                      onChange={(e) => setCustomMcp((prev) => ({ ...prev, description: e.target.value }))}
-                      placeholder="What this MCP server is for"
-                      rows={2}
-                    />
-                  </div>
-
-                  {customMcp.transport !== "stdio" ? (
-                    <>
-                      <div className="space-y-2">
-                        <Label htmlFor="mcp-endpoint">Endpoint URL</Label>
-                        <Input
-                          id="mcp-endpoint"
-                          value={customMcp.endpointUrl}
-                          onChange={(e) => setCustomMcp((prev) => ({ ...prev, endpointUrl: e.target.value }))}
-                          placeholder="http://localhost:8766/mcp"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="mcp-headers">Headers JSON</Label>
-                        <Textarea
-                          id="mcp-headers"
-                          value={customMcp.headersText}
-                          onChange={(e) => setCustomMcp((prev) => ({ ...prev, headersText: e.target.value }))}
-                          placeholder='{"Authorization":"Bearer ..."}'
-                          rows={3}
-                        />
-                      </div>
-                    </>
-                  ) : (
-                    <>
-                      <div className="grid gap-4 md:grid-cols-2">
-                        <div className="space-y-2">
-                          <Label htmlFor="mcp-command">Command</Label>
-                          <Input
-                            id="mcp-command"
-                            value={customMcp.command}
-                            onChange={(e) => setCustomMcp((prev) => ({ ...prev, command: e.target.value }))}
-                            placeholder="npx"
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="mcp-cwd">Working directory</Label>
-                          <Input
-                            id="mcp-cwd"
-                            value={customMcp.cwd}
-                            onChange={(e) => setCustomMcp((prev) => ({ ...prev, cwd: e.target.value }))}
-                            placeholder="servers/my-mcp"
-                          />
-                        </div>
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="mcp-args">Args JSON</Label>
-                        <Textarea
-                          id="mcp-args"
-                          value={customMcp.argsText}
-                          onChange={(e) => setCustomMcp((prev) => ({ ...prev, argsText: e.target.value }))}
-                          placeholder='["tsx","src/index.ts"]'
-                          rows={3}
-                        />
-                      </div>
-                    </>
-                  )}
-
-                  <div className="space-y-2">
-                    <Label htmlFor="mcp-env">Environment JSON</Label>
-                    <Textarea
-                      id="mcp-env"
-                      value={customMcp.envText}
-                      onChange={(e) => setCustomMcp((prev) => ({ ...prev, envText: e.target.value }))}
-                      placeholder='{"API_KEY":"..."}'
-                      rows={3}
-                    />
-                  </div>
-
-                  {mcpFormError && <p className="text-sm text-red-500">{mcpFormError}</p>}
-
-                  <Button onClick={handleCreateCustomMcp} disabled={createCustomMcpMutation.isPending}>
-                    {createCustomMcpMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save MCP Server"}
-                  </Button>
-                </div>
-
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <h3 className="font-medium">Configured MCP servers</h3>
-                    <span className="text-sm text-muted-foreground">
-                      {mcpServersData?.servers.length ?? 0} configured
-                    </span>
-                  </div>
-
-                  {mcpServersLoading ? (
-                    <p className="text-sm text-muted-foreground">Loading configured MCP servers...</p>
-                  ) : (mcpServersData?.servers.length ?? 0) === 0 ? (
-                    <p className="text-sm text-muted-foreground">No MCP servers configured yet.</p>
-                  ) : (
-                    mcpServersData?.servers.map((server) => (
-                      <div key={server.id} className="rounded-lg border border-border bg-background p-4 space-y-3">
-                        <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-                          <div className="space-y-1">
-                            <div className="flex flex-wrap items-center gap-2">
-                              <p className="font-medium">{server.name}</p>
-                              <Badge variant={server.enabled ? "default" : "secondary"}>
-                                {server.enabled ? "enabled" : "disabled"}
-                              </Badge>
-                              <Badge variant="outline">{server.transport}</Badge>
-                              <Badge variant="outline">{server.source}</Badge>
-                            </div>
-                            <p className="text-sm text-muted-foreground">{server.description || server.slug}</p>
-                            <p className="text-xs text-muted-foreground break-all">
-                              {server.transport === "streamable-http"
-                                ? server.endpointUrl
-                                : [server.command, ...(server.args || [])].filter(Boolean).join(" ")}
-                            </p>
-                            {mcpTestResults[server.id] && (
-                              <p className="text-xs text-muted-foreground">
-                                Last test: {mcpTestResults[server.id].toolCount} tool(s) discovered
-                              </p>
-                            )}
-                          </div>
-
-                          <div className="flex flex-wrap gap-2">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => testMcpMutation.mutate(server.id)}
-                              disabled={testMcpMutation.isPending}
-                            >
-                              {testMcpMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Test"}
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => toggleMcpMutation.mutate({ id: server.id, enabled: !server.enabled })}
-                              disabled={toggleMcpMutation.isPending}
-                            >
-                              {server.enabled ? "Disable" : "Enable"}
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => deleteMcpMutation.mutate(server.id)}
-                              disabled={deleteMcpMutation.isPending}
-                              className="text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950"
-                            >
-                              Delete
-                            </Button>
-                          </div>
-                        </div>
-                      </div>
-                    ))
-                  )}
+                  <Link href="/mcp-studio">
+                    <Button data-testid="button-open-mcp-studio">Open MCP Studio</Button>
+                  </Link>
                 </div>
               </div>
             </section>

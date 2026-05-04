@@ -88,6 +88,7 @@ import ImageGenerationPage from "@/pages/image-generation";
 import TerminalPage from "@/pages/terminal";
 import DebugPage from "@/pages/debug";
 import SettingsPage from "@/pages/settings";
+import McpStudioPage from "@/pages/mcp-studio";
 import PythonSandboxPage from "@/pages/python-sandbox";
 import WebSearchPage from "@/pages/web-search";
 
@@ -98,7 +99,6 @@ import SchedulesPage from "@/pages/schedules";
 import TodoPage from "@/pages/todo";
 import BrowserPage from "@/pages/browser";
 import DatabaseExplorerPage from "@/pages/database-explorer";
-import LivePage from "@/pages/live";
 import WatchPage from "@/pages/watch";
 import GlassesPage from "@/pages/glasses";
 import CollaboratePage from "@/pages/collaborate";
@@ -215,6 +215,10 @@ function Router() {
       <Route path="/settings">
         {() => <ProtectedRoute><SettingsPage /></ProtectedRoute>}
       </Route>
+
+      <Route path="/mcp-studio">
+        {() => <ProtectedRoute><McpStudioPage /></ProtectedRoute>}
+      </Route>
       
       <Route path="/audio">
         {() => <ProtectedRoute><AudioSettingsPage /></ProtectedRoute>}
@@ -258,10 +262,6 @@ function Router() {
       
       <Route path="/database">
         {() => <ProtectedRoute><DatabaseExplorerPage /></ProtectedRoute>}
-      </Route>
-      
-      <Route path="/live">
-        {() => <ProtectedRoute><LivePage /></ProtectedRoute>}
       </Route>
       
       <Route path="/watch">
@@ -382,4 +382,3 @@ function App() {
  * This is the single entry point for the React application
  */
 export default App;
-
