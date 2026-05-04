@@ -89,10 +89,12 @@ TWILIO_PHONE_NUMBER=+15551234567
 - Outbound AI calling — AI conducts entire conversations via `call_make` tool
 - Voicemail detection + transcription
 - `call_conversations` and `sms_messages` tables for history
+- `scripts/refresh-twilio-tunnel.sh` can refresh a Cloudflare quick tunnel and update the Twilio phone number configuration automatically during local/live recovery
 
 **Webhook configuration:**
 - SMS webhook: `https://your-domain/api/twilio/sms`
 - Voice webhook: `https://your-domain/api/twilio/voice`
+- Status callback: `https://your-domain/api/twilio/status`
 - Configure these URLs in your [Twilio Console](https://console.twilio.com)
 
 ---
@@ -170,9 +172,17 @@ Meowstik can connect to external MCP (Model Context Protocol) servers and expose
 - Includes **Nelson MCP** for LibreOffice workflows
 
 **Configuration:**
-- MCP servers are managed from the Settings UI
+- MCP servers are managed from **MCP Studio** (`/mcp-studio`) and linked from Settings
 - Built-in library entries can be added as configured servers
 - Only enabled configured servers are callable by the agent
+- MCP Studio also exposes per-user traffic logging (`errors`, `basic`, `verbose`) plus bounded verbose capture for the next N operations
+- Logged exchanges can be inspected through a reusable JSON/XML viewer with tree, raw, and card-style navigation
+
+**Shared local MCP inventory:**
+- Canonical user-level config: `~/.copilot/mcp-config.json`
+- Sync helper: `node scripts/sync-shared-ai-configs.mjs`
+- Mirrors config into VS Code user settings and repo `.vscode/mcp.json`
+- Workspace config sanitizes secret-like env vars into `${ENV_VAR}` placeholders for safe sharing in git/Codespaces
 
 **Related prompt context:**
 - Meowstik also discovers local assistant instruction/skill markdown files from common roots such as `.claude`, `.github`, `~/.claude`, `~/.gemini`, and `~/.copilot`

@@ -547,21 +547,43 @@ MCP (Model Context Protocol) servers provide tool access to AI models.
 - Built-in library/catalog in Meowstik settings
 - Built-in **Nelson MCP** entry for LibreOffice workflows
 - User-configurable external MCP servers
+- Dedicated **MCP Studio** page at `/mcp-studio` for server setup, traffic logging, and JSON/XML payload inspection
+- Shared local MCP sync via `scripts/sync-shared-ai-configs.mjs` so Copilot CLI, VS Code, and Codespaces can share the same inventory
 
 ### Running MCP Locally
 
 ```bash
-# Example: run an MCP server locally, then add it in Meowstik Settings
+# Example: run an MCP server locally, then add it in MCP Studio
 # Supported transports: stdio, streamable HTTP, legacy SSE
 ```
 
 ### Connecting MCP
 
-1. Open **Settings → MCP**
+1. Open **MCP Studio** (or use **Settings → Open MCP Studio**)
 2. Browse the built-in library or add a custom server
 3. Choose the transport (`stdio`, streamable HTTP, or legacy SSE)
 4. Save and test the server
 5. Once enabled, the agent can use `mcp_list_servers`, `mcp_list_tools`, and `mcp_call`
+
+### Shared MCP Config Sync
+
+```bash
+# Sync the canonical Copilot MCP inventory into VS Code + workspace config
+node scripts/sync-shared-ai-configs.mjs
+```
+
+- Canonical source: `~/.copilot/mcp-config.json`
+- VS Code target: `~/.config/Code/User/mcp.json`
+- Workspace target: `.vscode/mcp.json`
+- The workspace copy automatically sanitizes secret-like env values into `${ENV_VAR}` placeholders
+
+### MCP Traffic Logging
+
+MCP Studio includes:
+- `errors` logging for normal day-to-day use
+- `basic` logging for routine request/response inspection
+- `verbose` logging for full capture
+- A bounded "capture the next N operations" mode for debugging without leaving verbose logging on forever
 
 ### Environment Variables for MCP
 
@@ -707,13 +729,13 @@ const stream = await navigator.mediaDevices.getDisplayMedia({
 
 ### Overview
 
-Twilio SMS webhooks require a publicly accessible HTTPS URL, which means you cannot test directly with `localhost`. The solution is to use a tunneling service like **ngrok** to expose your local development server to the internet.
+Twilio SMS and voice webhooks require a publicly accessible HTTPS URL, which means you cannot test directly with `localhost`. Meowstik includes a helper script that uses **Cloudflare quick tunnels** and repoints the live Twilio number automatically.
 
 ### Prerequisites
 
 1. **Twilio Account**: Sign up at [twilio.com](https://www.twilio.com/try-twilio)
 2. **Twilio Phone Number**: Purchase one from the Twilio Console
-3. **ngrok**: Download from [ngrok.com](https://ngrok.com/download)
+3. **cloudflared**: Install the Cloudflare tunnel client
 4. **Environment Variables**: Configure in your `.env` file (see below)
 
 ### Step-by-Step Setup
@@ -743,17 +765,14 @@ NODE_ENV=development
 GEMINI_API_KEY=your_gemini_api_key
 ```
 
-#### 2. Install and Setup ngrok
+#### 2. Install cloudflared
 
 ```bash
-# Download ngrok
-# Visit https://ngrok.com/download and follow instructions for your OS
+# Debian / Ubuntu
+sudo apt-get install cloudflared
 
-# Authenticate (sign up for free account at ngrok.com)
-ngrok config add-authtoken YOUR_NGROK_AUTH_TOKEN
-
-# Verify installation
-ngrok version
+# Or verify an existing install
+cloudflared --version
 ```
 
 #### 3. Start Your Local Server
@@ -765,34 +784,34 @@ npm run dev
 
 The server should start on `http://localhost:5000`.
 
-#### 4. Create ngrok Tunnel
+#### 4. Refresh the tunnel and Twilio number config
 
 ```bash
-# Terminal 2: Create a tunnel to your local server
-ngrok http 5000
+# Terminal 2: start a Cloudflare quick tunnel and repoint Twilio
+./scripts/refresh-twilio-tunnel.sh
 ```
 
 You'll see output like:
 
 ```
-Forwarding  https://abc123.ngrok.io -> http://localhost:5000
+{
+  "tunnelUrl": "https://example-name.trycloudflare.com",
+  "phoneSid": "PNxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+  "voiceUrl": "https://example-name.trycloudflare.com/api/twilio/voice",
+  "statusCallback": "https://example-name.trycloudflare.com/api/twilio/status",
+  "smsUrl": "https://example-name.trycloudflare.com/api/twilio/sms"
+}
 ```
 
-Copy the HTTPS URL (e.g., `https://abc123.ngrok.io`).
-
-> **Note**: Free ngrok URLs change every time you restart ngrok. For a persistent URL, upgrade to a paid ngrok account.
+The script stores the tunnel PID and log in `/tmp/` so it can shut down the previous tunnel cleanly before starting a new one.
 
 #### 5. Configure Twilio Webhook
 
-1. Go to [Twilio Console](https://console.twilio.com/)
-2. Navigate to **Phone Numbers** → **Manage** → **Active Numbers**
-3. Select your Twilio phone number
-4. Scroll to **Messaging Configuration**
-5. Under "A MESSAGE COMES IN":
-   - Select **Webhook**
-   - Enter: `https://abc123.ngrok.io/api/twilio/webhook/sms` (use your actual ngrok URL)
-   - Set HTTP Method to **POST**
-6. Click **Save**
+You can configure the URLs manually in the Twilio Console if needed, but the helper script already updates the incoming number to:
+
+- SMS webhook: `https://your-tunnel/api/twilio/sms`
+- Voice webhook: `https://your-tunnel/api/twilio/voice`
+- Status callback: `https://your-tunnel/api/twilio/status`
 
 #### 6. Test the Integration
 
@@ -818,23 +837,6 @@ And receive an SMS response within seconds.
 
 ### Monitoring Webhook Requests
 
-#### View ngrok Requests
-
-ngrok provides a web interface at `http://localhost:4040` showing all webhook requests:
-
-```bash
-# Access ngrok inspector
-open http://localhost:4040
-# or
-curl http://localhost:4040/api/requests/http
-```
-
-This is invaluable for debugging:
-- See exact payload Twilio sends
-- Inspect headers (including `X-Twilio-Signature`)
-- View response from your server
-- Replay requests for testing
-
 #### Check Server Logs
 
 Watch for `[Twilio]` tagged messages:
@@ -858,8 +860,8 @@ Go to **Twilio Console** → **Monitor** → **Logs** → **Errors** to see any 
 
 **Solutions**:
 1. Ensure `TWILIO_AUTH_TOKEN` in `.env` matches Twilio Console exactly
-2. Verify webhook URL in Twilio Console matches your ngrok URL exactly
-3. Use HTTPS (not HTTP) for the ngrok URL
+2. Verify webhook URL in Twilio Console matches the current tunnel URL exactly
+3. Use HTTPS (not HTTP) for the tunnel URL
 4. For testing, set `NODE_ENV=development` to log warnings instead of blocking
 
 #### Issue: No Response Received
@@ -867,9 +869,9 @@ Go to **Twilio Console** → **Monitor** → **Logs** → **Errors** to see any 
 **Cause**: Webhook not reaching your server.
 
 **Solutions**:
-1. Check that ngrok tunnel is still running (they expire)
+1. Check that the Cloudflare quick tunnel is still running (they expire)
 2. Verify webhook URL in Twilio Console is correct
-3. Check ngrok inspector at `http://localhost:4040` for incoming requests
+3. Check `/tmp/meowstik-cloudflared.log` for the current tunnel URL
 4. Ensure your local server is running on port 5000
 
 #### Issue: Contact Not Recognized
@@ -897,7 +899,7 @@ This sends mock webhook data to your local server for testing.
 
 1. **Development Mode**: When `NODE_ENV=development`, signature validation warnings are logged but don't block requests. **Never use this in production**.
 
-2. **ngrok URLs**: Don't share your ngrok URL publicly - it provides direct access to your local server.
+2. **Tunnel URLs**: Don't share your temporary tunnel URL publicly - it provides direct access to your local server.
 
 3. **Twilio Credentials**: Never commit `.env` files with real credentials to git.
 
@@ -912,13 +914,13 @@ When deploying to production:
 
 Example production webhook URL:
 ```
-https://meowstik.com/api/twilio/webhook/sms
+https://meowstik.com/api/twilio/sms
 ```
 
 ### Additional Resources
 
 - [Twilio SMS Documentation](https://www.twilio.com/docs/sms)
-- [ngrok Documentation](https://ngrok.com/docs)
+- [Cloudflare Tunnel Documentation](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/)
 - [Complete Twilio Setup Guide](TWILIO_SMS_SETUP.md)
 - [E.164 Phone Number Format](https://www.twilio.com/docs/glossary/what-e164)
 
@@ -951,6 +953,6 @@ chromium --headless --remote-debugging-port=9222
 # Virtual display
 Xvfb :99 -screen 0 1920x1080x24 & export DISPLAY=:99
 
-# Start ngrok tunnel for Twilio testing
-ngrok http 5000
+# Refresh Cloudflare tunnel + Twilio config
+./scripts/refresh-twilio-tunnel.sh
 ```

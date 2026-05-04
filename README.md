@@ -45,8 +45,10 @@ Meowstik is a monorepo containing several distinct applications that work in con
     *   **Orchestrator**: Manages tool calls (`rag-dispatcher.ts`).
     *   **Protocols**: Handles real-time WebSockets for all agents.
     *   **Intelligence**: Integrates Google Gemini (`gemini-tools.ts`).
+    *   **MCP Runtime**: Connects to stdio / HTTP / SSE MCP servers, persists server configs, and records inspectable traffic logs (`server/routes/mcp.ts`, `server/services/mcp-service.ts`).
 *   **`client/`**: The visual interface.
     *   A React/Vite application for chatting with the agent, visualizing agent actions, and managing configurations.
+    *   Includes **MCP Studio** (`/mcp-studio`) for server setup, traffic capture, and structured JSON/XML payload exploration.
 
 ### 2. The Agents (Limbs)
 These are independent applications that connect to the Server to receive instructions and stream back data (video/audio/text).
@@ -76,6 +78,7 @@ These are independent applications that connect to the Server to receive instruc
     *   **Self-Hosted Scraping**: A cost-saving architecture to run high-volume web scraping tasks using a local or cloud-hosted headless browser fleet, avoiding expensive SaaS fees.
 *   **Call Recording & Voice**:
     *   Integration with Twilio for handling voice calls and SMS (`TWILIO_IMPLEMENTATION_SUMMARY.md`), allowing the AI to act as a receptionist or phone operator.
+    *   Includes a local recovery helper (`scripts/refresh-twilio-tunnel.sh`) that refreshes a Cloudflare tunnel and repoints the live Twilio number to the current `/api/twilio/*` routes.
 
 ---
 
@@ -118,6 +121,7 @@ Since there are many moving parts, the standard dev loop focuses on the Core:
 *   **Desktop Hardware**: [HARDWARE_IMPLEMENTATION_SUMMARY.md](HARDWARE_IMPLEMENTATION_SUMMARY.md)
 *   **Desktop App & Computer Use**: [docs/DESKTOP_APP.md](docs/DESKTOP_APP.md)
 *   **GitHub Copilot MCP Setup**: [docs/copilot/GITHUB_MCP_SETUP.md](docs/copilot/GITHUB_MCP_SETUP.md)
+*   **Local Development / MCP / Twilio**: [docs/local-development.md](docs/local-development.md)
 *   **Search Architecture**: [docs/SEARCH_API.md](docs/SEARCH_API.md) (Gemini Grounding)
 *   **VS Code Integration**: [docs/VSCODE_INTEGRATION.md](docs/VSCODE_INTEGRATION.md)
 

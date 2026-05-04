@@ -1,123 +1,95 @@
-# GitHub MCP Server Setup for Copilot
+# Shared MCP Setup for Copilot, VS Code, and Codespaces
 
-This guide explains how to configure GitHub Copilot to use the GitHub MCP (Model Context Protocol) server in VS Code.
+This guide explains how Meowstik shares a single local MCP inventory across GitHub Copilot CLI, VS Code, and Codespaces-compatible workspace config.
 
 ## Overview
 
-The GitHub MCP server enables GitHub Copilot to access GitHub-specific context and functionality, providing better code suggestions and assistance by understanding your repository structure, issues, pull requests, and more.
+The canonical local MCP inventory lives at:
+
+```text
+~/.copilot/mcp-config.json
+```
+
+The repo sync helper mirrors that inventory into:
+
+- VS Code user config: `~/.config/Code/User/mcp.json`
+- workspace config: `.vscode/mcp.json`
+
+The workspace copy is sanitized so secret-like env values become `${ENV_VAR}` placeholders instead of raw credentials.
 
 ## Prerequisites
 
-- Visual Studio Code with GitHub Copilot extension installed
-- Node.js and npm installed
-- GitHub Personal Access Token (PAT)
+- GitHub Copilot CLI configured locally
+- Visual Studio Code with Copilot enabled
+- Node.js installed
+- Any server-specific secrets exported as environment variables or stored in user-level config
 
-## Setup Instructions
+## Sync Instructions
 
-### 1. Configuration File
+### 1. Maintain the canonical MCP inventory
 
-The repository includes a `.vscode/mcp.json` file that configures the GitHub MCP server:
+Edit `~/.copilot/mcp-config.json` when you add, remove, or change MCP servers locally.
 
-```json
-{
-  "mcpServers": {
-    "github": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "@modelcontextprotocol/server-github"
-      ],
-      "env": {
-        "GITHUB_PERSONAL_ACCESS_TOKEN": "${input:github_mcp_pat}"
-      }
-    }
-  },
-  "inputs": [
-    {
-      "type": "promptString",
-      "id": "github_mcp_pat",
-      "description": "GitHub Personal Access Token for MCP Server",
-      "password": true
-    }
-  ]
-}
+### 2. Run the sync helper
+
+From the repo root:
+
+```bash
+node scripts/sync-shared-ai-configs.mjs
 ```
 
-### 2. Create a GitHub Personal Access Token
+This will:
 
-1. Go to [GitHub Settings > Personal Access Tokens > Tokens (classic)](https://github.com/settings/tokens/new)
-2. Click "Generate new token (classic)"
-3. Give it a descriptive name (e.g., "MCP Server for Copilot")
-4. Select the following scopes:
-   - `repo` (Full control of private repositories)
-   - `read:org` (Read org and team membership)
-   - `read:user` (Read user profile data)
-5. Click "Generate token"
-6. **Important:** Copy the token immediately - you won't be able to see it again!
+- read `~/.copilot/mcp-config.json`
+- write the full inventory to `~/.config/Code/User/mcp.json`
+- write a sanitized workspace copy to `.vscode/mcp.json`
 
-### 3. Enable the MCP Server in VS Code
+### 3. Open the project in VS Code or Codespaces
 
-1. Open the project in VS Code
-2. When VS Code loads, you should see a prompt asking for your GitHub Personal Access Token
-3. Paste your token and press Enter
-4. The MCP server will start automatically
+VS Code reads the user/workspace MCP config directly. Codespaces and other repo-hosted environments can use the sanitized workspace copy as the checked-in starting point.
 
-Alternatively, you can manually start the server:
-1. Open the Command Palette (`Cmd+Shift+P` on Mac, `Ctrl+Shift+P` on Windows/Linux)
-2. Type "MCP: List Servers"
-3. Select "github" from the list
-4. Click "Start Server" if it's not already running
+## What gets shared
 
-### 4. Verify the Connection
+- MCP server definitions
+- commands / args / endpoints
+- safe literal envs like `DISPLAY` or `GOOGLE_APPLICATION_CREDENTIALS`
+- placeholderized secret envs such as `${GITHUB_TOKEN}` or `${OPENAI_API_KEY}`
 
-Once configured, GitHub Copilot will have access to:
-- Repository structure and file contents
-- Issue tracking and management
-- Pull request information
-- GitHub Actions workflows
-- Commit history
-- And more GitHub-specific context
+## Repo-level Copilot guidance
 
-You can verify the connection by asking Copilot questions about your repository, such as:
-- "What are the open issues in this repository?"
-- "Show me the recent pull requests"
-- "What does the CI/CD workflow do?"
+Meowstik also includes:
+
+- `.github/copilot-instructions.md` — shared repo guidance for MCP + agents
+- `.github/agents/claude-code-engineer.agent.md` — specialist agent for Claude Code reverse engineering
+
+These are visible to Copilot tooling alongside the synced MCP config.
 
 ## Troubleshooting
 
-### Token Not Accepted
-- Ensure your token has the correct scopes
-- Check that the token hasn't expired
-- Try generating a new token
+### VS Code does not see new servers
+- Re-run `node scripts/sync-shared-ai-configs.mjs`
+- Reload the VS Code window
+- Check that `~/.config/Code/User/mcp.json` was updated
 
-### MCP Server Won't Start
-- Ensure Node.js and npm are installed and in your PATH
-- Try running `npx -y @modelcontextprotocol/server-github` manually to check for errors
-- Check the VS Code output panel for error messages
+### Secrets are missing in the workspace copy
+- This is expected for secret-like env vars
+- Export the matching environment variable locally, or keep the real secret only in user-level config
+- The checked-in `.vscode/mcp.json` is intended to be shareable, not authoritative for secrets
 
-### No Prompt for Token
-- Check if `.vscode/mcp.json` exists in the project
-- Try reloading the VS Code window (`Cmd+R` or `Ctrl+R`)
-- Manually trigger the server start via Command Palette
+### Codespaces needs the same servers
+- Commit the sanitized `.vscode/mcp.json`
+- Provide secrets through Codespaces secrets / environment configuration
+- Re-run the sync helper locally whenever the canonical inventory changes
 
 ## Security Notes
 
-- The token is stored securely by VS Code and not committed to the repository
-- Never commit your Personal Access Token to version control
-- Use tokens with minimal required scopes
-- Consider creating a dedicated GitHub account with limited permissions for MCP access
-- Regularly rotate your tokens for security
+- Treat `~/.copilot/mcp-config.json` as the authoritative local source
+- Never commit raw secrets into `.vscode/mcp.json`
+- Prefer environment variables or user-level config for credentials
+- Re-run the sync helper after MCP changes so all tools stay aligned
 
 ## Additional Resources
 
 - [VS Code MCP Server Documentation](https://code.visualstudio.com/docs/copilot/customization/mcp-servers)
-- [GitHub MCP Server Setup Guide](https://docs.github.com/en/copilot/how-tos/provide-context/use-mcp/set-up-the-github-mcp-server)
 - [Model Context Protocol Specification](https://spec.modelcontextprotocol.io/)
-- [GitHub Personal Access Tokens](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens)
-
-## Support
-
-If you encounter issues with the MCP server configuration, please:
-1. Check the troubleshooting section above
-2. Review the VS Code output panel for error messages
-3. Create an issue in this repository with the `documentation` label
+- [GitHub Copilot MCP docs](https://docs.github.com/en/copilot/how-tos/provide-context/use-mcp)

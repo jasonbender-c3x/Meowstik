@@ -49,3 +49,11 @@ npm start
 - Local computer use depends on OS-level screenshot/input capabilities (`screenshot-desktop`, `@nut-tree-fork/nut-js`)
 - Optional WebSocket desktop-relay paths still exist in the codebase for advanced or legacy setups
 - MCP support is separate from computer use; MCP adds external tool servers, while `computer_*` controls the local machine
+
+## Choosing the Right Interface
+
+Computer use is powerful, but it is not the right abstraction for every workflow.
+
+- Use **computer use** when the task depends on an existing visual UI, ad-hoc desktop state, or a human-facing app that has no better integration surface.
+- Prefer **MCP servers or first-class integrations** when the workflow is structured, asynchronous, or likely to require repeated control handoff between model and user.
+- In practice: `computer_*` is best for operating a screen; MCP/integrations are better for durable automation, inspectable payloads, and workflows where you want logs/examples instead of constantly yanking UI focus back and forth.

@@ -8,7 +8,7 @@ Current feature set of Meowstik as it exists today.
 
 **Status: Active**
 
-The core loop: user sends a message → Gemini generates a response with optional tool calls → tools execute in parallel → results fed back → Gemini continues. This loop runs until `end_turn` is called.
+The core loop: user sends a message → Gemini generates a response with optional tool calls → tools execute in parallel → results fed back → Gemini continues. The turn ends when Gemini stops calling tools and replies in plain text.
 
 - Streaming responses via SSE
 - Multi-turn conversation history
@@ -106,6 +106,7 @@ Primary computer-use now runs **on the same machine as Meowstik** through `serve
 - Mouse and keyboard control via `@nut-tree-fork/nut-js`
 - Gemini Computer Use toolset: `computer_click`, `computer_type`, `computer_key`, `computer_scroll`, `computer_move`, `computer_screenshot`, `computer_wait`
 - Optional WebSocket relay modes still exist for advanced/legacy setups, but they are not the main local-install path
+- Best for tasks that genuinely need visual takeover of an existing UI; structured workflows are usually cleaner through first-class integrations or MCP servers than repeated control handoff
 
 ---
 
@@ -122,17 +123,32 @@ Chrome extension with a side-panel chat interface:
 
 ---
 
-## ✅ MCP Servers
+## ✅ MCP Studio & MCP Servers
 
 **Status: Active**
 
-Meowstik now supports configurable MCP servers through a built-in catalog plus user-managed entries:
+Meowstik now supports configurable MCP servers through a built-in catalog plus user-managed entries, with a dedicated **MCP Studio** page at `/mcp-studio`:
 - Persistent MCP server configuration stored in the app database
 - Supported transports: `stdio`, streamable HTTP, and legacy SSE
 - Agent tools: `mcp_list_servers`, `mcp_list_tools`, `mcp_call`
-- Settings UI for browsing the MCP library, enabling servers, testing connections, and inspecting exposed tools
+- MCP Studio UI for browsing the library, enabling servers, testing connections, and inspecting exposed tools
+- Per-user MCP traffic logging with `errors`, `basic`, and `verbose` modes
+- Bounded verbose capture that records the next N operations, then falls back automatically
+- Reusable structured payload viewer for JSON and XML with tree, raw, and card/rolodex-style navigation
+- MIME-aware payload chips/cards so file-like nested objects can preview as richer assets instead of opaque blobs
 - Built-in library entries for the official/reference servers: `filesystem`, `fetch`, `git`, `memory`, `time`, `sequentialthinking`, and `everything`
 - Built-in Nelson MCP entry for LibreOffice-compatible workflows
+
+### ✅ Shared MCP Config Sync for Copilot / VS Code / Codespaces
+
+**Status: Active**
+
+- Canonical local MCP inventory lives in `~/.copilot/mcp-config.json`
+- `scripts/sync-shared-ai-configs.mjs` mirrors that inventory into:
+  - VS Code user config (`~/.config/Code/User/mcp.json`)
+  - workspace config (`.vscode/mcp.json`)
+- Workspace output sanitizes secret-like env values into `${ENV_VAR}` placeholders so the repo copy stays safe to share
+- `.github/copilot-instructions.md` documents the shared setup and specialist agents
 
 ---
 
@@ -158,6 +174,7 @@ Meowstik now discovers local assistant instruction/skill markdown files and summ
 - Outbound AI calling via `call_make` tool — AI handles the full conversation
 - Voicemail transcription and storage
 - All messages stored in `sms_messages` + `call_conversations` tables
+- `scripts/refresh-twilio-tunnel.sh` can reopen a Cloudflare quick tunnel and repoint the live Twilio number to the current `/api/twilio/voice`, `/api/twilio/status`, and `/api/twilio/sms` routes
 
 ---
 
