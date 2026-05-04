@@ -45,6 +45,7 @@ import { useState, useRef, useEffect } from "react";
 import { Sidebar } from "@/components/chat/sidebar";
 import { ChatMessage } from "@/components/chat/message";
 import { ChatInputArea } from "@/components/chat/input-area";
+import { LiveModeDialog } from "@/components/chat/live-mode-dialog";
 
 /**
  * UI Components from shadcn/ui
@@ -52,6 +53,7 @@ import { ChatInputArea } from "@/components/chat/input-area";
  */
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 /**
  * Lucide Icons - Used for visual elements
@@ -102,6 +104,17 @@ interface Attachment {
   size: number;
   preview?: string;
   dataUrl: string;
+}
+
+type ChatProvider = "meowstik" | "copilot";
+
+interface CopilotSessionSummary {
+  sessionId: string;
+  model: string;
+  streaming: boolean;
+  workspacePath?: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 // ============================================================================
@@ -158,6 +171,14 @@ export default function Home() {
    * Each message has: id, chatId, role ('user' | 'ai'), content, createdAt
    */
   const [messages, setMessages] = useState<Message[]>([]);
+  const [chatProvider, setChatProvider] = useState<ChatProvider>(() => {
+    if (typeof window === "undefined") {
+      return "meowstik";
+    }
+    return localStorage.getItem("meowstik-chat-provider") === "copilot" ? "copilot" : "meowstik";
+  });
+  const [copilotMessages, setCopilotMessages] = useState<Message[]>([]);
+  const [copilotSessionId, setCopilotSessionId] = useState<string | null>(null);
 
   /**
    * Pagination state for message loading
@@ -172,7 +193,14 @@ export default function Home() {
    * Used to show "thinking" animation and disable input
    */
   const [isLoading, setIsLoading] = useState(false);
-  const [agenticPaused, setAgenticPaused] = useState<{ turns: number } | null>(null);
+  const [agenticPaused, setAgenticPaused] = useState<{
+    turns: number;
+    untilHumanInput?: boolean;
+    resumeAfterSeconds?: number;
+    message?: string;
+  } | null>(null);
+  const [pauseCountdownSeconds, setPauseCountdownSeconds] = useState<number | null>(null);
+  const [isLiveModeOpen, setIsLiveModeOpen] = useState(false);
 
   /**
    * AbortController reference for canceling in-flight requests
@@ -270,6 +298,8 @@ export default function Home() {
   const [pendingEditorMessage, setPendingEditorMessage] = useState<string | null>(() => {
     return localStorage.getItem("meowstik-editor-send-message");
   });
+  const activeMessages = chatProvider === "copilot" ? copilotMessages : messages;
+  const activeConversationId = chatProvider === "copilot" ? copilotSessionId : currentChatId;
 
   /**
    * Effect: Auto-send pending editor message after initial load
@@ -301,10 +331,18 @@ export default function Home() {
    * Triggers when currentChatId changes to a non-null value
    */
   useEffect(() => {
-    if (currentChatId) {
+    if (chatProvider === "meowstik" && currentChatId) {
       loadChatMessages(currentChatId);
     }
-  }, [currentChatId]);
+  }, [chatProvider, currentChatId]);
+
+  useEffect(() => {
+    localStorage.setItem("meowstik-chat-provider", chatProvider);
+    abortControllerRef.current?.abort();
+    abortControllerRef.current = null;
+    setIsLoading(false);
+    setAgenticPaused(null);
+  }, [chatProvider]);
 
   /**
    * Effect: Auto-scroll to show new messages
@@ -476,7 +514,133 @@ export default function Home() {
    * // UI shows user message immediately
    * // AI response streams in token by token
    */
-  const handleSendMessage = async (content: string, attachments: Attachment[] = []) => {
+  const createCopilotSession = async (): Promise<CopilotSessionSummary | null> => {
+    try {
+      const response = await fetch("/api/copilot/sessions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ streaming: false }),
+      });
+
+      if (!response.ok) {
+        return null;
+      }
+
+      const data = await response.json();
+      const session = data.session as CopilotSessionSummary;
+      setCopilotSessionId(session.sessionId);
+      setCopilotMessages([]);
+      setIsSidebarOpen(false);
+      return session;
+    } catch (error) {
+      console.error("Failed to create Copilot session:", error);
+      return null;
+    }
+  };
+
+  const handleSendCopilotMessage = async (content: string, attachments: Attachment[] = []) => {
+    const trimmedContent = content.trim();
+    if (!trimmedContent) {
+      return;
+    }
+
+    if (attachments.length > 0) {
+      console.warn("[Copilot] Attachments are not wired for Copilot mode yet; sending text only.");
+    }
+
+    let sessionId = copilotSessionId;
+    if (!sessionId) {
+      const session = await createCopilotSession();
+      if (!session) {
+        return;
+      }
+      sessionId = session.sessionId;
+    }
+
+    const tempUserMessage = {
+      id: `temp-copilot-user-${Date.now()}`,
+      chatId: sessionId,
+      role: "user",
+      content: trimmedContent,
+      createdAt: new Date().toISOString(),
+      metadata: null,
+    } as Message;
+
+    setCopilotMessages((prev) => [...prev, tempUserMessage]);
+    setIsLoading(true);
+
+    const abortController = new AbortController();
+    abortControllerRef.current = abortController;
+
+    try {
+      const response = await fetch(`/api/copilot/sessions/${sessionId}/messages`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        signal: abortController.signal,
+        body: JSON.stringify({
+          prompt: trimmedContent,
+          mode: "immediate",
+          timeoutMs: 120_000,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(errorText || `Failed to send Copilot message: ${response.status}`);
+      }
+
+      const data = await response.json();
+      const session = data.session as CopilotSessionSummary;
+      const assistantResponse = typeof data.assistantResponse === "string" && data.assistantResponse.trim()
+        ? data.assistantResponse
+        : "(Copilot returned no visible response.)";
+
+      setCopilotSessionId(session.sessionId);
+      setCopilotMessages((prev) => [
+        ...prev,
+        {
+          id: `temp-copilot-ai-${Date.now()}`,
+          chatId: session.sessionId,
+          role: "ai",
+          content: assistantResponse,
+          createdAt: new Date().toISOString(),
+          metadata: {
+            provider: "copilot",
+            copilotSessionId: session.sessionId,
+            model: session.model,
+          },
+        } as Message & { metadata?: Record<string, unknown> },
+      ]);
+    } catch (error: any) {
+      if (error.name === "AbortError") {
+        console.log("[Copilot] Request aborted by user");
+      } else {
+        console.error("[Copilot] Failed to send message:", error);
+        setCopilotMessages((prev) => [
+          ...prev,
+          {
+            id: `temp-copilot-error-${Date.now()}`,
+            chatId: sessionId,
+            role: "ai",
+            content: `⚠️ **Copilot error:** ${error instanceof Error ? error.message : "Unknown error"}`,
+            createdAt: new Date().toISOString(),
+            metadata: {
+              provider: "copilot",
+              copilotSessionId: sessionId,
+              error: true,
+            },
+          } as Message & { metadata?: Record<string, unknown> },
+        ]);
+      }
+    } finally {
+      setIsLoading(false);
+      abortControllerRef.current = null;
+    }
+  };
+
+  const handleSendMeowstikMessage = async (content: string, attachments: Attachment[] = []) => {
     console.log("[handleSendMessage] Starting with content:", content.substring(0, 50));
     
     // Unlock audio on user gesture (required for browser autoplay policy)
@@ -778,7 +942,12 @@ export default function Home() {
 
               // Agentic loop paused — show Continue / Interrupt dialog
               if (data.agenticPaused) {
-                setAgenticPaused(data.agenticPaused as { turns: number });
+                setAgenticPaused(data.agenticPaused as {
+                  turns: number;
+                  untilHumanInput?: boolean;
+                  resumeAfterSeconds?: number;
+                  message?: string;
+                });
               }
 
               const applyToolResults = (
@@ -970,6 +1139,43 @@ export default function Home() {
     }
   };
 
+  const handleSendMessage = async (content: string, attachments: Attachment[] = []) => {
+    if (chatProvider === "copilot") {
+      await handleSendCopilotMessage(content, attachments);
+      return;
+    }
+
+    await handleSendMeowstikMessage(content, attachments);
+  };
+
+  useEffect(() => {
+    if (!agenticPaused?.resumeAfterSeconds) {
+      setPauseCountdownSeconds(null);
+      return;
+    }
+
+    const startedAt = Date.now();
+    const totalMs = agenticPaused.resumeAfterSeconds * 1000;
+    const updateCountdown = () => {
+      const remainingMs = totalMs - (Date.now() - startedAt);
+      setPauseCountdownSeconds(Math.max(0, Math.ceil(remainingMs / 1000)));
+    };
+
+    updateCountdown();
+    const intervalId = window.setInterval(updateCountdown, 1000);
+    const timeoutId = window.setTimeout(() => {
+      setAgenticPaused(null);
+      setPauseCountdownSeconds(null);
+      void handleSendMessage("Continue where you left off after the requested pause.", []);
+    }, totalMs);
+
+    return () => {
+      window.clearInterval(intervalId);
+      window.clearTimeout(timeoutId);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [agenticPaused?.resumeAfterSeconds, currentChatId, chatProvider]);
+
   /**
    * Stop the current AI generation
    * Aborts the in-flight request and clears loading state
@@ -1042,7 +1248,7 @@ export default function Home() {
    *   console.log('New chat created:', chatId);
    * }
    */
-  const handleNewChat = async (): Promise<string | null> => {
+  const handleNewMeowstikChat = async (): Promise<string | null> => {
     try {
       const response = await fetch('/api/chats', {
         method: 'POST',
@@ -1066,6 +1272,15 @@ export default function Home() {
     }
   };
 
+  const handleNewChat = async (): Promise<string | null> => {
+    if (chatProvider === "copilot") {
+      const session = await createCopilotSession();
+      return session?.sessionId ?? null;
+    }
+
+    return handleNewMeowstikChat();
+  };
+
   /**
    * Handle chat selection from sidebar
    * Updates the current chat ID, triggering message load via useEffect
@@ -1073,6 +1288,9 @@ export default function Home() {
    * @param {string} chatId - The ID of the chat to select
    */
   const handleChatSelect = (chatId: string) => {
+    if (chatProvider === "copilot") {
+      return;
+    }
     setCurrentChatId(chatId);
   };
 
@@ -1092,8 +1310,8 @@ export default function Home() {
         isOpen={isSidebarOpen} 
         setIsOpen={setIsSidebarOpen} 
         onNewChat={handleNewChat}
-        chats={chats}
-        currentChatId={currentChatId}
+        chats={chatProvider === "copilot" ? [] : chats}
+        currentChatId={chatProvider === "copilot" ? copilotSessionId : currentChatId}
         onChatSelect={handleChatSelect}
         isCollapsed={isSidebarCollapsed}
         setIsCollapsed={setIsSidebarCollapsed}
@@ -1134,6 +1352,17 @@ export default function Home() {
                   {isTTSSupported && (
                     <VerbositySlider />
                   )}
+                  <div className="w-[160px]">
+                    <Select value={chatProvider} onValueChange={(value: ChatProvider) => setChatProvider(value)}>
+                      <SelectTrigger className="h-11 rounded-full bg-background/80">
+                        <SelectValue placeholder="Chat mode" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="meowstik">Meowstik</SelectItem>
+                        <SelectItem value="copilot">GitHub Copilot</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
               </div>
 
@@ -1196,6 +1425,18 @@ export default function Home() {
                   {isTTSSupported && (
                     <VerbositySlider />
                   )}
+
+                  <div className="w-[170px]">
+                    <Select value={chatProvider} onValueChange={(value: ChatProvider) => setChatProvider(value)}>
+                      <SelectTrigger className="h-11 rounded-full bg-background/80">
+                        <SelectValue placeholder="Chat mode" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="meowstik">Meowstik</SelectItem>
+                        <SelectItem value="copilot">GitHub Copilot</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                   
                   {isAuthenticated ? (
                     <Button 
@@ -1226,7 +1467,7 @@ export default function Home() {
               </div>
 
               <div className="flex-1 overflow-y-auto scroll-smooth">
-                {messages.length === 0 ? (
+                {activeMessages.length === 0 ? (
             // =================================================================
             // WELCOME SCREEN (Empty State)
             // Shown when no messages exist in current chat
@@ -1245,8 +1486,8 @@ export default function Home() {
               
               {/* Subtitle */}
               <h2 className="text-2xl md:text-3xl font-display font-light text-muted-foreground mb-12 text-center" data-testid="text-welcome-subtitle">
-                What can this curious cat help you with?
-              </h2>
+                 {chatProvider === "copilot" ? "What should Copilot tackle from Meowstik?" : "What can this curious cat help you with?"}
+               </h2>
 
               {/* 
                * Cat-Themed Quick Start Carousel
@@ -1286,7 +1527,7 @@ export default function Home() {
             // =================================================================
             <div className="flex flex-col gap-2 py-6 min-h-full">
               {/* Load More Button - Shows when there are older messages */}
-              {hasMoreMessages && (
+              {chatProvider === "meowstik" && hasMoreMessages && (
                 <div className="flex justify-center py-4">
                   <button
                     onClick={loadMoreMessages}
@@ -1300,13 +1541,13 @@ export default function Home() {
               )}
               
               {/* Render each message using ChatMessage component */}
-              {messages.map((msg, index) => {
+              {activeMessages.map((msg, index) => {
                 // For AI messages, find the previous user message as promptSnapshot
                 let promptSnapshot: string | undefined;
                 if (msg.role === 'ai' && index > 0) {
                   for (let i = index - 1; i >= 0; i--) {
-                    if (messages[i].role === 'user') {
-                      promptSnapshot = messages[i].content;
+                    if (activeMessages[i].role === 'user') {
+                      promptSnapshot = activeMessages[i].content;
                       break;
                     }
                   }
@@ -1318,7 +1559,7 @@ export default function Home() {
                   <div key={msg.id} ref={isLastMessage ? lastMessageRef : undefined}>
                     <ChatMessage 
                       id={msg.id}
-                      chatId={currentChatId || undefined}
+                      chatId={activeConversationId || undefined}
                       role={msg.role as "user" | "ai"} 
                       content={msg.content} 
                       metadata={(msg as any).metadata}
@@ -1347,9 +1588,23 @@ export default function Home() {
                 <ChatInputArea 
                   onSend={handleSendMessage} 
                   isLoading={isLoading}
-                  promptHistory={messages.filter(m => m.role === 'user').map(m => m.content)}
+                  promptHistory={activeMessages.filter(m => m.role === 'user').map(m => m.content)}
                   onStop={handleStopGeneration}
+                  placeholder={chatProvider === "copilot" ? "Ask GitHub Copilot anything..." : "Ask Meowstik anything..."}
+                  attachmentsEnabled={chatProvider === "meowstik"}
+                  onOpenLiveMode={chatProvider === "meowstik" ? () => setIsLiveModeOpen(true) : undefined}
+                  liveModeActive={isLiveModeOpen}
                 />
+
+                {chatProvider === "meowstik" && isLiveModeOpen ? (
+                  <div className="mt-4">
+                    <LiveModeDialog
+                      open={isLiveModeOpen}
+                      onOpenChange={setIsLiveModeOpen}
+                      variant="embedded"
+                    />
+                  </div>
+                ) : null}
               </div>
             </div>
           </ResizablePanel>
@@ -1369,13 +1624,22 @@ export default function Home() {
         </ResizablePanelGroup>
       </div>
 
-      {/* Continue / Interrupt dialog — shown when agentic loop hits the turn limit */}
+      {/* Continue / Interrupt dialog — shown when agentic loop pauses */}
       <Dialog open={!!agenticPaused} onOpenChange={(open) => { if (!open) { setAgenticPaused(null); setIsLoading(false); } }}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
             <DialogTitle>⏸️ Tool Loop Paused</DialogTitle>
             <DialogDescription>
-              The AI used <strong>{agenticPaused?.turns}</strong> tool turns — the configured limit. Should it keep going or stop here?
+              <div className="space-y-2">
+                {agenticPaused?.message ? <p>{agenticPaused.message}</p> : null}
+                {agenticPaused?.resumeAfterSeconds ? (
+                  <p>
+                    Waking up in <strong>{pauseCountdownSeconds ?? agenticPaused.resumeAfterSeconds}</strong> seconds unless you reply sooner.
+                  </p>
+                ) : (
+                  <p>Waiting for human input to continue.</p>
+                )}
+              </div>
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2 sm:gap-0">

@@ -7,9 +7,9 @@
  * Single-user auth with family member catch-phrase recognition.
  * Per v2 philosophy (01-core-philosophy.md):
  * 
- * - Creator: Jason (implicit, always authed)
- * - Family (6): Catch phrase recognition for personalization
- * - Everyone else: No access (self-enforcing via OAuth)
+ * - Auth remains separate from this service
+ * - Family catch phrases only influence personalization
+ * - Sessions should start neutral until someone is recognized
  * 
  * Family members can say their secret phrase to be recognized by name.
  * This provides personalization without elevated privileges.
@@ -68,10 +68,10 @@ const FAMILY_MEMBERS: FamilyMember[] = [
 ];
 
 /**
- * Current recognized family member for the session
- * Default to Jason (creator) - per v2 philosophy: "implicit, always authed"
+ * Current recognized family member for the session.
+ * Start neutral so guest sessions do not inherit Jason-specific tone by default.
  */
-let currentFamilyMember: FamilyMember | null = FAMILY_MEMBERS[0]; // Jason is always the default
+let currentFamilyMember: FamilyMember | null = null;
 
 /**
  * Check if a message contains a family member's catch phrase
@@ -102,11 +102,10 @@ export function getCurrentFamilyMember(): FamilyMember | null {
 }
 
 /**
- * Reset family member to default (Jason)
- * Per v2 philosophy: Jason is always the implicit default
+ * Reset the recognized family member back to neutral.
  */
 export function resetFamilyMember(): void {
-  currentFamilyMember = FAMILY_MEMBERS[0]; // Reset to Jason
+  currentFamilyMember = null;
 }
 
 /**
@@ -164,5 +163,4 @@ export default {
   getAllFamilyMembers,
   addCatchPhrase,
 };
-
 

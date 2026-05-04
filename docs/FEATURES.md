@@ -277,7 +277,9 @@ Real-time voice conversation using Gemini's Live API:
 - Microphone input with silence detection
 - Streaming bidirectional audio
 - Low-latency responses
-- Available at `/live` route
+- Opened from the main chat composer instead of a dedicated `/live` page
+- Renders inline on the main chat page so voice and text stay in one workspace
+- Voice and barge-in tuning still come from Settings
 - Unmount-only disconnect cleanup so clicking **Connect** no longer immediately tears the session down on ordinary re-renders
 
 ---

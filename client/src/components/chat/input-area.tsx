@@ -59,7 +59,7 @@ import { Button } from "@/components/ui/button";
  * - X: Remove attachment button
  * - Folder: Directory picker button
  */
-import { Mic, MicOff, Send, Paperclip, Monitor, X, Camera, Folder } from "lucide-react";
+import { Mic, MicOff, Radio, Send, Paperclip, Monitor, X, Camera, Folder } from "lucide-react";
 
 /**
  * Voice hook for speech-to-text functionality
@@ -183,6 +183,10 @@ interface InputAreaProps {
   isLoading: boolean;
   promptHistory?: string[];
   onStop?: () => void;
+  placeholder?: string;
+  attachmentsEnabled?: boolean;
+  onOpenLiveMode?: () => void;
+  liveModeActive?: boolean;
 }
 
 // ============================================================================
@@ -215,7 +219,16 @@ interface InputAreaProps {
  *   isLoading={isWaitingForAI}
  * />
  */
-export function ChatInputArea({ onSend, isLoading, promptHistory = [], onStop }: InputAreaProps) {
+export function ChatInputArea({
+  onSend,
+  isLoading,
+  promptHistory = [],
+  onStop,
+  placeholder = "Ask Meowstik anything...",
+  attachmentsEnabled = true,
+  onOpenLiveMode,
+  liveModeActive = false,
+}: InputAreaProps) {
   // ===========================================================================
   // STATE & REFS
   // ===========================================================================
@@ -385,10 +398,10 @@ export function ChatInputArea({ onSend, isLoading, promptHistory = [], onStop }:
     const hasContent = input.trim() || attachments.length > 0;
     if (hasContent && !isLoading) {
       stopVoiceInput(true);
-      const finalAttachments = [...attachments];
+      const finalAttachments = attachmentsEnabled ? [...attachments] : [];
       
       // If auto-screenshot mode is on, capture screenshot
-      if (autoScreenshotMode) {
+      if (attachmentsEnabled && autoScreenshotMode) {
         try {
           const stream = await navigator.mediaDevices.getDisplayMedia({
             video: { displaySurface: "monitor" } as MediaTrackConstraints
@@ -436,7 +449,7 @@ export function ChatInputArea({ onSend, isLoading, promptHistory = [], onStop }:
    * Captures a screenshot and sends it with the current message
    */
   const handleScreenshotSend = async () => {
-    if (isLoading) return;
+    if (isLoading || !attachmentsEnabled) return;
     stopVoiceInput(true);
     
     try {
@@ -812,7 +825,7 @@ export function ChatInputArea({ onSend, isLoading, promptHistory = [], onStop }:
       />
 
       <AnimatePresence>
-        {attachments.length > 0 && (
+        {attachmentsEnabled && attachments.length > 0 && (
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
@@ -886,7 +899,7 @@ export function ChatInputArea({ onSend, isLoading, promptHistory = [], onStop }:
               }
             }}
             onKeyDown={handleKeyDown}
-            placeholder={ghostText !== null ? "" : "Ask Meowstik anything..."}
+            placeholder={ghostText !== null ? "" : placeholder}
             className="w-full px-6 py-4 bg-transparent border-none focus:ring-0 resize-none text-base min-h-[56px] max-h-[400px] scrollbar-thin overflow-y-auto relative z-10 outline-none"
             rows={1}
             disabled={isLoading}
@@ -896,27 +909,31 @@ export function ChatInputArea({ onSend, isLoading, promptHistory = [], onStop }:
           {/* Action Bar (inside the pill) */}
           <div className="flex items-center justify-between px-3 pb-3 relative z-20">
             <div className="flex items-center gap-1">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={isFileSystemAccessSupported() ? handleEnhancedFilePicker : () => fileInputRef.current?.click()}
-                className="h-10 w-10 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
-                data-testid="button-file-attach"
-                title="Attach files"
-              >
-                <Paperclip className="h-5 w-5" />
-              </Button>
-              
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                onClick={handleDirectoryPicker}
-                className="h-10 w-10 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
-                data-testid="button-folder-attach"
-                title="Attach entire folder"
-              >
-                <Folder className="h-5 w-5" />
-              </Button>
+              {attachmentsEnabled && (
+                <>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={isFileSystemAccessSupported() ? handleEnhancedFilePicker : () => fileInputRef.current?.click()}
+                    className="h-10 w-10 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+                    data-testid="button-file-attach"
+                    title="Attach files"
+                  >
+                    <Paperclip className="h-5 w-5" />
+                  </Button>
+                  
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    onClick={handleDirectoryPicker}
+                    className="h-10 w-10 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+                    data-testid="button-folder-attach"
+                    title="Attach entire folder"
+                  >
+                    <Folder className="h-5 w-5" />
+                  </Button>
+                </>
+              )}
 
               <Button
                 variant={isListening ? "secondary" : "ghost"}
@@ -935,34 +952,38 @@ export function ChatInputArea({ onSend, isLoading, promptHistory = [], onStop }:
                 {isListening ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
               </Button>
 
-              <Button
-                variant={autoScreenshotMode ? "secondary" : "ghost"}
-                size="icon"
-                onClick={() => setAutoScreenshotMode(!autoScreenshotMode)}
-                className={cn(
-                  "h-10 w-10 rounded-full transition-all duration-300",
-                  autoScreenshotMode 
-                    ? "text-amber-500 bg-amber-500/10 hover:bg-amber-500/20 ring-1 ring-amber-500/20" 
-                    : "text-muted-foreground hover:text-primary hover:bg-primary/10"
-                )}
-                title={autoScreenshotMode ? "Auto-screenshot: ON" : "Auto-screenshot: OFF"}
-              >
-                <Monitor className="h-5 w-5" />
-              </Button>
+              {attachmentsEnabled && (
+                <Button
+                  variant={autoScreenshotMode ? "secondary" : "ghost"}
+                  size="icon"
+                  onClick={() => setAutoScreenshotMode(!autoScreenshotMode)}
+                  className={cn(
+                    "h-10 w-10 rounded-full transition-all duration-300",
+                    autoScreenshotMode 
+                      ? "text-amber-500 bg-amber-500/10 hover:bg-amber-500/20 ring-1 ring-amber-500/20" 
+                      : "text-muted-foreground hover:text-primary hover:bg-primary/10"
+                  )}
+                  title={autoScreenshotMode ? "Auto-screenshot: ON" : "Auto-screenshot: OFF"}
+                >
+                  <Monitor className="h-5 w-5" />
+                </Button>
+              )}
             </div>
 
             <div className="flex items-center gap-2">
-              <Button 
-                onClick={handleScreenshotSend}
-                disabled={isLoading}
-                variant="ghost"
-                size="icon"
-                className="h-10 w-10 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
-                data-testid="button-screenshot-send"
-                title="Capture screenshot and send"
-              >
-                <Camera className="h-5 w-5" />
-              </Button>
+              {attachmentsEnabled && (
+                <Button 
+                  onClick={handleScreenshotSend}
+                  disabled={isLoading}
+                  variant="ghost"
+                  size="icon"
+                  className="h-10 w-10 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+                  data-testid="button-screenshot-send"
+                  title="Capture screenshot and send"
+                >
+                  <Camera className="h-5 w-5" />
+                </Button>
+              )}
 
               {isLoading && onStop ? (
                 <Button
@@ -974,20 +995,40 @@ export function ChatInputArea({ onSend, isLoading, promptHistory = [], onStop }:
                   <X className="h-5 w-5" />
                 </Button>
               ) : (
-                <Button
-                  onClick={handleSend}
-                  disabled={(!input.trim() && attachments.length === 0) || isLoading}
-                  size="icon"
-                  className={cn(
-                    "h-10 w-10 rounded-full transition-all duration-300",
-                    input.trim() || attachments.length > 0
-                      ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20 scale-100"
-                      : "bg-muted text-muted-foreground scale-95 opacity-50"
-                  )}
-                  data-testid="button-send"
-                >
-                  <Send className="h-5 w-5 ml-0.5" />
-                </Button>
+                <>
+                  {onOpenLiveMode ? (
+                    <Button
+                      onClick={onOpenLiveMode}
+                      variant={liveModeActive ? "secondary" : "ghost"}
+                      size="icon"
+                      className={cn(
+                        "h-10 w-10 rounded-full transition-all duration-300",
+                        liveModeActive
+                          ? "text-primary bg-primary/10 ring-1 ring-primary/20"
+                          : "text-muted-foreground hover:text-primary hover:bg-primary/10",
+                      )}
+                      data-testid="button-open-live-mode"
+                      title="Open Live Mode"
+                    >
+                      <Radio className="h-5 w-5" />
+                    </Button>
+                  ) : null}
+
+                  <Button
+                    onClick={handleSend}
+                    disabled={(!input.trim() && (attachmentsEnabled ? attachments.length === 0 : true)) || isLoading}
+                    size="icon"
+                    className={cn(
+                      "h-10 w-10 rounded-full transition-all duration-300",
+                      input.trim() || (attachmentsEnabled && attachments.length > 0)
+                        ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20 scale-100"
+                        : "bg-muted text-muted-foreground scale-95 opacity-50"
+                    )}
+                    data-testid="button-send"
+                  >
+                    <Send className="h-5 w-5 ml-0.5" />
+                  </Button>
+                </>
               )}
             </div>
           </div>
@@ -1003,4 +1044,3 @@ export function ChatInputArea({ onSend, isLoading, promptHistory = [], onStop }:
     </div>
   );
 }
-

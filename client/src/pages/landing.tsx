@@ -21,9 +21,9 @@ const features = [
   },
   {
     title: "Live Voice",
-    description: "Real-time voice conversations with HD audio output",
+    description: "Real-time voice conversations from the main chat composer",
     icon: Mic,
-    href: "/live",
+    href: "/",
     color: "from-purple-500/10 to-purple-600/5"
   },
   {
@@ -324,5 +324,4 @@ export default function LandingPage() {
     </div>
   );
 }
-
 

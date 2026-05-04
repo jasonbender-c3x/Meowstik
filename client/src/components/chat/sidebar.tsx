@@ -791,23 +791,6 @@ export function Sidebar({ isOpen, setIsOpen, onNewChat, chats, currentChatId, on
                   </Button>
                 </Link>
 
-                {/* Live Voice Button */}
-                <Link href="/live">
-                  <Button 
-                    variant="ghost" 
-                    className={cn(
-                      "font-normal text-muted-foreground hover:text-foreground",
-                      effectiveCollapsed ? "w-12 h-9 p-0 justify-center" : "w-full justify-start gap-3",
-                      location === "/live" && "bg-secondary/50 text-foreground"
-                    )}
-                    title={effectiveCollapsed ? "Live Voice" : undefined}
-                    data-testid="button-live"
-                  >
-                    <Mic className="h-4 w-4" />
-                    {!effectiveCollapsed && "Live Voice"}
-                  </Button>
-                </Link>
-
                 {/* Install & Agent Button */}
                 <Link href="/install">
                   <Button 
@@ -1003,4 +986,3 @@ export function Sidebar({ isOpen, setIsOpen, onNewChat, chats, currentChatId, on
     </>
   );
 }
-

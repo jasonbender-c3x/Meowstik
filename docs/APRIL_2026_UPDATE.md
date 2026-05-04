@@ -25,6 +25,7 @@ This document summarizes the Meowstik changes shipped during April 2026, includi
   - relies on the main chat input as the primary prompt surface
 - Removed **voice-related destructive toast popups** in the main chat input and replaced them with inline error text
 - Fixed the **Live API connect flow** so cleanup only disconnects on unmount instead of normal callback churn / re-renders
+- Folded **Live Mode** into the main chat page so the composer opens an inline live panel instead of sending users to a separate live route
 - Corrected prompt documentation to match the current `PromptComposer` assembly path and removed unused prompt files from `prompts/`
 
 ### 2026-04-19
