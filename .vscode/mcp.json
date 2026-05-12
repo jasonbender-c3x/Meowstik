@@ -167,6 +167,35 @@
       "command": "/home/runner/.local/share/pnpm/mcp-server-puppeteer",
       "args": [],
       "type": "stdio"
+    },
+    "google-workspace-mcp-local": {
+      "command": "uvx",
+      "args": [
+        "workspace-mcp",
+        "--tool-tier",
+        "complete"
+      ],
+      "env": {
+        "GOOGLE_OAUTH_CLIENT_ID": "${GOOGLE_OAUTH_CLIENT_ID}",
+        "GOOGLE_OAUTH_CLIENT_SECRET": "${GOOGLE_OAUTH_CLIENT_SECRET}",
+        "OAUTHLIB_INSECURE_TRANSPORT": "1"
+      },
+      "type": "stdio"
+    },
+    "google-workspace-mcp-remote": {
+      "url": "http://localhost:8000/mcp",
+      "headers": {
+        "Authorization": "Bearer ${WORKSPACE_MCP_BEARER_TOKEN}"
+      },
+      "type": "streamable-http"
+    },
+    "claude-code-explorer": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "claude-code-explorer-mcp"
+      ],
+      "type": "stdio"
     }
   }
 }
