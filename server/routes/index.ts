@@ -37,10 +37,12 @@ import brandingRouter from "./branding";
 import userAgentsRouter from "./user-agents";
 import hardwareRouter from "./hardware";
 import todoRouter from "./todo";
+import projectsRouter from "./projects";
 import chatRouter from "./chat";
 import debugRouter from "./debug";
 import analysisRouter from "./analysis";
 import mcpRouter from "./mcp";
+import copilotRouter from "./copilot";
 import externalSkillsRouter from "./external-skills";
 import { errorHandler } from "./middleware";
 
@@ -95,7 +97,9 @@ export function createApiRouter(): Router {
   router.use("/user-agents", userAgentsRouter);
   router.use("/hardware", hardwareRouter);
   router.use("/todos", todoRouter);
+  router.use("/projects", projectsRouter);
   router.use("/mcp", mcpRouter);
+  router.use("/copilot", copilotRouter);
   router.use("/external-skills", externalSkillsRouter);
 
   router.use(errorHandler);
@@ -104,4 +108,3 @@ export function createApiRouter(): Router {
 }
 
 export { errorHandler };
-

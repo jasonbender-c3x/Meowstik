@@ -25,7 +25,7 @@ interface VADResult {
   /** Current audio volume level (0-1) */
   volume: number;
   /** Start voice activity detection */
-  start: () => Promise<void>;
+  start: (input?: VADStartInput) => Promise<void>;
   /** Stop voice activity detection */
   stop: () => void;
   /** Update VAD configuration */
@@ -39,19 +39,61 @@ const DEFAULT_CONFIG: VADConfig = {
   sampleRate: 16000,      // 16kHz audio
 };
 
+type OnVolumeChangeArg = ((volume: number) => void) | Partial<VADConfig> | undefined;
+type VADStartInput =
+  | MediaStream
+  | {
+      stream?: MediaStream;
+      sourceNode?: MediaStreamAudioSourceNode;
+      audioContext?: AudioContext;
+    }
+  | undefined;
+
+function isVADConfig(value: OnVolumeChangeArg): value is Partial<VADConfig> {
+  return typeof value === "object" && value !== null;
+}
+
+export function normalizeVoiceActivityDetectionArgs(
+  onVolumeChange: OnVolumeChangeArg,
+  initialConfig: Partial<VADConfig> = {},
+) {
+  if (typeof onVolumeChange === "function") {
+    return {
+      onVolumeChange,
+      initialConfig,
+    };
+  }
+
+  return {
+    onVolumeChange: undefined,
+    initialConfig: isVADConfig(onVolumeChange) ? { ...initialConfig, ...onVolumeChange } : initialConfig,
+  };
+}
+
+function normalizeVADStartInput(input: VADStartInput) {
+  if (input instanceof MediaStream) {
+    return { stream: input };
+  }
+
+  return input ?? {};
+}
+
 export function useVoiceActivityDetection(
   onSpeechStart?: () => void,
   onSpeechEnd?: () => void,
-  onVolumeChange?: (volume: number) => void,
+  onVolumeChange?: OnVolumeChangeArg,
   initialConfig: Partial<VADConfig> = {}
 ): VADResult {
+  const normalizedArgs = normalizeVoiceActivityDetectionArgs(onVolumeChange, initialConfig);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [volume, setVolume] = useState(0);
-  const [config, setConfig] = useState<VADConfig>({ ...DEFAULT_CONFIG, ...initialConfig });
+  const [config, setConfig] = useState<VADConfig>({ ...DEFAULT_CONFIG, ...normalizedArgs.initialConfig });
 
   const audioContextRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const ownsStreamRef = useRef(false);
+  const ownsAudioContextRef = useRef(false);
   const animationFrameRef = useRef<number | null>(null);
   const silenceTimerRef = useRef<NodeJS.Timeout | null>(null);
   const speechTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -83,7 +125,7 @@ export function useVoiceActivityDetection(
       const rms = Math.sqrt(sum / bufferLength);
       
       setVolume(rms);
-      onVolumeChange?.(rms);
+      normalizedArgs.onVolumeChange?.(rms);
 
       // Check if volume exceeds threshold
       const isLoudEnough = rms > config.threshold;
@@ -126,24 +168,31 @@ export function useVoiceActivityDetection(
     };
 
     checkVolume();
-  }, [config, onSpeechStart, onSpeechEnd, onVolumeChange]);
+  }, [config, normalizedArgs.onVolumeChange, onSpeechStart, onSpeechEnd]);
 
-  const start = useCallback(async () => {
+  const start = useCallback(async (input?: VADStartInput) => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: {
-          channelCount: 1,
-          sampleRate: config.sampleRate,
-          echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: true,
-        },
-      });
+      const { stream, sourceNode, audioContext } = normalizeVADStartInput(input);
+      const activeStream =
+        stream ??
+        (await navigator.mediaDevices.getUserMedia({
+          audio: {
+            channelCount: 1,
+            sampleRate: config.sampleRate,
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true,
+          },
+        }));
 
-      streamRef.current = stream;
-      audioContextRef.current = new AudioContext({ sampleRate: config.sampleRate });
-      
-      const source = audioContextRef.current.createMediaStreamSource(stream);
+      streamRef.current = activeStream;
+      ownsStreamRef.current = !stream;
+      audioContextRef.current =
+        audioContext ?? new AudioContext({ sampleRate: config.sampleRate });
+      ownsAudioContextRef.current = !audioContext;
+
+      const source =
+        sourceNode ?? audioContextRef.current.createMediaStreamSource(activeStream);
       const analyser = audioContextRef.current.createAnalyser();
       
       analyser.fftSize = 2048;
@@ -176,14 +225,20 @@ export function useVoiceActivityDetection(
     }
 
     if (streamRef.current) {
-      streamRef.current.getTracks().forEach(track => track.stop());
+      if (ownsStreamRef.current) {
+        streamRef.current.getTracks().forEach(track => track.stop());
+      }
       streamRef.current = null;
     }
+    ownsStreamRef.current = false;
 
     if (audioContextRef.current) {
-      audioContextRef.current.close();
+      if (ownsAudioContextRef.current) {
+        audioContextRef.current.close();
+      }
       audioContextRef.current = null;
     }
+    ownsAudioContextRef.current = false;
 
     analyserRef.current = null;
     isSpeakingRef.current = false;
@@ -206,6 +261,3 @@ export function useVoiceActivityDetection(
     updateConfig,
   };
 }
-
-
-

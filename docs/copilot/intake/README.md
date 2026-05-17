@@ -1,9 +1,7 @@
-# Copilot Intake Reports
+# Copilot Intake Artifacts
 
-Files in this folder are generated automatically when the `copilot_send_report` tool is invoked. Each report includes:
+This folder is reserved for Copilot-facing artifacts when a workflow chooses to persist them.
 
-- The human-readable summary and details of what the LLM wants Copilot to do.
-- A list of referenced files and the priority of the request.
-- The exact prompt that was sent to the Copilot CLI.
+The old auto-generated `copilot_send_report` intake flow has been retired. Current Copilot integration work is centered on persistent SDK sessions managed by `server/services/copilot-service.ts`.
 
-These reports serve as the canonical instructions for GitHub Copilot. After the LLM writes one, run `copilot chat` or `gh copilot` in the terminal so you can see Copilot read the file and start implementing the changes. You can re-run Copilot later by pointing it at the same workspace and pointing the agent to the desired intake file.
+If a future route or workflow stores Copilot prompts, transcripts, or summaries on disk, this directory is the intended home for those artifacts.

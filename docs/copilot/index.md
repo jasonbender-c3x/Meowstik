@@ -132,17 +132,16 @@ These exist before any of your changes — don't flag them as bugs introduced by
 
 ## Copilot SDK Bridge
 
-The `copilot_send_report` tool lets the Meowstik LLM hand off implementation tasks to Copilot without the LLM editing the repo directly.
+Meowstik now uses the Copilot SDK as a **session backend**, not as a one-shot report dropbox.
 
-**How it works:**
-1. LLM calls `copilot_send_report` with a structured report
-2. Report is written to `docs/copilot/intake/{timestamp}-report.md`
-3. The report is routed to Copilot CLI for implementation
+**Current backend shape:**
+1. `server/services/copilot-service.ts` starts and owns the SDK client
+2. it can create or resume long-lived Copilot sessions
+3. it can queue messages, wait for responses, inspect session history, and disconnect sessions
 
-**After a report lands:**
-- Open this repo in a terminal where Copilot CLI is running
-- The report file in `docs/copilot/intake/` contains the full prompt
-- Reference the file or paste the contents into your Copilot session
+**Why this changed:**
+- the earlier `copilot_send_report` handoff was only partially wired and was not part of the live tool surface
+- the useful replacement is persistent session management that can back routes and the main Meowstik chat UI
 
 **Copilot env vars (optional):**
 ```env
@@ -151,6 +150,10 @@ COPILOT_CLI_URL=...
 COPILOT_GITHUB_TOKEN=...
 COPILOT_LOG_LEVEL=info
 ```
+
+**Next step for product wiring:**
+- expose the session service through routes/SSE
+- host Copilot as a selectable provider in the main chat UI
 
 ---
 

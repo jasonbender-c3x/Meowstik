@@ -50,26 +50,18 @@
       "type": "stdio"
     },
     "github": {
-      "command": "/home/runner/.local/share/pnpm/mcp-server-github",
-      "args": [],
-      "env": {
-        "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_PERSONAL_ACCESS_TOKEN}"
-      },
-      "type": "stdio"
-    },
-    "brave-search": {
-      "command": "/home/runner/.local/share/pnpm/mcp-server-brave-search",
-      "args": [],
-      "env": {
-        "BRAVE_SEARCH_API_KEY": "${BRAVE_SEARCH_API_KEY}"
-      },
+      "command": "/bin/bash",
+      "args": [
+        "/home/runner/.config/mcp/start-github.sh"
+      ],
       "type": "stdio"
     },
     "google-drive": {
       "command": "/bin/bash",
       "args": [
         "/home/runner/.config/mcp/start-gdrive.sh"
-      ]
+      ],
+      "type": "stdio"
     },
     "gmail": {
       "command": "/home/runner/.local/share/pnpm/gmail-mcp-server",
@@ -81,13 +73,15 @@
       ],
       "env": {
         "GOOGLE_APPLICATION_CREDENTIALS": "/home/runner/meowstik-key.json"
-      }
+      },
+      "type": "stdio"
     },
     "google-sheets": {
       "command": "/bin/bash",
       "args": [
         "/home/runner/.config/mcp/start-sheets.sh"
-      ]
+      ],
+      "type": "stdio"
     },
     "google-search": {
       "command": "/bin/bash",
@@ -113,14 +107,10 @@
       "type": "stdio"
     },
     "cloudflare": {
-      "command": "/home/runner/.local/share/pnpm/mcp-server-cloudflare",
+      "command": "/bin/bash",
       "args": [
-        "run",
-        "${CLOUDFLARE_ACCOUNT_ID}"
+        "/home/runner/.config/mcp/start-cloudflare.sh"
       ],
-      "env": {
-        "CLOUDFLARE_API_TOKEN": "${CLOUDFLARE_API_TOKEN}"
-      },
       "type": "stdio"
     },
     "computer-use": {
@@ -131,24 +121,6 @@
       },
       "type": "stdio"
     },
-    "upstash": {
-      "command": "node",
-      "args": [
-        "/home/runner/.local/share/pnpm/global/5/.pnpm/@upstash+mcp-server@0.2.3/node_modules/@upstash/mcp-server/dist/index.js"
-      ],
-      "env": {
-        "UPSTASH_REDIS_REST_URL": "${UPSTASH_REDIS_REST_URL}",
-        "UPSTASH_REDIS_REST_TOKEN": "${UPSTASH_REDIS_REST_TOKEN}"
-      },
-      "type": "stdio"
-    },
-    "redis": {
-      "command": "/home/runner/.local/share/pnpm/mcp-server-redis",
-      "args": [
-        "${REDIS_URL}"
-      ],
-      "type": "stdio"
-    },
     "obsidian": {
       "command": "/home/runner/.local/share/pnpm/mcp-obsidian",
       "args": [
@@ -157,9 +129,11 @@
       "type": "stdio"
     },
     "postgres": {
-      "command": "/home/runner/.local/share/pnpm/mcp-server-postgres",
+      "command": "/bin/bash",
       "args": [
-        "${DATABASE_URL}"
+        "/home/runner/workspace/Meowstik/scripts/run-mcp-with-env.sh",
+        "/home/runner/.local/share/pnpm/mcp-server-postgres",
+        "@ENV:DATABASE_URL"
       ],
       "type": "stdio"
     },
@@ -169,25 +143,11 @@
       "type": "stdio"
     },
     "google-workspace-mcp-local": {
-      "command": "uvx",
+      "command": "/bin/bash",
       "args": [
-        "workspace-mcp",
-        "--tool-tier",
-        "complete"
+        "/home/runner/.config/mcp/start-google-workspace.sh"
       ],
-      "env": {
-        "GOOGLE_OAUTH_CLIENT_ID": "${GOOGLE_OAUTH_CLIENT_ID}",
-        "GOOGLE_OAUTH_CLIENT_SECRET": "${GOOGLE_OAUTH_CLIENT_SECRET}",
-        "OAUTHLIB_INSECURE_TRANSPORT": "1"
-      },
       "type": "stdio"
-    },
-    "google-workspace-mcp-remote": {
-      "url": "http://localhost:8000/mcp",
-      "headers": {
-        "Authorization": "Bearer ${WORKSPACE_MCP_BEARER_TOKEN}"
-      },
-      "type": "streamable-http"
     },
     "claude-code-explorer": {
       "command": "npx",

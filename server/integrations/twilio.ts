@@ -17,6 +17,18 @@ const twilioPhoneNumber = process.env.TWILIO_PHONE_NUMBER;
 
 let client: twilio.Twilio | null = null;
 
+function buildCallbackUrls(twimlUrl: string): { statusCallback?: string; recordingStatusCallback?: string } {
+  try {
+    const url = new URL(twimlUrl);
+    return {
+      statusCallback: `${url.origin}/api/twilio/status`,
+      recordingStatusCallback: `${url.origin}/api/twilio/recording`,
+    };
+  } catch {
+    return {};
+  }
+}
+
 function getClient(): twilio.Twilio {
   if (!accountSid || !authToken) {
     throw new Error("Twilio credentials not configured. Please set TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN.");
@@ -159,11 +171,15 @@ export async function makeCall(to: string, twimlUrl: string): Promise<{
     throw new Error("TWILIO_PHONE_NUMBER not configured");
   }
 
+  const callbacks = buildCallbackUrls(twimlUrl);
   const call = await getClient().calls.create({
     url: twimlUrl,
     from: twilioPhoneNumber,
     to,
     record: true,
+    statusCallback: callbacks.statusCallback,
+    statusCallbackEvent: ["initiated", "ringing", "answered", "completed"],
+    recordingStatusCallback: callbacks.recordingStatusCallback,
   });
 
   return {
@@ -347,6 +363,5 @@ export default {
   callWithGreetingToConference,
   redirectCall,
 };
-
 
 

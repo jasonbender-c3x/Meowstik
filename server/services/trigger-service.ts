@@ -127,6 +127,28 @@ class TriggerService {
     
     return true;
   }
+
+  /**
+   * Check if an inbound SMS matches a trigger's patterns
+   */
+  private matchesSmsTrigger(
+    sms: { from?: string; body?: string; senderName?: string | null; summary?: string | null },
+    trigger: Trigger,
+  ): boolean {
+    if (trigger.senderFilter) {
+      const senderRegex = new RegExp(trigger.senderFilter, "i");
+      const senderHaystack = [sms.from, sms.senderName].filter(Boolean).join(" ");
+      if (!senderRegex.test(senderHaystack)) return false;
+    }
+
+    if (trigger.pattern) {
+      const contentRegex = new RegExp(trigger.pattern, "i");
+      const content = `${sms.body || ""} ${sms.summary || ""}`;
+      if (!contentRegex.test(content)) return false;
+    }
+
+    return true;
+  }
   
   /**
    * Check if a user prompt matches any keyword triggers
@@ -149,6 +171,49 @@ class TriggerService {
       }
     }
     
+    return matchedTriggers;
+  }
+
+  /**
+   * Handle inbound SMS triggers fired by the Twilio webhook
+   */
+  async handleSmsTriggers(message: {
+    messageSid?: string;
+    from?: string;
+    to?: string;
+    body?: string;
+    senderName?: string | null;
+    summary?: string | null;
+    ownerUpdate?: string | null;
+    messageForJason?: string | null;
+    followUpQuestion?: string | null;
+    mediaUrls?: string[];
+    isFromOwner?: boolean;
+  }): Promise<Trigger[]> {
+    const smsTriggers = await storage.getTriggersByType(TriggerTypes.SMS);
+    const matchedTriggers: Trigger[] = [];
+
+    for (const trigger of smsTriggers) {
+      if (this.matchesSmsTrigger(message, trigger)) {
+        matchedTriggers.push(trigger);
+        await this.fireTrigger(trigger, {
+          source: "sms",
+          messageSid: message.messageSid,
+          from: message.from,
+          to: message.to,
+          body: message.body,
+          senderName: message.senderName,
+          summary: message.summary,
+          ownerUpdate: message.ownerUpdate,
+          messageForJason: message.messageForJason,
+          followUpQuestion: message.followUpQuestion,
+          mediaUrls: message.mediaUrls ?? [],
+          isFromOwner: Boolean(message.isFromOwner),
+          matchedPattern: trigger.pattern ?? null,
+        });
+      }
+    }
+
     return matchedTriggers;
   }
   
@@ -270,6 +335,5 @@ class TriggerService {
 
 // Export singleton
 export const triggerService = new TriggerService();
-
 
 

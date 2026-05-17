@@ -22,7 +22,7 @@ export const guestToolDeclarations: FunctionDeclaration[] = [
   // ═══════════════════════════════════════════════════════════════════════════
   {
     name: "send_chat",
-    description: "Send content to the chat window. NON-TERMINATING - does not end your turn. You can call this multiple times to provide incremental updates. Must explicitly call end_turn to finish.",
+    description: "Send content to the chat window. NON-TERMINATING - does not end your turn. You can call this multiple times to provide incremental updates. Use this for visible assistant text, and do not repeat the same content again in a final plain-text reply.",
     parametersJsonSchema: {
       type: "object",
       properties: {
@@ -35,16 +35,8 @@ export const guestToolDeclarations: FunctionDeclaration[] = [
     }
   },
   {
-    name: "end_turn",
-    description: "Terminate your turn in the interactive agentic loop and return control to the user. This is the ONLY way to end your turn - call this when you have completed your response.",
-    parametersJsonSchema: {
-      type: "object",
-      properties: {}
-    }
-  },
-  {
     name: "say",
-    description: "Generate HD voice audio output. NON-BLOCKING and NON-TERMINATING - speech generation happens concurrently with other operations. Use alongside or before send_chat. Must call end_turn to finish your turn.",
+    description: "Generate HD voice audio output only. NON-BLOCKING and NON-TERMINATING - speech generation happens concurrently with other operations. Pair this with send_chat if you also want visible text. Do not rely on say to write to chat, and do not repeat the same content again in a final plain-text reply.",
     parametersJsonSchema: {
       type: "object",
       properties: {
@@ -59,6 +51,23 @@ export const guestToolDeclarations: FunctionDeclaration[] = [
         }
       },
       required: ["utterance"]
+    }
+  },
+  {
+    name: "pause",
+    description: "Pause the current chat loop and return control to the human. Use this when you need operator input or want to sleep for a while. Optional durationSeconds requests an automatic resume after that many seconds if the chat UI stays open. Maximum durationSeconds is 3600. Optional message is shown in chat before pausing.",
+    parametersJsonSchema: {
+      type: "object",
+      properties: {
+        durationSeconds: {
+          type: "number",
+          description: "Optional pause duration in seconds before auto-resume. Maximum 3600."
+        },
+        message: {
+          type: "string",
+          description: "Optional chat message to show before pausing"
+        }
+      }
     }
   },
   {
@@ -182,6 +191,3 @@ export function getToolDeclarations(isAuthenticated: boolean): FunctionDeclarati
     return guestToolDeclarations;
   }
 }
-
-
-

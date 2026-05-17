@@ -157,8 +157,13 @@ communicationsRouter.get("/calls", async (req: Request, res: Response) => {
       to: c.toNumber,
       status: c.status,
       duration: c.duration ?? 0,
+      turnCount: c.turnCount ?? 0,
+      summary: c.currentContext ?? null,
+      transcript: c.transcription ?? null,
+      transcriptionStatus: c.transcriptionStatus ?? null,
       recordingUrl: c.recordingUrl ?? null,
       createdAt: c.startedAt ?? c.createdAt,
+      endedAt: c.endedAt ?? null,
     }));
 
     res.json(formatted);
@@ -264,6 +269,5 @@ communicationsRouter.get("/contacts", async (req: Request, res: Response) => {
 });
 
 export default communicationsRouter;
-
 
 

@@ -7,6 +7,7 @@ import {
   Ban,
   CheckCircle2,
   Clock3,
+  FolderKanban,
   ListTodo,
   Loader2,
   Play,
@@ -49,6 +50,22 @@ interface TodoResponse {
   data: TodoItem[];
 }
 
+interface ProjectSummary {
+  slug: string;
+  name: string;
+  status: string;
+  oneLiner: string;
+  summary: string;
+  lastUpdated: string | null;
+  briefCommand: string;
+  localResources: Array<{ label: string; href: string }>;
+}
+
+interface ProjectResponse {
+  success: boolean;
+  data: ProjectSummary[];
+}
+
 const sections: Array<{ status: TodoItem["status"]; title: string; empty: string }> = [
   { status: "in_progress", title: "In progress", empty: "Nothing is actively in focus." },
   { status: "pending", title: "Pending", empty: "No pending items." },
@@ -66,6 +83,7 @@ const statusBadgeClass: Record<TodoItem["status"], string> = {
 
 export default function TodoPage() {
   const [todos, setTodos] = useState<TodoItem[]>([]);
+  const [projects, setProjects] = useState<ProjectSummary[]>([]);
   const [stats, setStats] = useState<TodoStats>({ total: 0, pending: 0, completed: 0 });
   const [isLoading, setIsLoading] = useState(false);
   const [showCompleted, setShowCompleted] = useState(false);
@@ -108,9 +126,19 @@ export default function TodoPage() {
     setStats(data.data);
   }, []);
 
+  const loadProjects = useCallback(async () => {
+    const response = await fetch("/api/projects");
+    if (!response.ok) {
+      throw new Error("Failed to load project brains");
+    }
+
+    const data: ProjectResponse = await response.json();
+    setProjects(data.data || []);
+  }, []);
+
   const loadAll = useCallback(async () => {
-    await Promise.all([loadTodos(), loadStats()]);
-  }, [loadStats, loadTodos]);
+    await Promise.all([loadTodos(), loadStats(), loadProjects()]);
+  }, [loadProjects, loadStats, loadTodos]);
 
   useEffect(() => {
     void loadAll();
@@ -237,7 +265,7 @@ export default function TodoPage() {
               Focus To-Do List
             </h1>
             <p className="text-sm text-muted-foreground">
-              These items are injected into Meowstik&apos;s prompt so it can keep you oriented.
+              These items and active project brains are injected into Meowstik&apos;s prompt so it can keep you oriented.
             </p>
           </div>
           <Button variant="outline" size="sm" asChild>
@@ -276,6 +304,64 @@ export default function TodoPage() {
               </div>
             </div>
           </div>
+        </div>
+
+        <div className="px-4 pb-4">
+          <section className="border border-border rounded-lg bg-muted/20 p-4 space-y-3">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground flex items-center gap-2">
+                  <FolderKanban className="h-4 w-4" />
+                  Active project brains
+                </h2>
+                <p className="text-sm text-muted-foreground">
+                  Canonical project context from <code>projects/</code>, including quick brief commands.
+                </p>
+              </div>
+              <Badge variant="outline">{projects.length}</Badge>
+            </div>
+
+            {projects.length === 0 ? (
+              <div className="border border-dashed rounded-lg p-6 text-sm text-muted-foreground">
+                No project brains are registered yet.
+              </div>
+            ) : (
+              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                {projects.map((project) => (
+                  <div key={project.slug} className="border border-border rounded-lg bg-background/60 p-4 space-y-2">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <h3 className="font-medium">{project.name}</h3>
+                        <p className="text-xs text-muted-foreground">{project.slug}</p>
+                      </div>
+                      <Badge variant="secondary">{project.status}</Badge>
+                    </div>
+
+                    <p className="text-sm text-muted-foreground">
+                      {project.oneLiner || project.summary || "Project brain available."}
+                    </p>
+
+                    {project.lastUpdated && (
+                      <p className="text-xs text-muted-foreground">
+                        Updated {project.lastUpdated}
+                      </p>
+                    )}
+
+                    <div className="text-xs text-muted-foreground">
+                      <div className="font-medium text-foreground/80">Quick brief</div>
+                      <code className="block mt-1 whitespace-pre-wrap">{project.briefCommand}</code>
+                    </div>
+
+                    {project.localResources.length > 0 && (
+                      <div className="flex flex-wrap gap-2">
+                        <Badge variant="outline">{project.localResources.length} local resources</Badge>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
         </div>
 
         <ScrollArea className="flex-1 px-4 pb-4">

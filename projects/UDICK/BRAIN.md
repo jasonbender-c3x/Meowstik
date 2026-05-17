@@ -25,12 +25,15 @@ UDICK is the central orchestration hub for reverse engineering, custom firmware 
 
 ## 📂 Local Resource Links (Desktop Command Center)
 
-These files reside on the local desktop to support ongoing reverse engineering work:
+These files reside in the desktop brain folder so the repo can stay lean while the project still has one discoverable home:
 
-- 🛠️ [Ghidra Reverse Engineering Guide](file:///home/runner/Desktop/tbox-research/docs/GHIDRA_THE_NSA_REVERSE_ENGINEERING_TOOL.md)
-- ☕ [ReverseCustomUtils.java](file:///home/runner/Desktop/tbox-research/decompiled/sources/com/texustek/speedplay/util/ReverseCustomUtils.java)
-- 📂 [Main Reverse Engineering Repo](file:///home/runner/Desktop/tbox-research/repos/wireless-carplay-dongle-reverse-engineering/)
-- 📁 [T-Box Research Root](file:///home/runner/Desktop/tbox-research/)
+- 🧠 [UDICK Brain Folder](file:///home/runner/Desktop/Meowstik_Brain/Projects/UDICK/)
+- 🛠️ [Ghidra Reverse Engineering Guide](file:///home/runner/Desktop/Meowstik_Brain/Projects/UDICK/assets/tbox-research/docs/GHIDRA_THE_NSA_REVERSE_ENGINEERING_TOOL.md)
+- ☕ [ReverseCustomUtils.java](file:///home/runner/Desktop/Meowstik_Brain/Projects/UDICK/assets/tbox-research/decompiled/sources/com/texustek/speedplay/util/ReverseCustomUtils.java)
+- 📂 [Main Reverse Engineering Repo](file:///home/runner/Desktop/Meowstik_Brain/Projects/UDICK/assets/tbox-research/repos/wireless-carplay-dongle-reverse-engineering/)
+- 📁 [T-Box Research Root](file:///home/runner/Desktop/Meowstik_Brain/Projects/UDICK/assets/tbox-research/)
+- 🎬 [T-Box First Contact Video](file:///home/runner/Desktop/Meowstik_Brain/Projects/UDICK/assets/tbox-first-contact-24fps.mp4)
+- 📚 [T-Box Documentary Folder](file:///home/runner/Desktop/Meowstik_Brain/Projects/UDICK/assets/tbox-documentary/)
 
 ---
 

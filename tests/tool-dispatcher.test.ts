@@ -58,9 +58,6 @@ const clientRouterMock = vi.hoisted(() => ({
 vi.mock("../server/services/client-router", () => ({
   clientRouter: clientRouterMock,
 }));
-vi.mock("../server/services/copilot-service", () => ({
-  copilotService: {},
-}));
 vi.mock("../server/services/mcp-service", () => ({
   mcpService: {},
 }));
@@ -210,6 +207,40 @@ describe("ToolDispatcher append logging", () => {
       await expect(fs.access(literalPath)).rejects.toThrow();
     } finally {
       await fs.rm(literalPath, { force: true });
+    }
+  });
+
+  it("infers a text mime type for put calls when mimeType is omitted", async () => {
+    const dispatcher = new ToolDispatcher();
+    const relativePath = path.join("tmp", `tool-dispatcher-${Date.now()}.json`);
+    const absolutePath = path.join(process.cwd(), relativePath);
+
+    try {
+      const result = await dispatcher.executeToolCall(
+        {
+          id: "tool-4b",
+          type: "put" as any,
+          operation: "put",
+          parameters: {
+            path: relativePath,
+            content: '{"ok":true}\n',
+          },
+        } as any,
+        "message-4b",
+        "chat-4b",
+      );
+
+      expect(result.success).toBe(true);
+      expect(result.result).toEqual(
+        expect.objectContaining({
+          destination: "server",
+          path: relativePath,
+          mimeType: "application/json",
+        }),
+      );
+      await expect(fs.readFile(absolutePath, "utf8")).resolves.toBe('{"ok":true}\n');
+    } finally {
+      await fs.rm(absolutePath, { force: true });
     }
   });
 

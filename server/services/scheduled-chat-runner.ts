@@ -103,6 +103,7 @@ async function runAgenticLoop(userPrompt: string, chatId: string, messageId: str
   let accumulatedText = "";
   let iteration = 0;
   let pausedAtLimit = false;
+  let pausedByTool = false;
 
   while (iteration < MAX_LOOP_ITERATIONS) {
     const response = await ai.models.generateContent({
@@ -139,15 +140,21 @@ async function runAgenticLoop(userPrompt: string, chatId: string, messageId: str
     for (const toolCall of toolCalls) {
       console.log(`[ScheduledChat] Tool call: ${toolCall.type} ${JSON.stringify(toolCall.parameters).substring(0, 80)}`);
 
-      if (toolCall.type === "end_turn") {
-        // Model is done
-        history.push({ role: "user", parts: [{ text: "Tool results:\n• end_turn: done" }] });
-        iteration = MAX_LOOP_ITERATIONS; // break outer loop
-        break;
-      }
-
       try {
         const result = await toolDispatcher.executeToolCall(toolCall, messageId, chatId);
+        if (toolCall.type === "pause" && result.success) {
+          const pauseResult = result.result as { message?: string; durationSeconds?: number };
+          if (pauseResult.message) {
+            accumulatedText += (accumulatedText ? "\n\n" : "") + pauseResult.message;
+          }
+          if (pauseResult.durationSeconds) {
+            accumulatedText +=
+              (accumulatedText ? "\n\n" : "") +
+              `⏸️ Paused for up to ${pauseResult.durationSeconds} seconds or until a human responds.`;
+          }
+          pausedByTool = true;
+          break;
+        }
         const summary = result.success
           ? JSON.stringify(result.result).substring(0, 400)
           : `ERROR: ${result.error}`;
@@ -157,6 +164,8 @@ async function runAgenticLoop(userPrompt: string, chatId: string, messageId: str
       }
     }
 
+    if (pausedByTool) break;
+
     if (iteration >= MAX_LOOP_ITERATIONS) {
       pausedAtLimit = true;
       break;
@@ -165,7 +174,7 @@ async function runAgenticLoop(userPrompt: string, chatId: string, messageId: str
     // Feed tool results back to Gemini for next turn
     history.push({
       role: "user",
-      parts: [{ text: `Tool results:\n${results.join("\n")}\n\nContinue with more tools or call end_turn when ready.` }],
+      parts: [{ text: `Tool results:\n${results.join("\n")}\n\nContinue with more tools, or reply in plain text when you're ready to finish.` }],
     });
 
     iteration++;
@@ -287,4 +296,3 @@ export async function runTriggerAsChatMessage(
 
   await injectScheduledPrompt(trigger.name, trigger.description, promptTemplate, userId);
 }
-

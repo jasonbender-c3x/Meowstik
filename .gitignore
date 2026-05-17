@@ -29,3 +29,12 @@ notebooklm-ingest/
 meowstik-key.json
 server.log
 google_cloud_key.json
+.cache/eslint
+.local/tool-dispatcher-browser/
+.local/tool-dispatcher-screenshots/
+server.db
+server/database.sqlite
+projects/personal/
+webcam_test.jpg
+~/
+mcp-libre/

@@ -29,7 +29,6 @@ import {
   httpGetParamsSchema,
   httpPostParamsSchema,
   httpPutParamsSchema,
-  copilotSendReportParamsSchema,
   GUEST_USER_ID,
 } from "@shared/schema";
 import { httpGet, httpPost, httpPut, type HttpResponse } from "../integrations/http-client";
@@ -57,9 +56,8 @@ import { promisify } from "util";
 import * as fs from "fs/promises";
 import * as path from "path";
 import * as os from "os";
-import type { BrowserContext, Page } from "playwright";
+import type { Browser, BrowserContext, Page } from "playwright";
 import { z } from "zod";
-import { copilotService } from "./copilot-service";
 import { mcpService } from "./mcp-service";
 
 const execAsync = promisify(exec);
@@ -67,8 +65,10 @@ const execAsync = promisify(exec);
 export class ToolDispatcher {
   private readonly workspaceDir: string;
   private sseResponse?: any;
+  private browser?: Browser;
   private browserContext?: BrowserContext;
   private browserPage?: Page;
+  private ownsBrowserContext = false;
 
   constructor() {
     this.workspaceDir = process.cwd();
@@ -109,6 +109,35 @@ export class ToolDispatcher {
         console.error('[ToolDispatcher] Failed to emit SSE event:', error);
       }
     }
+  }
+
+  private async getConnectableChromeEndpoint(): Promise<string | null> {
+    const candidates = [
+      process.env.MEOWSTIK_BROWSER_DEBUG_URL,
+      "http://127.0.0.1:9222",
+      "http://localhost:9222",
+    ].filter((value): value is string => !!value);
+
+    for (const endpoint of candidates) {
+      try {
+        const response = await fetch(`${endpoint.replace(/\/$/, "")}/json/version`);
+        if (response.ok) {
+          return endpoint.replace(/\/$/, "");
+        }
+      } catch {
+        // Try next candidate
+      }
+    }
+
+    return null;
+  }
+
+  private pickBrowserPage(context: BrowserContext): Page | undefined {
+    const pages = context.pages().filter((page) => {
+      const url = page.url();
+      return !url.startsWith("devtools://") && !url.startsWith("chrome-extension://");
+    });
+    return pages.at(-1) ?? context.pages().at(-1);
   }
 
   async dispatch(response: unknown, messageId: string): Promise<DispatchResult> {
@@ -310,12 +339,12 @@ export class ToolDispatcher {
         case "schedule_create": result = await this.executeScheduleCreate(toolCall, chatId); break;
         case "schedule_toggle": result = await this.executeScheduleToggle(toolCall); break;
         case "schedule_delete": result = await this.executeScheduleDelete(toolCall); break;
-        case "end_turn": result = { success: true, shouldEndTurn: true }; break;
         case "write": {
           const { content } = toolCall.parameters as { content?: string };
           result = { content: content || "", success: true };
           break;
         }
+        case "pause": result = this.executePause(toolCall); break;
         default:
           console.warn(`[ToolDispatcher] Unknown tool type "${toolCall.type}" (normalized: "${normalizedToolType}")`);
           throw new Error(`Unknown tool type: ${toolCall.type}`);
@@ -522,6 +551,22 @@ export class ToolDispatcher {
   private async executeSay(toolCall: ToolCall) {
      const { utterance } = toolCall.parameters as { utterance: string };
       return { success: true, utterance: utterance || "" };
+  }
+
+  private executePause(toolCall: ToolCall) {
+    const pauseParamsSchema = z.object({
+      durationSeconds: z.number().int().min(1).max(3600).optional(),
+      message: z.string().min(1).optional(),
+    });
+
+    const { durationSeconds, message } = pauseParamsSchema.parse(toolCall.parameters ?? {});
+    return {
+      success: true,
+      shouldPause: true,
+      untilHumanInput: true,
+      durationSeconds,
+      message,
+    };
   }
 
   private executeSoundboard(toolCall: ToolCall) {
@@ -973,19 +1018,47 @@ export class ToolDispatcher {
       return this.browserPage;
     }
 
-    if (this.browserContext) {
+    if (this.ownsBrowserContext && this.browserContext) {
       await this.browserContext.close().catch(() => {});
     }
 
-    const { chromium } = await import("playwright");
-    this.browserContext = await chromium.launchPersistentContext(path.join(this.workspaceDir, ".local", "tool-dispatcher-browser"), {
-      headless: true,
-      args: ["--no-sandbox", "--disable-setuid-sandbox"],
-      viewport: { width: 1280, height: 720 },
-    });
+    this.browser = undefined;
+    this.browserContext = undefined;
+    this.browserPage = undefined;
+    this.ownsBrowserContext = false;
 
-    const pages = this.browserContext.pages();
-    this.browserPage = pages[0] ?? await this.browserContext.newPage();
+    const { chromium } = await import("playwright");
+    const debugEndpoint = await this.getConnectableChromeEndpoint();
+
+    if (debugEndpoint) {
+      try {
+        console.log(`[ToolDispatcher] Attaching browser tools to visible Chrome at ${debugEndpoint}`);
+        this.browser = await chromium.connectOverCDP(debugEndpoint);
+        this.browserContext = this.browser.contexts()[0];
+        if (this.browserContext) {
+          this.browserPage = this.pickBrowserPage(this.browserContext) ?? await this.browserContext.newPage();
+          return this.browserPage;
+        }
+      } catch (error) {
+        console.warn(`[ToolDispatcher] Failed to attach to visible Chrome at ${debugEndpoint}:`, error);
+        this.browser = undefined;
+        this.browserContext = undefined;
+        this.browserPage = undefined;
+      }
+    }
+
+    console.log("[ToolDispatcher] No attachable visible Chrome found, launching visible fallback browser");
+    this.browserContext = await chromium.launchPersistentContext(
+      path.join(this.workspaceDir, ".local", "tool-dispatcher-browser"),
+      {
+        headless: false,
+        args: ["--no-sandbox", "--disable-setuid-sandbox"],
+        viewport: { width: 1280, height: 720 },
+      },
+    );
+    this.ownsBrowserContext = true;
+
+    this.browserPage = this.pickBrowserPage(this.browserContext) ?? await this.browserContext.newPage();
     return this.browserPage;
   }
 

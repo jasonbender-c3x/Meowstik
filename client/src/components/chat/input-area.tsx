@@ -59,7 +59,7 @@ import { Button } from "@/components/ui/button";
  * - X: Remove attachment button
  * - Folder: Directory picker button
  */
-import { Mic, MicOff, Radio, Send, Paperclip, Monitor, X, Camera, Folder } from "lucide-react";
+import { Mic, MicOff, Radio, Send, Paperclip, Monitor, X, Camera, Folder, Clipboard, TerminalSquare } from "lucide-react";
 
 /**
  * Voice hook for speech-to-text functionality
@@ -187,6 +187,7 @@ interface InputAreaProps {
   attachmentsEnabled?: boolean;
   onOpenLiveMode?: () => void;
   liveModeActive?: boolean;
+  onSendToTerminal?: (message: string) => Promise<boolean> | boolean;
 }
 
 // ============================================================================
@@ -228,6 +229,7 @@ export function ChatInputArea({
   attachmentsEnabled = true,
   onOpenLiveMode,
   liveModeActive = false,
+  onSendToTerminal,
 }: InputAreaProps) {
   // ===========================================================================
   // STATE & REFS
@@ -443,6 +445,61 @@ export function ChatInputArea({
       }
     }
   };
+
+  const handleCopyToClipboard = useCallback(async () => {
+    const trimmed = input.trim();
+    if (!trimmed) {
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(trimmed);
+      toast({
+        title: "Copied to clipboard",
+        description: "Your draft is ready to paste.",
+      });
+    } catch (error) {
+      console.error("[ChatInputArea] Failed to copy draft:", error);
+      toast({
+        title: "Clipboard failed",
+        description: "Meowstik could not copy that text.",
+        variant: "destructive",
+      });
+    }
+  }, [input, toast]);
+
+  const handleSendToTerminal = useCallback(async () => {
+    const trimmed = input.trim();
+    if (!trimmed || !onSendToTerminal) {
+      return;
+    }
+
+    try {
+      const sent = await onSendToTerminal(trimmed);
+      if (sent === false) {
+        throw new Error("Terminal is not ready yet.");
+      }
+
+      setInput("");
+      setGhostText(null);
+      setHistoryIndex(-1);
+      if (textareaRef.current) {
+        textareaRef.current.style.height = "auto";
+      }
+
+      toast({
+        title: "Sent to terminal",
+        description: "Your draft was sent to the terminal.",
+      });
+    } catch (error) {
+      console.error("[ChatInputArea] Failed to send to terminal:", error);
+      toast({
+        title: "Terminal send failed",
+        description: error instanceof Error ? error.message : "Meowstik could not reach the terminal.",
+        variant: "destructive",
+      });
+    }
+  }, [input, onSendToTerminal, toast]);
 
   /**
    * Handle screenshot + send button click
@@ -1008,9 +1065,35 @@ export function ChatInputArea({
                           : "text-muted-foreground hover:text-primary hover:bg-primary/10",
                       )}
                       data-testid="button-open-live-mode"
-                      title="Open Live Mode"
+                      title={liveModeActive ? "Hide Live Mode" : "Start Live Mode"}
                     >
                       <Radio className="h-5 w-5" />
+                    </Button>
+                  ) : null}
+
+                  {input.trim() ? (
+                    <Button
+                      onClick={handleCopyToClipboard}
+                      variant="ghost"
+                      size="icon"
+                      className="h-10 w-10 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+                      data-testid="button-copy-draft"
+                      title="Copy draft to clipboard"
+                    >
+                      <Clipboard className="h-5 w-5" />
+                    </Button>
+                  ) : null}
+
+                  {input.trim() && onSendToTerminal ? (
+                    <Button
+                      onClick={handleSendToTerminal}
+                      variant="ghost"
+                      size="icon"
+                      className="h-10 w-10 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+                      data-testid="button-send-terminal"
+                      title="Send draft to terminal"
+                    >
+                      <TerminalSquare className="h-5 w-5" />
                     </Button>
                   ) : null}
 

@@ -63,6 +63,9 @@ import {
   callConversations,
   type CallConversation,
   type InsertCallConversation,
+  callTurns,
+  type CallTurn,
+  type InsertCallTurn,
   voicemails,
   type Voicemail,
   type InsertVoicemail,
@@ -322,6 +325,11 @@ export class DatabaseStorage {
     return saved;
   }
 
+  async getCallConversationBySid(callSid: string): Promise<CallConversation | undefined> {
+    const [call] = await db.select().from(callConversations).where(eq(callConversations.callSid, callSid));
+    return call;
+  }
+
   async updateCallConversation(callSid: string, updates: Partial<CallConversation>): Promise<void> {
     await db.update(callConversations)
       .set({ ...updates, updatedAt: new Date() })
@@ -330,6 +338,18 @@ export class DatabaseStorage {
 
   async getRecentCallConversations(limit: number = 20): Promise<CallConversation[]> {
     return await db.select().from(callConversations).orderBy(desc(callConversations.createdAt)).limit(limit);
+  }
+
+  async insertCallTurn(turn: InsertCallTurn): Promise<CallTurn> {
+    const [saved] = await db.insert(callTurns).values(turn).returning();
+    return saved;
+  }
+
+  async getCallTurns(conversationId: string): Promise<CallTurn[]> {
+    return await db.select()
+      .from(callTurns)
+      .where(eq(callTurns.conversationId, conversationId))
+      .orderBy(callTurns.turnNumber);
   }
 
   async getRecentVoicemails(limit: number = 20): Promise<Voicemail[]> {
@@ -504,16 +524,18 @@ export class DatabaseStorage {
     return server;
   }
 
-  async updateMcpServer(id: string, update: Partial<InsertMcpServer>): Promise<McpServer | undefined> {
+  async updateMcpServerForUser(userId: string, id: string, update: Partial<InsertMcpServer>): Promise<McpServer | undefined> {
     const [saved] = await db.update(mcpServers)
       .set({ ...update, updatedAt: new Date() })
-      .where(eq(mcpServers.id, id))
+      .where(and(eq(mcpServers.userId, userId), eq(mcpServers.id, id)))
       .returning();
     return saved;
   }
 
-  async deleteMcpServer(id: string): Promise<boolean> {
-    const deleted = await db.delete(mcpServers).where(eq(mcpServers.id, id)).returning();
+  async deleteMcpServerForUser(userId: string, id: string): Promise<boolean> {
+    const deleted = await db.delete(mcpServers)
+      .where(and(eq(mcpServers.userId, userId), eq(mcpServers.id, id)))
+      .returning();
     return deleted.length > 0;
   }
 

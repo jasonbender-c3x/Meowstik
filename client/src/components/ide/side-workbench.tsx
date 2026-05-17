@@ -9,6 +9,8 @@ import "@xterm/xterm/css/xterm.css";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import { useTTS } from "@/contexts/tts-context";
+import { extractSpeakableTerminalText } from "@/lib/terminal-speech";
 import {
   Code2,
   Eye,
@@ -25,6 +27,8 @@ import {
   Play,
   Square,
   X,
+  Volume2,
+  VolumeX,
 } from "lucide-react";
 
 interface EditorFile {
@@ -37,10 +41,17 @@ interface EditorFile {
 
 type WorkbenchTab = "editor" | "terminal";
 
+interface TerminalInputRequest {
+  id: string;
+  input: string;
+}
+
 interface SideWorkbenchProps {
   activeTab: WorkbenchTab;
   onActiveTabChange: (tab: WorkbenchTab) => void;
   onCollapse: () => void;
+  terminalInputRequest?: TerminalInputRequest | null;
+  onTerminalInputHandled?: (requestId: string) => void;
 }
 
 const defaultCode = `<!DOCTYPE html>
@@ -89,12 +100,21 @@ export function SideWorkbench({
   activeTab,
   onActiveTabChange,
   onCollapse,
+  terminalInputRequest = null,
+  onTerminalInputHandled,
 }: SideWorkbenchProps) {
   const [files, setFiles] = useState<EditorFile[]>(() => [createNewFile()]);
   const [activeFileId, setActiveFileId] = useState("");
   const [theme, setTheme] = useState<"vs-dark" | "light">("vs-dark");
   const [wsConnected, setWsConnected] = useState(false);
   const [isInteractive, setIsInteractive] = useState(false);
+  const [terminalSpeechEnabled, setTerminalSpeechEnabled] = useState<boolean>(() => {
+    if (typeof window === "undefined") {
+      return false;
+    }
+    return localStorage.getItem("meowstik-workbench-terminal-speech") === "true";
+  });
+  const { speak, stopSpeaking } = useTTS();
 
   const terminalContainerRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -103,6 +123,12 @@ export function SideWorkbench({
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isInteractiveRef = useRef(false);
+  const lastTerminalInputIdRef = useRef<string | null>(null);
+  const queuedTerminalInputsRef = useRef<string[]>([]);
+  const autoPrimeCopilotOnNextShellRef = useRef(false);
+  const copilotPrimedForShellRef = useRef(false);
+  const speechBufferRef = useRef("");
+  const speechTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     isInteractiveRef.current = isInteractive;
@@ -330,6 +356,70 @@ export function SideWorkbench({
     window.open(url, "_blank");
   };
 
+  const flushTerminalInputQueue = useCallback(() => {
+    if (!isInteractiveRef.current || wsRef.current?.readyState !== WebSocket.OPEN) {
+      return;
+    }
+
+    while (queuedTerminalInputsRef.current.length > 0) {
+      const nextInput = queuedTerminalInputsRef.current.shift();
+      if (!nextInput) {
+        continue;
+      }
+
+      wsRef.current.send(JSON.stringify({
+        type: "input",
+        data: { content: `${nextInput}\r` },
+      }));
+    }
+  }, []);
+
+  const queueTerminalSpeech = useCallback((chunk: string) => {
+    if (!terminalSpeechEnabled || activeTab !== "terminal") {
+      return;
+    }
+
+    const speakable = extractSpeakableTerminalText(chunk);
+    if (!speakable) {
+      return;
+    }
+
+    speechBufferRef.current = `${speechBufferRef.current}\n${speakable}`.trim();
+
+    if (speechTimeoutRef.current) {
+      clearTimeout(speechTimeoutRef.current);
+    }
+
+    speechTimeoutRef.current = setTimeout(() => {
+      const text = speechBufferRef.current.trim();
+      speechBufferRef.current = "";
+      speechTimeoutRef.current = null;
+      if (text) {
+        void speak(text);
+      }
+    }, 700);
+  }, [activeTab, speak, terminalSpeechEnabled]);
+
+  const primeCopilotShell = useCallback(() => {
+    if (
+      !isInteractiveRef.current ||
+      wsRef.current?.readyState !== WebSocket.OPEN ||
+      copilotPrimedForShellRef.current
+    ) {
+      return;
+    }
+
+    wsRef.current.send(JSON.stringify({
+      type: "input",
+      data: { content: "gh copilot\r" },
+    }));
+    copilotPrimedForShellRef.current = true;
+
+    window.setTimeout(() => {
+      flushTerminalInputQueue();
+    }, 250);
+  }, [flushTerminalInputQueue]);
+
   const startShell = useCallback(() => {
     if (wsRef.current?.readyState !== WebSocket.OPEN || !fitAddonRef.current) {
       return;
@@ -352,6 +442,36 @@ export function SideWorkbench({
       wsRef.current.send(JSON.stringify({ type: "stop_shell" }));
     }
   }, []);
+
+  useEffect(() => {
+    if (!terminalInputRequest || lastTerminalInputIdRef.current === terminalInputRequest.id) {
+      return;
+    }
+
+    lastTerminalInputIdRef.current = terminalInputRequest.id;
+    queuedTerminalInputsRef.current.push(terminalInputRequest.input);
+    onTerminalInputHandled?.(terminalInputRequest.id);
+
+    if (!isInteractiveRef.current) {
+      autoPrimeCopilotOnNextShellRef.current = true;
+      startShell();
+      return;
+    }
+
+    flushTerminalInputQueue();
+  }, [flushTerminalInputQueue, onTerminalInputHandled, startShell, terminalInputRequest]);
+
+  useEffect(() => {
+    localStorage.setItem("meowstik-workbench-terminal-speech", String(terminalSpeechEnabled));
+    if (!terminalSpeechEnabled) {
+      if (speechTimeoutRef.current) {
+        clearTimeout(speechTimeoutRef.current);
+        speechTimeoutRef.current = null;
+      }
+      speechBufferRef.current = "";
+      stopSpeaking();
+    }
+  }, [stopSpeaking, terminalSpeechEnabled]);
 
   useEffect(() => {
     if (!terminalContainerRef.current || terminalRef.current) {
@@ -434,7 +554,9 @@ export function SideWorkbench({
         const message = JSON.parse(event.data);
 
         if (message.type === "pty_data") {
-          terminalRef.current?.write(message.data?.content || "");
+          const content = message.data?.content || "";
+          terminalRef.current?.write(content);
+          queueTerminalSpeech(content);
           return;
         }
 
@@ -443,12 +565,21 @@ export function SideWorkbench({
           if (content.includes("Interactive shell started")) {
             setIsInteractive(true);
             terminalRef.current?.writeln(`\r\n\x1b[33m${content}\x1b[0m`);
+            copilotPrimedForShellRef.current = false;
+            if (autoPrimeCopilotOnNextShellRef.current) {
+              autoPrimeCopilotOnNextShellRef.current = false;
+              setTimeout(() => primeCopilotShell(), 120);
+            } else {
+              setTimeout(() => flushTerminalInputQueue(), 120);
+            }
           } else if (content.includes("Interactive shell stopped") || content.includes("Shell exited")) {
             setIsInteractive(false);
+            copilotPrimedForShellRef.current = false;
             terminalRef.current?.writeln(`\r\n\x1b[33m${content}\x1b[0m`);
           } else {
             terminalRef.current?.writeln(`\r\n\x1b[33m${content}\x1b[0m`);
           }
+          queueTerminalSpeech(content);
           return;
         }
 
@@ -459,6 +590,7 @@ export function SideWorkbench({
           } else {
             terminalRef.current?.writeln(content.replace(/\n$/, ""));
           }
+          queueTerminalSpeech(content);
         }
       } catch (error) {
         console.error("[Workbench Terminal] Failed to parse WS message:", error);
@@ -468,6 +600,7 @@ export function SideWorkbench({
     ws.onclose = () => {
       setWsConnected(false);
       setIsInteractive(false);
+      copilotPrimedForShellRef.current = false;
       wsRef.current = null;
       reconnectTimeoutRef.current = setTimeout(connectTerminal, 3000);
     };
@@ -477,7 +610,7 @@ export function SideWorkbench({
     };
 
     wsRef.current = ws;
-  }, [activeTab, startShell]);
+  }, [activeTab, flushTerminalInputQueue, primeCopilotShell, queueTerminalSpeech, startShell]);
 
   useEffect(() => {
     connectTerminal();
@@ -496,6 +629,7 @@ export function SideWorkbench({
 
     fitAddonRef.current?.fit();
     if (wsConnected && !isInteractive) {
+      autoPrimeCopilotOnNextShellRef.current = true;
       const timer = setTimeout(() => startShell(), 120);
       return () => clearTimeout(timer);
     }
@@ -507,6 +641,14 @@ export function SideWorkbench({
     };
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (speechTimeoutRef.current) {
+        clearTimeout(speechTimeoutRef.current);
+      }
+    };
   }, []);
 
   return (
@@ -671,9 +813,24 @@ export function SideWorkbench({
                 {isInteractive ? <Play className="h-4 w-4 text-emerald-500" /> : <Square className="h-4 w-4 text-muted-foreground" />}
                 {isInteractive ? "Shell live" : "Shell idle"}
               </span>
+              <span className="hidden items-center gap-1 md:inline-flex">
+                <Terminal className="h-4 w-4 text-primary" />
+                Auto-starts gh copilot on fresh shells
+              </span>
             </div>
 
             <div className="flex items-center gap-2">
+              <Button
+                variant={terminalSpeechEnabled ? "secondary" : "outline"}
+                size="sm"
+                className="h-8 gap-2"
+                onClick={() => setTerminalSpeechEnabled((current) => !current)}
+                data-testid="button-workbench-terminal-speech"
+                title={terminalSpeechEnabled ? "Disable terminal speech" : "Enable terminal speech"}
+              >
+                {terminalSpeechEnabled ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
+                {terminalSpeechEnabled ? "Speech on" : "Speech off"}
+              </Button>
               <Button variant="outline" size="sm" className="h-8 gap-2" onClick={startShell} data-testid="button-workbench-start-shell">
                 <Play className="h-4 w-4" />
                 Start

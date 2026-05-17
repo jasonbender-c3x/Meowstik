@@ -101,7 +101,7 @@ The AI can trigger voice output explicitly using the `say` tool:
 - `utterance` — text to speak (can include style markers)
 - `voice` — optional override (default: user's preferred voice or Kore)
 - **Non-blocking** — speech generation happens concurrently with other operations
-- **Non-terminating** — must call `end_turn` to finish the turn
+- **Non-terminating** — speech alone does not finish the turn; the turn ends when the model stops calling tools and replies in plain text
 
 ---
 

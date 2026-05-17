@@ -6,12 +6,13 @@
  *  - Create a minimal fake Express Response to capture SSE writes
  *  - Test the key observable behaviours of runAgenticLoop:
  *      1. Text-only response (no function calls) → returns immediately
- *      2. Function call → end_turn → exits cleanly
- *      3. Implicit end_turn via plain-text loop response
- *      4. maxIterations reached → agenticPaused SSE, pausedAtLimit: true
- *      5. finally always clears the global SSE reference
- *      6. Usage metadata is accumulated across turns
- *      7. Tool errors are captured and included in results
+ *      2. Function call → plain-text follow-up → exits cleanly
+ *      3. Plain-text loop response ends the turn and is stored
+ *      4. pause tool emits agenticPaused and stops the loop
+ *      5. maxIterations reached → agenticPaused SSE, pausedAtLimit: true
+ *      6. finally always clears the global SSE reference
+ *      7. Usage metadata is accumulated across turns
+ *      8. Tool errors are captured and included in results
  */
 import { describe, it, expect, vi, beforeEach, type Mock } from "vitest";
 
@@ -160,34 +161,21 @@ describe("runAgenticLoop — text-only response", () => {
 
     expect(onAssistantOutputStarted).toHaveBeenCalledTimes(1);
   });
-});
 
-describe("runAgenticLoop — end_turn function call", () => {
-  it("executes a single function call and exits cleanly when end_turn fires", async () => {
-    const functionCalls = [{ name: "end_turn", args: {} }];
-    const genAIMock = vi.fn().mockReturnValue(
-      makeStream([{ functionCalls, usageMetadata: { promptTokenCount: 5, candidatesTokenCount: 3, totalTokenCount: 8 } }]),
-    );
+  it("queues streamed model text into the TTS pipeline as it arrives", async () => {
+    const ttsPipeline = makeTtsPipeline();
+    const genAIMock = vi
+      .fn()
+      .mockReturnValue(makeStream([{ text: "Hello there. " }, { text: "How are you?" }]));
 
-    (toolDispatcher.executeToolCall as Mock).mockResolvedValue({
-      toolId: "tc-1",
-      type: "end_turn",
-      success: true,
-      result: { shouldEndTurn: true },
-    });
+    await runAgenticLoop(makeConfig({ genAIMock, useVoice: true, ttsPipeline }));
 
-    const result = await runAgenticLoop(makeConfig({ genAIMock }));
-
-    expect(toolDispatcher.executeToolCall).toHaveBeenCalledTimes(1);
-    expect(result.toolResults).toHaveLength(1);
-    expect(result.toolResults[0].type).toBe("end_turn");
-    expect(result.pausedAtLimit).toBe(false);
-    // The multi-turn Gemini call should NOT have been made (end_turn stops the loop)
-    expect(genAIMock).toHaveBeenCalledTimes(1);
+    expect(ttsPipeline.queueStreamingTTSFromText).toHaveBeenNthCalledWith(1, "Hello there. ");
+    expect(ttsPipeline.queueStreamingTTSFromText).toHaveBeenNthCalledWith(2, "How are you?");
   });
 });
 
-describe("runAgenticLoop — implicit end_turn via plain text in loop", () => {
+describe("runAgenticLoop — plain-text completion after tool use", () => {
   it("stops the loop when a turn returns text instead of function calls", async () => {
     const fc = [{ name: "some_tool", args: {} }];
 
@@ -208,6 +196,85 @@ describe("runAgenticLoop — implicit end_turn via plain text in loop", () => {
 
     expect(genAIMock).toHaveBeenCalledTimes(2);
     expect(result.pausedAtLimit).toBe(false);
+    expect(result.cleanContentForStorage).toBe("Done.");
+  });
+
+  it("does not duplicate visible assistant text when say and write carry the same content", async () => {
+    const res = makeFakeRes();
+    const ttsPipeline = makeTtsPipeline();
+    const functionCalls = [
+      { name: "say", args: { utterance: "Status update complete." } },
+      { name: "write", args: { content: "Status update complete." } },
+    ];
+    const genAIMock = vi
+      .fn()
+      .mockReturnValueOnce(makeStream([{ functionCalls }]))
+      .mockReturnValueOnce(makeStream([{ text: "Status update complete." }]));
+
+    (toolDispatcher.executeToolCall as Mock)
+      .mockResolvedValueOnce({
+        toolId: "tc-say",
+        type: "say",
+        success: true,
+        result: { success: true, utterance: "Status update complete." },
+      })
+      .mockResolvedValueOnce({
+        toolId: "tc-write",
+        type: "write",
+        success: true,
+        result: { success: true, content: "Status update complete." },
+      });
+
+    const result = await runAgenticLoop(makeConfig({ genAIMock, res, useVoice: true, ttsPipeline }));
+
+    expect(result.cleanContentForStorage).toBe("Status update complete.");
+    expect(res._events).toContainEqual({ text: "Status update complete." });
+    expect((res._events as Array<Record<string, unknown>>).filter((event) => event.text === "Status update complete.")).toHaveLength(1);
+    expect(ttsPipeline.writeSpeechEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        utterance: "Status update complete.",
+        audioGenerated: false,
+      }),
+    );
+  });
+});
+
+describe("runAgenticLoop — explicit pause tool", () => {
+  it("emits agenticPaused with pause metadata and stores the pause message", async () => {
+    const functionCalls = [{ name: "pause", args: { durationSeconds: 300, message: "Wake me in five minutes." } }];
+    const genAIMock = vi.fn().mockReturnValue(makeStream([{ functionCalls }]));
+
+    (toolDispatcher.executeToolCall as Mock).mockResolvedValue({
+      toolId: "tc-pause",
+      type: "pause",
+      success: true,
+      result: {
+        shouldPause: true,
+        untilHumanInput: true,
+        durationSeconds: 300,
+        message: "Wake me in five minutes.",
+      },
+    });
+
+    const res = makeFakeRes();
+    const result = await runAgenticLoop(makeConfig({ genAIMock, res }));
+
+    expect(result.pausedAtLimit).toBe(false);
+    expect(result.pauseState).toEqual({
+      turns: 1,
+      untilHumanInput: true,
+      resumeAfterSeconds: 300,
+      message: "Wake me in five minutes.",
+    });
+    expect(result.cleanContentForStorage).toBe("Wake me in five minutes.");
+    expect((res._events as any[])).toContainEqual({
+      agenticPaused: {
+        turns: 1,
+        untilHumanInput: true,
+        resumeAfterSeconds: 300,
+        message: "Wake me in five minutes.",
+      },
+    });
   });
 });
 

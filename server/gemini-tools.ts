@@ -5,7 +5,7 @@
  * Converts our Zod schemas to Gemini's FunctionDeclaration format
  * for native structured output instead of JSON text parsing
  * 
- * V2 CORE PRIMITIVES (7 foundational tools):
+ * V2 CORE PRIMITIVES (8 foundational tools):
  * - terminal: Non-interactive shell command execution
  * - get: Read file or URL content
  * - put: Write file content
@@ -13,6 +13,7 @@
  * - log: Append to named log file
  * - say: HD voice output
  * - ssh: Persistent 2-way connection
+ * - pause: Pause the loop and wait for the human
  * 
  * Legacy aliases maintained for backward compatibility.
  */
@@ -20,7 +21,7 @@ import type { FunctionDeclaration } from "@google/genai";
 
 export const geminiFunctionDeclarations: FunctionDeclaration[] = [
   // ═══════════════════════════════════════════════════════════════════════════
-  // V2 CORE PRIMITIVES (7 foundational tools)
+  // V2 CORE PRIMITIVES (8 foundational tools)
   // ═══════════════════════════════════════════════════════════════════════════
   {
     name: "terminal",
@@ -60,21 +61,13 @@ export const geminiFunctionDeclarations: FunctionDeclaration[] = [
   },
   {
     name: "write",
-    description: "Send markdown content to the chat window. NON-TERMINATING",
+    description: "Send markdown content to the chat window. NON-TERMINATING. Use this for visible assistant text. When you are finished, stop calling tools and do not repeat the same content again in a final plain-text reply.",
     parametersJsonSchema: {
       type: "object",
       properties: {
         content: { type: "string", description: "Markdown content to display" }
       },
       required: ["content"]
-    }
-  },
-  {
-    name: "end_turn",
-    description: "Terminate your turn in the interactive agentic loop and return control to the user. This is the ONLY way to end your turn - call this when you have completed your response.",
-    parametersJsonSchema: {
-      type: "object",
-      properties: {}
     }
   },
   {
@@ -91,7 +84,7 @@ export const geminiFunctionDeclarations: FunctionDeclaration[] = [
   },
   {
     name: "say",
-    description: "Generate HD voice audio output. NON-BLOCKING and NON-TERMINATING - speech generation happens concurrently with other operations. Use alongside or before send_chat or write. Must call end_turn to finish your turn.",
+    description: "Generate HD voice audio output only. NON-BLOCKING and NON-TERMINATING - speech generation happens concurrently with other operations. Pair this with write or send_chat if you also want visible text. Do not rely on say to write to chat, and do not repeat the same content again in a final plain-text reply.",
     parametersJsonSchema: {
       type: "object",
       properties: {
@@ -105,6 +98,23 @@ export const geminiFunctionDeclarations: FunctionDeclaration[] = [
         }
       },
       required: ["utterance"]
+    }
+  },
+  {
+    name: "pause",
+    description: "Pause the current chat loop and return control to the human. Use this when you need operator input or want to sleep for a while. Optional durationSeconds requests an automatic resume after that many seconds if the chat UI stays open. Maximum durationSeconds is 3600. Optional message is shown in chat before pausing.",
+    parametersJsonSchema: {
+      type: "object",
+      properties: {
+        durationSeconds: {
+          type: "number",
+          description: "Optional pause duration in seconds before auto-resume. Maximum 3600."
+        },
+        message: {
+          type: "string",
+          description: "Optional chat message to show before pausing"
+        }
+      }
     }
   },
   {
@@ -1233,5 +1243,3 @@ export function getToolDeclarations(toolNames?: string[]): FunctionDeclaration[]
 export function getAllToolNames(): string[] {
   return geminiFunctionDeclarations.map(tool => tool.name).filter((name): name is string => !!name);
 }
-
-

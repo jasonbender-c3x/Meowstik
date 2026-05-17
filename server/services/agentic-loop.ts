@@ -4,10 +4,9 @@
  * Drives the multi-turn Gemini function-calling loop that underpins every chat
  * request.  The loop calls Gemini, executes all returned tool calls via
  * toolDispatcher, feeds results back, and repeats until:
- *   • the model calls `end_turn` / `end_chat`
+ *   • the model returns a plain-text response
  *   • maxIterations is reached  (signals `agenticPaused` to the client)
  *   • maxTotalTools is reached
- *   • the model returns a plain-text response (treated as implicit end_turn)
  *
  * Callers are responsible for:
  *   - Saving user + AI messages to storage
@@ -45,6 +44,13 @@ export interface ToolResult {
   error?: string;
 }
 
+export interface AgenticPauseState {
+  turns: number;
+  untilHumanInput: boolean;
+  resumeAfterSeconds?: number;
+  message?: string;
+}
+
 export interface AgenticLoopConfig {
   genAI: GoogleGenAI;
   modelMode: string;
@@ -80,6 +86,8 @@ export interface AgenticLoopResult {
   allFunctionCalls: FunctionCall[];
   /** Whether the loop was paused at maxIterations (rather than ended cleanly) */
   pausedAtLimit: boolean;
+  /** Explicit pause requested by the model */
+  pauseState: AgenticPauseState | null;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -146,6 +154,20 @@ function sseWrite(res: Response, data: unknown): void {
   res.write(`data: ${JSON.stringify(data)}\n\n`);
 }
 
+function normaliseAssistantText(text: string): string {
+  return text.replace(/\s+/g, " ").trim().toLowerCase();
+}
+
+function isRedundantAssistantText(existingContent: string, nextContent: string): boolean {
+  const existing = normaliseAssistantText(existingContent);
+  const next = normaliseAssistantText(nextContent);
+
+  if (!existing || !next) return false;
+  if (existing.length < 12 || next.length < 12) return false;
+
+  return existing.includes(next) || next.includes(existing);
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Core loop
 // ─────────────────────────────────────────────────────────────────────────────
@@ -175,6 +197,7 @@ export async function runAgenticLoop(config: AgenticLoopConfig): Promise<Agentic
   const toolResults: ToolResult[] = [];
   const allFunctionCalls: FunctionCall[] = [];
   const usageMetadata = { promptTokenCount: 0, candidatesTokenCount: 0, totalTokenCount: 0 };
+  let hasToolDrivenVisibleOutput = false;
 
   let assistantStarted = false;
   const markStarted = () => {
@@ -195,14 +218,14 @@ export async function runAgenticLoop(config: AgenticLoopConfig): Promise<Agentic
       () =>
         genAI.models.generateContentStream({
           model: modelMode,
-          config: {
-            systemInstruction: systemPrompt,
-            tools: [{ functionDeclarations: toolDeclarations }],
-            toolConfig: {
-              functionCallingConfig: { mode: FunctionCallingConfigMode.ANY },
+            config: {
+              systemInstruction: systemPrompt,
+              tools: [{ functionDeclarations: toolDeclarations }],
+              toolConfig: {
+                functionCallingConfig: { mode: FunctionCallingConfigMode.AUTO },
+              },
             },
-          },
-          contents: [...history, { role: "user", parts: userParts }],
+            contents: [...history, { role: "user", parts: userParts }],
         }),
       abortSignal,
     );
@@ -232,6 +255,7 @@ export async function runAgenticLoop(config: AgenticLoopConfig): Promise<Agentic
         cleanContentForStorage += text;
         markStarted();
         sseWrite(res, { text });
+        ttsPipeline.queueStreamingTTSFromText(text);
       }
 
       if (chunk.functionCalls?.length) {
@@ -262,6 +286,7 @@ export async function runAgenticLoop(config: AgenticLoopConfig): Promise<Agentic
         usageMetadata,
         allFunctionCalls,
         pausedAtLimit: false,
+        pauseState: null,
       };
     }
 
@@ -271,10 +296,16 @@ export async function runAgenticLoop(config: AgenticLoopConfig): Promise<Agentic
 
     const executeTools = async (
       toolCalls: ToolCall[],
-    ): Promise<{ results: ToolResult[]; shouldEndTurn: boolean; sendChatContent: string }> => {
+    ): Promise<{
+      results: ToolResult[];
+      shouldEndTurn: boolean;
+      sendChatContent: string;
+      pauseState: Omit<AgenticPauseState, "turns"> | null;
+    }> => {
       const results: ToolResult[] = [];
       let endTurn = false;
       let sendChatContent = "";
+      let pauseState: Omit<AgenticPauseState, "turns"> | null = null;
 
       for (const toolCall of toolCalls) {
         console.log(`[AgenticLoop] Executing: ${toolCall.type} (${toolCall.id})`);
@@ -308,18 +339,35 @@ export async function runAgenticLoop(config: AgenticLoopConfig): Promise<Agentic
               const cleanContent = stripAllVoiceTags(content);
               markStarted();
               sseWrite(res, { text: cleanContent });
-              sendChatContent += cleanContent;
+              sendChatContent += (sendChatContent ? "\n\n" : "") + cleanContent;
+              hasToolDrivenVisibleOutput = true;
               ttsPipeline.queueStreamingTTSFromText(cleanContent);
             }
           }
 
-          // end_turn / end_chat
-          if (
-            (toolCall.type === "end_turn" || toolCall.type === "end_chat") &&
-            toolResult.success
-          ) {
-            const r = toolResult.result as { shouldEndTurn?: boolean };
-            if (r?.shouldEndTurn) endTurn = true;
+          if (toolCall.type === "pause" && toolResult.success) {
+            const pauseResult = toolResult.result as {
+              shouldPause?: boolean;
+              untilHumanInput?: boolean;
+              durationSeconds?: number;
+              message?: string;
+            };
+            const pauseMessage = stripAllVoiceTags((pauseResult.message || "").trim());
+            if (pauseMessage) {
+              markStarted();
+              sseWrite(res, { text: pauseMessage });
+              sendChatContent += (sendChatContent ? "\n\n" : "") + pauseMessage;
+              ttsPipeline.queueStreamingTTSFromText(pauseMessage);
+            }
+            if (pauseResult.shouldPause) {
+              endTurn = true;
+              pauseState = {
+                untilHumanInput: pauseResult.untilHumanInput !== false,
+                resumeAfterSeconds: pauseResult.durationSeconds,
+                message: pauseMessage || undefined,
+              };
+              break;
+            }
           }
 
           // say — generate TTS and show text in chat
@@ -332,9 +380,6 @@ export async function runAgenticLoop(config: AgenticLoopConfig): Promise<Agentic
 
             if (cleanUtterance.trim()) {
               markStarted();
-              sseWrite(res, { text: cleanUtterance });
-              sendChatContent += cleanUtterance + "\n\n";
-
               if (useVoice) {
                 try {
                   const ttsResult = await ttsPipeline.generateSpeechAudio(utterance, voice);
@@ -386,7 +431,7 @@ export async function runAgenticLoop(config: AgenticLoopConfig): Promise<Agentic
         }
       }
 
-      return { results, shouldEndTurn: endTurn, sendChatContent };
+      return { results, shouldEndTurn: endTurn, sendChatContent, pauseState };
     };
 
     // ───────────────────────────────────────────────────
@@ -421,6 +466,7 @@ export async function runAgenticLoop(config: AgenticLoopConfig): Promise<Agentic
     toolResults.push(...initialExec.results);
     let totalToolsExecuted = limitedInitial.length;
     let shouldEndTurn = initialExec.shouldEndTurn;
+    let pauseState = initialExec.pauseState ? { turns: 1, ...initialExec.pauseState } : null;
     if (initialExec.sendChatContent) cleanContentForStorage += initialExec.sendChatContent;
 
     // Agentic history: grow each turn with model function-call parts + user result parts
@@ -459,7 +505,7 @@ export async function runAgenticLoop(config: AgenticLoopConfig): Promise<Agentic
         role: "user",
         parts: [
           {
-            text: `Tool results:\n${toolResultsText}\n\nContinue with more tools or call end_turn when ready.`,
+            text: `Tool results:\n${toolResultsText}\n\nContinue with more tools, or reply to the user in plain text when you're ready to finish.`,
           },
         ],
       });
@@ -501,12 +547,22 @@ export async function runAgenticLoop(config: AgenticLoopConfig): Promise<Agentic
       allFunctionCalls.push(...loopFunctionCalls);
 
       if (loopFunctionCalls.length === 0) {
-        // Plain text response — implicit end_turn
-        console.log(`[AgenticLoop] Turn ${loopIteration} — no function calls, implicit end_turn`);
+        // Plain text response — normal completion
+        console.log(`[AgenticLoop] Turn ${loopIteration} — no function calls, ending turn with plain text`);
         const plainText = stripAllVoiceTags(loopResponse.trim());
-        if (plainText) {
+        const shouldSuppressDuplicateText =
+          hasToolDrivenVisibleOutput &&
+          isRedundantAssistantText(cleanContentForStorage, plainText);
+
+        if (plainText && !shouldSuppressDuplicateText) {
+          cleanContentForStorage += (cleanContentForStorage ? "\n\n" : "") + plainText;
           markStarted();
           sseWrite(res, { text: plainText });
+          ttsPipeline.queueStreamingTTSFromText(plainText);
+        } else if (shouldSuppressDuplicateText) {
+          console.log(
+            `[AgenticLoop] Suppressing redundant final plain-text turn after tool-driven chat output`,
+          );
         }
         break;
       }
@@ -527,6 +583,9 @@ export async function runAgenticLoop(config: AgenticLoopConfig): Promise<Agentic
       toolResults.push(...loopExec.results);
       totalToolsExecuted += limitedLoop.length;
       shouldEndTurn = loopExec.shouldEndTurn;
+      if (loopExec.pauseState) {
+        pauseState = { turns: loopIteration + 1, ...loopExec.pauseState };
+      }
       if (loopExec.sendChatContent) cleanContentForStorage += loopExec.sendChatContent;
 
       agenticHistory.push({
@@ -539,7 +598,9 @@ export async function runAgenticLoop(config: AgenticLoopConfig): Promise<Agentic
     }
 
     // Signal pause if we exited because of limits
-    if (!shouldEndTurn) {
+    if (pauseState) {
+      sseWrite(res, { agenticPaused: pauseState });
+    } else if (!shouldEndTurn) {
       if (loopIteration >= maxIterations) {
         console.warn(`[AgenticLoop] Reached max iterations (${maxIterations}), pausing`);
         sseWrite(res, { agenticPaused: { turns: loopIteration } });
@@ -558,6 +619,7 @@ export async function runAgenticLoop(config: AgenticLoopConfig): Promise<Agentic
       usageMetadata,
       allFunctionCalls,
       pausedAtLimit,
+      pauseState,
     };
   } finally {
     // Always clear the global SSE reference to prevent cross-request contamination

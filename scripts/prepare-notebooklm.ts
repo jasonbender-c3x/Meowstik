@@ -6,63 +6,240 @@
  * Transforms the repository into text files optimised for Google NotebookLM.
  *
  * OUTPUTS (in ./notebooklm-ingest/):
- *   server.txt  – Server-side source code  (server/)
- *   client.txt  – Client-side source code  (client/)
- *   other.txt   – Everything else that is not docs/logs and not in server/ or client/
- *   docs.txt    – Documentation (.md, docs/, etc.)
- *   logs.txt    – Logs and memory (logs/, memory/)
- *   files.txt   – Full filesystem map
+ *   server.txt, server-2.txt, ...  – Server-side source code  (server/)
+ *   client.txt, client-2.txt, ...  – Client-side source code  (client/)
+ *   other.txt, other-2.txt, ...    – Everything else that is not docs/logs and
+ *                                     not in server/ or client/
+ *   docs.txt, docs-2.txt, ...      – Documentation (.md, docs/, etc.)
+ *   logs.txt, logs-2.txt, ...      – Logs and memory (logs/, memory/)
+ *   files.txt, files-2.txt, ...    – Full filesystem map
+ *
+ * Each generated output file is capped at ~2 MB. When a bucket grows beyond
+ * that limit, the script automatically rolls over to the next numbered file.
  *
  * Usage:
  *   npm run prepare:notebooklm
  */
 
-import * as fs from 'fs';
-import * as path from 'path';
+import * as fs from "fs";
+import * as path from "path";
+import { pathToFileURL } from "url";
 
 // =============================================================================
 // CONFIGURATION
 // =============================================================================
 
-const OUTPUT_DIR = path.resolve(process.cwd(), 'notebooklm-ingest');
+const OUTPUT_DIR = path.resolve(process.cwd(), "notebooklm-ingest");
+export const MAX_OUTPUT_FILE_SIZE_BYTES = 2 * 1024 * 1024;
+const MAX_SOURCE_FILE_SIZE_BYTES = MAX_OUTPUT_FILE_SIZE_BYTES;
+const LOG_INPUT_SAMPLE_RATE = 15;
 
 const CODE_EXTENSIONS = new Set([
-  '.ts', '.tsx', '.js', '.jsx', '.html', '.css', '.scss', '.sql',
-  '.json', '.yaml', '.yml', '.xml', '.sh', '.bat', '.config', '.toml',
+  ".ts", ".tsx", ".js", ".jsx", ".html", ".css", ".scss", ".sql",
+  ".json", ".yaml", ".yml", ".xml", ".sh", ".bat", ".config", ".toml",
 ]);
 
-const DOC_EXTENSIONS = new Set(['.md', '.mdx', '.txt', '.csv']);
+const DOC_EXTENSIONS = new Set([".md", ".mdx", ".txt", ".csv"]);
 
 const IGNORED_ITEMS = new Set([
-  'node_modules', 'dist', 'build', 'coverage', '.git', '.cache',
-  '.vscode', 'tmp', 'temp', '__pycache__', 'venv', 'notebooklm-ingest',
-  'notebooklm-output', 'attached_assets', '.next', '.output',
-  'package-lock.json', 'yarn.lock','py','pnpm-lock.yaml',
+  "node_modules", "dist", "build", "coverage", ".git", ".cache",
+  ".vscode", ".local", "tmp", "temp", "__pycache__", "venv", "notebooklm-ingest",
+  "notebooklm-output", "attached_assets", ".next", ".output",
+  "package-lock.json", "yarn.lock", "py", "pnpm-lock.yaml",
 ]);
 
-const DOCS_DIRS = new Set(['docs']);
-const LOGS_DIRS = new Set(['logs', 'memory']);
+const DOCS_DIRS = new Set(["docs"]);
+const LOGS_DIRS = new Set(["logs", "memory"]);
 
 /** Top-level directory names that map to specific output streams. */
-const SERVER_ROOT = 'server';
-const CLIENT_ROOT = 'client';
+const SERVER_ROOT = "server";
+const CLIENT_ROOT = "client";
 
 const BINARY_EXTENSIONS = new Set([
-  '.png', '.jpg', '.jpeg', '.gif', '.ico', '.svg',
-  '.pdf', '.zip', '.tar', '.gz', '.7z', '.rar',
-  '.exe', '.dll', '.so', '.dylib', '.bin',
-  '.mp3', '.wav', '.mp4', '.mov', '.avi', '.mkv',
-  '.ttf', '.otf', '.woff', '.woff2', '.eot',
+  ".png", ".jpg", ".jpeg", ".gif", ".ico", ".svg",
+  ".pdf", ".zip", ".tar", ".gz", ".7z", ".rar",
+  ".exe", ".dll", ".so", ".dylib", ".bin",
+  ".mp3", ".wav", ".mp4", ".mov", ".avi", ".mkv",
+  ".ttf", ".otf", ".woff", ".woff2", ".eot",
 ]);
 
-const stats = { server: 0, client: 0, other: 0, docs: 0, logs: 0, skipped: 0 };
+type Bucket = "server" | "client" | "other" | "docs" | "logs";
+type OutputKey = Bucket | "files";
+
+const stats: Record<Bucket, number> & { skipped: number } = {
+  server: 0,
+  client: 0,
+  other: 0,
+  docs: 0,
+  logs: 0,
+  skipped: 0,
+};
+let sampledLogInputCount = 0;
+
+export function buildOutputFilePath(outputDir: string, baseName: string, part: number): string {
+  return path.join(outputDir, part === 1 ? `${baseName}.txt` : `${baseName}-${part}.txt`);
+}
+
+export function createHeader(title: string): string {
+  return [
+    "################################################################################",
+    `# ${title}`,
+    `# Generated: ${new Date().toISOString()}`,
+    "################################################################################",
+    "",
+    "",
+  ].join("\n");
+}
+
+function createFileSection(relPath: string): string {
+  return [
+    "",
+    "================================================================================",
+    `FILE: ${relPath}`,
+    "================================================================================",
+    "",
+    "",
+  ].join("\n");
+}
+
+async function writeChunk(stream: fs.WriteStream, content: string): Promise<void> {
+  await new Promise<void>((resolve, reject) => {
+    stream.write(content, "utf8", (error) => {
+      if (error) reject(error);
+      else resolve();
+    });
+  });
+}
+
+async function pipeFileIntoStream(stream: fs.WriteStream, filePath: string): Promise<void> {
+  await new Promise<void>((resolve, reject) => {
+    const reader = fs.createReadStream(filePath, { encoding: "utf8" });
+    const cleanup = () => {
+      reader.removeListener("error", onReaderError);
+      reader.removeListener("end", onEnd);
+      stream.removeListener("error", onStreamError);
+    };
+    const onReaderError = (error: Error) => {
+      cleanup();
+      reject(error);
+    };
+    const onStreamError = (error: Error) => {
+      cleanup();
+      reject(error);
+    };
+    const onEnd = () => {
+      cleanup();
+      resolve();
+    };
+
+    reader.on("error", onReaderError);
+    reader.on("end", onEnd);
+    stream.on("error", onStreamError);
+    reader.pipe(stream, { end: false });
+  });
+}
+
+async function closeStream(stream: fs.WriteStream | null): Promise<void> {
+  if (!stream) return;
+
+  await new Promise<void>((resolve, reject) => {
+    stream.end((error?: Error | null) => {
+      if (error) reject(error);
+      else resolve();
+    });
+  });
+}
+
+export class ChunkedOutputWriter {
+  private stream: fs.WriteStream | null = null;
+  private part = 0;
+  private currentBytes = 0;
+  public readonly files: string[] = [];
+
+  constructor(
+    private readonly outputDir: string,
+    private readonly baseName: string,
+    private readonly title: string,
+    private readonly maxBytes: number = MAX_OUTPUT_FILE_SIZE_BYTES,
+  ) {}
+
+  private async openNextPart(): Promise<void> {
+    await closeStream(this.stream);
+
+    this.part += 1;
+    const filePath = buildOutputFilePath(this.outputDir, this.baseName, this.part);
+    const headerTitle = this.part === 1 ? this.title : `${this.title} (Part ${this.part})`;
+    const header = createHeader(headerTitle);
+
+    this.stream = fs.createWriteStream(filePath, { encoding: "utf8" });
+    this.files.push(path.basename(filePath));
+    this.currentBytes = 0;
+
+    await writeChunk(this.stream, header);
+    this.currentBytes += Buffer.byteLength(header, "utf8");
+  }
+
+  private async ensureCapacity(additionalBytes: number): Promise<void> {
+    if (additionalBytes > this.maxBytes) {
+      throw new Error(
+        `Single write of ${formatBytes(additionalBytes)} exceeds bucket limit ${formatBytes(this.maxBytes)}.`,
+      );
+    }
+
+    if (!this.stream) {
+      await this.openNextPart();
+      return;
+    }
+
+    if (this.currentBytes + additionalBytes > this.maxBytes) {
+      await this.openNextPart();
+    }
+  }
+
+  async appendString(content: string): Promise<void> {
+    const contentBytes = Buffer.byteLength(content, "utf8");
+    await this.ensureCapacity(contentBytes);
+    await writeChunk(this.stream!, content);
+    this.currentBytes += contentBytes;
+  }
+
+  async appendFile(filePath: string, relPath: string, stat: fs.Stats): Promise<void> {
+    const preamble = createFileSection(relPath);
+    const footer = "\n\n";
+    const estimatedBytes =
+      Buffer.byteLength(preamble, "utf8") +
+      stat.size +
+      Buffer.byteLength(footer, "utf8");
+
+    if (estimatedBytes > this.maxBytes) {
+      throw new Error(
+        `File section ${relPath} would exceed the per-output limit (${formatBytes(estimatedBytes)}).`,
+      );
+    }
+
+    await this.ensureCapacity(estimatedBytes);
+    await writeChunk(this.stream!, preamble);
+    this.currentBytes += Buffer.byteLength(preamble, "utf8");
+
+    await pipeFileIntoStream(this.stream!, filePath);
+    this.currentBytes += stat.size;
+
+    await writeChunk(this.stream!, footer);
+    this.currentBytes += Buffer.byteLength(footer, "utf8");
+  }
+
+  async finalize(): Promise<void> {
+    await closeStream(this.stream);
+    this.stream = null;
+  }
+}
 
 // =============================================================================
 // MAIN
 // =============================================================================
 
 async function main() {
-  console.log('📦 Starting NotebookLM Preparation…');
+  console.log("📦 Starting NotebookLM Preparation…");
   console.log(`   Working Directory: ${process.cwd()}`);
 
   // Recreate output directory
@@ -71,78 +248,62 @@ async function main() {
   }
   fs.mkdirSync(OUTPUT_DIR, { recursive: true });
   console.log(`📂 Output directory: ${OUTPUT_DIR}`);
+  console.log(`📏 Max output size per file: ${formatBytes(MAX_OUTPUT_FILE_SIZE_BYTES)}`);
 
-  const serverPath = path.join(OUTPUT_DIR, 'server.txt');
-  const clientPath = path.join(OUTPUT_DIR, 'client.txt');
-  const otherPath  = path.join(OUTPUT_DIR, 'other.txt');
-  const docsPath   = path.join(OUTPUT_DIR, 'docs.txt');
-  const logsPath   = path.join(OUTPUT_DIR, 'logs.txt');
+  const writers: Record<OutputKey, ChunkedOutputWriter> = {
+    server: new ChunkedOutputWriter(OUTPUT_DIR, "server", "MEOWSTIK — SERVER SOURCE CODE"),
+    client: new ChunkedOutputWriter(OUTPUT_DIR, "client", "MEOWSTIK — CLIENT SOURCE CODE"),
+    other: new ChunkedOutputWriter(
+      OUTPUT_DIR,
+      "other",
+      "MEOWSTIK — OTHER SOURCE CODE (scripts, shared, root, etc.)",
+    ),
+    docs: new ChunkedOutputWriter(OUTPUT_DIR, "docs", "MEOWSTIK — DOCUMENTATION"),
+    logs: new ChunkedOutputWriter(OUTPUT_DIR, "logs", "MEOWSTIK — LOGS & MEMORY"),
+    files: new ChunkedOutputWriter(OUTPUT_DIR, "files", "MEOWSTIK — FILESYSTEM MAP"),
+  };
 
-  const serverStream = fs.createWriteStream(serverPath);
-  const clientStream = fs.createWriteStream(clientPath);
-  const otherStream  = fs.createWriteStream(otherPath);
-  const docsStream   = fs.createWriteStream(docsPath);
-  const logsStream   = fs.createWriteStream(logsPath);
-
-  writeHeader(serverStream, 'MEOWSTIK — SERVER SOURCE CODE');
-  writeHeader(clientStream, 'MEOWSTIK — CLIENT SOURCE CODE');
-  writeHeader(otherStream,  'MEOWSTIK — OTHER SOURCE CODE (scripts, shared, root, etc.)');
-  writeHeader(docsStream,   'MEOWSTIK — DOCUMENTATION');
-  writeHeader(logsStream,   'MEOWSTIK — LOGS & MEMORY');
-
-  console.log('🔍 Scanning repository…');
-  processDirectory(process.cwd(), serverStream, clientStream, otherStream, docsStream, logsStream);
-
-  serverStream.end();
-  clientStream.end();
-  otherStream.end();
-  docsStream.end();
-  logsStream.end();
+  console.log("🔍 Scanning repository…");
+  await processDirectory(process.cwd(), writers);
 
   const total = stats.server + stats.client + stats.other + stats.docs + stats.logs;
-  console.log('✅ Content processing complete.');
-  console.log(`   Server  : ${stats.server} files → server.txt`);
-  console.log(`   Client  : ${stats.client} files → client.txt`);
-  console.log(`   Other   : ${stats.other} files → other.txt`);
-  console.log(`   Docs    : ${stats.docs}   files → docs.txt`);
-  console.log(`   Logs    : ${stats.logs}   files → logs.txt`);
+  console.log("✅ Content processing complete.");
+  console.log(`   Server  : ${stats.server} files → ${writers.server.files.join(", ") || "(none)"}`);
+  console.log(`   Client  : ${stats.client} files → ${writers.client.files.join(", ") || "(none)"}`);
+  console.log(`   Other   : ${stats.other} files → ${writers.other.files.join(", ") || "(none)"}`);
+  console.log(`   Docs    : ${stats.docs} files → ${writers.docs.files.join(", ") || "(none)"}`);
+  console.log(`   Logs    : ${stats.logs} files → ${writers.logs.files.join(", ") || "(none)"}`);
   console.log(`   Total   : ${total}`);
   console.log(`   Skipped : ${stats.skipped}`);
 
-  // Filesystem map
-  const filesMapPath = path.join(OUTPUT_DIR, 'files.txt');
   try {
-    const fileList = generateFileList(process.cwd());
-    fs.writeFileSync(filesMapPath, fileList.join('\n'));
-    console.log('✅ Generated files.txt');
+    await generateFileList(process.cwd(), writers.files);
+    console.log(`✅ Generated filesystem map → ${writers.files.files.join(", ") || "(none)"}`);
   } catch (err) {
-    console.error('❌ Failed to generate files.txt', err);
+    console.error("❌ Failed to generate files.txt", err);
   }
 
-  console.log('\n🎉 Done! Upload these files to NotebookLM:');
-  console.log('   1. server.txt');
-  console.log('   2. client.txt');
-  console.log('   3. other.txt');
-  console.log('   4. docs.txt');
-  console.log('   5. logs.txt');
-  console.log('   6. files.txt');
+  await Promise.all(Object.values(writers).map((writer) => writer.finalize()));
+
+  console.log("\n🎉 Done! Upload these files to NotebookLM:");
+  for (const key of ["server", "client", "other", "docs", "logs", "files"] as const) {
+    for (const file of writers[key].files) {
+      console.log(`   - ${file}`);
+    }
+  }
 }
 
 // =============================================================================
 // TRAVERSAL
 // =============================================================================
 
-function processDirectory(
+async function processDirectory(
   currentPath: string,
-  serverStream: fs.WriteStream,
-  clientStream: fs.WriteStream,
-  otherStream: fs.WriteStream,
-  docsStream: fs.WriteStream,
-  logsStream: fs.WriteStream,
-): void {
+  writers: Record<OutputKey, ChunkedOutputWriter>,
+): Promise<void> {
   let entries: string[];
   try {
-    entries = fs.readdirSync(currentPath);
+    entries = fs.readdirSync(currentPath).sort();
   } catch {
     return;
   }
@@ -151,7 +312,7 @@ function processDirectory(
     if (IGNORED_ITEMS.has(entry)) continue;
 
     const fullPath = path.join(currentPath, entry);
-    const relPath  = path.relative(process.cwd(), fullPath);
+    const relPath = path.relative(process.cwd(), fullPath);
 
     let stat: fs.Stats;
     try {
@@ -161,103 +322,138 @@ function processDirectory(
     }
 
     if (stat.isDirectory()) {
-      processDirectory(fullPath, serverStream, clientStream, otherStream, docsStream, logsStream);
+      await processDirectory(fullPath, writers);
       continue;
     }
 
     if (!stat.isFile()) continue;
 
     const ext = path.extname(entry).toLowerCase();
-    if (BINARY_EXTENSIONS.has(ext)) { stats.skipped++; continue; }
-
-    // Determine which stream receives this file
-    const dest = resolveDestination(relPath, ext, serverStream, clientStream, otherStream, docsStream, logsStream);
-    if (dest) {
-      appendFileToStream(fullPath, relPath, dest.stream);
-      stats[dest.bucket]++;
-    } else {
+    if (BINARY_EXTENSIONS.has(ext)) {
       stats.skipped++;
+      continue;
+    }
+    if (shouldSkipFile(relPath, stat)) {
+      stats.skipped++;
+      continue;
+    }
+
+    const dest = resolveDestination(relPath, ext);
+    if (!dest) {
+      stats.skipped++;
+      continue;
+    }
+
+    try {
+      await writers[dest.bucket].appendFile(fullPath, relPath, stat);
+      stats[dest.bucket] += 1;
+    } catch (error) {
+      stats.skipped++;
+      console.warn(`⏭️  Skipping ${relPath}: ${(error as Error).message}`);
     }
   }
 }
 
-type Bucket = 'server' | 'client' | 'other' | 'docs' | 'logs';
-
 function resolveDestination(
   relPath: string,
   ext: string,
-  serverStream: fs.WriteStream,
-  clientStream: fs.WriteStream,
-  otherStream: fs.WriteStream,
-  docsStream: fs.WriteStream,
-  logsStream: fs.WriteStream,
-): { stream: fs.WriteStream; bucket: Bucket } | null {
+): { bucket: Bucket } | null {
   const parts = relPath.split(path.sep);
   const topLevel = parts[0];
 
   // Logs (always wins for log dirs)
-  if (parts.some(p => LOGS_DIRS.has(p))) {
-    return { stream: logsStream, bucket: 'logs' };
+  if (parts.some((p) => LOGS_DIRS.has(p))) {
+    return { bucket: "logs" };
   }
 
   // Docs directory or markdown/text files
-  if (parts.some(p => DOCS_DIRS.has(p)) || DOC_EXTENSIONS.has(ext)) {
-    return { stream: docsStream, bucket: 'docs' };
+  if (parts.some((p) => DOCS_DIRS.has(p)) || DOC_EXTENSIONS.has(ext)) {
+    return { bucket: "docs" };
   }
 
   // Only code/config files below this point
   if (!CODE_EXTENSIONS.has(ext)) return null;
 
-  if (topLevel === SERVER_ROOT) return { stream: serverStream, bucket: 'server' };
-  if (topLevel === CLIENT_ROOT) return { stream: clientStream, bucket: 'client' };
-  return { stream: otherStream, bucket: 'other' };
+  if (topLevel === SERVER_ROOT) return { bucket: "server" };
+  if (topLevel === CLIENT_ROOT) return { bucket: "client" };
+  return { bucket: "other" };
 }
 
 // =============================================================================
 // HELPERS
 // =============================================================================
 
-function generateFileList(startPath: string): string[] {
-  const fileList: string[] = [];
-
-  function crawl(currentPath: string) {
+async function generateFileList(startPath: string, writer: ChunkedOutputWriter): Promise<void> {
+  async function crawl(currentPath: string): Promise<void> {
     let entries: string[];
-    try { entries = fs.readdirSync(currentPath); } catch { return; }
+    try {
+      entries = fs.readdirSync(currentPath).sort();
+    } catch {
+      return;
+    }
 
     for (const entry of entries) {
       if (IGNORED_ITEMS.has(entry)) continue;
+
       const fullPath = path.join(currentPath, entry);
-      const relPath  = path.relative(startPath, fullPath);
-      fileList.push(relPath);
+      const relPath = path.relative(startPath, fullPath);
+      await writer.appendString(`${relPath}\n`);
+
       try {
-        if (fs.statSync(fullPath).isDirectory()) crawl(fullPath);
-      } catch { /* ignore */ }
+        if (fs.statSync(fullPath).isDirectory()) {
+          await crawl(fullPath);
+        }
+      } catch {
+        // Ignore transient filesystem issues while building the file map.
+      }
     }
   }
 
-  crawl(startPath);
-  return fileList;
+  await crawl(startPath);
 }
 
-function writeHeader(stream: fs.WriteStream, title: string): void {
-  stream.write(`################################################################################\n`);
-  stream.write(`# ${title}\n`);
-  stream.write(`# Generated: ${new Date().toISOString()}\n`);
-  stream.write(`################################################################################\n\n`);
-}
-
-function appendFileToStream(filePath: string, relPath: string, stream: fs.WriteStream): void {
-  try {
-    const content = fs.readFileSync(filePath, 'utf8');
-    stream.write(`\n================================================================================\n`);
-    stream.write(`FILE: ${relPath}\n`);
-    stream.write(`================================================================================\n\n`);
-    stream.write(content);
-    stream.write(`\n\n`);
-  } catch (err) {
-    console.warn(`⚠️  Could not read ${relPath}:`, err);
+function shouldSkipFile(relPath: string, stat: fs.Stats): boolean {
+  if (stat.size > MAX_SOURCE_FILE_SIZE_BYTES) {
+    console.log(`⏭️  Skipping oversized source file (${formatBytes(stat.size)}): ${relPath}`);
+    return true;
   }
+
+  if (isSampledLogInputMarkdown(relPath)) {
+    sampledLogInputCount += 1;
+    const shouldInclude = (sampledLogInputCount - 1) % LOG_INPUT_SAMPLE_RATE === 0;
+    if (!shouldInclude) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
-// Run
-main().catch(console.error);
+function isSampledLogInputMarkdown(relPath: string): boolean {
+  const normalizedPath = relPath.split(path.sep).join("/");
+  const fileName = path.basename(normalizedPath).toLowerCase();
+
+  return (
+    normalizedPath.startsWith("logs/") &&
+    normalizedPath.includes("/io") &&
+    fileName.startsWith("input") &&
+    fileName.endsWith(".md")
+  );
+}
+
+export function formatBytes(bytes: number): string {
+  if (bytes >= 1024 * 1024 * 1024) {
+    return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
+  }
+  if (bytes >= 1024 * 1024) {
+    return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+  }
+  if (bytes >= 1024) {
+    return `${(bytes / 1024).toFixed(2)} KB`;
+  }
+  return `${bytes} B`;
+}
+
+if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href) {
+  main().catch(console.error);
+}

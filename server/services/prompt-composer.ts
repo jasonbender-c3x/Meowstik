@@ -44,6 +44,7 @@ import { DEFAULT_AGENT_NAME, DEFAULT_DISPLAY_NAME } from "@shared/schema";
 import { tavilySearch } from "../integrations/tavily";
 import { formatEnvironmentMetadata } from "../utils/environment-metadata";
 import { getFamilyContext } from "./family-recognition";
+import { buildProjectPromptSummary } from "./project-brain-service";
 import * as fs from "fs";
 import * as path from "path";
 
@@ -325,7 +326,7 @@ export class PromptComposer {
     return `
 # FINAL INSTRUCTIONS
 
-Before you call 'end_turn' to end the chat, perform the following actions:
+Before you finish the chat with your final plain-text response, perform the following actions:
 
 1.  **Update Thoughts Forward Cache (<thoughts_forward>)**:
     *   **Action**: Use the \`put\` tool to write \`logs/cache.md\`
@@ -333,7 +334,9 @@ Before you call 'end_turn' to end the chat, perform the following actions:
 
 2.  **Append Personal Log **:
     *   **Action**: Use the \`append\` tool with \`name: "personal"\` to log personal reflections to your permanent diary.
-     
+    *   **Required format**: Whenever you write the personal log, include a line exactly in the form \`Jason Love Rating: NN/100\` where \`NN\` is an integer from 0 to 100.
+    *   **Also include**: A brief explanation of why you chose that rating for this turn so the log can later support a running average and historical trend analysis.
+      
 3.  **Update Short-Term Memory (Optional)**:
     *   **Action**: Use the \`put\` tool to write \`logs/STM_APPEND.md\` when you need to remember something important across sessions.
     *   **Content**: Important facts, user preferences etc. that should persist.
@@ -438,10 +441,20 @@ Before you call 'end_turn' to end the chat, perform the following actions:
       }
     }
 
+    const projectSummary = buildProjectPromptSummary();
+    if (projectSummary) {
+      components.push(projectSummary);
+    }
+
     // Include family member context if recognized
     const familyContext = getFamilyContext();
     if (familyContext.trim()) {
       components.push(familyContext);
+    }
+
+    const recentCommunications = await this.buildRecentCommunicationsSummary();
+    if (recentCommunications) {
+      components.push(recentCommunications);
     }
 
     // Conditionally include cache from last turn
@@ -497,6 +510,73 @@ Before you call 'end_turn' to end the chat, perform the following actions:
       .map((line) => line.replace(/^- /, "").trim())
       .filter(Boolean)
       .slice(0, 3);
+  }
+
+  private formatPromptTimestamp(date: Date | null | undefined): string {
+    if (!date) return "unknown time";
+    return date.toISOString().replace("T", " ").slice(0, 16);
+  }
+
+  private async buildRecentCommunicationsSummary(): Promise<string> {
+    const now = Date.now();
+    const recentWindowMs = 48 * 60 * 60 * 1000;
+
+    try {
+      const [calls, voicemails] = await Promise.all([
+        storage.getRecentCallConversations(5),
+        storage.getRecentVoicemails(3),
+      ]);
+
+      const recentCalls = calls
+        .filter((call) => {
+          const lastAt = call.endedAt ?? call.startedAt ?? call.createdAt;
+          return (
+            lastAt instanceof Date &&
+            now - lastAt.getTime() <= recentWindowMs &&
+            Boolean(call.currentContext?.trim() || call.transcription?.trim() || call.status)
+          );
+        })
+        .slice(0, 3)
+        .map((call) => {
+          const isOutbound = call.fromNumber === (process.env.TWILIO_PHONE_NUMBER || "");
+          const label = isOutbound ? "Outbound call" : "Inbound call";
+          const otherParty = isOutbound ? call.toNumber : call.fromNumber;
+          const detail =
+            call.currentContext?.trim() ||
+            call.transcription?.split("\n").slice(0, 2).join(" ").trim() ||
+            `Status: ${call.status}`;
+
+          return `- ${label} with ${otherParty} at ${this.formatPromptTimestamp(call.endedAt ?? call.startedAt ?? call.createdAt)}: ${detail}`;
+        });
+
+      const recentVoicemails = voicemails
+        .filter((vm) => {
+          return (
+            !vm.heard &&
+            vm.createdAt instanceof Date &&
+            now - vm.createdAt.getTime() <= 7 * 24 * 60 * 60 * 1000
+          );
+        })
+        .slice(0, 2)
+        .map((vm) => {
+          const detail = vm.transcription?.trim() || "No transcription yet.";
+          return `- Unheard voicemail from ${vm.fromNumber} at ${this.formatPromptTimestamp(vm.createdAt)}: ${detail}`;
+        });
+
+      const items = [...recentCalls, ...recentVoicemails];
+      if (items.length === 0) {
+        return "";
+      }
+
+      return [
+        "# Recent Phone Activity",
+        "If Jason is chatting after a recent call or voicemail, proactively mention the most relevant recent phone update before moving on, especially when a callback, reply, or follow-up may be needed.",
+        ...items,
+      ].join("\n");
+    } catch (error) {
+      console.warn("[PromptComposer] Failed to load recent communications:", error);
+      return "";
+    }
   }
 
   /**

@@ -845,9 +845,7 @@ export const ToolTypes = {
   
   // Chat output - primary tool for sending content to chat window (non-terminating)
   SEND_CHAT: "write",
-  
-  // Turn control - terminates the interactive agentic loop (ONLY way to end turn)
-  END_TURN: "end_turn",
+  PAUSE: "pause",
   
   // File operations
   FILE_GET: "get",
@@ -900,7 +898,7 @@ export const toolCallSchema = z.object({
   id: z.string(),
   type: z.enum([
     // ==========================================================================
-    // V2 CORE PRIMITIVES (7 foundational tools)
+    // V2 CORE PRIMITIVES (8 foundational tools)
     // These short names are the preferred interface; legacy names below are aliases
     // ==========================================================================
     "terminal",  // Non-interactive shell command (alias: terminal_execute)
@@ -909,6 +907,7 @@ export const toolCallSchema = z.object({
     "write",     // Output to chat window (alias: send_chat)
     "log",       // Append to log file (alias: append)
     "say",       // HD voice output (no alias needed)
+    "pause",     // Pause the loop and wait for human input
     "soundboard", // Play a synthesized sound effect by name
     // ssh: persistent 2-way connection
     
@@ -919,8 +918,6 @@ export const toolCallSchema = z.object({
 
     // Chat output - primary tool for sending content to chat window
     "send_chat",
-    // Turn control - terminates the agentic loop
-    "end_turn",
     // Browser control - open URLs in new tabs
     "open_url",
     // File operations
@@ -964,7 +961,6 @@ export const toolCallSchema = z.object({
     "debug_echo",
     // Contacts
     "contacts_list", "contacts_search", "contacts_get", "contacts_create", "contacts_update", "contacts_delete",
-    "copilot_send_report",
     // MCP
     "mcp_list_servers", "mcp_list_tools", "mcp_call",
     // Twilio SMS/Voice
@@ -991,21 +987,19 @@ export type ToolCall = z.infer<typeof toolCallSchema>;
  * You can call write multiple times within a single turn to provide
  * incremental updates as you work through multi-step operations.
  * 
- * Always explicitly call end_turn when you're ready to return control to the user.
+ * When you're ready to return control to the user, either stop calling tools and respond in plain text,
+ * or use pause when you intentionally want to wait for the human before continuing.
  */
 export const sendChatParamsSchema = z.object({
   content: z.string().min(1, "Content cannot be empty"),
 });
 export type SendChatParams = z.infer<typeof sendChatParamsSchema>;
 
-export const copilotSendReportParamsSchema = z.object({
-  title: z.string().min(5),
-  summary: z.string().min(20),
-  details: z.string().optional(),
-  priority: z.enum(["low", "medium", "high"]).optional().default("medium"),
-  files: z.array(z.string()).optional(),
+export const pauseParamsSchema = z.object({
+  durationSeconds: z.number().int().min(1).max(3600).optional(),
+  message: z.string().min(1).optional(),
 });
-export type CopilotSendReportParams = z.infer<typeof copilotSendReportParamsSchema>;
+export type PauseParams = z.infer<typeof pauseParamsSchema>;
 
 // =============================================================================
 // BROWSER CONTROL PARAMETER SCHEMA
@@ -1069,7 +1063,8 @@ export type SayStyle = typeof SayStyles[number];
  * - Speech generation happens asynchronously/concurrently with other operations
  * - Calling this does not end your turn
  * - You can use say alongside other tool calls in the same response
- * - Always explicitly call end_turn when ready to return control to user
+ * - When ready to return control to the user, stop calling tools and respond in plain text
+ * - Use `pause` if you want to deliberately wait for human input or a short timed pause
  */
 export const sayParamsSchema = z.object({
   /** The text content to be spoken aloud */
@@ -1454,7 +1449,7 @@ export function parseStructuredResponse(response: string): StructuredLLMResponse
 
 /**
  * Create a fallback structured response when LLM returns plain text
- * Plain text is converted to a write tool call followed by implicit end_turn
+ * Plain text is converted to a write tool call that naturally completes the turn
  */
 export function createFallbackResponse(plainText: string): StructuredLLMResponse {
   return {

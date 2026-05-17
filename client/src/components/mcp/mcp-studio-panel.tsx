@@ -94,6 +94,14 @@ type McpTrafficLog = {
   createdAt: number;
 };
 
+type McpCanonicalImportResult = {
+  created: number;
+  updated: number;
+  skipped: Array<{ key: string; reason: string }>;
+  servers: Array<{ key: string; id: string; action: "created" | "updated"; slug: string; name: string }>;
+  configPath: string;
+};
+
 type StructuredFormat = "json" | "xml" | "text";
 
 type StructuredNode = string | number | boolean | null | StructuredRecord | StructuredNode[];
@@ -858,6 +866,27 @@ export function McpStudioPanel() {
     },
   });
 
+  const importCanonicalMcpMutation = useMutation({
+    mutationFn: async () => {
+      const res = await fetch("/api/mcp/import-canonical", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+      if (!res.ok) throw new Error("Failed to import canonical MCP config");
+      return res.json() as Promise<McpCanonicalImportResult>;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/mcp/servers"] });
+      toast({
+        title: "Canonical MCP config imported",
+        description: `${data.created} created, ${data.updated} updated${data.skipped.length ? `, ${data.skipped.length} skipped` : ""}.`,
+      });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Failed to import canonical MCP config", description: error.message, variant: "destructive" });
+    },
+  });
+
   const examples = useMemo(() => {
     const captured = (trafficData?.logs ?? [])
       .filter((entry) => entry.requestPayload || entry.responsePayload)
@@ -1187,8 +1216,24 @@ export function McpStudioPanel() {
 
           <div className="rounded-lg border border-border bg-muted/20 p-6">
             <div className="mb-4 flex items-center justify-between">
-              <h3 className="font-medium">Configured MCP servers</h3>
-              <span className="text-sm text-muted-foreground">{mcpServersData?.servers.length ?? 0} configured</span>
+              <div>
+                <h3 className="font-medium">Configured MCP servers</h3>
+                <p className="text-sm text-muted-foreground">
+                  Import the canonical Copilot inventory from <code>~/.copilot/mcp-config.json</code> to keep Meowstik aligned with Copilot CLI and VS Code.
+                </p>
+              </div>
+              <div className="flex items-center gap-3">
+                <span className="text-sm text-muted-foreground">{mcpServersData?.servers.length ?? 0} configured</span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => importCanonicalMcpMutation.mutate()}
+                  disabled={importCanonicalMcpMutation.isPending}
+                >
+                  {importCanonicalMcpMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
+                  Import shared config
+                </Button>
+              </div>
             </div>
 
             {mcpServersLoading ? (

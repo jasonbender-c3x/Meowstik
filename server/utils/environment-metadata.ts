@@ -88,8 +88,7 @@ export function formatEnvironmentMetadata(): string {
 
 **Environment**: \`${metadata.environment}\`
 **Server Hostname**: \`${metadata.server_hostname}\`
-
+`;
 }
-
 
 

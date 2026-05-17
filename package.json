@@ -11,6 +11,7 @@
     "build": "vite build",
     "lint": "NODE_OPTIONS=--max-old-space-size=4096 eslint --cache --cache-location .cache/eslint \"client/src/**/*.{ts,tsx}\" --max-warnings=0",
     "test": "vitest run",
+    "prepare:notebooklm": "tsx scripts/prepare-notebooklm.ts",
     "demo:printer-breakthrough": "tsx scripts/demo-printer-breakthrough.ts",
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio"

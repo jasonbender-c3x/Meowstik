@@ -1,62 +1,61 @@
-import fs from "fs/promises";
-import path from "path";
-import { CopilotClient, type CopilotSession, type CopilotClientOptions, type AssistantMessageEvent } from "@github/copilot-sdk";
+import { CopilotClient, type AssistantMessageEvent, type CopilotClientOptions, type CopilotSession } from "@github/copilot-sdk";
 
-export type CopilotPriority = "low" | "medium" | "high";
+const DEFAULT_MODEL = process.env.COPILOT_MODEL ?? "gpt-5";
+const DEFAULT_TIMEOUT_MS = 120_000;
 
-export interface CopilotReportPayload {
-  title: string;
-  summary: string;
-  details?: string;
-  files?: string[];
-  priority?: CopilotPriority;
+export interface CopilotAttachment {
+  type: "file";
+  path: string;
+  displayName?: string;
 }
 
-export interface CopilotReportResult {
-  sessionId: string;
+export interface CopilotSessionOptions {
+  sessionId?: string;
+  model?: string;
+  streaming?: boolean;
+  instructions?: string;
+}
+
+export interface CopilotMessageOptions {
   prompt: string;
-  reportPath: string;
+  attachments?: CopilotAttachment[];
+  mode?: "enqueue" | "immediate";
+  timeoutMs?: number;
+}
+
+export interface CopilotQueuedMessageResult {
+  sessionId: string;
+  messageId: string;
+}
+
+export interface CopilotMessageResult {
+  sessionId: string;
   assistantResponse?: string;
 }
 
-const REPORT_DIR = path.join(process.cwd(), "docs", "copilot", "intake");
-const MODEL = process.env.COPILOT_MODEL ?? "gpt-5";
-
-function buildPrompt(report: CopilotReportPayload): string {
-  const lines: string[] = [];
-  lines.push(`Title: ${report.title}`);
-  lines.push(`Priority: ${report.priority ?? "medium"}`);
-  lines.push("");
-  lines.push("Summary:");
-  lines.push(report.summary.trim());
-  if (report.details) {
-    lines.push("");
-    lines.push("Details:");
-    lines.push(report.details.trim());
-  }
-  if (report.files && report.files.length > 0) {
-    lines.push("");
-    lines.push("Files Mentioned:");
-    report.files.forEach((entry) => {
-      lines.push(`- ${entry}`);
-    });
-  }
-  lines.push("");
-  lines.push("Please provide an implementation plan that preserves the existing repository until Copilot executes the changes.");
-  return lines.join("\n");
+export interface CopilotSessionSummary {
+  sessionId: string;
+  model: string;
+  streaming: boolean;
+  workspacePath?: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
-function slugifyTitle(title: string): string {
-  return title
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/(^-+|-+$)/g, "")
-    .slice(0, 40) || "copilot-report";
+export type CopilotSessionEvents = Awaited<ReturnType<CopilotSession["getMessages"]>>;
+
+interface ManagedSession {
+  session: CopilotSession;
+  model: string;
+  streaming: boolean;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export class CopilotService {
   private client?: CopilotClient;
   private starting?: Promise<void>;
+  private readonly sessions = new Map<string, ManagedSession>();
 
   private getClientOptions(): CopilotClientOptions {
     const options: CopilotClientOptions = {
@@ -95,83 +94,145 @@ export class CopilotService {
     this.starting = undefined;
   }
 
-  private async writeReportFile(report: CopilotReportPayload, prompt: string): Promise<string> {
-    await fs.mkdir(REPORT_DIR, { recursive: true });
-    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-    const slug = slugifyTitle(report.title);
-    const filename = `${timestamp}-${slug}.md`;
-    const fullPath = path.join(REPORT_DIR, filename);
-
-    const lines: string[] = [];
-    lines.push(`# ${report.title}`);
-    lines.push("");
-    lines.push(`> Priority: ${report.priority ?? "medium"}\n`);
-    lines.push("## Summary");
-    lines.push(report.summary.trim());
-    if (report.details) {
-      lines.push("");
-      lines.push("## Details");
-      lines.push(report.details.trim());
-    }
-    if (report.files && report.files.length > 0) {
-      lines.push("");
-      lines.push("## Files Mentioned");
-      report.files.forEach((entry) => lines.push(`- ${entry}`));
-    }
-    lines.push("");
-    lines.push("## Prompt Sent to Copilot");
-    lines.push("```");
-    lines.push(prompt);
-    lines.push("```");
-
-    await fs.writeFile(fullPath, lines.join("\n"), "utf8");
-    return path.relative(process.cwd(), fullPath);
+  private rememberSession(session: CopilotSession, options: CopilotSessionOptions, createdAt = new Date()): ManagedSession {
+    const managed: ManagedSession = {
+      session,
+      model: options.model ?? DEFAULT_MODEL,
+      streaming: options.streaming ?? true,
+      createdAt,
+      updatedAt: createdAt,
+    };
+    this.sessions.set(session.sessionId, managed);
+    return managed;
   }
 
-  public async sendReport(report: CopilotReportPayload): Promise<CopilotReportResult> {
+  private getManagedSession(sessionId: string): ManagedSession {
+    const managed = this.sessions.get(sessionId);
+    if (!managed) {
+      throw new Error(`Unknown Copilot session: ${sessionId}`);
+    }
+    return managed;
+  }
+
+  private touchSession(managed: ManagedSession): void {
+    managed.updatedAt = new Date();
+  }
+
+  private summarizeSession(managed: ManagedSession): CopilotSessionSummary {
+    return {
+      sessionId: managed.session.sessionId,
+      model: managed.model,
+      streaming: managed.streaming,
+      workspacePath: managed.session.workspacePath,
+      createdAt: managed.createdAt.toISOString(),
+      updatedAt: managed.updatedAt.toISOString(),
+    };
+  }
+
+  public async createSession(options: CopilotSessionOptions = {}): Promise<CopilotSessionSummary> {
     await this.ensureClient();
 
     if (!this.client) {
       throw new Error("Copilot client failed to initialize.");
     }
 
-    const prompt = buildPrompt(report);
     const session = await this.client.createSession({
-      model: MODEL,
-      streaming: false,
+      sessionId: options.sessionId,
+      model: options.model ?? DEFAULT_MODEL,
+      streaming: options.streaming ?? true,
+      systemMessage: options.instructions ? { content: options.instructions } : undefined,
     });
 
-    let assistantContent: string | undefined;
-    try {
-      const finalEvent = await session.sendAndWait(
-        {
-          prompt,
-          mode: "immediate",
-        },
-        120_000,
-      );
-      assistantContent = finalEvent?.data?.content;
-    } finally {
-      await session.disconnect();
+    return this.summarizeSession(this.rememberSession(session, options));
+  }
+
+  public async resumeSession(sessionId: string, options: CopilotSessionOptions = {}): Promise<CopilotSessionSummary> {
+    await this.ensureClient();
+
+    if (!this.client) {
+      throw new Error("Copilot client failed to initialize.");
     }
 
-    const reportPath = await this.writeReportFile(report, prompt);
+    const session = await this.client.resumeSession(sessionId, {
+      model: options.model ?? DEFAULT_MODEL,
+      streaming: options.streaming ?? true,
+      systemMessage: options.instructions ? { content: options.instructions } : undefined,
+    });
+
+    return this.summarizeSession(this.rememberSession(session, { ...options, sessionId }, new Date()));
+  }
+
+  public listActiveSessions(): CopilotSessionSummary[] {
+    return Array.from(this.sessions.values()).map((managed) => this.summarizeSession(managed));
+  }
+
+  public getActiveSession(sessionId: string): CopilotSessionSummary {
+    return this.summarizeSession(this.getManagedSession(sessionId));
+  }
+
+  public async queueMessage(sessionId: string, options: CopilotMessageOptions): Promise<CopilotQueuedMessageResult> {
+    const managed = this.getManagedSession(sessionId);
+    const messageId = await managed.session.send({
+      prompt: options.prompt,
+      attachments: options.attachments,
+      mode: options.mode ?? "immediate",
+    });
+    this.touchSession(managed);
+    return { sessionId, messageId };
+  }
+
+  public async sendMessage(sessionId: string, options: CopilotMessageOptions): Promise<CopilotMessageResult> {
+    const managed = this.getManagedSession(sessionId);
+    const finalEvent = await managed.session.sendAndWait(
+      {
+        prompt: options.prompt,
+        attachments: options.attachments,
+        mode: options.mode ?? "immediate",
+      },
+      options.timeoutMs ?? DEFAULT_TIMEOUT_MS,
+    );
+
+    this.touchSession(managed);
 
     return {
-      sessionId: session.sessionId,
-      prompt,
-      assistantResponse: assistantContent,
-      reportPath,
+      sessionId,
+      assistantResponse: this.extractAssistantContent(finalEvent),
     };
   }
 
+  public async getMessages(sessionId: string): Promise<CopilotSessionEvents> {
+    const managed = this.getManagedSession(sessionId);
+    return managed.session.getMessages();
+  }
+
+  public async disconnectSession(sessionId: string): Promise<void> {
+    const managed = this.getManagedSession(sessionId);
+    await managed.session.disconnect();
+    this.sessions.delete(sessionId);
+  }
+
   public async stop(): Promise<void> {
+    const disconnects = Array.from(this.sessions.keys()).map(async (sessionId) => {
+      const managed = this.sessions.get(sessionId);
+      if (!managed) {
+        return;
+      }
+      await managed.session.disconnect();
+    });
+
+    await Promise.all(disconnects);
+    this.sessions.clear();
+
     if (!this.client) {
       return;
     }
 
     await this.client.stop();
     this.client = undefined;
+  }
+
+  private extractAssistantContent(finalEvent: AssistantMessageEvent | undefined): string | undefined {
+    return finalEvent?.data?.content;
   }
 }
 

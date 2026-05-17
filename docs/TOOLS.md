@@ -16,11 +16,10 @@ The 7 foundational tools that form the base layer.
 | `write` | Send markdown to the chat window | `content` |
 | `append` | Append content to a named log file | `name`, `content` |
 | `say` | Trigger HD voice output (non-blocking) | `utterance` |
-| `end_turn` | Terminate the agentic loop turn | *(none)* |
 
 ### Notes
-- **`end_turn` is mandatory** — the AI must call it to finish its turn in the agentic loop
-- **`say` is non-blocking** — speech runs concurrently; you still must call `end_turn`
+- **Turns end on plain text** — once the AI is done using tools, it stops calling tools and replies normally
+- **`say` is non-blocking** — speech runs concurrently and does not end the turn by itself
 - **`get`** supports `editor:` and `client:` prefixes for Monaco canvas and optional relay modes
 - **`put`** supports `editor:` and `client:` prefixes similarly
 - Local computer-use is handled by the `computer_*` tools, not by `client:` file prefixes

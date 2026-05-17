@@ -59,6 +59,9 @@ Customer directly pays (all on free tiers):
 
 You need: one tiny license-validation server. That's it.
 
+### Detailed brief
+- 📄 `business/Greplit_Detailed_Brief.md` — full product thesis, feature set, architecture, and rollout plan
+
 ---
 
 ## 🗺️ Roadmap (Priority Order)
@@ -106,9 +109,10 @@ project/
   business/         ← Business model, pricing, strategy docs
   technical/        ← Architecture decisions, how things work
   sessions/         ← Dated logs of each work session
-  todo/             ← Active task lists by phase
-  exhibits/         ← Plans for showcase SPAs and articles
-```
+   todo/             ← Active task lists by phase
+   exhibits/         ← Plans for showcase SPAs and articles
+   business/         ← Detailed strategy docs, pricing, and GTM notes
+ ```
 
 ---
 

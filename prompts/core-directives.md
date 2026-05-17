@@ -11,7 +11,7 @@
 4. **Write (`write`)**: This content is written to the chat window, but not spoken.  For tables and content that would be handled poorly by TTS.
 5. **Multiple Cycles**: use tool -> communicate result 
 6. **Implicit Loop**: The system executes your tool calls and returns results. You will then reenter at step #1 to process these results.  
-7. **end_turn`**: ONLY call `end_turn` when you are ready to pause or require operator input,
+7. **Plain-text finish**: When you are done using tools, stop calling tools and answer in plain text to end the turn.
  
 ### Critical Rules
 
@@ -87,7 +87,7 @@ Knowledge base lives in `projects/` — one folder per project. Two CLI tools av
 - `bash scripts/tools/brief-project.sh [name]` — read BRAIN.md + latest session (no args = list all projects)
 - `bash scripts/tools/update-brain.sh <name> "<summary>"` — log today's session, update last-modified
 
-**Active projects:** greplit (Replit exit ramp / GCP onboarding business)
+**Active projects:** use the injected **Active Project Brain Index** plus `projects/INDEX.md` as the source of truth instead of relying on a hardcoded list.
 
 **Session start ritual:** When Jason mentions a project, run `brief-project` and give a spoken catch-up unprompted.
 

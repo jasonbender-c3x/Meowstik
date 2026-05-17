@@ -55,6 +55,10 @@ const DEFAULT_LIVE_AUDIO_MODEL =
 const DEFAULT_LIVE_NATIVE_AUDIO_MODEL =
   process.env.GEMINI_LIVE_NATIVE_AUDIO_MODEL || "gemini-3-flash-preview-native-audio-preview-12-2025";
 
+function toBase64(data: Buffer | string): string {
+  return typeof data === "string" ? data : data.toString("base64");
+}
+
 /**
  * Create a new Gemini Live session
  */
@@ -76,14 +80,14 @@ export async function createLiveSession(
     
     const sessionConfig: any = {
       responseModalities: [Modality.AUDIO, Modality.TEXT],
-      /* speechConfig: {
+      speechConfig: {
         voiceConfig: {
           prebuiltVoiceConfig: {
             voiceName: config.voiceName || DEFAULT_VOICE
           }
         }
       },
-      systemInstruction: config.systemInstruction || DEFAULT_SYSTEM_INSTRUCTION */
+      systemInstruction: config.systemInstruction || DEFAULT_SYSTEM_INSTRUCTION
     };
 
     // Add video streaming support for Gemini 3.0 (Project Ghost)
@@ -211,23 +215,16 @@ export async function sendAudio(
   }
 
   try {
-    const data = typeof audioData === "string" ? audioData : audioData.toString("base64");
-    
-    // Handle new SDK structure where session.conn.send is used
-    if (liveSession.session.conn) {
-        const msg = {
-            realtime_input: {
-                media_chunks: [
-                    {
-                        mime_type: mimeType,
-                        data: data
-                    }
-                ]
-            }
-        };
-        liveSession.session.conn.send(JSON.stringify(msg));
+    if (typeof liveSession.session.sendRealtimeInput === "function") {
+      liveSession.session.sendRealtimeInput({
+        audio: {
+          data: toBase64(audioData),
+          mimeType,
+        },
+      });
     } else if (typeof liveSession.session.send === 'function') {
         // Fallback to old method if available
+        const data = typeof audioData === "string" ? audioData : audioData.toString("base64");
         await liveSession.session.send({
           data,
           mimeType
@@ -262,26 +259,16 @@ export async function sendVideoFrame(
   }
 
   try {
-    // Handle new SDK structure where session.conn.send is used
-    if (liveSession.session.conn) {
-        // Remove data URL prefix if present
-        const base64Data = frameData.replace(/^data:image\/\w+;base64,/, "");
-        
-        const msg = {
-            realtime_input: {
-                media_chunks: [
-                    {
-                        mime_type: mimeType,
-                        data: base64Data
-                    }
-                ]
-            }
-        };
-        liveSession.session.conn.send(JSON.stringify(msg));
+    const base64Data = frameData.replace(/^data:image\/\w+;base64,/, "");
+
+    if (typeof liveSession.session.sendRealtimeInput === "function") {
+      liveSession.session.sendRealtimeInput({
+        video: {
+          data: base64Data,
+          mimeType,
+        },
+      });
     } else {
-        // Remove data URL prefix if present
-        const base64Data = frameData.replace(/^data:image\/\w+;base64,/, "");
-        
         await liveSession.session.send({
           data: base64Data,
           mimeType
@@ -312,19 +299,18 @@ export async function sendText(
   }
 
   try {
-    if (liveSession.session.conn) {
-        const msg = {
-            client_content: {
-                turns: [
-                    {
-                        role: "user",
-                        parts: [{ text }]
-                    }
-                ],
-                turn_complete: true
-            }
-        };
-        liveSession.session.conn.send(JSON.stringify(msg));
+    if (typeof liveSession.session.sendRealtimeInput === "function") {
+        liveSession.session.sendRealtimeInput({ text });
+    } else if (typeof liveSession.session.sendClientContent === "function") {
+      liveSession.session.sendClientContent({
+        turns: [
+          {
+            role: "user",
+            parts: [{ text }],
+          },
+        ],
+        turnComplete: true,
+      });
     } else {
         await liveSession.session.send({ text });
     }
@@ -347,7 +333,7 @@ export async function* receiveResponses(
   type: "audio" | "text" | "transcript" | "functionCall" | "end";
   data?: string;
   text?: string;
-  functionCall?: { name: string; args: any };
+  functionCall?: { id?: string; name: string; args: any };
 }> {
   const liveSession = activeSessions.get(sessionId);
   
@@ -423,11 +409,12 @@ export async function* receiveResponses(
                               }
                               if (part.functionCall) {
                                   yield { 
-                                      type: "functionCall", 
-                                      functionCall: {
-                                          name: part.functionCall.name,
-                                          args: part.functionCall.args
-                                      }
+                                       type: "functionCall", 
+                                       functionCall: {
+                                           id: part.functionCall.id,
+                                           name: part.functionCall.name,
+                                           args: part.functionCall.args
+                                       }
                                   };
                               }
                           }
@@ -438,11 +425,12 @@ export async function* receiveResponses(
                       if (functionCalls) {
                           for (const call of functionCalls) {
                               yield {
-                                  type: "functionCall",
-                                  functionCall: {
-                                      name: call.name,
-                                      args: call.args
-                                  }
+                                   type: "functionCall",
+                                   functionCall: {
+                                       id: call.id,
+                                       name: call.name,
+                                       args: call.args
+                                   }
                               };
                           }
                       }
@@ -482,6 +470,7 @@ export async function* receiveResponses(
                 yield { 
                   type: "functionCall", 
                   functionCall: {
+                    id: part.functionCall.id,
                     name: part.functionCall.name,
                     args: part.functionCall.args
                   }
@@ -573,6 +562,7 @@ export async function updateSystemInstruction(
  */
 export async function sendFunctionResult(
   sessionId: string,
+  functionCallId: string | undefined,
   functionName: string,
   result: any
 ): Promise<{ success: boolean; error?: string }> {
@@ -583,18 +573,16 @@ export async function sendFunctionResult(
   }
 
   try {
-    if (liveSession.session.conn) {
-        const msg = {
-            tool_response: {
-                function_responses: [
-                    {
-                        name: functionName,
-                        response: { result }
-                    }
-                ]
-            }
-        };
-        liveSession.session.conn.send(JSON.stringify(msg));
+    if (typeof liveSession.session.sendToolResponse === "function") {
+        liveSession.session.sendToolResponse({
+          functionResponses: [
+            {
+              id: functionCallId,
+              name: functionName,
+              response: { output: result },
+            },
+          ],
+        });
     } else {
         await liveSession.session.send({
           functionResponse: {
@@ -626,10 +614,10 @@ export async function closeLiveSession(
   }
 
   try {
-    if (liveSession.session.conn) {
-        liveSession.session.conn.close();
-    } else if (liveSession.session.close) {
+    if (typeof liveSession.session.close === "function") {
       await liveSession.session.close();
+    } else if (liveSession.session.conn) {
+      liveSession.session.conn.close();
     }
     liveSession.isActive = false;
     activeSessions.delete(sessionId);
@@ -674,5 +662,3 @@ export const AVAILABLE_VOICES = [
   { value: "Orus", label: "Orus - Authoritative Male", gender: "male" },
   { value: "Zephyr", label: "Zephyr - Gentle Neutral", gender: "neutral" },
 ] as const;
-
-

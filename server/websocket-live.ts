@@ -103,6 +103,7 @@ async function handleConnection(ws: WebSocket, sessionId: string): Promise<void>
         // Send function execution result back to Gemini Live
         const result = await geminiLive.sendFunctionResult(
           sessionId,
+          message.functionCallId,
           message.functionName,
           message.result
         );
@@ -163,7 +164,7 @@ async function startReceiving(client: LiveWebSocketClient): Promise<void> {
  */
 async function handleFunctionCall(
   client: LiveWebSocketClient,
-  functionCall: { name: string; args: any }
+  functionCall: { id?: string; name: string; args: any }
 ): Promise<void> {
   console.log(`[Live WS] Function call: ${functionCall.name}`, functionCall.args);
   
@@ -186,6 +187,7 @@ async function handleFunctionCall(
         // Send success result back to Gemini Live
         await geminiLive.sendFunctionResult(
           client.sessionId,
+          functionCall.id,
           functionCall.name,
           { success: true, executed: true }
         );
@@ -195,6 +197,7 @@ async function handleFunctionCall(
         // Unknown function - send error
         await geminiLive.sendFunctionResult(
           client.sessionId,
+          functionCall.id,
           functionCall.name,
           { success: false, error: "Unknown function type" }
         );
@@ -203,6 +206,7 @@ async function handleFunctionCall(
       console.error(`[Live WS] Error executing function ${functionCall.name}:`, error);
       await geminiLive.sendFunctionResult(
         client.sessionId,
+        functionCall.id,
         functionCall.name,
         { success: false, error: error.message }
       );
@@ -216,6 +220,7 @@ async function handleFunctionCall(
     
     await geminiLive.sendFunctionResult(
       client.sessionId,
+      functionCall.id,
       functionCall.name,
       { success: false, error: "No desktop session linked" }
     );
@@ -308,6 +313,5 @@ function sendMessage(ws: WebSocket, message: object): void {
 function sendError(ws: WebSocket, error: string): void {
   sendMessage(ws, { type: "error", error });
 }
-
 
 

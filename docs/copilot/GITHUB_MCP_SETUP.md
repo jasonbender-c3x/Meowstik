@@ -14,6 +14,7 @@ The repo sync helper mirrors that inventory into:
 
 - VS Code user config: `~/.config/Code/User/mcp.json`
 - workspace config: `.vscode/mcp.json`
+- Meowstik MCP Studio import: `/api/mcp/import-canonical` (or the **Import shared config** button in MCP Studio)
 
 The workspace copy is sanitized so secret-like env values become `${ENV_VAR}` placeholders instead of raw credentials.
 
@@ -44,7 +45,19 @@ This will:
 - write the full inventory to `~/.config/Code/User/mcp.json`
 - write a sanitized workspace copy to `.vscode/mcp.json`
 
-### 3. Open the project in VS Code or Codespaces
+### 3. Import the same inventory into Meowstik
+
+Open **MCP Studio** in Meowstik and use **Import shared config**. That reads the same canonical file and upserts the servers into Meowstik's own MCP server database so the app stays aligned with Copilot CLI and VS Code.
+
+### 4. Add shared servers once, then sync/import everywhere
+
+Recommended shared entries:
+
+- `google-workspace-mcp-local` — `uvx workspace-mcp --tool-tier complete`
+- `google-workspace-mcp-remote` — `http://localhost:8000/mcp` for a hosted Workspace MCP deployment
+- `claude-code-explorer-mcp` — `npx -y claude-code-explorer-mcp`
+
+### 5. Open the project in VS Code or Codespaces
 
 VS Code reads the user/workspace MCP config directly. Codespaces and other repo-hosted environments can use the sanitized workspace copy as the checked-in starting point.
 
@@ -54,6 +67,7 @@ VS Code reads the user/workspace MCP config directly. Codespaces and other repo-
 - commands / args / endpoints
 - safe literal envs like `DISPLAY` or `GOOGLE_APPLICATION_CREDENTIALS`
 - placeholderized secret envs such as `${GITHUB_TOKEN}` or `${OPENAI_API_KEY}`
+- imported Meowstik MCP Studio server definitions that mirror the canonical inventory
 
 ## Repo-level Copilot guidance
 
@@ -70,6 +84,11 @@ These are visible to Copilot tooling alongside the synced MCP config.
 - Re-run `node scripts/sync-shared-ai-configs.mjs`
 - Reload the VS Code window
 - Check that `~/.config/Code/User/mcp.json` was updated
+
+### Meowstik does not see new servers
+- Re-run `node scripts/sync-shared-ai-configs.mjs` if you changed the canonical inventory
+- In Meowstik MCP Studio, click **Import shared config**
+- Check that `~/.copilot/mcp-config.json` exists and contains `mcpServers`
 
 ### Secrets are missing in the workspace copy
 - This is expected for secret-like env vars

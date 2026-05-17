@@ -120,8 +120,9 @@ router.post("/servers", async (req, res) => {
 });
 
 router.patch("/servers/:id", async (req, res) => {
+  const userId = getUserId(req);
   const body = mcpServerBodySchema.parse(req.body ?? {});
-  const updated = await mcpService.updateServer(req.params.id, body);
+  const updated = await mcpService.updateServer(userId, req.params.id, body);
 
   if (!updated) {
     throw notFound("MCP server not found");
@@ -131,7 +132,8 @@ router.patch("/servers/:id", async (req, res) => {
 });
 
 router.delete("/servers/:id", async (req, res) => {
-  const deleted = await mcpService.deleteServer(req.params.id);
+  const userId = getUserId(req);
+  const deleted = await mcpService.deleteServer(userId, req.params.id);
   if (!deleted) {
     throw notFound("MCP server not found");
   }
@@ -155,6 +157,12 @@ router.post("/call", async (req, res) => {
   const userId = getUserId(req);
   const body = mcpCallSchema.parse(req.body ?? {});
   const result = await mcpService.callTool(userId, body.serverId, body.toolName, body.arguments ?? {});
+  res.json(result);
+});
+
+router.post("/import-canonical", async (req, res) => {
+  const userId = getUserId(req);
+  const result = await mcpService.importServersFromCanonicalConfig(userId);
   res.json(result);
 });
 

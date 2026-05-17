@@ -3,9 +3,10 @@ import { AlertCircle, Loader2, Mic, MicOff, Phone, PhoneOff, Radio, Volume2, Vol
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
 import { useVoiceActivityDetection } from "@/hooks/use-voice-activity-detection";
+import { getMicrophoneErrorMessage } from "@/lib/microphone-errors";
 import { getLiveModeSettings, type LiveModeSettings } from "@/lib/live-mode-settings";
 import { cn } from "@/lib/utils";
 
@@ -14,6 +15,7 @@ interface LiveModeDialogProps {
   onOpenChange: (open: boolean) => void;
   variant?: "dialog" | "embedded";
   className?: string;
+  autoConnectOnOpen?: boolean;
 }
 
 interface TranscriptEntry {
@@ -40,6 +42,7 @@ export function LiveModeDialog({
   onOpenChange,
   variant = "dialog",
   className,
+  autoConnectOnOpen = true,
 }: LiveModeDialogProps) {
   const [connectionState, setConnectionState] = useState<ConnectionState>("disconnected");
   const [liveSettings, setLiveSettings] = useState<LiveModeSettings>(() => getLiveModeSettings());
@@ -65,6 +68,7 @@ export function LiveModeDialog({
   const connectionStateRef = useRef<ConnectionState>("disconnected");
   const startListeningRef = useRef<(() => Promise<void>) | null>(null);
   const disconnectRef = useRef<(() => Promise<void>) | null>(null);
+  const autoConnectAttemptedRef = useRef(false);
 
   useEffect(() => {
     connectionStateRef.current = connectionState;
@@ -184,6 +188,7 @@ export function LiveModeDialog({
 
       setUserInterimTranscript("");
     }, []),
+    undefined,
     {
       threshold: liveSettings.liveModeVADSensitivity,
       silenceDuration: liveSettings.liveModeVadSilenceDurationMs,
@@ -346,6 +351,7 @@ export function LiveModeDialog({
 
   useEffect(() => {
     if (!open) {
+      autoConnectAttemptedRef.current = false;
       void disconnectRef.current?.();
     }
   }, [open]);
@@ -361,8 +367,26 @@ export function LiveModeDialog({
       return;
     }
 
+    const mediaDevicesAvailable =
+      typeof navigator !== "undefined" &&
+      !!navigator.mediaDevices &&
+      typeof navigator.mediaDevices.getUserMedia === "function";
+    const secureContext =
+      typeof window === "undefined" ? true : window.isSecureContext;
+
+    if (!mediaDevicesAvailable) {
+      setError(
+        getMicrophoneErrorMessage(null, {
+          hasMediaDevices: false,
+          isSecureContext: secureContext,
+        }),
+      );
+      return;
+    }
+
+    let stream: MediaStream;
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
+      stream = await navigator.mediaDevices.getUserMedia({
         audio: {
           channelCount: 1,
           sampleRate: 16000,
@@ -371,8 +395,20 @@ export function LiveModeDialog({
           autoGainControl: true,
         },
       });
-      streamRef.current = stream;
+    } catch (microphoneError) {
+      console.error("[LiveMode] Failed to acquire microphone:", microphoneError);
+      setError(
+        getMicrophoneErrorMessage(microphoneError, {
+          hasMediaDevices: mediaDevicesAvailable,
+          isSecureContext: secureContext,
+        }),
+      );
+      return;
+    }
 
+    streamRef.current = stream;
+
+    try {
       audioContextRef.current = new AudioContext({ sampleRate: 16000 });
       await audioContextRef.current.audioWorklet.addModule("/audio-processor.js");
 
@@ -415,13 +451,24 @@ export function LiveModeDialog({
       silentOutput.connect(audioContextRef.current.destination);
 
       if (liveSettings.liveModeContinuousListening) {
-        await vad.start();
+        await vad.start({
+          stream,
+          sourceNode: source,
+          audioContext: audioContextRef.current,
+        });
       }
 
+      setError(null);
       setIsListening(true);
     } catch (startError) {
       console.error("[LiveMode] Failed to start listening:", startError);
-      setError("Microphone access denied");
+      stream.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
+      if (audioContextRef.current) {
+        void audioContextRef.current.close();
+        audioContextRef.current = null;
+      }
+      setError(startError instanceof Error ? startError.message : "Could not start live audio.");
     }
   }, [isListening, liveSettings.liveModeContinuousListening, vad]);
 
@@ -524,18 +571,31 @@ export function LiveModeDialog({
     }
   }, [addTranscriptEntry, liveSettings.liveModeContinuousListening, liveSettings.ttsVoice, playAudioChunk]);
 
+  useEffect(() => {
+    if (!open || !autoConnectOnOpen) {
+      return;
+    }
+
+    if (connectionState === "connected" || connectionState === "connecting" || autoConnectAttemptedRef.current) {
+      return;
+    }
+
+    autoConnectAttemptedRef.current = true;
+    void connect();
+  }, [autoConnectOnOpen, connect, connectionState, open]);
+
   const content = (
     <div className="flex h-full flex-col">
-      <DialogHeader className="border-b px-6 py-4 text-left">
+      <div className="border-b px-6 py-4 text-left">
         <div className="flex items-start justify-between gap-4">
           <div className="space-y-2">
-            <DialogTitle className="flex items-center gap-2">
+            <h2 className="flex items-center gap-2 text-lg font-semibold leading-none tracking-tight">
               <Radio className="h-5 w-5 text-primary" />
               Live Mode
-            </DialogTitle>
-            <DialogDescription>
+            </h2>
+            <p className="text-sm text-muted-foreground">
               Real-time voice chat from the main composer. Voice and barge-in tuning come from Settings.
-            </DialogDescription>
+            </p>
             <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
               <span>Voice: {liveSettings.ttsVoice}</span>
               <span>&middot;</span>
@@ -579,7 +639,7 @@ export function LiveModeDialog({
             </Button>
           </div>
         </div>
-      </DialogHeader>
+      </div>
 
       <div className="flex flex-1 flex-col gap-4 overflow-hidden px-6 py-4">
         {error ? (
@@ -627,7 +687,9 @@ export function LiveModeDialog({
                 <div>
                   <Radio className="mx-auto mb-4 h-10 w-10 opacity-20" />
                   <p>Your live conversation will appear here.</p>
-                  <p className="mt-1 text-sm">Use the call button below to connect.</p>
+                  <p className="mt-1 text-sm">
+                    {connectionState === "connecting" ? "Connecting automatically..." : "Reconnecting will start the session again."}
+                  </p>
                 </div>
               </div>
             ) : (
@@ -692,9 +754,9 @@ export function LiveModeDialog({
 
         <div className="flex flex-col items-center gap-4 py-2">
           {connectionState === "disconnected" || connectionState === "error" ? (
-            <Button size="lg" className="h-16 w-16 rounded-full" onClick={connect}>
-              <Phone className="h-6 w-6" />
-            </Button>
+              <Button size="lg" className="h-16 w-16 rounded-full" onClick={connect}>
+                <Phone className="h-6 w-6" />
+              </Button>
           ) : connectionState === "connecting" ? (
             <Button size="lg" className="h-16 w-16 rounded-full" disabled>
               <Loader2 className="h-6 w-6 animate-spin" />
@@ -729,7 +791,7 @@ export function LiveModeDialog({
                 ? "Speak now. Audio is streaming live."
                 : connectionState === "connected"
                   ? "Tap the microphone when you want to talk."
-                  : "Tap the call button to connect."}
+                  : "Live mode connects automatically when opened. Use the call button only to retry."}
           </p>
         </div>
       </div>

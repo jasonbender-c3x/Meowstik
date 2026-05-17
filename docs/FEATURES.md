@@ -138,6 +138,7 @@ Meowstik now supports configurable MCP servers through a built-in catalog plus u
 - MIME-aware payload chips/cards so file-like nested objects can preview as richer assets instead of opaque blobs
 - Built-in library entries for the official/reference servers: `filesystem`, `fetch`, `git`, `memory`, `time`, `sequentialthinking`, and `everything`
 - Built-in Nelson MCP entry for LibreOffice-compatible workflows
+- Built-in shared-server entries for Google Workspace MCP (local stdio + hosted HTTP) and Claude Code Explorer MCP
 
 ### ✅ Shared MCP Config Sync for Copilot / VS Code / Codespaces
 
@@ -147,6 +148,7 @@ Meowstik now supports configurable MCP servers through a built-in catalog plus u
 - `scripts/sync-shared-ai-configs.mjs` mirrors that inventory into:
   - VS Code user config (`~/.config/Code/User/mcp.json`)
   - workspace config (`.vscode/mcp.json`)
+- MCP Studio can import that same canonical inventory directly into Meowstik's MCP server database
 - Workspace output sanitizes secret-like env values into `${ENV_VAR}` placeholders so the repo copy stays safe to share
 - `.github/copilot-instructions.md` documents the shared setup and specialist agents
 

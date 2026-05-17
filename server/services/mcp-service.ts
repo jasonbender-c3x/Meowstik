@@ -3,7 +3,11 @@ import { SSEClientTransport } from "@modelcontextprotocol/sdk/client/sse.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import type { McpServer } from "@shared/schema";
+import fs from "fs";
 import { nanoid } from "nanoid";
+import os from "os";
+import path from "path";
+import { resolveRuntimeArgs, resolveRuntimeMap, resolveRuntimeString } from "./mcp-runtime-resolution";
 import { storage } from "../storage";
 import { rawDb } from "../db";
 
@@ -56,6 +60,49 @@ export type McpTrafficLog = {
 };
 
 const MCP_LIBRARY: McpLibraryEntry[] = [
+  {
+    key: "google-workspace-mcp-local",
+    name: "Google Workspace MCP (local)",
+    description: "All-in-one Google Workspace server for Gmail, Calendar, Docs, Sheets, Tasks, Contacts, Drive, Slides, and more using local stdio auth flow.",
+    transport: "stdio",
+    homepage: "https://github.com/taylorwilsdon/google_workspace_mcp",
+    docsUrl: "https://workspacemcp.com/quick-start",
+    template: {
+      command: "uvx",
+      args: ["workspace-mcp", "--tool-tier", "complete"],
+      env: {
+        GOOGLE_OAUTH_CLIENT_ID: "${GOOGLE_OAUTH_CLIENT_ID}",
+        GOOGLE_OAUTH_CLIENT_SECRET: "${GOOGLE_OAUTH_CLIENT_SECRET}",
+        OAUTHLIB_INSECURE_TRANSPORT: "1",
+      },
+    },
+  },
+  {
+    key: "google-workspace-mcp-remote",
+    name: "Google Workspace MCP (hosted)",
+    description: "Connect to a centrally hosted Google Workspace MCP server over HTTP with OAuth 2.1 or service-account backed auth.",
+    transport: "streamable-http",
+    homepage: "https://github.com/taylorwilsdon/google_workspace_mcp",
+    docsUrl: "https://workspacemcp.com/docs",
+    template: {
+      endpointUrl: "http://localhost:8000/mcp",
+      headers: {
+        Authorization: "Bearer ${WORKSPACE_MCP_BEARER_TOKEN}",
+      },
+    },
+  },
+  {
+    key: "claude-code-explorer-mcp",
+    name: "Claude Code Explorer MCP",
+    description: "Repository snooper / explorer server for the Claude Code source snapshot, as documented in the desktop claude-code report.",
+    transport: "stdio",
+    homepage: "https://www.npmjs.com/package/claude-code-explorer-mcp",
+    docsUrl: "https://www.npmjs.com/package/claude-code-explorer-mcp",
+    template: {
+      command: "npx",
+      args: ["-y", "claude-code-explorer-mcp"],
+    },
+  },
   {
     key: "nelson-mcp",
     name: "Nelson MCP",
@@ -212,6 +259,52 @@ function resolveCwd(cwd: string | null | undefined): string | undefined {
   if (!cwd) return undefined;
   if (cwd.startsWith("/")) return cwd;
   return `${process.cwd()}/${cwd}`;
+}
+
+function humanizeKey(value: string): string {
+  return value
+    .replace(/[_-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .replace(/\b\w/g, (char) => char.toUpperCase()) || "MCP Server";
+}
+
+type CanonicalMcpServerEntry = {
+  type?: string;
+  transport?: string;
+  name?: string;
+  description?: string;
+  command?: string;
+  args?: unknown;
+  cwd?: string;
+  env?: unknown;
+  headers?: unknown;
+  url?: string;
+  endpointUrl?: string;
+  enabled?: boolean;
+};
+
+type CanonicalMcpConfig = {
+  mcpServers?: Record<string, CanonicalMcpServerEntry>;
+};
+
+type CanonicalImportResult = {
+  created: number;
+  updated: number;
+  skipped: Array<{ key: string; reason: string }>;
+  servers: Array<{ key: string; id: string; action: "created" | "updated"; slug: string; name: string }>;
+  configPath: string;
+};
+
+function normaliseTransport(entry: CanonicalMcpServerEntry): "stdio" | "streamable-http" | "sse" {
+  const candidate = String(entry.transport ?? entry.type ?? "").trim().toLowerCase();
+  if (candidate === "stdio") return "stdio";
+  if (candidate === "sse") return "sse";
+  if (candidate === "streamable-http" || candidate === "http" || candidate === "https") {
+    return "streamable-http";
+  }
+
+  return entry.command ? "stdio" : "streamable-http";
 }
 
 function parseJsonPayload(value: unknown): unknown {
@@ -506,7 +599,7 @@ export class McpService {
     });
   }
 
-  async updateServer(serverId: string, input: {
+  async updateServer(userId: string, serverId: string, input: {
     name?: string;
     description?: string;
     transport?: "stdio" | "streamable-http" | "sse";
@@ -521,7 +614,7 @@ export class McpService {
     this.ensureSchema();
     await this.invalidateServer(serverId);
 
-    return storage.updateMcpServer(serverId, {
+    return storage.updateMcpServerForUser(userId, serverId, {
       ...(input.name !== undefined ? { name: input.name.trim() || "MCP Server" } : {}),
       ...(input.description !== undefined ? { description: input.description.trim() || null } : {}),
       ...(input.transport !== undefined ? { transport: input.transport } : {}),
@@ -535,10 +628,91 @@ export class McpService {
     });
   }
 
-  async deleteServer(serverId: string): Promise<boolean> {
+  async deleteServer(userId: string, serverId: string): Promise<boolean> {
     this.ensureSchema();
     await this.invalidateServer(serverId);
-    return storage.deleteMcpServer(serverId);
+    return storage.deleteMcpServerForUser(userId, serverId);
+  }
+
+  async importServersFromCanonicalConfig(userId: string): Promise<CanonicalImportResult> {
+    this.ensureSchema();
+
+    const copilotHome = process.env.COPILOT_HOME || path.join(os.homedir(), ".copilot");
+    const configPath = path.join(copilotHome, "mcp-config.json");
+    if (!fs.existsSync(configPath)) {
+      throw new Error(`Canonical MCP config not found at ${configPath}`);
+    }
+
+    const raw = JSON.parse(fs.readFileSync(configPath, "utf8")) as CanonicalMcpConfig;
+    if (!raw.mcpServers || typeof raw.mcpServers !== "object") {
+      throw new Error(`Canonical MCP config is missing mcpServers: ${configPath}`);
+    }
+
+    const result: CanonicalImportResult = {
+      created: 0,
+      updated: 0,
+      skipped: [],
+      servers: [],
+      configPath,
+    };
+
+    for (const [key, entry] of Object.entries(raw.mcpServers)) {
+      const slug = slugify(key);
+      const name = entry.name?.trim() || humanizeKey(key);
+      const transport = normaliseTransport(entry);
+      const endpointUrl = entry.endpointUrl?.trim() || entry.url?.trim() || undefined;
+      const command = entry.command?.trim() || undefined;
+
+      if (transport === "stdio" && !command) {
+        result.skipped.push({ key, reason: "Missing command for stdio server" });
+        continue;
+      }
+
+      if ((transport === "streamable-http" || transport === "sse") && !endpointUrl) {
+        result.skipped.push({ key, reason: "Missing endpoint URL for network server" });
+        continue;
+      }
+
+      const payload = {
+        name,
+        description: entry.description?.trim() || `Imported from ${configPath}`,
+        transport,
+        endpointUrl,
+        command,
+        args: normaliseArgs(entry.args),
+        cwd: entry.cwd?.trim() || undefined,
+        headers: normaliseMap(entry.headers),
+        env: normaliseMap(entry.env),
+      };
+
+      const existing = await storage.getMcpServerBySlug(userId, slug);
+      if (existing) {
+        const updated = await storage.updateMcpServerForUser(userId, existing.id, {
+          ...payload,
+          enabled: existing.enabled,
+        });
+        if (!updated) {
+          result.skipped.push({ key, reason: "Existing server could not be updated" });
+          continue;
+        }
+        await this.invalidateServer(existing.id);
+        result.updated += 1;
+        result.servers.push({ key, id: updated.id, action: "updated", slug: updated.slug, name: updated.name });
+        continue;
+      }
+
+      const created = await this.createServer({
+        userId,
+        slug,
+        ...payload,
+        enabled: entry.enabled ?? true,
+        source: "custom",
+      });
+      result.created += 1;
+      result.servers.push({ key, id: created.id, action: "created", slug: created.slug, name: created.name });
+    }
+
+    return result;
   }
 
   async invalidateServer(serverId: string): Promise<void> {
@@ -842,9 +1016,9 @@ export class McpService {
         throw new Error(`MCP server "${server.name}" is missing an endpoint URL`);
       }
 
-      const transport = new StreamableHTTPClientTransport(new URL(server.endpointUrl), {
+      const transport = new StreamableHTTPClientTransport(new URL(resolveRuntimeString(server.endpointUrl)), {
         requestInit: {
-          headers: normaliseMap(server.headers),
+          headers: resolveRuntimeMap(normaliseMap(server.headers)),
         },
       });
       await client.connect(transport);
@@ -854,9 +1028,9 @@ export class McpService {
         throw new Error(`MCP server "${server.name}" is missing an endpoint URL`);
       }
 
-      const transport = new SSEClientTransport(new URL(server.endpointUrl), {
+      const transport = new SSEClientTransport(new URL(resolveRuntimeString(server.endpointUrl)), {
         requestInit: {
-          headers: normaliseMap(server.headers),
+          headers: resolveRuntimeMap(normaliseMap(server.headers)),
         },
       });
       await client.connect(transport);
@@ -867,12 +1041,12 @@ export class McpService {
       }
 
       const transport = new StdioClientTransport({
-        command: server.command,
-        args: normaliseArgs(server.args),
-        cwd: resolveCwd(server.cwd),
+        command: resolveRuntimeString(server.command),
+        args: resolveRuntimeArgs(normaliseArgs(server.args)),
+        cwd: resolveCwd(server.cwd ? resolveRuntimeString(server.cwd) : server.cwd),
         env: {
           ...process.env,
-          ...normaliseMap(server.env),
+          ...resolveRuntimeMap(normaliseMap(server.env)),
         } as Record<string, string>,
         stderr: "inherit",
       });

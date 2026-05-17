@@ -1,9 +1,11 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Terminal as TerminalIcon, Trash2, Download, Wifi, WifiOff, Server, Play, Square, PanelRightClose, PanelRight, ArrowUp, ArrowDown, Activity } from "lucide-react";
+import { ArrowLeft, Terminal as TerminalIcon, Trash2, Download, Wifi, WifiOff, Server, Play, Square, PanelRightClose, PanelRight, ArrowUp, ArrowDown, Activity, Volume2, VolumeX } from "lucide-react";
 import { Link } from "wouter";
 import { cn } from "@/lib/utils";
+import { useTTS } from "@/contexts/tts-context";
+import { extractSpeakableTerminalText } from "@/lib/terminal-speech";
 import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import { WebLinksAddon } from "@xterm/addon-web-links";
@@ -26,6 +28,13 @@ export default function TerminalPage() {
   const [showTrafficPanel, setShowTrafficPanel] = useState(true);
   const [trafficLog, setTrafficLog] = useState<TrafficEntry[]>([]);
   const [isLandscape, setIsLandscape] = useState(window.innerWidth > 1024);
+  const [terminalSpeechEnabled, setTerminalSpeechEnabled] = useState<boolean>(() => {
+    if (typeof window === "undefined") {
+      return false;
+    }
+    return localStorage.getItem("meowstik-terminal-page-speech") === "true";
+  });
+  const { speak, stopSpeaking } = useTTS();
   
   const terminalContainerRef = useRef<HTMLDivElement>(null);
   const terminalRef = useRef<Terminal | null>(null);
@@ -33,6 +42,33 @@ export default function TerminalPage() {
   const wsRef = useRef<WebSocket | null>(null);
   const trafficWsRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const speechBufferRef = useRef("");
+  const speechTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const queueTerminalSpeech = useCallback((chunk: string) => {
+    if (!terminalSpeechEnabled) {
+      return;
+    }
+
+    const speakable = extractSpeakableTerminalText(chunk);
+    if (!speakable) {
+      return;
+    }
+
+    speechBufferRef.current = `${speechBufferRef.current}\n${speakable}`.trim();
+    if (speechTimeoutRef.current) {
+      clearTimeout(speechTimeoutRef.current);
+    }
+
+    speechTimeoutRef.current = setTimeout(() => {
+      const text = speechBufferRef.current.trim();
+      speechBufferRef.current = "";
+      speechTimeoutRef.current = null;
+      if (text) {
+        void speak(text);
+      }
+    }, 700);
+  }, [speak, terminalSpeechEnabled]);
 
   useEffect(() => {
     const handleResize = () => {
@@ -144,16 +180,20 @@ export default function TerminalPage() {
         
         if (result.stdout) {
           term.writeln(result.stdout.replace(/\n$/, ''));
+          queueTerminalSpeech(result.stdout);
         }
         if (result.stderr) {
           term.writeln(`\x1b[31m${result.stderr.replace(/\n$/, '')}\x1b[0m`);
+          queueTerminalSpeech(result.stderr);
         }
         if (result.error) {
           term.writeln(`\x1b[31mError: ${result.error}\x1b[0m`);
+          queueTerminalSpeech(result.error);
         }
         term.write('\x1b[32m$ \x1b[0m');
       } catch (error) {
         term.writeln(`\x1b[31mFailed to execute: ${error instanceof Error ? error.message : 'Unknown error'}\x1b[0m`);
+        queueTerminalSpeech(error instanceof Error ? error.message : "Unknown terminal error");
         term.write('\x1b[32m$ \x1b[0m');
       }
     };
@@ -165,7 +205,7 @@ export default function TerminalPage() {
       terminalRef.current = null;
       fitAddonRef.current = null;
     };
-  }, [isInteractive]);
+  }, [isInteractive, queueTerminalSpeech]);
 
   useEffect(() => {
     if (fitAddonRef.current) {
@@ -231,6 +271,7 @@ export default function TerminalPage() {
         if (msg.type === 'pty_data') {
           const content = msg.data?.content || '';
           terminalRef.current?.write(content);
+          queueTerminalSpeech(content);
           return;
         }
         
@@ -246,6 +287,7 @@ export default function TerminalPage() {
           } else {
             terminalRef.current?.writeln('\x1b[33m' + content + '\x1b[0m');
           }
+          queueTerminalSpeech(content);
         }
         
         if (msg.type === 'output') {
@@ -262,9 +304,11 @@ export default function TerminalPage() {
           } else {
             terminalRef.current?.writeln(content);
           }
+          queueTerminalSpeech(content);
         }
       } catch {
         terminalRef.current?.writeln(event.data);
+        queueTerminalSpeech(event.data);
       }
     };
 
@@ -283,7 +327,7 @@ export default function TerminalPage() {
     };
 
     wsRef.current = ws;
-  }, [activeHost]);
+  }, [activeHost, queueTerminalSpeech]);
 
   useEffect(() => {
     connectWebSocket();
@@ -301,6 +345,26 @@ export default function TerminalPage() {
       }
     };
   }, [connectWebSocket, connectTrafficWebSocket]);
+
+  useEffect(() => {
+    localStorage.setItem("meowstik-terminal-page-speech", String(terminalSpeechEnabled));
+    if (!terminalSpeechEnabled) {
+      if (speechTimeoutRef.current) {
+        clearTimeout(speechTimeoutRef.current);
+        speechTimeoutRef.current = null;
+      }
+      speechBufferRef.current = "";
+      stopSpeaking();
+    }
+  }, [stopSpeaking, terminalSpeechEnabled]);
+
+  useEffect(() => {
+    return () => {
+      if (speechTimeoutRef.current) {
+        clearTimeout(speechTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const startShell = () => {
     if (wsRef.current?.readyState === WebSocket.OPEN && fitAddonRef.current) {
@@ -404,6 +468,15 @@ export default function TerminalPage() {
                 Stop Shell
               </Button>
             )}
+            <Button
+              variant={terminalSpeechEnabled ? "secondary" : "outline"}
+              size="sm"
+              onClick={() => setTerminalSpeechEnabled((current) => !current)}
+              title={terminalSpeechEnabled ? "Disable terminal speech" : "Enable terminal speech"}
+            >
+              {terminalSpeechEnabled ? <Volume2 className="h-4 w-4 mr-2" /> : <VolumeX className="h-4 w-4 mr-2" />}
+              {terminalSpeechEnabled ? "Speech on" : "Speech off"}
+            </Button>
             {isLandscape && (
               <Button
                 variant="outline"
@@ -518,5 +591,3 @@ export default function TerminalPage() {
     </div>
   );
 }
-
-

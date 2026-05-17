@@ -34,7 +34,7 @@
  * - useRef: Reference to scroll container for auto-scroll behavior
  * - useEffect: Side effects for data loading and scroll behavior
  */
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 
 /**
  * Custom Components
@@ -115,6 +115,11 @@ interface CopilotSessionSummary {
   workspacePath?: string;
   createdAt: string;
   updatedAt: string;
+}
+
+interface TerminalInputRequest {
+  id: string;
+  input: string;
 }
 
 // ============================================================================
@@ -265,6 +270,7 @@ export default function Home() {
   const [isWorkbenchOpen, setIsWorkbenchOpen] = useState(false);
   const [workbenchTab, setWorkbenchTab] = useState<"editor" | "terminal">("editor");
   const [isDesktopViewport, setIsDesktopViewport] = useState(false);
+  const [terminalInputRequest, setTerminalInputRequest] = useState<TerminalInputRequest | null>(null);
 
   // ===========================================================================
   // EFFECTS (Side Effects)
@@ -300,6 +306,27 @@ export default function Home() {
   });
   const activeMessages = chatProvider === "copilot" ? copilotMessages : messages;
   const activeConversationId = chatProvider === "copilot" ? copilotSessionId : currentChatId;
+
+  const handleSendToTerminal = useCallback(async (content: string): Promise<boolean> => {
+    const trimmed = content.trim();
+    if (!trimmed) {
+      return false;
+    }
+
+    try {
+      await unlockAudio();
+    } catch (error) {
+      console.warn("[Terminal Bridge] Audio unlock failed:", error);
+    }
+
+    setIsWorkbenchOpen(true);
+    setWorkbenchTab("terminal");
+    setTerminalInputRequest({
+      id: `terminal-input-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      input: trimmed,
+    });
+    return true;
+  }, [unlockAudio]);
 
   /**
    * Effect: Auto-send pending editor message after initial load
@@ -665,6 +692,30 @@ export default function Home() {
         console.log("[handleSendMessage] Created new chat:", chatId);
       }
 
+      const tempAiMessageId = `temp-ai-${Date.now()}`;
+      const tempAiCreatedAt = new Date().toISOString();
+      const upsertTempAiMessage = (nextContent: string, metadata?: any) => {
+        setMessages((prev) => {
+          const nextMessage = {
+            id: tempAiMessageId,
+            chatId,
+            role: "ai",
+            content: nextContent,
+            createdAt: tempAiCreatedAt,
+            metadata,
+          } as Message & { metadata?: any };
+          const existingIndex = prev.findIndex((message) => message.id === tempAiMessageId);
+
+          if (existingIndex === -1) {
+            return [...prev, nextMessage];
+          }
+
+          const nextMessages = [...prev];
+          nextMessages[existingIndex] = nextMessage;
+          return nextMessages;
+        });
+      };
+
       // Step 2: Add user message to UI immediately (optimistic update)
       // Uses temp ID that will be replaced after server confirms
       const tempUserMessage = {
@@ -739,6 +790,7 @@ export default function Home() {
       let streamMetadata: any = null;
       let speechEventsReceived = 0;
       let cleanContentForTTS = '';
+      let hasQueuedHdAudio = false;
       
       // Audio playback queue for sequential playback of streaming TTS chunks
       const audioQueue: Array<{ base64: string; mimeType: string; utterance: string }> = [];
@@ -749,6 +801,7 @@ export default function Home() {
         isPlayingAudio = true;
         const item = audioQueue.shift()!;
         try {
+          stopSpeaking();
           const played = await playAudioBase64(item.base64, item.mimeType);
           if (!played) {
             console.warn('[TTS] AudioContext failed, trying HTML Audio');
@@ -815,39 +868,14 @@ export default function Home() {
                 console.error('[Chat] AI returned error response:', data.message);
                 const errorContent = `⚠️ **Error:** ${data.message}\n\n${data.details || ''}`;
                 aiMessageContent = errorContent;
-                setMessages((prev) => {
-                  const filtered = prev.filter(m => !m.id.startsWith('temp-ai-'));
-                  return [
-                    ...filtered,
-                    {
-                      id: `temp-ai-${Date.now()}`,
-                      chatId: chatId,
-                      role: "ai",
-                      content: aiMessageContent,
-                      createdAt: new Date().toISOString(),
-                    } as Message
-                  ];
-                });
+                upsertTempAiMessage(aiMessageContent);
                 continue; // Skip further processing for this line
               }
 
               // Step 5: Update UI as tokens arrive
               if (data.text) {
                 aiMessageContent += data.text;
-                // Replace temporary AI message with updated content
-                setMessages((prev) => {
-                  const filtered = prev.filter(m => !m.id.startsWith('temp-ai-'));
-                  return [
-                    ...filtered,
-                    {
-                      id: `temp-ai-${Date.now()}`,
-                      chatId: chatId,
-                      role: "ai",
-                      content: aiMessageContent,
-                      createdAt: new Date().toISOString(),
-                    } as Message
-                  ];
-                });
+                upsertTempAiMessage(aiMessageContent, streamMetadata);
               }
 
               if (data.speechControl?.action === "stop") {
@@ -860,19 +888,7 @@ export default function Home() {
               // Handle finalContent event - authoritative final content from server
               if (data.finalContent !== undefined) {
                 aiMessageContent = data.finalContent;
-                setMessages((prev) => {
-                  const filtered = prev.filter(m => !m.id.startsWith('temp-ai-'));
-                  return [
-                    ...filtered,
-                    {
-                      id: `temp-ai-${Date.now()}`,
-                      chatId: chatId,
-                      role: "ai",
-                      content: aiMessageContent,
-                      createdAt: new Date().toISOString(),
-                    } as Message
-                  ];
-                });
+                upsertTempAiMessage(aiMessageContent, streamMetadata);
               }
 
               // Handle speech events (streaming TTS or say tool)
@@ -901,20 +917,24 @@ export default function Home() {
                 
                 if (speechData.audioGenerated && speechData.audioBase64 && hdPermitted) {
                   console.log("[TTS] Queueing HD audio for playback");
+                  hasQueuedHdAudio = true;
+                  stopSpeaking();
                   audioQueue.push({
                     base64: speechData.audioBase64,
                     mimeType: speechData.mimeType || 'audio/mpeg',
                     utterance: speechData.utterance || '',
                   });
                   playNextInQueue();
-                } else if (speechData.audioGenerated === false && speechData.utterance) {
+                } else if (speechData.audioGenerated === false && speechData.utterance && !hasQueuedHdAudio) {
                   // say tool explicitly failed: always attempt browser TTS so the
                   // utterance is not silently lost, regardless of verbosity mode.
                   console.log("[TTS] say tool reported audioGenerated:false, using browser TTS fallback");
                   speak(speechData.utterance);
-                } else if (browserTTSPermitted && speechData.utterance) {
+                } else if (browserTTSPermitted && speechData.utterance && !hasQueuedHdAudio) {
                   console.log("[TTS] Falling back to browser TTS for this speech event");
                   speak(speechData.utterance);
+                } else if (speechData.utterance && hasQueuedHdAudio) {
+                  console.log("[TTS] Skipping browser TTS fallback because HD audio is already queued for this response");
                 }
               }
 
@@ -1005,22 +1025,7 @@ export default function Home() {
               if (data.metadata) {
                 streamMetadata = data.metadata;
                 applyToolResults(streamMetadata.toolResults);
-                
-                // Update the temp message with metadata
-                setMessages((prev) => {
-                  const filtered = prev.filter(m => !m.id.startsWith('temp-ai-'));
-                  return [
-                    ...filtered,
-                    {
-                      id: `temp-ai-${Date.now()}`,
-                      chatId: chatId,
-                      role: "ai",
-                      content: aiMessageContent,
-                      createdAt: new Date().toISOString(),
-                      metadata: streamMetadata,
-                    } as Message & { metadata?: any }
-                  ];
-                });
+                upsertTempAiMessage(aiMessageContent, streamMetadata);
               }
 
               // Step 6: Stream complete - update temp message with real DB message
@@ -1067,20 +1072,23 @@ export default function Home() {
                 if (data.savedMessage) {
                   console.log('[SSE] Replacing temp message with saved message:', data.savedMessage.id);
                   setMessages((prev) => {
-                    // Filter out all temporary AI messages
-                    const filtered = prev.filter(m => !m.id.startsWith('temp-ai-'));
-                    // Add the real saved message from the database
-                    return [
-                      ...filtered,
-                      {
-                        id: data.savedMessage.id,
-                        chatId: chatId,
-                        role: data.savedMessage.role,
-                        content: data.savedMessage.content,
-                        createdAt: data.savedMessage.createdAt ?? new Date().toISOString(),
-                        metadata: data.savedMessage.metadata,
-                      } as Message & { metadata?: any }
-                    ];
+                    const savedMessage = {
+                      id: data.savedMessage.id,
+                      chatId,
+                      role: data.savedMessage.role,
+                      content: data.savedMessage.content,
+                      createdAt: data.savedMessage.createdAt ?? new Date().toISOString(),
+                      metadata: data.savedMessage.metadata,
+                    } as Message & { metadata?: any };
+                    const existingIndex = prev.findIndex((message) => message.id === tempAiMessageId);
+
+                    if (existingIndex === -1) {
+                      return [...prev, savedMessage];
+                    }
+
+                    const nextMessages = [...prev];
+                    nextMessages[existingIndex] = savedMessage;
+                    return nextMessages;
                   });
                   
                   // Use the saved message for autoexec check
@@ -1592,8 +1600,9 @@ export default function Home() {
                   onStop={handleStopGeneration}
                   placeholder={chatProvider === "copilot" ? "Ask GitHub Copilot anything..." : "Ask Meowstik anything..."}
                   attachmentsEnabled={chatProvider === "meowstik"}
-                  onOpenLiveMode={chatProvider === "meowstik" ? () => setIsLiveModeOpen(true) : undefined}
+                  onOpenLiveMode={chatProvider === "meowstik" ? () => setIsLiveModeOpen((open) => !open) : undefined}
                   liveModeActive={isLiveModeOpen}
+                  onSendToTerminal={chatProvider === "meowstik" ? handleSendToTerminal : undefined}
                 />
 
                 {chatProvider === "meowstik" && isLiveModeOpen ? (
@@ -1617,6 +1626,10 @@ export default function Home() {
                   activeTab={workbenchTab}
                   onActiveTabChange={setWorkbenchTab}
                   onCollapse={() => setIsWorkbenchOpen(false)}
+                  terminalInputRequest={terminalInputRequest}
+                  onTerminalInputHandled={(requestId) => {
+                    setTerminalInputRequest((current) => current?.id === requestId ? null : current);
+                  }}
                 />
               </ResizablePanel>
             </>
