@@ -21,6 +21,7 @@ vi.mock("googleapis", () => ({
 }));
 
 vi.mock("../server/integrations/google-auth.ts", () => ({
+  TOKEN_REFRESH_BUFFER_MS: 60_000,
   getAuthenticatedClient: getAuthenticatedClientMock,
   isAuthenticated: isAuthenticatedMock,
   getTokens: getTokensMock,

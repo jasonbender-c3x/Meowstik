@@ -15,7 +15,7 @@
  */
 
 import { google, Auth } from "googleapis";
-import { forceRefreshTokens, getAuthenticatedClient, getTokens, isAuthenticated } from "./google-auth";
+import { TOKEN_REFRESH_BUFFER_MS, forceRefreshTokens, getAuthenticatedClient, getTokens, isAuthenticated } from "./google-auth";
 import * as fs from "fs";
 import * as path from "path";
 import { VoiceStyle, VOICE_STYLE_MAPPING } from "../../shared/voice-styles.js";
@@ -141,16 +141,19 @@ function buildSSML(cleanText: string, style: VoiceStyle, voiceName?: string): st
 
 function isOAuthTokenExpiredOrMissing(tokens: Auth.Credentials | null): boolean {
   if (!tokens?.access_token) return true;
-  return typeof tokens.expiry_date === "number" && tokens.expiry_date <= Date.now() + 60000;
+  return typeof tokens.expiry_date === "number" && tokens.expiry_date <= Date.now() + TOKEN_REFRESH_BUFFER_MS;
 }
 
-function isRefreshableOAuthError(errorStr: string): boolean {
-  return errorStr.includes("401") ||
-    errorStr.includes("UNAUTHENTICATED") ||
-    errorStr.includes("invalid_grant") ||
-    errorStr.includes("invalid_token") ||
-    errorStr.includes("Invalid Credentials") ||
-    errorStr.includes("token expired");
+function isRefreshableOAuthError(error: any, errorStr: string): boolean {
+  const errorStatus = Number(error?.code ?? error?.status ?? error?.response?.status ?? NaN);
+  const normalizedErrorStr = errorStr.toLowerCase();
+
+  return errorStatus === 401 ||
+    normalizedErrorStr.includes("unauthenticated") ||
+    normalizedErrorStr.includes("invalid_grant") ||
+    normalizedErrorStr.includes("invalid_token") ||
+    normalizedErrorStr.includes("invalid credentials") ||
+    normalizedErrorStr.includes("token expired");
 }
 
 async function ensureFreshOAuthToken(): Promise<void> {
@@ -238,7 +241,7 @@ export async function generateSingleSpeakerAudio(
       lastError = error;
       const errorStr = error.message || String(error);
 
-      if (!serviceAuth && attempt < maxRetries && isRefreshableOAuthError(errorStr)) {
+      if (!serviceAuth && attempt < maxRetries && isRefreshableOAuthError(error, errorStr)) {
         console.warn(`[TTS] Authentication error, forcing OAuth token refresh: ${errorStr}`);
         await forceRefreshTokens();
         continue;
@@ -309,5 +312,4 @@ export async function generateMultiSpeakerAudio(request: { text: string; speaker
   const voice = request.speakers[0]?.voice || DEFAULT_TTS_VOICE;
   return generateSingleSpeakerAudio(request.text, voice);
 }
-
 

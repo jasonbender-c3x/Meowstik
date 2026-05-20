@@ -25,6 +25,8 @@ const SCOPES = [
   'https://www.googleapis.com/auth/cloud-platform',
 ];
 
+export const TOKEN_REFRESH_BUFFER_MS = 60_000;
+
 let cachedTokens: Auth.Credentials | null = null;
 let oauth2Client: Auth.OAuth2Client | null = null;
 let initialized = false;
@@ -205,7 +207,7 @@ export async function refreshTokensIfNeeded(): Promise<void> {
   if (!cachedTokens || !oauth2Client) return;
   
   const expiryDate = cachedTokens.expiry_date;
-  if (expiryDate && expiryDate < Date.now() + 60000) {
+  if (expiryDate && expiryDate < Date.now() + TOKEN_REFRESH_BUFFER_MS) {
     try {
       await forceRefreshTokens();
     } catch (error) {
@@ -268,5 +270,4 @@ export async function revokeAccess(): Promise<void> {
 }
 
 export { SCOPES };
-
 
