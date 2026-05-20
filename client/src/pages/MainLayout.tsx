@@ -34,6 +34,7 @@ import Help from "@/pages/help";
 import GoogleServices from "@/pages/google-services";
 import ExpressiveSpeech from "@/pages/expressive-speech";
 import Evolution from "@/pages/evolution";
+import PromptComposer from "@/pages/prompt-composer";
 
 export default function MainLayout() {
   return (
@@ -74,6 +75,7 @@ export default function MainLayout() {
         <Route path="/google" component={GoogleServices} />
         <Route path="/speech" component={ExpressiveSpeech} />
         <Route path="/evolution" component={Evolution} />
+        <Route path="/prompt-composer" component={PromptComposer} />
         <Route component={NotFound} />
       </Switch>
     </TTSProvider>
