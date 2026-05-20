@@ -206,32 +206,45 @@ export async function refreshTokensIfNeeded(): Promise<void> {
   
   const expiryDate = cachedTokens.expiry_date;
   if (expiryDate && expiryDate < Date.now() + 60000) {
-    const previousRefreshToken = cachedTokens.refresh_token;
     try {
-      const { credentials } = await oauth2Client.refreshAccessToken();
-      cachedTokens = credentials;
-      if (!cachedTokens.refresh_token && previousRefreshToken) {
-        cachedTokens.refresh_token = previousRefreshToken;
-      }
-      oauth2Client.setCredentials(cachedTokens);
-      
-      const { storage } = await import('../storage');
-      
-      await storage.saveGoogleTokens({
-        id: 'default',
-        accessToken: credentials.access_token || null,
-        refreshToken: cachedTokens.refresh_token || null,
-        expiryDate: credentials.expiry_date || null,
-        tokenType: credentials.token_type || null,
-        scope: credentials.scope || null,
-      });
-      
-      console.log('Refreshed and saved Google OAuth tokens');
+      await forceRefreshTokens();
     } catch (error) {
       console.error('Failed to refresh tokens:', error);
       cachedTokens = null;
     }
   }
+}
+
+export async function forceRefreshTokens(): Promise<Auth.Credentials | null> {
+  await initializeFromDatabase();
+  if (!cachedTokens || !oauth2Client || !cachedTokens.refresh_token) {
+    return cachedTokens;
+  }
+
+  const previousRefreshToken = cachedTokens.refresh_token;
+  const { credentials } = await oauth2Client.refreshAccessToken();
+
+  cachedTokens = {
+    ...cachedTokens,
+    ...credentials,
+    refresh_token: credentials.refresh_token || previousRefreshToken,
+  };
+
+  oauth2Client.setCredentials(cachedTokens);
+
+  const { storage } = await import('../storage');
+
+  await storage.saveGoogleTokens({
+    id: 'default',
+    accessToken: cachedTokens.access_token || null,
+    refreshToken: cachedTokens.refresh_token || null,
+    expiryDate: cachedTokens.expiry_date || null,
+    tokenType: cachedTokens.token_type || null,
+    scope: cachedTokens.scope || null,
+  });
+
+  console.log('Force refreshed and saved Google OAuth tokens');
+  return cachedTokens;
 }
 
 export async function getAuthenticatedClient(): Promise<Auth.OAuth2Client> {
@@ -255,6 +268,5 @@ export async function revokeAccess(): Promise<void> {
 }
 
 export { SCOPES };
-
 
 
