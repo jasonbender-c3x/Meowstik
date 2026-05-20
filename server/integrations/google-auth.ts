@@ -220,6 +220,7 @@ export async function refreshTokensIfNeeded(): Promise<void> {
 export async function forceRefreshTokens(): Promise<Auth.Credentials | null> {
   await initializeFromDatabase();
   if (!cachedTokens || !oauth2Client || !cachedTokens.refresh_token) {
+    console.warn("Cannot force refresh Google OAuth tokens: missing cached tokens, OAuth client, or refresh token");
     return cachedTokens;
   }
 
@@ -270,4 +271,3 @@ export async function revokeAccess(): Promise<void> {
 }
 
 export { SCOPES };
-

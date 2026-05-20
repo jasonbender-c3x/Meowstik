@@ -1,5 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+const TOKEN_REFRESH_BUFFER_MS = 60_000;
+const VALID_TOKEN_EXPIRY_MS = TOKEN_REFRESH_BUFFER_MS * 2;
+
 const synthesizeMock = vi.fn();
 const getAuthenticatedClientMock = vi.fn();
 const isAuthenticatedMock = vi.fn();
@@ -21,7 +24,7 @@ vi.mock("googleapis", () => ({
 }));
 
 vi.mock("../server/integrations/google-auth.ts", () => ({
-  TOKEN_REFRESH_BUFFER_MS: 60_000,
+  TOKEN_REFRESH_BUFFER_MS,
   getAuthenticatedClient: getAuthenticatedClientMock,
   isAuthenticated: isAuthenticatedMock,
   getTokens: getTokensMock,
@@ -41,7 +44,7 @@ describe("expressive-tts OAuth refresh", () => {
     forceRefreshTokensMock.mockResolvedValue({
       access_token: "fresh-token",
       refresh_token: "refresh-token",
-      expiry_date: Date.now() + 60_000,
+      expiry_date: Date.now() + TOKEN_REFRESH_BUFFER_MS,
     });
     synthesizeMock.mockResolvedValue({
       data: {
@@ -76,7 +79,7 @@ describe("expressive-tts OAuth refresh", () => {
     getTokensMock.mockResolvedValue({
       access_token: "current-token",
       refresh_token: "refresh-token",
-      expiry_date: Date.now() + 120_000,
+      expiry_date: Date.now() + VALID_TOKEN_EXPIRY_MS,
     });
 
     synthesizeMock
