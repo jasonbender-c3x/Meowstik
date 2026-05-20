@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const TOKEN_REFRESH_BUFFER_MS = 60_000;
 const VALID_TOKEN_EXPIRY_MS = TOKEN_REFRESH_BUFFER_MS * 2;
+const EXPIRED_TOKEN_OFFSET_MS = 1_000;
 
 const synthesizeMock = vi.fn();
 const getAuthenticatedClientMock = vi.fn();
@@ -57,7 +58,7 @@ describe("expressive-tts OAuth refresh", () => {
     getTokensMock.mockResolvedValue({
       access_token: "expired-token",
       refresh_token: "refresh-token",
-      expiry_date: Date.now() - 1_000,
+      expiry_date: Date.now() - EXPIRED_TOKEN_OFFSET_MS,
     });
 
     const { generateSingleSpeakerAudio } = await import("../server/integrations/expressive-tts.ts");
