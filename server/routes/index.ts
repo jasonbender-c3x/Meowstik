@@ -37,6 +37,7 @@ import brandingRouter from "./branding";
 import userAgentsRouter from "./user-agents";
 import hardwareRouter from "./hardware";
 import todoRouter from "./todo";
+import promptComposerRouter from "./prompt-composer";
 import { errorHandler } from "./middleware";
 
 export function createApiRouter(): Router {
@@ -80,6 +81,7 @@ export function createApiRouter(): Router {
   router.use("/user-agents", userAgentsRouter);
   router.use("/hardware", hardwareRouter);
   router.use("/todos", todoRouter);
+  router.use("/prompt-composer", promptComposerRouter);
 
   router.use(errorHandler);
 
