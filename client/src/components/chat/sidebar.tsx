@@ -728,6 +728,23 @@ export function Sidebar({ isOpen, setIsOpen, onNewChat, chats, currentChatId, on
                   </Button>
                 </Link>
 
+                {/* Prompt Composer Button */}
+                <Link href="/prompt-composer">
+                  <Button
+                    variant="ghost"
+                    className={cn(
+                      "font-normal text-muted-foreground hover:text-foreground",
+                      effectiveCollapsed ? "w-12 h-9 p-0 justify-center" : "w-full justify-start gap-3",
+                      location === "/prompt-composer" && "bg-secondary/50 text-foreground"
+                    )}
+                    title={effectiveCollapsed ? "Prompt Composer" : undefined}
+                    data-testid="button-prompt-composer"
+                  >
+                    <Brain className="h-4 w-4" />
+                    {!effectiveCollapsed && "Prompt Composer"}
+                  </Button>
+                </Link>
+
                 {/* Task Queue Button */}
                 <Link href="/queue">
                   <Button 
