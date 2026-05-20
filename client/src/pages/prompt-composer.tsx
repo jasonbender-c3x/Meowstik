@@ -528,7 +528,7 @@ export default function PromptComposerPage() {
               <FileEditor
                 fileName="prime-directive"
                 label="Prime Directive"
-                description="Fundamental behaviour rules and constraints loaded from prompts/core-directives.md."
+                description="Fundamental behavior rules and constraints loaded from prompts/core-directives.md."
               />
             </TabsContent>
 
