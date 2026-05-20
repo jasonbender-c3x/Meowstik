@@ -16,6 +16,7 @@
  */
 
 import { Router, Request, Response } from "express";
+import rateLimit from "express-rate-limit";
 import * as fs from "fs";
 import * as path from "path";
 import { PromptComposer } from "../services/prompt-composer";
@@ -24,21 +25,47 @@ import { formatEnvironmentMetadata } from "../utils/environment-metadata";
 
 const router = Router();
 
-/** Allowed file identifiers and their filesystem paths */
-const EDITABLE_FILES: Record<string, () => string> = {
-  "prime-directive": () =>
-    path.join(process.cwd(), "prompts", "core-directives.md"),
-  personality: () => path.join(process.cwd(), "prompts", "personality.md"),
-  "short-term-memory": () =>
-    path.join(process.cwd(), "logs", "Short_Term_Memory.md"),
-  cache: () => path.join(process.cwd(), "logs", "cache.md"),
-};
+/**
+ * Explicit allowlist mapping safe identifier → absolute file path.
+ * Paths are computed once at module load and are not derived from user input.
+ */
+const FILE_PATHS: Record<string, string> = {
+  "prime-directive": path.resolve(process.cwd(), "prompts", "core-directives.md"),
+  personality:       path.resolve(process.cwd(), "prompts", "personality.md"),
+  "short-term-memory": path.resolve(process.cwd(), "logs", "Short_Term_Memory.md"),
+  cache:             path.resolve(process.cwd(), "logs", "cache.md"),
+} as const;
+
+/** Validate that `name` is exactly one of the known keys. */
+function resolveFilePath(name: string): string | null {
+  return Object.prototype.hasOwnProperty.call(FILE_PATHS, name)
+    ? FILE_PATHS[name]
+    : null;
+}
+
+/** Rate limiter for file-read routes (generous; just prevents abuse). */
+const readLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 120,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { ok: false, error: "Too many requests" },
+});
+
+/** Rate limiter for file-write routes (more conservative). */
+const writeLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { ok: false, error: "Too many requests" },
+});
 
 /**
  * GET /api/prompt-composer/components
  * Returns a size-annotated breakdown of every assembled prompt section.
  */
-router.get("/components", (_req: Request, res: Response) => {
+router.get("/components", readLimiter, (_req: Request, res: Response) => {
   try {
     const composer = new PromptComposer();
     const breakdown = composer.getSystemPromptBreakdown(
@@ -58,7 +85,7 @@ router.get("/components", (_req: Request, res: Response) => {
  * GET /api/prompt-composer/preview
  * Returns the fully assembled system prompt string.
  */
-router.get("/preview", async (_req: Request, res: Response) => {
+router.get("/preview", readLimiter, async (_req: Request, res: Response) => {
   try {
     const composer = new PromptComposer();
     const prompt = await composer.getSystemPrompt(
@@ -76,55 +103,38 @@ router.get("/preview", async (_req: Request, res: Response) => {
 });
 
 /**
- * GET /api/prompt-composer/environment-metadata
- * Returns the current environment metadata section (read-only).
- */
-router.get("/environment-metadata", (_req: Request, res: Response) => {
-  try {
-    const metadata = formatEnvironmentMetadata();
-    res.json({ ok: true, content: metadata });
-  } catch (error: any) {
-    console.error("[PromptComposer] /environment-metadata error:", error);
-    res.status(500).json({ ok: false, error: error.message });
-  }
-});
-
-/**
  * GET /api/prompt-composer/file/:name
  * Read the raw content of an editable prompt file.
  * Supported names: prime-directive | personality | short-term-memory | cache
  *                  environment-metadata (read-only, computed)
  */
-router.get("/file/:name", (req: Request, res: Response) => {
-  const { name } = req.params;
+router.get("/file/:name", readLimiter, (req: Request, res: Response) => {
+  const name = req.params.name;
 
   // Special case: environment-metadata is computed at runtime, not a file
   if (name === "environment-metadata") {
     try {
       const content = formatEnvironmentMetadata();
-      return res.json({ ok: true, name, content });
+      return res.json({ ok: true, name: "environment-metadata", content });
     } catch (error: any) {
+      console.error("[PromptComposer] environment-metadata error:", error);
       return res.status(500).json({ ok: false, error: error.message });
     }
   }
 
-  const resolveFile = EDITABLE_FILES[name];
+  const filePath = resolveFilePath(name);
 
-  if (!resolveFile) {
-    return res
-      .status(404)
-      .json({ ok: false, error: `Unknown prompt file: ${name}` });
+  if (!filePath) {
+    return res.status(404).json({ ok: false, error: "Unknown prompt file" });
   }
-
-  const filePath = resolveFile();
 
   try {
     const content = fs.existsSync(filePath)
       ? fs.readFileSync(filePath, "utf-8")
       : "";
-    res.json({ ok: true, name, content, path: filePath });
+    res.json({ ok: true, name, content });
   } catch (error: any) {
-    console.error(`[PromptComposer] Failed to read ${name}:`, error);
+    console.error("[PromptComposer] Failed to read prompt file:", error);
     res.status(500).json({ ok: false, error: error.message });
   }
 });
@@ -134,22 +144,18 @@ router.get("/file/:name", (req: Request, res: Response) => {
  * Persist new content to an editable prompt file.
  * Body: { content: string }
  */
-router.put("/file/:name", (req: Request, res: Response) => {
-  const { name } = req.params;
-  const resolveFile = EDITABLE_FILES[name];
+router.put("/file/:name", writeLimiter, (req: Request, res: Response) => {
+  const name = req.params.name;
+  const filePath = resolveFilePath(name);
 
-  if (!resolveFile) {
-    return res
-      .status(404)
-      .json({ ok: false, error: `Unknown prompt file: ${name}` });
+  if (!filePath) {
+    return res.status(404).json({ ok: false, error: "Unknown prompt file" });
   }
 
   const { content } = req.body as { content?: string };
   if (typeof content !== "string") {
     return res.status(400).json({ ok: false, error: "content must be a string" });
   }
-
-  const filePath = resolveFile();
 
   try {
     // Ensure parent directory exists (e.g. logs/)
@@ -161,7 +167,7 @@ router.put("/file/:name", (req: Request, res: Response) => {
     fs.writeFileSync(filePath, content, "utf-8");
     res.json({ ok: true, name, message: "Saved successfully" });
   } catch (error: any) {
-    console.error(`[PromptComposer] Failed to write ${name}:`, error);
+    console.error("[PromptComposer] Failed to write prompt file:", error);
     res.status(500).json({ ok: false, error: error.message });
   }
 });
