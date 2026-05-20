@@ -15,7 +15,7 @@
  */
 
 import { google, Auth } from "googleapis";
-import { getAuthenticatedClient, isAuthenticated } from "./google-auth";
+import { TOKEN_REFRESH_BUFFER_MS, forceRefreshTokens, getAuthenticatedClient, getTokens, isAuthenticated } from "./google-auth";
 import * as fs from "fs";
 import * as path from "path";
 import { VoiceStyle, VOICE_STYLE_MAPPING } from "../../shared/voice-styles.js";
@@ -139,6 +139,31 @@ function buildSSML(cleanText: string, style: VoiceStyle, voiceName?: string): st
   return `<speak><prosody ${attrs.join(' ')}>${escapeXml(cleanText)}</prosody></speak>`;
 }
 
+function isOAuthTokenExpiredOrMissing(tokens: Auth.Credentials | null): boolean {
+  if (!tokens?.access_token) return true;
+  return typeof tokens.expiry_date === "number" && tokens.expiry_date <= Date.now() + TOKEN_REFRESH_BUFFER_MS;
+}
+
+function isRefreshableOAuthError(error: any, errorStr: string): boolean {
+  const errorStatus = Number(error?.code ?? error?.status ?? error?.response?.status ?? NaN);
+  const normalizedErrorStr = errorStr.toLowerCase();
+
+  return errorStatus === 401 ||
+    normalizedErrorStr.includes("unauthenticated") ||
+    normalizedErrorStr.includes("invalid_grant") ||
+    normalizedErrorStr.includes("invalid_token") ||
+    normalizedErrorStr.includes("invalid credentials") ||
+    normalizedErrorStr.includes("token expired");
+}
+
+async function ensureFreshOAuthToken(): Promise<void> {
+  const tokens = await getTokens();
+  if (tokens?.refresh_token && isOAuthTokenExpiredOrMissing(tokens)) {
+    console.log("[TTS] Refreshing Google OAuth token before TTS request");
+    await forceRefreshTokens();
+  }
+}
+
 export async function generateSingleSpeakerAudio(
   text: string, 
   voice: string = DEFAULT_TTS_VOICE,
@@ -163,6 +188,10 @@ export async function generateSingleSpeakerAudio(
       if (attempt > 0) {
         console.log(`[TTS] Retry attempt ${attempt}/${maxRetries}`);
         await new Promise(r => setTimeout(r, 500 * attempt));
+      }
+
+      if (!serviceAuth) {
+        await ensureFreshOAuthToken();
       }
 
       const auth = serviceAuth || await getAuthenticatedClient();
@@ -211,6 +240,12 @@ export async function generateSingleSpeakerAudio(
     } catch (error: any) {
       lastError = error;
       const errorStr = error.message || String(error);
+
+      if (!serviceAuth && attempt < maxRetries && isRefreshableOAuthError(error, errorStr)) {
+        console.warn(`[TTS] Authentication error, forcing OAuth token refresh: ${errorStr}`);
+        await forceRefreshTokens();
+        continue;
+      }
       
       if (errorStr.includes("403") || errorStr.includes("PERMISSION_DENIED") || 
           errorStr.includes("insufficient") || errorStr.includes("scope") ||
@@ -277,6 +312,4 @@ export async function generateMultiSpeakerAudio(request: { text: string; speaker
   const voice = request.speakers[0]?.voice || DEFAULT_TTS_VOICE;
   return generateSingleSpeakerAudio(request.text, voice);
 }
-
-
 

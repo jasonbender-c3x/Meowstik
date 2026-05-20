@@ -25,6 +25,8 @@ const SCOPES = [
   'https://www.googleapis.com/auth/cloud-platform',
 ];
 
+export const TOKEN_REFRESH_BUFFER_MS = 60_000;
+
 let cachedTokens: Auth.Credentials | null = null;
 let oauth2Client: Auth.OAuth2Client | null = null;
 let initialized = false;
@@ -205,33 +207,53 @@ export async function refreshTokensIfNeeded(): Promise<void> {
   if (!cachedTokens || !oauth2Client) return;
   
   const expiryDate = cachedTokens.expiry_date;
-  if (expiryDate && expiryDate < Date.now() + 60000) {
-    const previousRefreshToken = cachedTokens.refresh_token;
+  if (expiryDate && expiryDate < Date.now() + TOKEN_REFRESH_BUFFER_MS) {
     try {
-      const { credentials } = await oauth2Client.refreshAccessToken();
-      cachedTokens = credentials;
-      if (!cachedTokens.refresh_token && previousRefreshToken) {
-        cachedTokens.refresh_token = previousRefreshToken;
-      }
-      oauth2Client.setCredentials(cachedTokens);
-      
-      const { storage } = await import('../storage');
-      
-      await storage.saveGoogleTokens({
-        id: 'default',
-        accessToken: credentials.access_token || null,
-        refreshToken: cachedTokens.refresh_token || null,
-        expiryDate: credentials.expiry_date || null,
-        tokenType: credentials.token_type || null,
-        scope: credentials.scope || null,
-      });
-      
-      console.log('Refreshed and saved Google OAuth tokens');
+      await forceRefreshTokens();
     } catch (error) {
       console.error('Failed to refresh tokens:', error);
       cachedTokens = null;
     }
   }
+}
+
+export async function forceRefreshTokens(): Promise<Auth.Credentials | null> {
+  await initializeFromDatabase();
+  if (!cachedTokens || !oauth2Client || !cachedTokens.refresh_token) {
+    const missingPrerequisites = [
+      !cachedTokens ? "cached tokens" : null,
+      !oauth2Client ? "OAuth client" : null,
+      !cachedTokens?.refresh_token ? "refresh token" : null,
+    ].filter(Boolean).join(", ");
+
+    console.warn(`Cannot force refresh Google OAuth tokens: missing ${missingPrerequisites}`);
+    return cachedTokens;
+  }
+
+  const previousRefreshToken = cachedTokens.refresh_token;
+  const { credentials } = await oauth2Client.refreshAccessToken();
+
+  cachedTokens = {
+    ...cachedTokens,
+    ...credentials,
+    refresh_token: credentials.refresh_token || previousRefreshToken,
+  };
+
+  oauth2Client.setCredentials(cachedTokens);
+
+  const { storage } = await import('../storage');
+
+  await storage.saveGoogleTokens({
+    id: 'default',
+    accessToken: cachedTokens.access_token || null,
+    refreshToken: cachedTokens.refresh_token || null,
+    expiryDate: cachedTokens.expiry_date || null,
+    tokenType: cachedTokens.token_type || null,
+    scope: cachedTokens.scope || null,
+  });
+
+  console.log('Force refreshed and saved Google OAuth tokens');
+  return cachedTokens;
 }
 
 export async function getAuthenticatedClient(): Promise<Auth.OAuth2Client> {
@@ -255,6 +277,3 @@ export async function revokeAccess(): Promise<void> {
 }
 
 export { SCOPES };
-
-
-
