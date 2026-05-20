@@ -38,6 +38,31 @@ export interface EnvironmentMetadata {
 }
 
 /**
+ * Timestamp metadata structure
+ */
+export interface TimestampMetadata {
+  /**
+   * ISO 8601 date string (YYYY-MM-DD) in the server's local timezone
+   */
+  date: string;
+
+  /**
+   * Local time string (HH:MM:SS, 24-hour) in the server's local timezone
+   */
+  time: string;
+
+  /**
+   * IANA timezone name (e.g. "America/New_York" or "UTC")
+   */
+  timezone: string;
+
+  /**
+   * Full ISO 8601 timestamp in UTC (e.g. "2026-05-20T12:45:07.786Z")
+   */
+  iso: string;
+}
+
+/**
  * Cached hostname value to avoid repeated system calls
  */
 let cachedHostname: string | null = null;
@@ -77,17 +102,50 @@ export function getEnvironmentMetadata(): EnvironmentMetadata {
 }
 
 /**
+ * Returns the current date, time, and timezone.
+ * Computed fresh on every call (intentionally not cached).
+ *
+ * @returns {TimestampMetadata} Current timestamp metadata
+ */
+export function getCurrentTimestamp(): TimestampMetadata {
+  const now = new Date();
+  const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+  const date = now.toLocaleDateString("en-CA", { timeZone: timezone }); // YYYY-MM-DD
+  const time = now.toLocaleTimeString("en-GB", {
+    timeZone: timezone,
+    hour12: false,
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  }); // HH:MM:SS
+
+  return {
+    date,
+    time,
+    timezone,
+    iso: now.toISOString(),
+  };
+}
+
+/**
  * Formats environment metadata as a markdown block for system prompts.
- * 
+ * Includes the current date, time, and timezone so the AI always has
+ * accurate temporal context at the start of every session or turn.
+ *
  * @returns {string} Formatted markdown block
  */
 export function formatEnvironmentMetadata(): string {
   const metadata = getEnvironmentMetadata();
-  
+  const ts = getCurrentTimestamp();
+
   return `# Environment Metadata
 
 **Environment**: \`${metadata.environment}\`
 **Server Hostname**: \`${metadata.server_hostname}\`
+**Current Date**: \`${ts.date}\`
+**Current Time**: \`${ts.time}\`
+**Timezone**: \`${ts.timezone}\`
 
 *This metadata allows you to make context-aware decisions about:*
 - Which tools are available (e.g., ssh-keygen may be available locally but not in production)
