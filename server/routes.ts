@@ -1134,7 +1134,7 @@ The user has MUTE mode enabled. Minimize all output.
                 res.write(`data: ${JSON.stringify({ text: cleanUtterance })}
 
 `);
-                sendChatContent += cleanUtterance + "\\n\\n";
+                sendChatContent += cleanUtterance + "\n\n";
 
                 // Generate and stream TTS audio
                 if (useVoice) {

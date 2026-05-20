@@ -18,6 +18,11 @@ export function renderMarkdown(markdown: string) {
     return "";
   }
 
-  const html = marked.parse(stripVoiceStyleTags(markdown), { async: false }) as string;
+  // Replace literal \n sequences (backslash + n) with actual newlines.
+  // These can appear in tool result summaries and certain message blocks that
+  // were built with escaped string literals instead of real newline characters.
+  const normalized = markdown.replace(/\\n/g, "\n");
+
+  const html = marked.parse(stripVoiceStyleTags(normalized), { async: false }) as string;
   return DOMPurify.sanitize(html);
 }
