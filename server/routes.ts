@@ -675,11 +675,11 @@ export async function registerRoutes(
               const limitedResult = hasNoTruncate ? resultStr : resultStr.slice(0, 5000);
               return `[Tool ${tr.type} returned: ${limitedResult}]`;
             })
-            .join("\\n");
-          content = content + "\\n\\n" + toolSummary;
+            .join("\n");
+          content = content + "\n\n" + toolSummary;
         } else if (content.length > MAX_CONTENT_LENGTH) {
           // Truncate older messages if too long
-          content = content.slice(0, MAX_CONTENT_LENGTH) + "\\n...[truncated for context]";
+          content = content.slice(0, MAX_CONTENT_LENGTH) + "\n...[truncated for context]";
         }
         
         return {

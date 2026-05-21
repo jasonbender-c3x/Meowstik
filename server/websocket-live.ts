@@ -20,6 +20,10 @@ interface LiveWebSocketClient {
   sessionId: string;
   isActive: boolean;
   desktopSessionId?: string; // For Computer Use integration
+  lastTextTurn?: string;
+  awaitingTextResponse: boolean;
+  receivedTextResponseOutput: boolean;
+  textRetryCount: number;
 }
 
 const activeClients = new Map<string, LiveWebSocketClient>();
@@ -57,6 +61,9 @@ async function handleConnection(ws: WebSocket, sessionId: string): Promise<void>
     ws,
     sessionId,
     isActive: true,
+    awaitingTextResponse: false,
+    receivedTextResponseOutput: false,
+    textRetryCount: 0,
   };
 
   activeClients.set(sessionId, client);
@@ -78,6 +85,10 @@ async function handleConnection(ws: WebSocket, sessionId: string): Promise<void>
           sendError(ws, result.error || "Failed to send audio");
         }
       } else if (message.type === "text") {
+        client.lastTextTurn = message.text;
+        client.awaitingTextResponse = true;
+        client.receivedTextResponseOutput = false;
+        client.textRetryCount = 0;
         const result = await geminiLive.sendText(sessionId, message.text);
 
         if (!result.success) {
@@ -132,30 +143,97 @@ async function handleConnection(ws: WebSocket, sessionId: string): Promise<void>
 
 async function startReceiving(client: LiveWebSocketClient): Promise<void> {
   try {
-    for await (const response of geminiLive.receiveResponses(client.sessionId)) {
-      if (!client.isActive || client.ws.readyState !== WebSocket.OPEN) {
-        break;
+    while (client.isActive && client.ws.readyState === WebSocket.OPEN) {
+      let restarted = false;
+
+      for await (const response of geminiLive.receiveResponses(client.sessionId)) {
+        if (!client.isActive || client.ws.readyState !== WebSocket.OPEN) {
+          return;
+        }
+
+        if (response.type === "audio" && response.data) {
+          client.receivedTextResponseOutput ||= client.awaitingTextResponse;
+          sendMessage(client.ws, { type: "audio", data: response.data });
+        } else if (response.type === "text" && response.text) {
+          client.receivedTextResponseOutput ||= client.awaitingTextResponse;
+          sendMessage(client.ws, { type: "text", text: response.text });
+        } else if (response.type === "transcript" && response.text) {
+          client.receivedTextResponseOutput ||= client.awaitingTextResponse;
+          sendMessage(client.ws, { type: "transcript", text: response.text });
+        } else if (response.type === "functionCall" && response.functionCall) {
+          // Handle Computer Use function calls (Project Ghost)
+          await handleFunctionCall(client, response.functionCall);
+        } else if (response.type === "error") {
+          if (await tryRecoverTextTurn(client, response.error, response.retryable)) {
+            restarted = true;
+            break;
+          }
+
+          resetPendingTextTurn(client);
+          sendError(client.ws, response.error || "Connection to AI lost");
+          client.ws.close();
+          return;
+        } else if (response.type === "end") {
+          sendMessage(client.ws, { type: "end" });
+        }
       }
 
-      if (response.type === "audio" && response.data) {
-        sendMessage(client.ws, { type: "audio", data: response.data });
-      } else if (response.type === "text" && response.text) {
-        sendMessage(client.ws, { type: "text", text: response.text });
-      } else if (response.type === "transcript" && response.text) {
-        sendMessage(client.ws, { type: "transcript", text: response.text });
-      } else if (response.type === "functionCall" && response.functionCall) {
-        // Handle Computer Use function calls (Project Ghost)
-        await handleFunctionCall(client, response.functionCall);
-      } else if (response.type === "end") {
-        sendMessage(client.ws, { type: "end" });
+      if (!restarted) {
+        break;
       }
     }
   } catch (error) {
     console.error(`[Live WS] Error receiving responses for ${client.sessionId}:`, error);
     if (client.isActive && client.ws.readyState === WebSocket.OPEN) {
+      resetPendingTextTurn(client);
       sendError(client.ws, "Connection to AI lost");
+      client.ws.close();
     }
   }
+}
+
+function resetPendingTextTurn(client: LiveWebSocketClient): void {
+  client.awaitingTextResponse = false;
+  client.receivedTextResponseOutput = false;
+  client.textRetryCount = 0;
+}
+
+async function tryRecoverTextTurn(
+  client: LiveWebSocketClient,
+  error: string | undefined,
+  retryable: boolean | undefined,
+): Promise<boolean> {
+  if (
+    !retryable ||
+    !client.awaitingTextResponse ||
+    client.receivedTextResponseOutput ||
+    !client.lastTextTurn ||
+    client.textRetryCount >= 1
+  ) {
+    return false;
+  }
+
+  client.textRetryCount += 1;
+  console.warn(
+    `[Live WS] Retrying live turn for ${client.sessionId} after upstream error: ${error || "unknown error"}`,
+  );
+
+  await new Promise((resolve) => setTimeout(resolve, 500));
+
+  const recreated = await geminiLive.recreateLiveSession(client.sessionId);
+  if (!recreated.success) {
+    console.error(`[Live WS] Failed to recreate session ${client.sessionId}:`, recreated.error);
+    return false;
+  }
+
+  const resent = await geminiLive.sendText(client.sessionId, client.lastTextTurn);
+  if (!resent.success) {
+    console.error(`[Live WS] Failed to resend text for ${client.sessionId}:`, resent.error);
+    return false;
+  }
+
+  client.receivedTextResponseOutput = false;
+  return true;
 }
 
 /**
@@ -308,6 +386,5 @@ function sendMessage(ws: WebSocket, message: object): void {
 function sendError(ws: WebSocket, error: string): void {
   sendMessage(ws, { type: "error", error });
 }
-
 
 
