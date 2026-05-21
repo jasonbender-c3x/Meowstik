@@ -160,12 +160,27 @@ export interface TtsPipeline {
   readonly speechEventsSent: number;
 }
 
+export interface CreateTtsPipelineOptions {
+  enableSpeech: boolean;
+  enableAudioGeneration?: boolean;
+  defaultVoice?: string;
+}
+
 /**
  * Create a per-request TTS pipeline that drives streaming speech over an SSE
  * response.  All TTS calls are serialised through a promise chain so speech
  * arrives in the order sentences were queued, even if generation latencies vary.
  */
-export function createTtsPipeline(res: Response, useVoice: boolean): TtsPipeline {
+export function createTtsPipeline(
+  res: Response,
+  options: boolean | CreateTtsPipelineOptions,
+): TtsPipeline {
+  const enableSpeech =
+    typeof options === "boolean" ? options : options.enableSpeech;
+  const enableAudioGeneration =
+    typeof options === "boolean" ? options : options.enableAudioGeneration ?? options.enableSpeech;
+  const defaultVoice =
+    typeof options === "boolean" ? undefined : options.defaultVoice;
   let sentenceBuffer = "";
   let speechEventsSentCount = 0;
   let nextSpeechIndex = 0;
@@ -186,17 +201,28 @@ export function createTtsPipeline(res: Response, useVoice: boolean): TtsPipeline
     utterance: string,
     voice?: string,
   ): Promise<{ audioBase64?: string; mimeType?: string; duration?: number; error?: string }> {
+    if (!enableAudioGeneration) {
+      return {};
+    }
+
     const { generateSingleSpeakerAudio, DEFAULT_TTS_VOICE } = await import(
       "../integrations/expressive-tts"
     );
-    return generateSingleSpeakerAudio(utterance, voice || DEFAULT_TTS_VOICE);
+    return generateSingleSpeakerAudio(utterance, voice || defaultVoice || DEFAULT_TTS_VOICE);
   }
 
   function queueSentenceForTTS(sentence: string): void {
+    if (!enableSpeech) return;
+
     const utterance = parseVoiceStyle(sentence).cleanText.trim();
     if (!utterance) return;
 
     const index = nextSpeechIndex++;
+    if (!enableAudioGeneration) {
+      writeSpeechEvent({ utterance, audioGenerated: false, streaming: true, index });
+      return;
+    }
+
     ttsChain = ttsChain.then(async () => {
       try {
         const ttsResult = await generateSpeechAudio(utterance);
@@ -222,7 +248,7 @@ export function createTtsPipeline(res: Response, useVoice: boolean): TtsPipeline
   }
 
   function queueStreamingTTSFromText(chunk: string): void {
-    if (!useVoice || !chunk.trim()) return;
+    if (!enableSpeech || !chunk.trim()) return;
 
     sentenceBuffer = appendTtsChunk(sentenceBuffer, chunk);
     const { sentences, remainder } = extractTtsSentences(sentenceBuffer);

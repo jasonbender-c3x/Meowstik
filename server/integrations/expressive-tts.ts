@@ -15,7 +15,7 @@
  */
 
 import { google, Auth } from "googleapis";
-import { getAuthenticatedClient, isAuthenticated } from "./google-auth";
+import { getAuthenticatedClient, getOAuthClientMode, isAuthenticated } from "./google-auth";
 import * as fs from "fs";
 import * as path from "path";
 import { VoiceStyle, VOICE_STYLE_MAPPING } from "../../shared/voice-styles.js";
@@ -34,6 +34,7 @@ export interface TTSResponse {
  * Use alternate voices (e.g., "Puck", "Charon") for alerts or emphasis.
  */
 export const DEFAULT_TTS_VOICE = "Kore";
+const CLOUD_TTS_SCOPES = ["https://www.googleapis.com/auth/cloud-platform"];
 
 // Chirp 3 HD voices — Google's highest quality neural voices (2025)
 // Do not support SSML prosody; style is conveyed via natural language in the text.
@@ -51,8 +52,31 @@ const AVAILABLE_VOICES: Record<string, { languageCode: string; name: string; not
 };
 
 let serviceAccountAuth: Auth.GoogleAuth | null = null;
+let applicationDefaultAuthProbeComplete = false;
 
-function getServiceAccountAuth(): Auth.GoogleAuth | null {
+async function getApplicationDefaultAuth(): Promise<Auth.GoogleAuth | null> {
+  if (serviceAccountAuth) return serviceAccountAuth;
+  if (applicationDefaultAuthProbeComplete) return null;
+
+  applicationDefaultAuthProbeComplete = true;
+
+  try {
+    const auth = new google.auth.GoogleAuth({
+      scopes: CLOUD_TTS_SCOPES,
+    });
+
+    await auth.getClient();
+    serviceAccountAuth = auth;
+    console.log("[TTS] Loaded Google Cloud credentials from Application Default Credentials");
+    return serviceAccountAuth;
+  } catch (error) {
+    console.warn("[TTS] Application Default Credentials not available for Google Cloud TTS");
+    console.warn("[TTS] Run `gcloud auth application-default login` or configure a service account");
+    return null;
+  }
+}
+
+async function getServiceAccountAuth(): Promise<Auth.GoogleAuth | null> {
   if (serviceAccountAuth) return serviceAccountAuth;
   
   // Method 1: Check for GOOGLE_SERVICE_ACCOUNT_JSON secret (JSON content directly)
@@ -62,7 +86,7 @@ function getServiceAccountAuth(): Auth.GoogleAuth | null {
       const credentials = JSON.parse(jsonSecret);
       serviceAccountAuth = new google.auth.GoogleAuth({
         credentials,
-        scopes: ['https://www.googleapis.com/auth/cloud-platform'],
+        scopes: CLOUD_TTS_SCOPES,
       });
       console.log('[TTS] Loaded service account from GOOGLE_SERVICE_ACCOUNT_JSON secret');
       console.log(`[TTS] Service Account: ${credentials.client_email}`);
@@ -76,31 +100,41 @@ function getServiceAccountAuth(): Auth.GoogleAuth | null {
   // Method 2: Check for GOOGLE_APPLICATION_CREDENTIALS file path
   const credentialsPath = process.env.GOOGLE_APPLICATION_CREDENTIALS || (fs.existsSync("google-credentials.json") ? "google-credentials.json" : null);
   if (!credentialsPath) {
-    console.warn('[TTS] No service account credentials configured');
-    console.warn('[TTS] Set GOOGLE_SERVICE_ACCOUNT_JSON secret or GOOGLE_APPLICATION_CREDENTIALS env var');
+    const defaultAuth = await getApplicationDefaultAuth();
+    if (defaultAuth) {
+      return defaultAuth;
+    }
+
+    console.warn('[TTS] No Google Cloud credentials configured for TTS');
+    console.warn('[TTS] Set GOOGLE_SERVICE_ACCOUNT_JSON, set GOOGLE_APPLICATION_CREDENTIALS, or run `gcloud auth application-default login`');
     return null;
   }
   
   const resolvedPath = path.resolve(credentialsPath);
   if (!fs.existsSync(resolvedPath)) {
     console.warn(`[TTS] Service account file not found: ${resolvedPath}`);
-    return null;
+    return await getApplicationDefaultAuth();
   }
   
   try {
     const credentials = JSON.parse(fs.readFileSync(resolvedPath, 'utf8'));
     serviceAccountAuth = new google.auth.GoogleAuth({
       keyFile: resolvedPath,
-      scopes: ['https://www.googleapis.com/auth/cloud-platform'],
+      scopes: CLOUD_TTS_SCOPES,
     });
-    console.log('[TTS] Loaded service account from file');
-    console.log(`[TTS] Service Account: ${credentials.client_email}`);
-    console.log(`[TTS] Project: ${credentials.project_id}`);
+    console.log('[TTS] Loaded Google Cloud credentials from file');
+    if (credentials.client_email) {
+      console.log(`[TTS] Service Account: ${credentials.client_email}`);
+    }
+    if (credentials.project_id) {
+      console.log(`[TTS] Project: ${credentials.project_id}`);
+    }
     return serviceAccountAuth;
   } catch (error) {
     console.error('[TTS] Failed to load service account from file:', error);
-    return null;
   }
+
+  return await getApplicationDefaultAuth();
 }
 
 export function getAvailableVoices(): string[] {
@@ -144,13 +178,23 @@ export async function generateSingleSpeakerAudio(
   voice: string = DEFAULT_TTS_VOICE,
   maxRetries: number = 2
 ): Promise<TTSResponse> {
-  const serviceAuth = getServiceAccountAuth();
+  const serviceAuth = await getServiceAccountAuth();
   const hasOAuth = await isAuthenticated();
+  const oauthClientMode = getOAuthClientMode();
   
   if (!serviceAuth && !hasOAuth) {
     return {
       success: false,
-      error: "Google authentication not available. Please connect your Google account or configure service account credentials."
+      error:
+        "Google Cloud TTS authentication not available. Configure GOOGLE_SERVICE_ACCOUNT_JSON, set GOOGLE_APPLICATION_CREDENTIALS, or run `gcloud auth application-default login`.",
+    };
+  }
+
+  if (!serviceAuth && oauthClientMode === "degraded") {
+    return {
+      success: false,
+      error:
+        "HD TTS is unavailable because stored Google app tokens alone are not enough for Cloud TTS when GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET are missing. Restore those OAuth client credentials, configure a service account, or run `gcloud auth application-default login`.",
     };
   }
 
@@ -277,5 +321,3 @@ export async function generateMultiSpeakerAudio(request: { text: string; speaker
   const voice = request.speakers[0]?.voice || DEFAULT_TTS_VOICE;
   return generateSingleSpeakerAudio(request.text, voice);
 }
-
-

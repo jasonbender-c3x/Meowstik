@@ -45,6 +45,7 @@ const TTSContext = createContext<TTSContextValue | undefined>(undefined);
 
 const TTS_STORAGE_KEY = "meowstic-tts-muted";
 const VERBOSITY_STORAGE_KEY = "meowstik-verbosity-mode";
+const SETTINGS_STORAGE_KEY = "meowstic-settings";
 // Time to wait after AudioContext.resume() before rechecking state; some browsers
 // complete the state transition asynchronously on the next microtask/tick.
 const AUDIO_CONTEXT_RESUME_DELAY_MS = 50;
@@ -82,6 +83,35 @@ export function TTSProvider({ children }: { children: ReactNode }) {
   const activeSourceRef = useRef<AudioBufferSourceNode | null>(null);
   
   const isSupported = true;
+
+  const getRuntimeAudioSettings = useCallback(() => {
+    if (typeof window === "undefined") {
+      return {
+        voiceEnabled: true,
+        ttsMode: "api" as "api" | "browser",
+        ttsSpeed: 1,
+        ttsPitch: 1,
+      };
+    }
+
+    try {
+      const raw = localStorage.getItem(SETTINGS_STORAGE_KEY);
+      const parsed = raw ? JSON.parse(raw) : {};
+      return {
+        voiceEnabled: parsed.voiceEnabled !== false,
+        ttsMode: parsed.ttsMode === "browser" ? "browser" as const : "api" as const,
+        ttsSpeed: typeof parsed.ttsSpeed === "number" ? parsed.ttsSpeed : 1,
+        ttsPitch: typeof parsed.ttsPitch === "number" ? parsed.ttsPitch : 1,
+      };
+    } catch {
+      return {
+        voiceEnabled: true,
+        ttsMode: "api" as "api" | "browser",
+        ttsSpeed: 1,
+        ttsPitch: 1,
+      };
+    }
+  }, []);
 
   const getOrCreateAudioContext = useCallback(() => {
     if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
@@ -305,14 +335,24 @@ export function TTSProvider({ children }: { children: ReactNode }) {
   // Helper: Should HD audio from "say" tool be played?
   // Play in all modes except mute
   const shouldPlayHDAudio = useCallback(() => {
-    return !isMuted && verbosityMode !== "mute";
-  }, [isMuted, verbosityMode]);
+    const settings = getRuntimeAudioSettings();
+    return settings.voiceEnabled && settings.ttsMode === "api" && !isMuted && verbosityMode !== "mute";
+  }, [getRuntimeAudioSettings, isMuted, verbosityMode]);
 
   // Helper: Should browser TTS speak the chat response?
   // In normal and experimental modes, all content is spoken
   const shouldPlayBrowserTTS = useCallback(() => {
-    return !isMuted && (verbosityMode === "normal" || verbosityMode === "experimental");
-  }, [isMuted, verbosityMode]);
+    const settings = getRuntimeAudioSettings();
+    if (!settings.voiceEnabled || isMuted || verbosityMode === "mute") {
+      return false;
+    }
+
+    if (settings.ttsMode === "browser") {
+      return true;
+    }
+
+    return verbosityMode === "normal" || verbosityMode === "experimental";
+  }, [getRuntimeAudioSettings, isMuted, verbosityMode]);
 
   const setIsMuted = useCallback((muted: boolean) => {
     setIsMutedState(muted);
@@ -325,7 +365,7 @@ export function TTSProvider({ children }: { children: ReactNode }) {
     setIsMuted(!isMuted);
   }, [isMuted, setIsMuted]);
 
-  const speakWithBrowserTTS = useCallback((cleanText: string) => {
+  const speakWithBrowserTTS = useCallback((cleanText: string, options?: { rate?: number; pitch?: number }) => {
     if (!("speechSynthesis" in window)) {
       setIsSpeaking(false);
       setIsUsingBrowserTTS(false);
@@ -335,8 +375,8 @@ export function TTSProvider({ children }: { children: ReactNode }) {
     setIsUsingBrowserTTS(true);
     window.speechSynthesis.cancel();
     const utterance = new SpeechSynthesisUtterance(cleanText);
-    utterance.rate = 1.1;
-    utterance.pitch = 1;
+    utterance.rate = options?.rate ?? 1.1;
+    utterance.pitch = options?.pitch ?? 1;
     utterance.volume = 1;
     utterance.lang = "en-US";
     
@@ -355,7 +395,8 @@ export function TTSProvider({ children }: { children: ReactNode }) {
 
   const speak = useCallback(async (text: string) => {
     console.log("[TTS Context] speak() called, isMuted:", isMuted, "verbosityMode:", verbosityMode);
-    if (isMuted) {
+    const settings = getRuntimeAudioSettings();
+    if (isMuted || !settings.voiceEnabled) {
       console.log("[TTS Context] Skipping - muted");
       return;
     }
@@ -381,8 +422,11 @@ export function TTSProvider({ children }: { children: ReactNode }) {
     }
     
     console.log("[TTS Context] Speaking:", cleanText.substring(0, 50) + "...");
-    speakWithBrowserTTS(cleanText);
-  }, [isMuted, verbosityMode, stopSpeaking, speakWithBrowserTTS]);
+    speakWithBrowserTTS(cleanText, {
+      rate: settings.ttsSpeed,
+      pitch: settings.ttsPitch,
+    });
+  }, [getRuntimeAudioSettings, isMuted, verbosityMode, stopSpeaking, speakWithBrowserTTS]);
 
   return (
     <TTSContext.Provider

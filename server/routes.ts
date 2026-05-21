@@ -698,6 +698,11 @@ export async function registerRoutes(
       // Get verbosity mode from client (mute, low, normal, experimental)
       const verbosityMode = req.body.verbosityMode || "normal";
       const useVoice = verbosityMode !== "mute";
+      const ttsMode = req.body.ttsMode === "browser" ? "browser" : "api";
+      const selectedTtsVoice =
+        typeof req.body.ttsVoice === "string" && req.body.ttsVoice.trim()
+          ? req.body.ttsVoice.trim()
+          : undefined;
       
       // Determine content verbosity level for prompt context
       const contentVerbosity = (() => {
@@ -1110,9 +1115,24 @@ The user has MUTE mode enabled. Minimize all output.
 
                 // Generate and stream TTS audio
                 if (useVoice) {
+                  if (ttsMode === "browser") {
+                    res.write(`data: ${JSON.stringify({
+                      speech: {
+                        utterance: cleanUtterance,
+                        audioGenerated: false,
+                      }
+                    })}
+
+`);
+                    continue;
+                  }
+
                   try {
                     const { generateSingleSpeakerAudio, DEFAULT_TTS_VOICE } = await import("./integrations/expressive-tts");
-                    const ttsResult = await generateSingleSpeakerAudio(utterance, voice || DEFAULT_TTS_VOICE);
+                    const ttsResult = await generateSingleSpeakerAudio(
+                      utterance,
+                      voice || selectedTtsVoice || DEFAULT_TTS_VOICE
+                    );
                     if (ttsResult.audioBase64) {
                       console.log(`[Routes][SAY] ✓ Audio generated, length: ${ttsResult.audioBase64.length}`);
                       res.write(`data: ${JSON.stringify({
@@ -1128,9 +1148,25 @@ The user has MUTE mode enabled. Minimize all output.
 `);
                     } else {
                       console.warn(`[Routes][SAY] TTS returned no audio: ${ttsResult.error}`);
+                      res.write(`data: ${JSON.stringify({
+                        speech: {
+                          utterance: cleanUtterance,
+                          audioGenerated: false,
+                        }
+                      })}
+
+`);
                     }
                   } catch (ttsErr) {
                     console.error(`[Routes][SAY] TTS failed:`, ttsErr);
+                    res.write(`data: ${JSON.stringify({
+                      speech: {
+                        utterance: cleanUtterance,
+                        audioGenerated: false,
+                      }
+                    })}
+
+`);
                   }
                 }
               }
@@ -1574,28 +1610,69 @@ The user has MUTE mode enabled. Minimize all output.
           const ttsText = finalContent.length > 500 
             ? finalContent.substring(0, 500) + "..."
             : finalContent;
-          const { generateSingleSpeakerAudio, DEFAULT_TTS_VOICE } = await import("./integrations/expressive-tts");
-          const ttsResult = await generateSingleSpeakerAudio(ttsText, DEFAULT_TTS_VOICE);
-
-          if (ttsResult.audioBase64) {
-            console.log(`[Routes][TTS-Fallback] ✓ Generated fallback audio via ${provider}, length: ${ttsResult.audioBase64.length}`);
+          if (ttsMode === "browser") {
             res.write(
               `data: ${JSON.stringify({
                 speech: {
                   utterance: ttsText,
-                  audioGenerated: true,
-                  audioBase64: ttsResult.audioBase64,
-                  mimeType: ttsResult.mimeType || "audio/mpeg",
-                  duration: ttsResult.duration,
+                  audioGenerated: false,
                   fallback: true,
                 },
               })}
 
 `,
             );
+          } else {
+            const { generateSingleSpeakerAudio, DEFAULT_TTS_VOICE } = await import("./integrations/expressive-tts");
+            const ttsResult = await generateSingleSpeakerAudio(
+              ttsText,
+              selectedTtsVoice || DEFAULT_TTS_VOICE
+            );
+
+            if (ttsResult.audioBase64) {
+              console.log(`[Routes][TTS-Fallback] ✓ Generated fallback audio, length: ${ttsResult.audioBase64.length}`);
+              res.write(
+                `data: ${JSON.stringify({
+                  speech: {
+                    utterance: ttsText,
+                    audioGenerated: true,
+                    audioBase64: ttsResult.audioBase64,
+                    mimeType: ttsResult.mimeType || "audio/mpeg",
+                    duration: ttsResult.duration,
+                    fallback: true,
+                  },
+                })}
+
+`,
+              );
+            } else {
+              console.warn(`[Routes][TTS-Fallback] TTS returned no audio: ${ttsResult.error}`);
+              res.write(
+                `data: ${JSON.stringify({
+                  speech: {
+                    utterance: ttsText,
+                    audioGenerated: false,
+                    fallback: true,
+                  },
+                })}
+
+`,
+              );
+            }
           }
         } catch (ttsError) {
           console.error(`[Routes][TTS-Fallback] Failed:`, ttsError);
+          res.write(
+            `data: ${JSON.stringify({
+              speech: {
+                utterance: finalContent,
+                audioGenerated: false,
+                fallback: true,
+              },
+            })}
+
+`,
+          );
         }
       } else if (useVoice) {
         console.log(`[Routes][TTS] Speech already delivered via say tool`);

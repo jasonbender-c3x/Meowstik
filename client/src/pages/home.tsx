@@ -734,6 +734,9 @@ export default function Home() {
       const storedSettings = localStorage.getItem('meowstic-settings');
       const parsedSettings = storedSettings ? JSON.parse(storedSettings) : {};
       const modelMode = parsedSettings.model || 'pro';
+      const voiceEnabled = parsedSettings.voiceEnabled !== false;
+      const ttsMode = parsedSettings.ttsMode === 'browser' ? 'browser' : 'api';
+      const ttsVoice = typeof parsedSettings.ttsVoice === 'string' ? parsedSettings.ttsVoice : 'Kore';
       
       // Create AbortController for this request
       const abortController = new AbortController();
@@ -748,6 +751,8 @@ export default function Home() {
           content,
           model: modelMode, // "pro" or "flash"
           verbosityMode: verbosityMode, // "mute", "low", "normal", "high", "demo-hd", "podcast"
+          ttsMode,
+          ttsVoice,
           maxAgenticTurns: parseInt(localStorage.getItem("meowstik-max-agentic-turns") || "10", 10),
           preResponseFiller: {
             enabled: parsedSettings.preResponseFillerEnabled !== false,
@@ -791,6 +796,7 @@ export default function Home() {
       let speechEventsReceived = 0;
       let cleanContentForTTS = '';
       let hasQueuedHdAudio = false;
+      let speechPlaybackStarted = false;
       
       // Audio playback queue for sequential playback of streaming TTS chunks
       const audioQueue: Array<{ base64: string; mimeType: string; utterance: string }> = [];
@@ -811,20 +817,26 @@ export default function Home() {
                 { type: item.mimeType }
               );
               const audioUrl = URL.createObjectURL(audioBlob);
-              const audio = new Audio(audioUrl);
-              audio.volume = 1.0;
-              registerHDAudio(audio);
-              await new Promise<void>((resolve, reject) => {
-                audio.onended = () => { URL.revokeObjectURL(audioUrl); registerHDAudio(null); resolve(); };
-                audio.onerror = () => { URL.revokeObjectURL(audioUrl); registerHDAudio(null); reject(new Error('Audio playback error')); };
-                audio.play().catch(reject);
-              });
-            } catch (fallbackErr) {
-              console.error('[TTS] All playback methods failed:', fallbackErr);
+                const audio = new Audio(audioUrl);
+                audio.volume = 1.0;
+                registerHDAudio(audio);
+                await new Promise<void>((resolve, reject) => {
+                  audio.onended = () => { URL.revokeObjectURL(audioUrl); registerHDAudio(null); resolve(); };
+                  audio.onerror = () => { URL.revokeObjectURL(audioUrl); registerHDAudio(null); reject(new Error('Audio playback error')); };
+                  audio.play()
+                    .then(() => {
+                      speechPlaybackStarted = true;
+                    })
+                    .catch(reject);
+                });
+              } catch (fallbackErr) {
+                console.error('[TTS] All playback methods failed:', fallbackErr);
+              }
+            } else {
+              speechPlaybackStarted = true;
             }
-          }
-        } catch (err) {
-          console.error('[TTS] Playback error:', err);
+          } catch (err) {
+            console.error('[TTS] Playback error:', err);
         }
         isPlayingAudio = false;
         playNextInQueue();
@@ -903,8 +915,10 @@ export default function Home() {
                   index?: number;
                 };
                 speechEventsReceived++;
-                const hdPermitted = shouldPlayHDAudio();
-                const browserTTSPermitted = shouldPlayBrowserTTS();
+                const hdPermitted = voiceEnabled && ttsMode === "api" && shouldPlayHDAudio();
+                const browserTTSPermitted =
+                  voiceEnabled &&
+                  (ttsMode === "browser" ? verbosityMode !== "mute" : shouldPlayBrowserTTS());
                 
                 console.log(`[TTS] Incoming speech event #${speechEventsReceived}:`, {
                   streaming: speechData.streaming,
@@ -925,13 +939,15 @@ export default function Home() {
                     utterance: speechData.utterance || '',
                   });
                   playNextInQueue();
-                } else if (speechData.audioGenerated === false && speechData.utterance && !hasQueuedHdAudio) {
-                  // say tool explicitly failed: always attempt browser TTS so the
-                  // utterance is not silently lost, regardless of verbosity mode.
-                  console.log("[TTS] say tool reported audioGenerated:false, using browser TTS fallback");
+                } else if (ttsMode === "browser" && speechData.utterance && browserTTSPermitted && !hasQueuedHdAudio) {
+                  console.log("[TTS] Using browser TTS because browser mode is selected");
+                  speechPlaybackStarted = true;
                   speak(speechData.utterance);
+                } else if (speechData.audioGenerated === false && speechData.utterance && !hasQueuedHdAudio) {
+                  console.warn("[TTS] API speech generation failed; browser fallback is disabled in API mode");
                 } else if (browserTTSPermitted && speechData.utterance && !hasQueuedHdAudio) {
                   console.log("[TTS] Falling back to browser TTS for this speech event");
+                  speechPlaybackStarted = true;
                   speak(speechData.utterance);
                 } else if (speechData.utterance && hasQueuedHdAudio) {
                   console.log("[TTS] Skipping browser TTS fallback because HD audio is already queued for this response");
@@ -1049,10 +1065,11 @@ export default function Home() {
                   stripped.startsWith('<thinking>') ||
                   stripped.startsWith('```') ||
                   /^[\s\W]+$/.test(stripped);
-                const browserTTSPermitted = shouldPlayBrowserTTS();
+                const browserTTSPermitted = ttsMode === "browser" && shouldPlayBrowserTTS();
                 
                 console.log('[TTS] Final Stream Check:', {
                   speechEventsReceived,
+                  speechPlaybackStarted,
                   browserTTSPermitted,
                   isNonSpeakable,
                   textLength: textToSpeak?.length || 0,
@@ -1060,8 +1077,9 @@ export default function Home() {
                   aiMessageContent_Len: aiMessageContent?.length || 0
                 });
 
-                if (textToSpeak && speechEventsReceived === 0 && browserTTSPermitted && !isNonSpeakable) {
-                  console.log('[TTS] No speech events received, triggered full response browser TTS fallback');
+                if (textToSpeak && !speechPlaybackStarted && browserTTSPermitted && !isNonSpeakable) {
+                  console.log('[TTS] No speech playback started, triggering full response browser TTS fallback');
+                  speechPlaybackStarted = true;
                   speak(textToSpeak);
                 } else if (speechEventsReceived > 0) {
                   console.log(`[TTS] ${speechEventsReceived} speech events already handled, suppressing full response fallback`);

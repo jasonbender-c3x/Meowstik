@@ -119,7 +119,7 @@ The Voice Lab UI is available at `/voice-lab`.
 
 ## Authentication for TTS
 
-The TTS integration (`server/integrations/expressive-tts.ts`) supports two auth methods:
+The TTS integration (`server/integrations/expressive-tts.ts`) supports three auth methods:
 
 ### Method 1: Service Account (Recommended)
 
@@ -131,7 +131,17 @@ GOOGLE_SERVICE_ACCOUNT_JSON={"type":"service_account","project_id":"...","privat
 
 ### Method 2: OAuth 2.0 Fallback
 
-If no service account is configured, the system falls back to the user's Google OAuth tokens (requires `cloud-platform` scope). This works but may hit quota limits more easily.
+If `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` are configured, the system can fall back to the user's stored Google OAuth tokens (requires `cloud-platform` scope). This works but may hit quota limits more easily.
+
+### Method 3: Application Default Credentials
+
+If no explicit service account is configured, Meowstik also probes Google Application Default Credentials. This lets HD TTS work automatically after:
+
+```bash
+gcloud auth application-default login
+```
+
+`gcloud auth login` by itself is not enough for this path.
 
 ---
 

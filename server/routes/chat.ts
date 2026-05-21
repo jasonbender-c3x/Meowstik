@@ -226,6 +226,11 @@ router.post("/chats/:id/messages", async (req, res) => {
     const savedAttachments = await storage.getAttachmentsByMessageId(savedMessage.id);
     const verbosityMode = req.body.verbosityMode || "normal";
     const useVoice = verbosityMode !== "mute";
+    const ttsMode = req.body.ttsMode === "browser" ? "browser" : "api";
+    const selectedTtsVoice =
+      typeof req.body.ttsVoice === "string" && req.body.ttsVoice.trim()
+        ? req.body.ttsVoice.trim()
+        : undefined;
 
     const composedPrompt = await promptComposer.compose({
       textContent: req.body.content || "",
@@ -308,7 +313,11 @@ router.post("/chats/:id/messages", async (req, res) => {
     console.log(`[IOLogger] Input logged: ${inputLogFilename}`);
 
     // ── 9. TTS pipeline + pre-response filler state ───────────────────────
-    const ttsPipeline = createTtsPipeline(res, useVoice);
+    const ttsPipeline = createTtsPipeline(res, {
+      enableSpeech: useVoice,
+      enableAudioGeneration: useVoice && ttsMode === "api",
+      defaultVoice: selectedTtsVoice,
+    });
     let stopPreResponseFiller = false;
     let assistantOutputStarted = false;
 

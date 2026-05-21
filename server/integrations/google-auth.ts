@@ -38,6 +38,7 @@ let cachedTokens: Auth.Credentials | null = null;
 let oauth2Client: Auth.OAuth2Client | null = null;
 let initialized = false;
 let initializationPromise: Promise<void> | null = null;
+let loggedDegradedOAuthWarning = false;
 
 function getRedirectUri(): string {
   // 1. Explicit environment variable always takes precedence
@@ -68,6 +69,25 @@ function getRedirectUri(): string {
   return redirectUri;
 }
 
+export function hasConfiguredOAuthClientCredentials(): boolean {
+  return Boolean(
+    process.env.GOOGLE_CLIENT_ID?.trim() &&
+    process.env.GOOGLE_CLIENT_SECRET?.trim(),
+  );
+}
+
+export function getOAuthClientMode(): "configured" | "degraded" | "unavailable" {
+  if (hasConfiguredOAuthClientCredentials()) {
+    return "configured";
+  }
+
+  if (cachedTokens?.access_token) {
+    return "degraded";
+  }
+
+  return "unavailable";
+}
+
 function createOAuth2Client(): Auth.OAuth2Client {
   let clientId = process.env.GOOGLE_CLIENT_ID?.trim() || undefined;
   let clientSecret = process.env.GOOGLE_CLIENT_SECRET?.trim() || undefined;
@@ -82,6 +102,16 @@ function createOAuth2Client(): Auth.OAuth2Client {
   }
   
   if (!clientId || !clientSecret) {
+    if (cachedTokens?.access_token) {
+      if (!loggedDegradedOAuthWarning) {
+        console.warn(
+          "[Google OAuth] Client ID/secret missing. Reusing stored access token in degraded mode; token refresh and re-auth URL generation are unavailable until env vars are restored.",
+        );
+        loggedDegradedOAuthWarning = true;
+      }
+      return new google.auth.OAuth2(undefined, undefined, getRedirectUri());
+    }
+
     // If not in dev mode, we must have real keys
     throw new Error(
       'GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET must be set. ' +
@@ -155,6 +185,11 @@ export function getOAuth2ClientSync(): Auth.OAuth2Client {
 }
 
 export function getAuthUrl(): string {
+  if (!hasConfiguredOAuthClientCredentials() && process.env.HOME_DEV_MODE !== 'true') {
+    throw new Error(
+      'GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET must be set before generating a Google auth URL.',
+    );
+  }
   const client = getOAuth2ClientSync();
   return client.generateAuthUrl({
     access_type: 'offline',
@@ -164,6 +199,11 @@ export function getAuthUrl(): string {
 }
 
 export async function handleCallback(code: string): Promise<Auth.Credentials> {
+  if (!hasConfiguredOAuthClientCredentials() && process.env.HOME_DEV_MODE !== 'true') {
+    throw new Error(
+      'GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET must be set before handling a Google auth callback.',
+    );
+  }
   const client = await getOAuth2Client();
   const { tokens } = await client.getToken(code);
   client.setCredentials(tokens);
@@ -225,6 +265,13 @@ export async function refreshTokensIfNeeded(): Promise<void> {
   
   const expiryDate = cachedTokens.expiry_date;
   if (expiryDate && expiryDate < Date.now() + 60000) {
+    if (!hasConfiguredOAuthClientCredentials() && process.env.HOME_DEV_MODE !== 'true') {
+      console.warn(
+        "[Google OAuth] Access token is near expiry, but client credentials are unavailable. Keeping the stored token and skipping refresh until env vars are restored.",
+      );
+      return;
+    }
+
     const previousRefreshToken = cachedTokens.refresh_token;
     const previousScope = cachedTokens.scope;
     try {
@@ -272,11 +319,11 @@ export async function revokeAccess(): Promise<void> {
   oauth2Client = null;
   initialized = false;
   initializationPromise = null;
+  loggedDegradedOAuthWarning = false;
   const { storage } = await import('../storage');
   await storage.deleteGoogleTokens();
   console.log('Revoked Google access and cleared tokens');
 }
 
 export { SCOPES };
-
 
