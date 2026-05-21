@@ -19,6 +19,8 @@ import { eq, or, desc } from "drizzle-orm";
 import { log } from "../vite.js";
 
 const { VoiceResponse } = twilio.twiml;
+const OWNER_NAME = "Jason Bender";
+const DEFAULT_TWILIO_TEXT_MODEL = process.env.GEMINI_SMS_MODEL || "gemini-2.5-flash";
 
 export const twilioRouter = Router();
 
@@ -358,6 +360,9 @@ twilioRouter.post("/sms", async (req, res) => {
       // ── Generate Meowstik AI reply ─────────────────────────────────────────
       if (!process.env.GEMINI_API_KEY) {
         log("⚠️ [Twilio] GEMINI_API_KEY not set — skipping AI reply");
+        await db.update(smsMessages)
+          .set({ processed: true, processedAt: new Date() })
+          .where(eq(smsMessages.messageSid, inboundMessageSid));
         return;
       }
 
@@ -376,24 +381,28 @@ twilioRouter.post("/sms", async (req, res) => {
         .map((m) => `${m.direction === "inbound" ? "Them" : "Meowstik"}: ${m.body}`)
         .join("\n");
 
-      const ownerName = "Jason Bender";
       const systemInstruction = isFromOwner
-        ? `You are Meowstik, ${ownerName}'s AI assistant. ${ownerName} is texting you. Help him. Be concise.`
-        : `You are Meowstik, the AI phone assistant for ${ownerName}. Someone is texting the Meowstik number. ` +
-          `Be helpful and warm. Keep replies to 1-3 sentences. You can take messages for ${ownerName}.`;
+        ? `You are Meowstik, ${OWNER_NAME}'s AI assistant. ${OWNER_NAME} is texting you. Help him. Be concise.`
+        : `You are Meowstik, the AI phone assistant for ${OWNER_NAME}. Someone is texting the Meowstik number. ` +
+          `Be helpful and warm. Keep replies to 1-3 sentences. You can take messages for ${OWNER_NAME}.`;
 
       const prompt = history
         ? `Conversation so far:\n${history}\n\nNew message: ${Body}\n\nReply:`
         : `Message: ${Body}\n\nReply:`;
 
       const result = await ai.models.generateContent({
-        model: "gemini-2.0-flash",
+        model: DEFAULT_TWILIO_TEXT_MODEL,
         config: { systemInstruction },
         contents: [{ role: "user", parts: [{ text: prompt }] }],
       });
 
       const reply = result.text?.trim();
-      if (!reply) return;
+      if (!reply) {
+        await db.update(smsMessages)
+          .set({ processed: true, processedAt: new Date() })
+          .where(eq(smsMessages.messageSid, inboundMessageSid));
+        return;
+      }
 
       const { sendSMS } = await import("../integrations/twilio.js");
       const sent = await sendSMS(From, reply);
@@ -408,6 +417,14 @@ twilioRouter.post("/sms", async (req, res) => {
         status: "sent",
         processed: true,
       });
+
+      await db.update(smsMessages)
+        .set({
+          responseMessageSid: sent?.sid || null,
+          processed: true,
+          processedAt: new Date(),
+        })
+        .where(eq(smsMessages.messageSid, inboundMessageSid));
 
       log(`💬 [Twilio] Meowstik replied to ${From}: "${reply.slice(0, 80)}"`);
     } catch (err) {
@@ -444,7 +461,7 @@ async function handleOwnerCallCommand(
     const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
     const parseResult = await ai.models.generateContent({
-      model: "gemini-2.0-flash",
+      model: DEFAULT_TWILIO_TEXT_MODEL,
       config: {
         systemInstruction:
           "Extract the call request details from the user's message. " +
@@ -545,6 +562,3 @@ async function handleOwnerCallCommand(
 }
 
 export default twilioRouter;
-
-
-
