@@ -33,6 +33,7 @@ import {
   Pause,
   Loader2,
   Plus,
+  Sparkles,
   Delete,
   ChevronLeft,
   Clock,
@@ -72,6 +73,7 @@ interface CallRecord {
   to: string;
   status: string;
   duration: number;
+  currentContext?: string | null;
   recordingUrl: string | null;
   createdAt: string;
 }
@@ -258,7 +260,10 @@ export default function CommunicationsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [contactsSearch, setContactsSearch] = useState("");
   const [showDialpad, setShowDialpad] = useState(false);
+  const [showAICall, setShowAICall] = useState(false);
   const [dialpadNumber, setDialpadNumber] = useState("");
+  const [aiCallTo, setAiCallTo] = useState("");
+  const [aiCallMission, setAiCallMission] = useState("");
   const [showNewMessage, setShowNewMessage] = useState(false);
   const [newMsgTo, setNewMsgTo] = useState("");
   const [newMsgBody, setNewMsgBody] = useState("");
@@ -354,6 +359,26 @@ export default function CommunicationsPage() {
     onError: () => toast({ title: "Call failed", variant: "destructive" }),
   });
 
+  const makeAICallMutation = useMutation({
+    mutationFn: async ({ to, mission }: { to: string; mission: string }) => {
+      const res = await fetch("/api/communications/calls/ai", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ to, mission }),
+      });
+      if (!res.ok) throw new Error("Failed to initiate AI call");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/communications/calls"] });
+      setShowAICall(false);
+      setAiCallTo("");
+      setAiCallMission("");
+      toast({ title: "AI call started", description: "Meowstik is handling the call mission." });
+    },
+    onError: () => toast({ title: "AI call failed", variant: "destructive" }),
+  });
+
   const markHeardMutation = useMutation({
     mutationFn: async (id: string) => {
       const res = await fetch(`/api/communications/voicemails/${id}/heard`, { method: "PUT" });
@@ -418,6 +443,11 @@ export default function CommunicationsPage() {
     setShowDialpad(true);
   };
 
+  const handleAICallContact = (phone: string) => {
+    setAiCallTo(phone);
+    setShowAICall(true);
+  };
+
   const handleTextContact = (phone: string) => {
     setNewMsgTo(phone);
     setShowNewMessage(true);
@@ -462,6 +492,10 @@ export default function CommunicationsPage() {
           <Button size="sm" variant="outline" onClick={() => setShowDialpad(true)}>
             <Phone className="h-4 w-4 sm:mr-1" />
             <span className="hidden sm:inline">Call</span>
+          </Button>
+          <Button size="sm" variant="outline" onClick={() => setShowAICall(true)}>
+            <Sparkles className="h-4 w-4 sm:mr-1" />
+            <span className="hidden sm:inline">AI Call</span>
           </Button>
         </div>
       </div>
@@ -798,6 +832,11 @@ export default function CommunicationsPage() {
                           <span>·</span>
                           <span>{relativeTime(call.createdAt)}</span>
                         </div>
+                        {call.currentContext && (
+                          <p className="mt-1 text-xs text-muted-foreground line-clamp-2">
+                            Mission: {call.currentContext}
+                          </p>
+                        )}
                       </div>
                       <div className="flex gap-1">
                         <Button
@@ -807,6 +846,14 @@ export default function CommunicationsPage() {
                           title="Call back"
                         >
                           <Phone className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleAICallContact(otherParty)}
+                          title="AI call"
+                        >
+                          <Sparkles className="h-4 w-4" />
                         </Button>
                         <Button
                           variant="ghost"
@@ -1001,6 +1048,14 @@ export default function CommunicationsPage() {
                         <Button
                           variant="ghost"
                           size="icon"
+                          onClick={() => handleAICallContact(phone)}
+                          title={`Ask Meowstik to call ${contact.displayName}`}
+                        >
+                          <Sparkles className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
                           onClick={() => handleTextContact(phone)}
                           title={`Text ${contact.displayName}`}
                         >
@@ -1028,6 +1083,48 @@ export default function CommunicationsPage() {
             onCall={() => makeCallMutation.mutate(dialpadNumber)}
             loading={makeCallMutation.isPending}
           />
+        </DialogContent>
+      </Dialog>
+
+      {/* ── AI call dialog ───────────────────────────────────────────────────── */}
+      <Dialog open={showAICall} onOpenChange={setShowAICall}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Start an AI Call</DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col gap-3 py-2">
+            <Input
+              placeholder="To: +1 (555) 000-0000"
+              value={aiCallTo}
+              onChange={(e) => setAiCallTo(e.target.value)}
+            />
+            <Textarea
+              placeholder="Mission: what should Meowstik say, ask, and report back?"
+              value={aiCallMission}
+              onChange={(e) => setAiCallMission(e.target.value)}
+              maxLength={400}
+              rows={5}
+            />
+            <p className="text-xs text-muted-foreground text-right">
+              {aiCallMission.length}/400
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowAICall(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={() => makeAICallMutation.mutate({ to: aiCallTo, mission: aiCallMission.trim() })}
+              disabled={!aiCallTo || !aiCallMission.trim() || makeAICallMutation.isPending}
+            >
+              {makeAICallMutation.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-1" />
+              ) : (
+                <Sparkles className="h-4 w-4 mr-1" />
+              )}
+              Start AI Call
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 
@@ -1071,6 +1168,5 @@ export default function CommunicationsPage() {
     </div>
   );
 }
-
 
 

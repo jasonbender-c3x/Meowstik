@@ -66,6 +66,7 @@ twilioRouter.post("/voice", async (req, res) => {
   const { From, To, CallSid } = req.body;
   const direction = (req.query.direction as string) || "inbound";
   const context = (req.query.context as string) || "";
+  const skipOwner = req.query.skipOwner === "true";
 
   log(`📞 [Twilio] ${direction} call: ${From} → ${To} (${CallSid})`);
 
@@ -126,14 +127,14 @@ twilioRouter.post("/voice", async (req, res) => {
       
       // Call into the conference as the "Agent"
       await client.calls.create({
-        url: `${baseUrl}/api/twilio/agent-leg?confName=${encodeURIComponent(conferenceName)}&direction=${direction}&from=${encodeURIComponent(From)}`,
+        url: `${baseUrl}/api/twilio/agent-leg?confName=${encodeURIComponent(conferenceName)}&direction=${direction}&from=${encodeURIComponent(From)}&context=${encodeURIComponent(context)}`,
         to: process.env.TWILIO_PHONE_NUMBER!, // Call ourselves (loopback)
         from: process.env.TWILIO_PHONE_NUMBER!,
       });
       log(`🤖 [Twilio] Agent leg initiated for conference ${conferenceName}`);
 
       // 3. ASYNC: Add the "Owner" leg (You) - Muted initially
-      if (!isFromOwner && ownerPhone) {
+      if (!isFromOwner && ownerPhone && !skipOwner) {
         await client.calls.create({
           url: `${baseUrl}/api/twilio/owner-leg?confName=${encodeURIComponent(conferenceName)}`,
           to: ownerPhone,
@@ -152,7 +153,7 @@ twilioRouter.post("/voice", async (req, res) => {
 
 // ── Agent Leg Endpoint (The AI Voice) ─────────────────────────────────────────
 twilioRouter.post("/agent-leg", (req, res) => {
-  const { confName, direction, from } = req.query;
+  const { confName, direction, from, context } = req.query;
   const response = new VoiceResponse();
   const host = req.headers.host;
 
@@ -164,6 +165,7 @@ twilioRouter.post("/agent-leg", (req, res) => {
   });
   stream.parameter({ name: "direction", value: String(direction ?? "") });
   stream.parameter({ name: "fromNumber", value: String(from ?? "unknown") });
+  stream.parameter({ name: "context", value: String(context ?? "") });
   
   // 2. Join the Conference (so the stream audio goes there)
   // Wait... <Connect> and <Dial><Conference> are mutually exclusive TwiML verbs.
@@ -192,6 +194,7 @@ twilioRouter.post("/agent-leg", (req, res) => {
   });
   s.parameter({ name: "direction", value: String(direction ?? "") });
   s.parameter({ name: "fromNumber", value: String(from ?? "") });
+  s.parameter({ name: "context", value: String(context ?? "") });
   
   const dial = response.dial();
   dial.conference({
@@ -320,6 +323,7 @@ twilioRouter.all("/conference/twiml", (req, res) => {
 
 twilioRouter.post("/sms", async (req, res) => {
   const { From, To, Body, MessageSid, AccountSid } = req.body;
+  const inboundMessageSid = MessageSid || `inbound-${Date.now()}`;
   log(`💬 [Twilio] SMS from ${From}: ${Body}`);
 
   res.type("text/xml");
@@ -335,7 +339,7 @@ twilioRouter.post("/sms", async (req, res) => {
 
       // Save inbound SMS
       await db.insert(smsMessages).values({
-        messageSid: MessageSid || `inbound-${Date.now()}`,
+        messageSid: inboundMessageSid,
         accountSid,
         from: From,
         to: twilioNumber,
@@ -347,6 +351,9 @@ twilioRouter.post("/sms", async (req, res) => {
       // ── Owner sending a call command? ──────────────────────────────────────
       if (isFromOwner && /^\s*call\b/i.test(Body)) {
         await handleOwnerCallCommand(From, Body, twilioNumber, accountSid);
+        await db.update(smsMessages)
+          .set({ processed: true, processedAt: new Date() })
+          .where(eq(smsMessages.messageSid, inboundMessageSid));
         return;
       }
 
@@ -532,10 +539,19 @@ async function handleOwnerCallCommand(
       process.env.BASE_URL ??
       `https://${process.env.REPLIT_DEV_DOMAIN ?? "localhost"}`;
     const contextParam = encodeURIComponent(fullMission);
-    const voiceUrl = `${baseUrl}/api/twilio/voice?direction=outbound&context=${contextParam}`;
+    const voiceUrl = `${baseUrl}/api/twilio/voice?direction=outbound&skipOwner=true&context=${contextParam}`;
 
     const { makeCall } = await import("../integrations/twilio.js");
     const call = await makeCall(targetPhone, voiceUrl);
+    const { storage } = await import("../storage.js");
+    await storage.insertCallConversation({
+      callSid: call.sid,
+      fromNumber: call.from || twilioNumber,
+      toNumber: call.to || targetPhone,
+      status: call.status || "queued",
+      turnCount: 0,
+      currentContext: parsed.mission,
+    });
 
     log(`📞 [Twilio] Initiated owner-commanded call to ${resolvedName} (${targetPhone}): ${call.sid}`);
 

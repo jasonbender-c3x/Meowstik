@@ -68,6 +68,7 @@ import { Mic, MicOff, Image, Send, Paperclip, Sparkles, Monitor, X, Camera, PawP
  * Voice hook for speech-to-text functionality
  */
 import { useVoice } from "@/hooks/use-voice";
+import { useTTS } from "@/contexts/tts-context";
 
 /**
  * Toast notifications for user feedback
@@ -286,11 +287,19 @@ export function ChatInputArea({ onSend, isLoading, promptHistory = [], onStop }:
     resetTranscript,
     error: voiceError 
   } = useVoice({ continuous: true, interimResults: true });
+  const { isSpeaking: isTtsSpeaking } = useTTS();
 
   /**
    * Toast notifications
    */
   const { toast } = useToast();
+
+  const stopVoiceInput = () => {
+    stopListening();
+    resetTranscript();
+    cursorPositionRef.current = null;
+    lastTranscriptLengthRef.current = 0;
+  };
 
   // ===========================================================================
   // EFFECTS
@@ -357,6 +366,12 @@ export function ChatInputArea({ onSend, isLoading, promptHistory = [], onStop }:
     }
   }, [voiceError, toast]);
 
+  useEffect(() => {
+    if (isTtsSpeaking && isListening) {
+      stopVoiceInput();
+    }
+  }, [isListening, isTtsSpeaking]);
+
   // ===========================================================================
   // EVENT HANDLERS
   // ===========================================================================
@@ -368,6 +383,9 @@ export function ChatInputArea({ onSend, isLoading, promptHistory = [], onStop }:
   const handleSend = async () => {
     const hasContent = input.trim() || attachments.length > 0;
     if (hasContent && !isLoading) {
+      if (isListening) {
+        stopVoiceInput();
+      }
       let finalAttachments = [...attachments];
       
       // If auto-screenshot mode is on, capture screenshot
@@ -420,6 +438,9 @@ export function ChatInputArea({ onSend, isLoading, promptHistory = [], onStop }:
    */
   const handleScreenshotSend = async () => {
     if (isLoading) return;
+    if (isListening) {
+      stopVoiceInput();
+    }
     
     try {
       const stream = await navigator.mediaDevices.getDisplayMedia({
@@ -765,12 +786,17 @@ export function ChatInputArea({ onSend, isLoading, promptHistory = [], onStop }:
       });
       return;
     }
+
+    if (isTtsSpeaking) {
+      toast({
+        title: "Voice Input Paused",
+        description: "Wait for Meowstik to finish speaking before dictating again.",
+      });
+      return;
+    }
     
     if (isListening) {
-      stopListening();
-      cursorPositionRef.current = null;
-      // Reset transcript tracker for next session
-      lastTranscriptLengthRef.current = 0;
+      stopVoiceInput();
     } else {
       // Clear any stale transcript from previous session
       resetTranscript();
@@ -990,14 +1016,16 @@ export function ChatInputArea({ onSend, isLoading, promptHistory = [], onStop }:
                 variant={isListening ? "secondary" : "ghost"}
                 size="icon"
                 onClick={handleMicClick}
+                disabled={isTtsSpeaking}
                 className={cn(
                   "h-10 w-10 rounded-full transition-all duration-300",
                   isListening 
                     ? "text-red-500 bg-red-500/10 hover:bg-red-500/20 animate-pulse" 
-                    : "text-muted-foreground hover:text-primary hover:bg-primary/10"
+                    : "text-muted-foreground hover:text-primary hover:bg-primary/10",
+                  isTtsSpeaking && "cursor-not-allowed opacity-50 hover:text-muted-foreground hover:bg-transparent"
                 )}
                 data-testid="button-voice-input"
-                title={isListening ? "Stop listening" : "Voice input"}
+                title={isTtsSpeaking ? "Voice input disabled while Meowstik is speaking" : isListening ? "Stop listening" : "Voice input"}
               >
                 {isListening ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
               </Button>
@@ -1064,6 +1092,5 @@ export function ChatInputArea({ onSend, isLoading, promptHistory = [], onStop }:
     </div>
   );
 }
-
 
 

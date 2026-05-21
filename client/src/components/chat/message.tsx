@@ -81,7 +81,7 @@ export function ChatMessage({
           </div>
         ) : (
           <div
-            className="prose prose-sm dark:prose-invert max-w-none text-foreground"
+            className="prose prose-sm dark:prose-invert max-w-none text-foreground break-words [&_code]:whitespace-pre-wrap [&_code]:break-words [&_pre]:whitespace-pre-wrap [&_pre]:break-words"
             dangerouslySetInnerHTML={{ __html: htmlContent }}
           />
         )}

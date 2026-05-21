@@ -15,6 +15,14 @@ const accountSid = process.env.TWILIO_ACCOUNT_SID;
 const authToken = process.env.TWILIO_AUTH_TOKEN;
 const twilioPhoneNumber = process.env.TWILIO_PHONE_NUMBER;
 
+function getStatusCallbackUrl(): string | undefined {
+  const baseUrl =
+    process.env.BASE_URL ??
+    (process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : undefined);
+
+  return baseUrl ? `${baseUrl}/api/twilio/status` : undefined;
+}
+
 let client: twilio.Twilio | null = null;
 
 function getClient(): twilio.Twilio {
@@ -159,11 +167,18 @@ export async function makeCall(to: string, twimlUrl: string): Promise<{
     throw new Error("TWILIO_PHONE_NUMBER not configured");
   }
 
+  const statusCallback = getStatusCallbackUrl();
   const call = await getClient().calls.create({
     url: twimlUrl,
     from: twilioPhoneNumber,
     to,
     record: true,
+    ...(statusCallback
+      ? {
+          statusCallback,
+          statusCallbackMethod: "POST" as const,
+        }
+      : {}),
   });
 
   return {
@@ -187,6 +202,7 @@ export async function makeCallWithMessage(to: string, message: string): Promise<
     throw new Error("TWILIO_PHONE_NUMBER not configured");
   }
 
+  const statusCallback = getStatusCallbackUrl();
   const twiml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
   <Say voice="Polly.Joanna">${escapeXml(message)}</Say>
@@ -197,6 +213,12 @@ export async function makeCallWithMessage(to: string, message: string): Promise<
     from: twilioPhoneNumber,
     to,
     record: true,
+    ...(statusCallback
+      ? {
+          statusCallback,
+          statusCallbackMethod: "POST" as const,
+        }
+      : {}),
   });
 
   return {
@@ -347,6 +369,5 @@ export default {
   callWithGreetingToConference,
   redirectCall,
 };
-
 
 

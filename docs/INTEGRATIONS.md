@@ -78,6 +78,8 @@ GEMINI_API_KEY=your_key_from_aistudio
 TWILIO_ACCOUNT_SID=ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 TWILIO_AUTH_TOKEN=your_auth_token
 TWILIO_PHONE_NUMBER=+15551234567
+OWNER_PHONE_NUMBER=+15557654321
+BASE_URL=https://your-public-domain
 ```
 
 **Location:** `server/integrations/twilio.ts`
@@ -86,14 +88,20 @@ TWILIO_PHONE_NUMBER=+15551234567
 - Inbound SMS webhook — Twilio POSTs to your server, AI responds
 - Outbound SMS via `sms_send` tool
 - Inbound call handling with TwiML voice responses
-- Outbound AI calling — AI conducts entire conversations via `call_make` tool
+- Outbound AI calling — owner-triggered tool calls and a Communications UI can launch a mission-driven AI phone call
+- Communications page backfills recent Twilio SMS/call history into the local SQLite store when the local tables are empty
+- Outbound AI calls suppress the muted owner leg, forward mission context into the Gemini Live call session, and receive Twilio status callbacks for final call state
 - Voicemail detection + transcription
-- `call_conversations` and `sms_messages` tables for history
+- `call_conversations` and `sms_messages` tables in SQLite for history
 
 **Webhook configuration:**
 - SMS webhook: `https://your-domain/api/twilio/sms`
 - Voice webhook: `https://your-domain/api/twilio/voice`
 - Configure these URLs in your [Twilio Console](https://console.twilio.com)
+
+**Notes:**
+- `BASE_URL` is recommended so Twilio status callbacks and outbound AI-call webhooks resolve correctly outside Replit.
+- Inbound SMS replies default to `gemini-2.5-flash` unless `GEMINI_SMS_MODEL` overrides it.
 
 ---
 

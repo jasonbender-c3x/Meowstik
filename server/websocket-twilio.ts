@@ -488,10 +488,19 @@ async function handleFunctionCall(
           process.env.BASE_URL ??
           `https://${process.env.REPLIT_DEV_DOMAIN ?? "localhost"}`;
         const contextParam = encodeURIComponent(fullMission);
-        const voiceUrl = `${baseUrl}/api/twilio/voice?direction=outbound&context=${contextParam}`;
+        const voiceUrl = `${baseUrl}/api/twilio/voice?direction=outbound&skipOwner=true&context=${contextParam}`;
 
         const { makeCall } = await import("./integrations/twilio.js");
         const call = await makeCall(targetPhone, voiceUrl);
+        const { storage } = await import("./storage.js");
+        await storage.insertCallConversation({
+          callSid: call.sid,
+          fromNumber: call.from || process.env.TWILIO_PHONE_NUMBER || "unknown",
+          toNumber: call.to || targetPhone,
+          status: call.status || "queued",
+          turnCount: 0,
+          currentContext: mission,
+        });
 
         console.log(
           `[Twilio WS] Outbound call initiated to ${resolvedName} (${targetPhone}): ${call.sid}`
@@ -525,6 +534,5 @@ async function handleFunctionCall(
   // Return result to Gemini so it can continue the conversation
   await geminiLive.sendFunctionResult(sessionId, name, result);
 }
-
 
 

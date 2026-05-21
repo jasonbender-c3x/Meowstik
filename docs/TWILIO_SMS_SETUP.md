@@ -19,7 +19,7 @@ Before you begin, you'll need:
 2. **A Twilio Phone Number**: Purchase one from the Twilio Console
 3. **A Public Server**: Deploy your application to a publicly accessible URL (Twilio cannot reach localhost)
 4. **Google Gemini API Key**: Required for AI processing
-5. **PostgreSQL Database**: For storing message history
+5. **SQLite Database**: Meowstik stores SMS and call history in its local SQLite database
 
 ## Step 1: Configure Environment Variables
 
@@ -39,6 +39,9 @@ OWNER_USER_ID=your_user_uuid      # Optional: Your UUID from users table
 
 # AI Processing (required)
 GEMINI_API_KEY=your_gemini_api_key_here
+
+# Public callback base URL (recommended for outbound AI calls + status callbacks)
+BASE_URL=https://your-public-domain
 ```
 
 ### Finding Your Twilio Credentials
@@ -77,16 +80,16 @@ Twilio webhooks require a publicly accessible HTTPS URL. You cannot use `localho
 
 1. Push your code to the Replit project
 2. Click **Deploy** in the Replit interface
-3. Your webhook URL will be: `https://your-repl-name.replit.app/api/twilio/webhook/sms`
+   3. Your webhook URL will be: `https://your-repl-name.replit.app/api/twilio/sms`
 
 ### Option B: Deploy to Other Platforms
 
 Popular hosting options:
-- **Production (meowstik.com)**: `https://meowstik.com/api/twilio/webhook/sms`
-- **Vercel**: `https://meowstik.vercel.app/api/twilio/webhook/sms`
-- **Railway**: `https://meowstik.railway.app/api/twilio/webhook/sms`
-- **Render**: `https://meowstik.onrender.com/api/twilio/webhook/sms`
-- **Fly.io**: `https://meowstik.fly.dev/api/twilio/webhook/sms`
+- **Production (meowstik.com)**: `https://meowstik.com/api/twilio/sms`
+- **Vercel**: `https://meowstik.vercel.app/api/twilio/sms`
+- **Railway**: `https://meowstik.railway.app/api/twilio/sms`
+- **Render**: `https://meowstik.onrender.com/api/twilio/sms`
+- **Fly.io**: `https://meowstik.fly.dev/api/twilio/sms`
 
 ### Option C: Local Development with ngrok
 
@@ -103,7 +106,7 @@ npm run dev
 ngrok http 5000
 
 # Copy the HTTPS URL (e.g., https://abc123.ngrok.io)
-# Your webhook URL: https://abc123.ngrok.io/api/twilio/webhook/sms
+# Your webhook URL: https://abc123.ngrok.io/api/twilio/sms
 ```
 
 **Important**: ngrok URLs change every time you restart, so this is only for testing.
@@ -126,7 +129,7 @@ Once your server is running on a public URL, configure Twilio to send incoming S
    - Scroll down to the **Messaging Configuration** section
    - Under "A MESSAGE COMES IN":
      - Select **Webhook** from the dropdown
-     - Enter your full webhook URL: `https://meowstik.com/api/twilio/webhook/sms`
+      - Enter your full webhook URL: `https://meowstik.com/api/twilio/sms`
      - Set HTTP Method to **POST**
 
 5. **Save Configuration**: Click **Save** at the bottom of the page
@@ -135,12 +138,12 @@ Once your server is running on a public URL, configure Twilio to send incoming S
 
 Your webhook URL must be:
 ```
-https://meowstik.com/api/twilio/webhook/sms
+https://meowstik.com/api/twilio/sms
 ```
 
 This assumes you've deployed to your production domain `meowstik.com`. Alternatively:
-- Your Replit deployment URL (e.g., `https://meowstik.replit.app/api/twilio/webhook/sms`)
-- Your ngrok URL for testing (e.g., `https://abc123.ngrok.io/api/twilio/webhook/sms`)
+- Your Replit deployment URL (e.g., `https://meowstik.replit.app/api/twilio/sms`)
+- Your ngrok URL for testing (e.g., `https://abc123.ngrok.io/api/twilio/sms`)
 
 ## Step 4: Verify and Test
 
@@ -156,6 +159,8 @@ Send a test SMS to your Twilio number to verify the complete flow.
 4. **Guest Access**:
    - Unknown numbers receive responses with restricted, safe-only access
 5. **AI Response**: You should receive an SMS response within seconds
+6. **Communications Sync**: If the local SQLite communications tables are empty, the Communications page can seed recent SMS and call history from Twilio on first load
+7. **AI Call Missions**: The Communications page can also launch outbound AI calls with a mission prompt, using the same Twilio/Gemini voice path
 
 ### Testing Checklist
 
@@ -206,7 +211,7 @@ AI: I'm sorry, I can only share public information with unknown contacts. I can 
    - Ensure your server is running and publicly accessible
    - Test the URL directly in a browser or with curl:
      ```bash
-     curl https://meowstik.com/api/twilio/webhook/sms
+      curl https://meowstik.com/api/twilio/sms
      ```
    - Check server logs for errors or crashes
 
@@ -230,8 +235,8 @@ AI: I'm sorry, I can only share public information with unknown contacts. I can 
    - The URL configured in Twilio Console must **exactly** match what the server sees
    - Include protocol (https://), domain, and path
    - Example mismatch:
-     - Twilio Console: `https://meowstik.com/api/twilio/webhook/sms`
-     - Server sees: `http://meowstik.com/api/twilio/webhook/sms` (http vs https)
+      - Twilio Console: `https://meowstik.com/api/twilio/sms`
+      - Server sees: `http://meowstik.com/api/twilio/sms` (http vs https)
 
 3. **Development Mode Workaround**:
    - For local testing, set `NODE_ENV=development`

@@ -129,9 +129,21 @@ Chrome extension with a side-panel chat interface:
 - Receive and reply to inbound SMS
 - Send outbound SMS via `sms_send` tool
 - Inbound call handling with AI receptionist (TwiML)
-- Outbound AI calling via `call_make` tool — AI handles the full conversation
+- Outbound AI calling via owner tool calls and the Communications page AI Call dialog — AI handles the full conversation from a mission prompt
 - Voicemail transcription and storage
+- Communications history automatically seeds local SQLite tables from Twilio if the local store is empty
 - All messages stored in `sms_messages` + `call_conversations` tables
+
+---
+
+## ✅ Chat / Voice Interaction Polish
+
+**Status: Active**
+
+- Chat input now stops browser dictation as soon as a message is sent
+- Voice input stays disabled while Meowstik is actively speaking, preventing feedback-loop transcription
+- Long code blocks and technical tool output wrap in the chat UI instead of forcing horizontal overflow
+- JSON and urlencoded request bodies now allow payloads up to 50MB for large screenshots and attachments
 
 ---
 
