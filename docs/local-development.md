@@ -20,8 +20,8 @@
 
 ### Prerequisites
 - Node.js 20+ (`node --version`)
-- PostgreSQL 15+ (local or Docker)
-- pnpm (recommended) or npm
+- pnpm
+- Optional integration credentials in `.env` for features like Google OAuth, Gemini, Twilio, or search backends
 
 ### Step-by-Step
 
@@ -30,37 +30,34 @@
 git clone https://github.com/YOUR_ORG/meowstik.git
 cd meowstik
 
-# 2. Install dependencies (using pnpm)
+# 2. Install dependencies
 pnpm install
 
-# 3. Set up environment
+# 3. Set up environment (optional but recommended)
 cp .env.example .env
 # Edit .env with your secrets (see Section 6)
 
-# 4. Start PostgreSQL (choose one)
-# Option A: Docker
-docker run -d --name meowstik-db \
-  -e POSTGRES_USER=meowstik \
-  -e POSTGRES_PASSWORD=secret \
-  -e POSTGRES_DB=meowstik \
-  -p 5432:5432 \
-  postgres:15
-
-# Option B: Local PostgreSQL service
-# Ensure PostgreSQL is running, create database manually
-
-# 5. Set DATABASE_URL in .env
-# DATABASE_URL=postgresql://meowstik:secret@localhost:5432/meowstik
-
-# 6. Push database schema
-npm run db:push
-
-# 7. Start the development server
+# 4. Start the development server
 pnpm run dev
+
+# 5. Validate local changes before pushing
+pnpm test && pnpm build
 ```
 
-The app runs at `http://localhost:5000` with hot reload enabled.
+The app runs at `http://localhost:5000` with hot reload enabled. The default app database is SQLite at `data/meowstik.db`, created automatically on first run.
 *Note: The `dev` script automatically clears port 5000 if it's in use.*
+
+### Local Control Plane Pages
+
+Once the app is running, the main UI includes local-machine control pages for:
+
+- `/runtime` - managed services and process health
+- `/environment` - owner-visible local secrets and runtime variables
+- `/logs` - runtime/app/LLM IO log inspection
+- `/git` - tracked repositories and everyday Git actions
+- `/publishing` - build + launch flow and starter website scaffold
+- `/deployments` - local release history and rollback / re-activation
+- `/read-to-me` - article summarization for spoken playback
 
 ---
 
@@ -136,7 +133,7 @@ Create `.vscode/launch.json`:
 | RAG Debug | `/api/debug/rag/traces` | Retrieval pipeline traces |
 | API Request Logs | Server console | Middleware logs each request |
 | Browser Console | DevTools (F12) | Frontend errors and debug |
-| Workflow Logs | `/tmp/logs/` | Standard Logs |
+| Workflow Logs | `logs/` + Runtime/Logs pages | Human-readable execution traces and UI log inspection |
 
 ### Key Log Files in `logs/`
 

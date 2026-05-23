@@ -39,6 +39,7 @@
 import { storage } from "../storage";
 import type { Draft, Attachment, Message } from "@shared/schema";
 import { DEFAULT_AGENT_NAME, DEFAULT_DISPLAY_NAME } from "@shared/schema";
+import { recallService } from "./recall-service";
 import { tavilySearch } from "../integrations/tavily";
 import { formatEnvironmentMetadata } from "../utils/environment-metadata";
 import { getFamilyContext } from "./family-recognition";
@@ -383,6 +384,7 @@ These steps are mandatory before sending your response via end_turn.
     displayName: string = DEFAULT_DISPLAY_NAME,
     options?: {
       userId?: string;
+      recallSection?: string;
       includeMemory?: boolean;
       includeCache?: boolean;
       includeTodos?: boolean;
@@ -392,6 +394,7 @@ These steps are mandatory before sending your response via end_turn.
   ): Promise<string> {
     // Default options
     const userId = options?.userId;
+    const recallSection = options?.recallSection?.trim();
     const includeMemory = options?.includeMemory !== false; // Default true
     const includeCache = options?.includeCache !== false; // Default true
     const includeTodos = options?.includeTodos !== false; // Default true
@@ -444,6 +447,10 @@ These steps are mandatory before sending your response via end_turn.
       if (todoContent.trim()) {
         components.push(todoContent);
       }
+    }
+
+    if (recallSection) {
+      components.push(recallSection);
     }
 
     // Include family member context if recognized
@@ -628,7 +635,17 @@ You can analyze data, read and write files, search the web, and interact with Go
     }
 
     // Build base system prompt from modular files with custom branding
-    let systemPrompt = await this.getSystemPrompt(agentName, displayName, { userId: options.userId });
+    const recallSection = await recallService.buildRelevantRecallSection({
+      userId: options.userId,
+      chatId: options.chatId,
+      textContent: options.textContent || options.voiceTranscript || "",
+      attachments: options.attachments ?? [],
+    });
+
+    let systemPrompt = await this.getSystemPrompt(agentName, displayName, {
+      userId: options.userId,
+      recallSection,
+    });
 
     // Process attachments into composed format
     const composedAttachments: ComposedAttachment[] = [];
@@ -686,6 +703,5 @@ You can analyze data, read and write files, search the web, and interact with Go
 }
 
 export const promptComposer = new PromptComposer();
-
 
 

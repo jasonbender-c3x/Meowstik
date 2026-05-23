@@ -95,6 +95,7 @@ import { getToolDeclarations } from "./gemini-tools-guest";
  * Assembles core directives, personality, tools, and RAG context.
  */
 import { promptComposer } from "./services/prompt-composer";
+import { recallService } from "./services/recall-service";
 import { toolDispatcher } from "./services/tool-dispatcher";
 import { type ToolCall } from "@shared/schema";
 import { recognizeFamilyMember } from "./services/family-recognition";
@@ -518,6 +519,7 @@ export async function registerRoutes(
       // Get auth status from middleware for consistent user identification
       const authStatus = (req as any).authStatus;
       const userId = authStatus.userId; // Use authStatus instead of direct req.user access
+      const recallUserId = userId || GUEST_USER_ID;
       
       // ─────────────────────────────────────────────────────────────────────
       // STEP 1: Validate and save user's message
@@ -540,22 +542,20 @@ export async function registerRoutes(
         console.log(`[family] Session personalized for: ${familyMember.name}`);
       }
 
-      // RAG processing removed
-      // ragService
-      //   .ingestMessage(
-      //     userMessage.content,
-      //     req.params.id,
-      //     savedMessage.id,
-      //     "user",
-      //     undefined,
-      //     userId,
-      //   )
-      //   .catch((error) => {
-      //     console.error(
-      //       `[RAG] Failed to ingest user message ${savedMessage.id}:`,
-      //       error,
-      //     );
-      //   });
+      recallService
+        .ingestMessage({
+          userId: recallUserId,
+          chatId: req.params.id,
+          messageId: savedMessage.id,
+          role: "user",
+          content: userMessage.content,
+        })
+        .catch((error) => {
+          console.error(
+            `[Recall] Failed to ingest user message ${savedMessage.id}:`,
+            error,
+          );
+        });
 
       // ─────────────────────────────────────────────────────────────────────
       // STEP 1.5: Process and save any attachments
@@ -617,10 +617,18 @@ export async function registerRoutes(
           continue;
         }
 
-        // RAG processing removed per user request
-        // ragService.processAttachment(savedAttachment).catch((error) => {
-        //   console.error(`RAG processing failed for ${att.filename}:`, error);
-        // });
+        recallService
+          .ingestAttachment({
+            userId: recallUserId,
+            chatId: req.params.id,
+            attachment: savedAttachment,
+          })
+          .catch((error) => {
+            console.error(
+              `[Recall] Failed to ingest attachment ${savedAttachment.id}:`,
+              error,
+            );
+          });
       }
 
       // ─────────────────────────────────────────────────────────────────────
@@ -731,7 +739,7 @@ export async function registerRoutes(
         attachments: savedAttachments,
         history: chatMessages,
         chatId: req.params.id,
-        // userId: userId, // Pass userId for data isolation in RAG context
+        userId: recallUserId,
       });
       
       // Add voice/verbosity instructions based on mode
@@ -1457,23 +1465,20 @@ The user has MUTE mode enabled. Minimize all output.
         metadata: Object.keys(messageMetadata).length > 0 ? messageMetadata : undefined,
       });
 
-      // Ingest AI response for RAG recall (async, don't block)
-      // RAG processing removed
-      // ragService
-      //   .ingestMessage(
-      //     finalContent,
-      //     req.params.id,
-      //     savedAiMessage.id,
-      //     "ai",
-      //     undefined,
-      //     userId,
-      //   )
-      //   .catch((error) => {
-      //     console.error(
-      //       `[RAG] Failed to ingest AI message ${savedAiMessage.id}:`,
-      //       error,
-      //     );
-      //   });
+      recallService
+        .ingestMessage({
+          userId: recallUserId,
+          chatId: req.params.id,
+          messageId: savedAiMessage.id,
+          role: "ai",
+          content: finalContent,
+        })
+        .catch((error) => {
+          console.error(
+            `[Recall] Failed to ingest AI message ${savedAiMessage.id}:`,
+            error,
+          );
+        });
 
       // Log to LLM debug buffer for debugging
       try {

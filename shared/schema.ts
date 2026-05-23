@@ -450,6 +450,67 @@ export const insertAttachmentSchema = createInsertSchema(attachments).omit({
 export type InsertAttachment = z.infer<typeof insertAttachmentSchema>;
 export type Attachment = typeof attachments.$inferSelect;
 
+export const recallDocuments = sqliteTable(
+  "recall_documents",
+  {
+    id: text("id").primaryKey().$defaultFn(() => nanoid()),
+    sourceKey: text("source_key").notNull(),
+    userId: text("user_id").notNull(),
+    chatId: text("chat_id").references(() => chats.id, { onDelete: "cascade" }),
+    sourceType: text("source_type").notNull(),
+    sourceId: text("source_id").notNull(),
+    title: text("title"),
+    role: text("role"),
+    content: text("content").notNull(),
+    metadata: text("metadata", { mode: "json" }),
+    createdAt: integer("created_at", { mode: "timestamp_ms" }).default(sql`(unixepoch() * 1000)`).notNull(),
+    updatedAt: integer("updated_at", { mode: "timestamp_ms" }).default(sql`(unixepoch() * 1000)`).notNull(),
+  },
+  (table) => ({
+    sourceKeyIdx: index("recall_documents_source_key_idx").on(table.sourceKey),
+    userChatIdx: index("recall_documents_user_chat_idx").on(table.userId, table.chatId),
+    sourceIdx: index("recall_documents_source_idx").on(table.sourceType, table.sourceId),
+  }),
+);
+
+export const insertRecallDocumentSchema = createInsertSchema(recallDocuments).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export type InsertRecallDocument = z.infer<typeof insertRecallDocumentSchema>;
+export type RecallDocument = typeof recallDocuments.$inferSelect;
+
+export const recallChunks = sqliteTable(
+  "recall_chunks",
+  {
+    id: text("id").primaryKey().$defaultFn(() => nanoid()),
+    documentId: text("document_id")
+      .references(() => recallDocuments.id, { onDelete: "cascade" })
+      .notNull(),
+    sourceKey: text("source_key").notNull(),
+    userId: text("user_id").notNull(),
+    chatId: text("chat_id").references(() => chats.id, { onDelete: "cascade" }),
+    sourceType: text("source_type").notNull(),
+    sourceId: text("source_id").notNull(),
+    chunkIndex: integer("chunk_index").notNull(),
+    content: text("content").notNull(),
+    createdAt: integer("created_at", { mode: "timestamp_ms" }).default(sql`(unixepoch() * 1000)`).notNull(),
+  },
+  (table) => ({
+    documentIdx: index("recall_chunks_document_idx").on(table.documentId),
+    sourceKeyIdx: index("recall_chunks_source_key_idx").on(table.sourceKey),
+    userChatIdx: index("recall_chunks_user_chat_idx").on(table.userId, table.chatId),
+  }),
+);
+
+export const insertRecallChunkSchema = createInsertSchema(recallChunks).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertRecallChunk = z.infer<typeof insertRecallChunkSchema>;
+export type RecallChunk = typeof recallChunks.$inferSelect;
+
 // =============================================================================
 // DRAFT PROMPTS SYSTEM
 // =============================================================================

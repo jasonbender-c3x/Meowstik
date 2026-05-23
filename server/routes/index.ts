@@ -30,6 +30,13 @@ import collabRouter from "./collab";
 import jobsRouter from "./jobs";
 import { twilioRouter } from "./twilio";
 import communicationsRouter from "./communications";
+import readToMeRouter from "./read-to-me";
+import runtimeRouter from "./runtime";
+import environmentRouter from "./environment";
+import logsRouter from "./logs";
+import gitRouter from "./git";
+import publishingRouter from "./publishing";
+import deploymentsRouter from "./deployments";
 
 import orchestratorRouter from "./orchestrator";
 import databaseAdminRouter from "./database-admin";
@@ -74,6 +81,13 @@ export function createApiRouter(): Router {
   router.use("/jobs", jobsRouter);
   router.use("/twilio", twilioRouter);
   router.use("/communications", communicationsRouter);
+  router.use("/read-to-me", readToMeRouter);
+  router.use("/runtime", runtimeRouter);
+  router.use("/environment", environmentRouter);
+  router.use("/logs", logsRouter);
+  router.use("/git", gitRouter);
+  router.use("/publishing", publishingRouter);
+  router.use("/deployments", deploymentsRouter);
 
   router.use("/orchestrator", orchestratorRouter);
   router.use("/database", databaseAdminRouter);
@@ -89,6 +103,3 @@ export function createApiRouter(): Router {
 }
 
 export { errorHandler };
-
-
-

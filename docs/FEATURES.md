@@ -69,6 +69,19 @@ Persistent memory stored in `logs/Short_Term_Memory.md` and managed by `server/s
 
 ---
 
+## ✅ Recall Layer
+
+**Status: Active**
+
+SQLite-backed recall retrieval that stores useful prior context and injects a bounded **Relevant Recall** section into prompts.
+
+- Indexes user messages, AI replies, text attachments, and conversation summaries
+- Chunks stored content into a lightweight FTS-backed retrieval layer inside SQLite
+- Runs schema bootstrap at runtime so recall persists without destructive migration drift
+- Keeps prompt recall bounded so context stays useful instead of flooding the model
+
+---
+
 ## ✅ Summarization Engine
 
 **Status: Active** — See [SUMMARIZATION_ENGINE.md](./SUMMARIZATION_ENGINE.md)
@@ -144,6 +157,102 @@ Chrome extension with a side-panel chat interface:
 - Voice input stays disabled while Meowstik is actively speaking, preventing feedback-loop transcription
 - Long code blocks and technical tool output wrap in the chat UI instead of forcing horizontal overflow
 - JSON and urlencoded request bodies now allow payloads up to 50MB for large screenshots and attachments
+
+---
+
+## ✅ Read to Me
+
+**Status: Active**
+
+A voice-first page summarizer at `/read-to-me` for turning public articles into a short listenable brief.
+
+- Accepts a public URL and fetches it server-side with local/private-network blocking
+- Extracts article text with Mozilla Readability instead of reading site chrome, nav, and footer noise
+- Summarizes the page with Gemini 2.0 Flash into a spoken-friendly brief plus key points
+- Plays the summary back through the existing HD TTS route so the result is actually readable aloud
+- Includes an extracted-text preview so users can see what content Meowstik decided to summarize
+
+---
+
+## ✅ Runtime / Processes
+
+**Status: Active**
+
+A local platform runtime page at `/runtime` for managing persistent development services and background process health.
+
+- Define named local services with a command, working directory, port, and optional health check
+- Start, stop, restart, edit, and remove managed services from the UI
+- Track recent stdout/stderr tail output per service without dropping into a shell first
+- Inspect current listening TCP ports and see which ones belong to managed services
+- Monitor the agent job dispatcher and worker pool from the same page, with a direct jump to Terminal for raw shell access
+
+---
+
+## ✅ Secrets / Environment
+
+**Status: Active**
+
+A local environment-management page at `/environment` for managing Meowstik's owner-visible secrets and runtime configuration without editing raw files by hand.
+
+- Track common integration variables like Gemini, Google OAuth, Twilio, Browserbase, search backends, and custom keys from one page
+- Store managed variables locally with explicit `server`, `runtime`, or `all` scopes
+- Generate a local overrides env file for server-scoped settings and flag when Meowstik needs a restart to pick them up
+- Inject runtime-scoped variables into newly started managed services and warn when existing services are stale
+- Keep values masked by default while still allowing the owner to reveal managed entries on demand
+
+---
+
+## ✅ Logs
+
+**Status: Active**
+
+A local logs page at `/logs` for inspecting Meowstik app logs, managed runtime output, configured log files, and saved LLM IO captures from one place.
+
+- Poll and inspect recent runtime stdout/stderr/system output for every managed service
+- Tail explicitly configured service log files, but only when they resolve inside that service's working directory
+- Surface app debug-buffer logs and structured orchestration events alongside runtime sources
+- Browse saved debug IO markdown captures for recent LLM inputs and outputs without leaving the main app
+- Filter the current source in-page and export the current captured slice for offline review
+
+---
+
+## ✅ Git
+
+**Status: Active**
+
+A local Git page at `/git` for tracking multiple local repositories, switching branches, reviewing diffs, and running the most common day-to-day Git actions from inside Meowstik.
+
+- Track the current Meowstik workspace repo automatically and add other existing local repos by path
+- Clone remote repositories into a chosen local target path and keep them available in a persistent tracked-repo list
+- Inspect branch/upstream state, ahead/behind counts, remotes, recent commits, and changed files from one page
+- Check out existing branches, create new branches from a chosen start point, and commit all current changes with an explicit message
+- Pull with `--ff-only` and push non-interactively with safe upstream detection so the UI fails fast instead of hanging on credential prompts
+
+---
+
+## ✅ Publishing
+
+**Status: Active**
+
+A local publishing page at `/publishing` for building and launching tracked repos while keeping Git, Runtime, Logs, and Environment in one workflow.
+
+- Detects `pnpm`, `yarn`, or `npm` from repo lockfiles and picks launch scripts in the order `preview` -> `start` -> `dev`
+- Persists the linked runtime service per repository instead of guessing from the current working directory
+- Surfaces a readiness checklist that links directly into Git, Runtime, Environment, and Logs
+- Supports a zero-dependency starter website scaffold under `projects/meowstik-template-site`
+
+---
+
+## ✅ Deployments
+
+**Status: Active**
+
+A local deployments page at `/deployments` for release history, rollback, and re-activation of previously launched revisions.
+
+- Records successful launches into capped per-repo deployment history stored alongside publishing state
+- Shows the active revision, launch script, preview links, and linked runtime/log context
+- Supports rollback through `git-manager`, including stopping the active service before checkout and rebuild/relaunch
+- Blocks rollback or re-activation when tracked changes are present, while allowing untracked files to remain
 
 ---
 

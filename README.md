@@ -2,7 +2,7 @@
 
 **Universal Control Plane for AI-Human Collaboration**
 
-Meowstik is not just a chat application. It is a comprehensive ecosystem of interconnected agents, interfaces, and protocols designed to give AI models (specifically Gemini) agency over the digital world. It bridges the gap between text-based reasoning and active execution across local desktops, web browsers, and remote servers.
+Meowstik is not just a chat application. It is a comprehensive ecosystem of interconnected agents, interfaces, and protocols designed to give AI models (specifically Gemini) agency over the digital world. It bridges the gap between text-based reasoning and active execution across local desktops, web browsers, and remote servers, while also acting as a **local project control plane** for Git, runtime processes, secrets, logs, publishing, deployments, read-to-me workflows, and recall.
 
 ---
 
@@ -96,17 +96,36 @@ Since there are many moving parts, the standard dev loop focuses on the Core:
 
 1.  **Install Dependencies**:
     ```bash
-    npm install
+    pnpm install
     ```
 
 2.  **Start the Brain (Server & Client)**:
     ```bash
-    npm run dev
+    pnpm run dev
     ```
 
 3.  **Connect an Limb (Optional)**:
     *   *Desktop Agent*: `cd desktop-agent && npm start`
     *   *Extension*: Load `browser-extension/` directory as an unpacked extension in Chrome.
+
+4.  **Validate local changes before pushing**:
+    ```bash
+    pnpm test && pnpm build
+    ```
+
+---
+
+## 🛠️ Local Project Control Plane
+
+Meowstik now includes a local-machine workflow for managing app projects without leaving the main UI:
+
+*   **`/runtime`** - define, start, stop, and inspect managed local services
+*   **`/environment`** - manage owner-visible server/runtime variables and restart warnings
+*   **`/logs`** - inspect runtime output, file tails, app buffers, and saved LLM IO captures
+*   **`/git`** - track local repositories, inspect diffs, switch branches, and push/pull safely
+*   **`/publishing`** - build and launch tracked repos, with a starter website scaffold under `projects/`
+*   **`/deployments`** - review local release history and safely rollback or re-activate prior launches
+*   **Recall layer** - store recent messages, summaries, and text attachments into SQLite-backed recall so prompts can include a bounded **Relevant Recall** section
 
 ---
 
@@ -118,6 +137,8 @@ Since there are many moving parts, the standard dev loop focuses on the Core:
 *   **Desktop Hardware**: [HARDWARE_IMPLEMENTATION_SUMMARY.md](HARDWARE_IMPLEMENTATION_SUMMARY.md)
 *   **Desktop App & Computer Use**: [docs/DESKTOP_APP.md](docs/DESKTOP_APP.md)
 *   **GitHub Copilot MCP Setup**: [docs/copilot/GITHUB_MCP_SETUP.md](docs/copilot/GITHUB_MCP_SETUP.md)
+*   **Local Development**: [docs/local-development.md](docs/local-development.md)
+*   **Feature Inventory**: [docs/FEATURES.md](docs/FEATURES.md)
 *   **Search Architecture**: [docs/SEARCH_API.md](docs/SEARCH_API.md) (Gemini Grounding)
 *   **VS Code Integration**: [docs/VSCODE_INTEGRATION.md](docs/VSCODE_INTEGRATION.md)
 

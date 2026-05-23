@@ -938,6 +938,14 @@ export class DatabaseStorage {
   // Conversation Summaries (Summarization Engine)
   async createConversationSummary(data: InsertConversationSummary): Promise<ConversationSummaryRecord> {
     const [saved] = await db.insert(conversationSummaries).values(data).returning();
+    void import("./services/recall-service")
+      .then(({ recallService }) => recallService.ingestConversationSummary(saved))
+      .catch((error) => {
+        console.error(
+          `[Recall] Failed to ingest conversation summary ${saved.id}:`,
+          error,
+        );
+      });
     return saved;
   }
 
@@ -961,6 +969,5 @@ export class DatabaseStorage {
 }
 
 export const storage = new DatabaseStorage();
-
 
 

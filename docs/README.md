@@ -13,6 +13,7 @@ Meowstik is a personal AI assistant built on Google Gemini. It's not just a chat
 | **[QUICK_START.md](./QUICK_START.md)** | Get running in 5 minutes |
 | **[ARCHITECTURE.md](./ARCHITECTURE.md)** | System design, data flow, component overview |
 | **[FEATURES.md](./FEATURES.md)** | Full feature list with status |
+| **[local-development.md](./local-development.md)** | Current local dev workflow, validation, and local control-plane pages |
 | **[TOOLS.md](./TOOLS.md)** | Every tool Gemini can call, with parameters |
 | **[TTS.md](./TTS.md)** | Voice synthesis — Chirp3-HD, voices, expressive styles |
 | **[SUMMARIZATION_ENGINE.md](./SUMMARIZATION_ENGINE.md)** | Conversation & feedback summarization |
@@ -39,6 +40,8 @@ User ──► Web UI ──► Server (Express + Gemini + SQLite)
 ```
 
 The AI has direct tool access to: filesystem, shell, Gmail, Google Calendar/Drive/Docs, GitHub, phone calls, web search, desktop clicks, database queries, and more.
+
+On top of that, the app now exposes a local-machine control plane in the main UI for **Runtime**, **Environment**, **Logs**, **Git**, **Publishing**, and **Deployments**, plus a **Read to Me** page and a rebuilt **recall layer** that injects relevant prior context into prompts.
 
 ---
 

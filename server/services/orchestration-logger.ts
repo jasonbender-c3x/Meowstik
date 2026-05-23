@@ -37,7 +37,7 @@ export type LogSource = "orchestrator" | "agent" | "task" | "system";
  * Simple credential redaction for log messages
  * Redacts common patterns to prevent credential leakage
  */
-function redactLogMessage(text: string): string {
+export function redactLogMessage(text: string): string {
   if (typeof text !== 'string') return text;
   
   return text
@@ -561,6 +561,5 @@ class OrchestrationLoggerService {
 
 export const orchestrationLogger = new OrchestrationLoggerService();
 export default orchestrationLogger;
-
 
 

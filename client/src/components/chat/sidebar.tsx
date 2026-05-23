@@ -96,7 +96,13 @@ import {
   User,
   Info,
   Search,
-  Phone
+  Phone,
+  BookOpen,
+  Rocket,
+  Server,
+  Shield,
+  FileText,
+  GitBranch
 } from "lucide-react";
 
 import { useAppSession } from "@/hooks/use-app-session";
@@ -606,6 +612,22 @@ export function Sidebar({ isOpen, setIsOpen, onNewChat, chats, currentChatId, on
                     {!effectiveCollapsed && "Communications"}
                   </Button>
                 </Link>
+
+                <Link href="/read-to-me">
+                  <Button
+                    variant="ghost"
+                    className={cn(
+                      "font-normal text-muted-foreground hover:text-foreground",
+                      effectiveCollapsed ? "w-12 h-9 p-0 justify-center" : "w-full justify-start gap-3",
+                      location === "/read-to-me" && "bg-secondary/50 text-foreground"
+                    )}
+                    title={effectiveCollapsed ? "Read to Me" : undefined}
+                    data-testid="button-read-to-me"
+                  >
+                    <BookOpen className="h-4 w-4" />
+                    {!effectiveCollapsed && "Read to Me"}
+                  </Button>
+                </Link>
                 
                 {/* About Button */}
                 <Link href="/landing">
@@ -674,7 +696,103 @@ export function Sidebar({ isOpen, setIsOpen, onNewChat, chats, currentChatId, on
                     {!effectiveCollapsed && "Terminal"}
                   </Button>
                 </Link>
-                
+
+                <Link href="/runtime">
+                  <Button
+                    variant="ghost"
+                    className={cn(
+                      "font-normal text-muted-foreground hover:text-foreground",
+                      effectiveCollapsed ? "w-12 h-9 p-0 justify-center" : "w-full justify-start gap-3",
+                      location === "/runtime" && "bg-secondary/50 text-foreground"
+                    )}
+                    title={effectiveCollapsed ? "Runtime" : undefined}
+                    data-testid="button-runtime"
+                  >
+                    <Server className="h-4 w-4" />
+                    {!effectiveCollapsed && "Runtime"}
+                  </Button>
+                </Link>
+
+                <Link href="/publishing">
+                  <Button
+                    variant="ghost"
+                    className={cn(
+                      "font-normal text-muted-foreground hover:text-foreground",
+                      effectiveCollapsed ? "w-12 h-9 p-0 justify-center" : "w-full justify-start gap-3",
+                      location === "/publishing" && "bg-secondary/50 text-foreground"
+                    )}
+                    title={effectiveCollapsed ? "Publishing" : undefined}
+                    data-testid="button-publishing"
+                  >
+                    <Rocket className="h-4 w-4" />
+                    {!effectiveCollapsed && "Publishing"}
+                  </Button>
+                </Link>
+
+                <Link href="/deployments">
+                  <Button
+                    variant="ghost"
+                    className={cn(
+                      "font-normal text-muted-foreground hover:text-foreground",
+                      effectiveCollapsed ? "w-12 h-9 p-0 justify-center" : "w-full justify-start gap-3",
+                      location === "/deployments" && "bg-secondary/50 text-foreground"
+                    )}
+                    title={effectiveCollapsed ? "Deployments" : undefined}
+                    data-testid="button-deployments"
+                  >
+                    <History className="h-4 w-4" />
+                    {!effectiveCollapsed && "Deployments"}
+                  </Button>
+                </Link>
+
+                <Link href="/environment">
+                  <Button
+                    variant="ghost"
+                    className={cn(
+                      "font-normal text-muted-foreground hover:text-foreground",
+                      effectiveCollapsed ? "w-12 h-9 p-0 justify-center" : "w-full justify-start gap-3",
+                      location === "/environment" && "bg-secondary/50 text-foreground"
+                    )}
+                    title={effectiveCollapsed ? "Environment" : undefined}
+                    data-testid="button-environment"
+                  >
+                    <Shield className="h-4 w-4" />
+                    {!effectiveCollapsed && "Environment"}
+                  </Button>
+                </Link>
+
+                <Link href="/logs">
+                  <Button
+                    variant="ghost"
+                    className={cn(
+                      "font-normal text-muted-foreground hover:text-foreground",
+                      effectiveCollapsed ? "w-12 h-9 p-0 justify-center" : "w-full justify-start gap-3",
+                      location === "/logs" && "bg-secondary/50 text-foreground"
+                    )}
+                    title={effectiveCollapsed ? "Logs" : undefined}
+                    data-testid="button-logs"
+                  >
+                    <FileText className="h-4 w-4" />
+                    {!effectiveCollapsed && "Logs"}
+                  </Button>
+                </Link>
+
+                <Link href="/git">
+                  <Button
+                    variant="ghost"
+                    className={cn(
+                      "font-normal text-muted-foreground hover:text-foreground",
+                      effectiveCollapsed ? "w-12 h-9 p-0 justify-center" : "w-full justify-start gap-3",
+                      location === "/git" && "bg-secondary/50 text-foreground"
+                    )}
+                    title={effectiveCollapsed ? "Git" : undefined}
+                    data-testid="button-git"
+                  >
+                    <GitBranch className="h-4 w-4" />
+                    {!effectiveCollapsed && "Git"}
+                  </Button>
+                </Link>
+                 
                 {/* Debug Button (was Activity) */}
                 <Link href="/debug">
                   <Button 
@@ -1042,6 +1160,3 @@ export function Sidebar({ isOpen, setIsOpen, onNewChat, chats, currentChatId, on
     </>
   );
 }
-
-
-

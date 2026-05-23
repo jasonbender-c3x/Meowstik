@@ -116,6 +116,13 @@ import VoiceLabPage from "@/pages/voice-lab";
 import SoundSettingsPage from "@/pages/sound-settings";
 import CommunicationsPage from "@/pages/communications";
 import PromptComposerPage from "@/pages/prompt-composer";
+import ReadToMePage from "@/pages/read-to-me";
+import RuntimePage from "@/pages/runtime";
+import EnvironmentPage from "@/pages/environment";
+import LogsPage from "@/pages/logs";
+import GitPage from "@/pages/git";
+import PublishingPage from "@/pages/publishing";
+import DeploymentsPage from "@/pages/deployments";
 
 import { TTSProvider } from "@/contexts/tts-context";
 import { LocalDriveProvider } from "@/contexts/LocalDriveContext";
@@ -200,6 +207,10 @@ function Router() {
       <Route path="/communications">
         {() => <ProtectedRoute><CommunicationsPage /></ProtectedRoute>}
       </Route>
+
+      <Route path="/read-to-me">
+        {() => <ProtectedRoute><ReadToMePage /></ProtectedRoute>}
+      </Route>
       
       <Route path="/image">
         {() => <ProtectedRoute><ImageGenerationPage /></ProtectedRoute>}
@@ -207,6 +218,30 @@ function Router() {
       
       <Route path="/terminal">
         {() => <ProtectedRoute><TerminalPage /></ProtectedRoute>}
+      </Route>
+
+      <Route path="/runtime">
+        {() => <ProtectedRoute><RuntimePage /></ProtectedRoute>}
+      </Route>
+
+      <Route path="/environment">
+        {() => <ProtectedRoute><EnvironmentPage /></ProtectedRoute>}
+      </Route>
+
+      <Route path="/logs">
+        {() => <ProtectedRoute><LogsPage /></ProtectedRoute>}
+      </Route>
+
+      <Route path="/git">
+        {() => <ProtectedRoute><GitPage /></ProtectedRoute>}
+      </Route>
+
+      <Route path="/publishing">
+        {() => <ProtectedRoute><PublishingPage /></ProtectedRoute>}
+      </Route>
+
+      <Route path="/deployments">
+        {() => <ProtectedRoute><DeploymentsPage /></ProtectedRoute>}
       </Route>
       
       <Route path="/debug">
@@ -382,6 +417,3 @@ function App() {
  * This is the single entry point for the React application
  */
 export default App;
-
-
-
