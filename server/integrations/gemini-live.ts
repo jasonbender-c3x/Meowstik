@@ -35,12 +35,21 @@ export interface LiveSessionConfig {
   tools?: any[]; // Additional custom tools
 }
 
+export interface LiveCloseInfo {
+  code?: number;
+  reason?: string;
+  wasClean?: boolean;
+}
+
 export interface LiveSession {
   id: string;
   session: any;
   isActive: boolean;
   createdAt: Date;
   emitter?: EventEmitter;
+  config: LiveSessionConfig;
+  modelName: string;
+  lastClose?: LiveCloseInfo;
 }
 
 const activeSessions = new Map<string, LiveSession>();
@@ -50,6 +59,103 @@ You are having a real-time voice conversation. Be concise and natural in your re
 Respond conversationally as if speaking to a friend. Avoid long lists or overly formal language.`;
 
 const DEFAULT_VOICE = DEFAULT_TTS_VOICE;
+
+const COMPUTER_USE_SYSTEM_INSTRUCTION = `
+
+You have computer control capabilities. You can see the user's screen and control their computer through:
+- computer_click: Click at coordinates
+- computer_type: Type text
+- computer_key: Press keyboard keys
+- computer_scroll: Scroll the screen
+- computer_move: Move the mouse
+- computer_screenshot: Take a screenshot
+- computer_wait: Wait before next action
+
+Use these tools to help the user accomplish tasks hands-free through voice commands.`;
+
+function buildSystemInstructionText(config: LiveSessionConfig = {}) {
+  const instruction = config.systemInstruction || DEFAULT_SYSTEM_INSTRUCTION;
+
+  if (!config.enableComputerUse) {
+    return instruction;
+  }
+
+  return `${instruction}${COMPUTER_USE_SYSTEM_INSTRUCTION}`;
+}
+
+export function buildLiveSessionRequestConfig(config: LiveSessionConfig = {}) {
+  const sessionConfig: any = {
+    // Native-audio Live sessions reject AUDIO+TEXT at setup time. AUDIO mode still
+    // returns text/thought parts alongside PCM chunks in serverContent messages.
+    responseModalities: [Modality.AUDIO],
+    speechConfig: {
+      voiceConfig: {
+        prebuiltVoiceConfig: {
+          voiceName: config.voiceName || DEFAULT_VOICE,
+        },
+      },
+    },
+    systemInstruction: {
+      parts: [{ text: buildSystemInstructionText(config) }],
+    },
+  };
+
+  // Video is streamed as input frames via sendRealtimeInput; it is not a response modality.
+  if (config.enableVideoStreaming && config.useGemini3) {
+    console.log("[Gemini Live] Video streaming input enabled");
+  }
+
+  return sessionConfig;
+}
+
+function normalizeLiveErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error || "Unknown live session error");
+}
+
+export function isRetryableLiveClose(closeInfo?: LiveCloseInfo): boolean {
+  if (!closeInfo) {
+    return false;
+  }
+
+  return (
+    closeInfo.code === 1011 ||
+    /service is currently unavailable/i.test(closeInfo.reason || "")
+  );
+}
+
+export function getLiveCloseErrorMessage(closeInfo?: LiveCloseInfo): string | undefined {
+  if (!closeInfo) {
+    return "Live session closed unexpectedly.";
+  }
+
+  const reason = closeInfo.reason?.trim();
+
+  if (closeInfo.code === 1000 && !reason) {
+    return undefined;
+  }
+
+  if (reason) {
+    return `Live session closed: ${reason}`;
+  }
+
+  if (typeof closeInfo.code === "number") {
+    return `Live session closed with code ${closeInfo.code}.`;
+  }
+
+  return "Live session closed unexpectedly.";
+}
+
+function getInactiveSessionError(liveSession: LiveSession): string {
+  const closeMessage = getLiveCloseErrorMessage(liveSession.lastClose);
+
+  if (!closeMessage) {
+    return "Session not found or inactive";
+  }
+
+  return isRetryableLiveClose(liveSession.lastClose)
+    ? `${closeMessage} Please retry.`
+    : closeMessage;
+}
 
 /**
  * Create a new Gemini Live session
@@ -69,27 +175,10 @@ export async function createLiveSession(
 
   try {
     const ai = new GoogleGenAI({ apiKey });
-    
-    const sessionConfig: any = {
-      responseModalities: [Modality.AUDIO], // Try AUDIO only first
-      /* speechConfig: {
-        voiceConfig: {
-          prebuiltVoiceConfig: {
-            voiceName: config.voiceName || DEFAULT_VOICE
-          }
-        }
-      },
-      systemInstruction: config.systemInstruction || DEFAULT_SYSTEM_INSTRUCTION */
-    };
+    const sessionConfig = buildLiveSessionRequestConfig(config);
 
     // Add video streaming support for Gemini 3.0 (Project Ghost)
     if (config.enableVideoStreaming && config.useGemini3) {
-      // Enable video input modality for continuous streaming
-      // Note: "VIDEO" is not yet in the Modality enum; use string literal for forward compatibility
-      const VIDEO_MODALITY = "VIDEO" as unknown as typeof Modality.AUDIO;
-      if (!sessionConfig.responseModalities.includes(VIDEO_MODALITY)) {
-        sessionConfig.responseModalities.push(VIDEO_MODALITY);
-      }
       console.log(`[Gemini Live] Video streaming enabled for session ${sessionId}`);
     }
 
@@ -103,20 +192,6 @@ export async function createLiveSession(
       );
       
       sessionConfig.tools = computerUseTools;
-      
-      // Update system instruction to include Computer Use capabilities
-      sessionConfig.systemInstruction = `${sessionConfig.systemInstruction}
-
-You have computer control capabilities. You can see the user's screen and control their computer through:
-- computer_click: Click at coordinates
-- computer_type: Type text
-- computer_key: Press keyboard keys
-- computer_scroll: Scroll the screen
-- computer_move: Move the mouse
-- computer_screenshot: Take a screenshot
-- computer_wait: Wait before next action
-
-Use these tools to help the user accomplish tasks hands-free through voice commands.`;
     }
 
     // Add any additional custom tools
@@ -147,8 +222,18 @@ Use these tools to help the user accomplish tasks hands-free through voice comma
               emitter.emit('message', msg);
           },
           onclose: (e: any) => {
-               console.log(`[Gemini Live] Session ${sessionId} closed`, e);
-               emitter.emit('close', e);
+               const closeInfo: LiveCloseInfo = {
+                 code: e?.code,
+                 reason: e?.reason,
+                 wasClean: e?.wasClean,
+               };
+               const currentSession = activeSessions.get(sessionId);
+               if (currentSession) {
+                 currentSession.isActive = false;
+                 currentSession.lastClose = closeInfo;
+               }
+               console.log(`[Gemini Live] Session ${sessionId} closed`, closeInfo);
+               emitter.emit('close', closeInfo);
           },
           onerror: (err: any) => {
                console.error(`[Gemini Live] Session ${sessionId} error`, err);
@@ -162,7 +247,9 @@ Use these tools to help the user accomplish tasks hands-free through voice comma
       session,
       isActive: true,
       createdAt: new Date(),
-      emitter
+      emitter,
+      config: { ...config },
+      modelName,
     });
     
     // Check if session has conn property (SDK v1.42+ behavior)
@@ -201,7 +288,10 @@ export async function sendAudio(
   const liveSession = activeSessions.get(sessionId);
   
   if (!liveSession || !liveSession.isActive) {
-    return { success: false, error: "Session not found or inactive" };
+    return {
+      success: false,
+      error: liveSession ? getInactiveSessionError(liveSession) : "Session not found or inactive",
+    };
   }
 
   try {
@@ -252,7 +342,10 @@ export async function sendVideoFrame(
   const liveSession = activeSessions.get(sessionId);
   
   if (!liveSession || !liveSession.isActive) {
-    return { success: false, error: "Session not found or inactive" };
+    return {
+      success: false,
+      error: liveSession ? getInactiveSessionError(liveSession) : "Session not found or inactive",
+    };
   }
 
   try {
@@ -338,10 +431,12 @@ export async function sendText(
 export async function* receiveResponses(
   sessionId: string
 ): AsyncGenerator<{
-  type: "audio" | "text" | "transcript" | "functionCall" | "end";
+  type: "audio" | "text" | "transcript" | "functionCall" | "error" | "end";
   data?: string;
   text?: string;
-  functionCall?: { name: string; args: any };
+  error?: string;
+  retryable?: boolean;
+  functionCall?: { id?: string; name: string; args: any };
 }> {
   const liveSession = activeSessions.get(sessionId);
   
@@ -353,20 +448,24 @@ export async function* receiveResponses(
   // If we have an emitter (new SDK path)
   if (liveSession.emitter) {
       const emitter = liveSession.emitter;
-      const queue: any[] = [];
+      const queue: Array<
+        | { kind: "message"; message: any }
+        | { kind: "close"; closeInfo: LiveCloseInfo }
+        | { kind: "error"; error: string }
+      > = [];
       let resolveNext: ((value?: any) => void) | null = null;
-      let rejectNext: ((reason?: any) => void) | null = null;
       let ended = false;
 
       const onMessage = (msg: any) => {
-          queue.push(msg);
+          queue.push({ kind: "message", message: msg });
           if (resolveNext) {
               resolveNext();
               resolveNext = null;
           }
       };
 
-      const onClose = () => {
+      const onClose = (closeInfo: LiveCloseInfo) => {
+          queue.push({ kind: "close", closeInfo });
           ended = true;
           if (resolveNext) {
               resolveNext();
@@ -375,9 +474,12 @@ export async function* receiveResponses(
       };
 
       const onError = (err: any) => {
+           queue.push({ kind: "error", error: normalizeLiveErrorMessage(err) });
            ended = true;
-           if (rejectNext) rejectNext(err);
-           if (resolveNext) resolveNext();
+           if (resolveNext) {
+             resolveNext();
+             resolveNext = null;
+           }
       };
 
       emitter.on('message', onMessage);
@@ -387,23 +489,41 @@ export async function* receiveResponses(
       try {
           while (!ended || queue.length > 0) {
               if (queue.length === 0) {
-                  await new Promise<void>((resolve, reject) => {
+                  await new Promise<void>((resolve) => {
                       resolveNext = resolve;
-                      rejectNext = reject;
                   });
               }
               
               if (queue.length === 0 && ended) break;
               
               while (queue.length > 0) {
-                  const msg = queue.shift();
-                  
-                  // The message structure depends on the SDK version
-                  // It might be { serverContent: ... } or just raw object if parsed
-                  
-                  // Log message structure to help debugging
-                  // console.log("Processing msg keys:", Object.keys(msg));
-                  
+                  const event = queue.shift();
+                  if (!event) {
+                    continue;
+                  }
+
+                  if (event.kind === "close") {
+                      const errorMessage = getLiveCloseErrorMessage(event.closeInfo);
+                      if (errorMessage) {
+                          yield {
+                            type: "error",
+                            error: errorMessage,
+                            retryable: isRetryableLiveClose(event.closeInfo),
+                          };
+                      }
+                      continue;
+                  }
+
+                  if (event.kind === "error") {
+                      yield {
+                        type: "error",
+                        error: event.error,
+                      };
+                      continue;
+                  }
+
+                  const msg = event.message;
+
                   if (msg.serverContent) {
                       const { modelTurn } = msg.serverContent;
                       if (modelTurn && modelTurn.parts) {
@@ -411,7 +531,7 @@ export async function* receiveResponses(
                               if (part.inlineData) {
                                   yield { type: "audio", data: part.inlineData.data };
                               }
-                              if (part.text) {
+                              if (part.text && !part.thought) {
                                   yield { type: "transcript", text: part.text };
                                   yield { type: "text", text: part.text };
                               }
@@ -468,7 +588,7 @@ export async function* receiveResponses(
               if (part.inlineData) {
                 yield { type: "audio", data: part.inlineData.data };
               }
-              if (part.text) {
+              if (part.text && !part.thought) {
                 yield { type: "transcript", text: part.text };
               }
               // Handle function calls from Computer Use (Project Ghost)
@@ -484,11 +604,41 @@ export async function* receiveResponses(
             }
           }
         }
-    } catch (error) {
+  } catch (error) {
     console.error("[Gemini Live] Error receiving responses:", error);
+    yield {
+      type: "error",
+      error: normalizeLiveErrorMessage(error),
+    };
   }
   
   yield { type: "end" };
+}
+
+export async function recreateLiveSession(
+  sessionId: string,
+): Promise<{ success: boolean; error?: string }> {
+  const liveSession = activeSessions.get(sessionId);
+
+  if (!liveSession) {
+    return { success: false, error: "Session not found" };
+  }
+
+  if (liveSession.isActive) {
+    try {
+      if (typeof liveSession.session.close === "function") {
+        await liveSession.session.close();
+      } else if (liveSession.session.conn) {
+        liveSession.session.conn.close();
+      }
+    } catch (error) {
+      console.warn(`[Gemini Live] Failed to close session before recreating ${sessionId}:`, error);
+    }
+  }
+
+  activeSessions.delete(sessionId);
+
+  return createLiveSession(sessionId, liveSession.config);
 }
 
 /**
@@ -668,6 +818,5 @@ export const AVAILABLE_VOICES = [
   { value: "Orus", label: "Orus - Authoritative Male", gender: "male" },
   { value: "Zephyr", label: "Zephyr - Gentle Neutral", gender: "neutral" },
 ] as const;
-
 
 

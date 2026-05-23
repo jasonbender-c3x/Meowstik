@@ -23,6 +23,40 @@ interface UseChatOptions {
   setWorkbenchTab: (tab: "editor" | "terminal") => void;
 }
 
+function buildTempAIMessage(
+  tempId: string,
+  chatId: string,
+  content: string,
+  metadata?: any
+): Message {
+  return {
+    id: tempId,
+    chatId,
+    role: "ai",
+    content,
+    createdAt: new Date(),
+    metadata,
+  } as unknown as Message;
+}
+
+export function upsertTempAIMessage(
+  prev: Message[],
+  tempId: string,
+  chatId: string,
+  content: string,
+  metadata?: any
+): Message[] {
+  const nextTempMessage = buildTempAIMessage(tempId, chatId, content, metadata);
+  const existingIndex = prev.findIndex((m) => m.id === tempId);
+  if (existingIndex === -1) {
+    return [...prev, nextTempMessage];
+  }
+
+  const nextMessages = [...prev];
+  nextMessages[existingIndex] = nextTempMessage;
+  return nextMessages;
+}
+
 export function useChat({
   currentChatId,
   chats,
@@ -37,9 +71,11 @@ export function useChat({
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const activeGenerationIdRef = useRef(0);
 
   const {
     speak,
+    stopSpeaking,
     shouldPlayHDAudio,
     shouldPlayBrowserTTS,
     unlockAudio,
@@ -140,8 +176,19 @@ export function useChat({
       console.warn("[handleSendMessage] Audio unlock failed:", e);
     }
 
+    const generationId = ++activeGenerationIdRef.current;
+    const isStaleGeneration = () => generationId !== activeGenerationIdRef.current;
+    let tempAIMessageId = `temp-ai-pending-${generationId}`;
+
     try {
       let chatId = currentChatId;
+
+      stopSpeaking();
+
+      if (abortControllerRef.current) {
+        console.log("[handleSendMessage] Aborting previous in-flight generation");
+        abortControllerRef.current.abort();
+      }
 
       if (!chatId) {
         console.log("[handleSendMessage] No chat ID, creating new chat...");
@@ -155,6 +202,7 @@ export function useChat({
         setMessages([]);
         console.log("[handleSendMessage] Created new chat:", chatId);
       }
+      tempAIMessageId = `temp-ai-${chatId}-${generationId}`;
 
       const tempUserMessage = {
         id: `temp-${Date.now()}`,
@@ -226,6 +274,10 @@ export function useChat({
       let isPlayingAudio = false;
 
       const playNextInQueue = async () => {
+        if (isStaleGeneration()) {
+          audioQueue.length = 0;
+          return;
+        }
         if (isPlayingAudio || audioQueue.length === 0) return;
         isPlayingAudio = true;
         const item = audioQueue.shift()!;
@@ -263,7 +315,11 @@ export function useChat({
           console.error("[TTS] Playback error:", err);
         }
         isPlayingAudio = false;
-        playNextInQueue();
+        if (!isStaleGeneration()) {
+          void playNextInQueue();
+        } else {
+          audioQueue.length = 0;
+        }
       };
 
       const SSE_INACTIVITY_TIMEOUT_MS = 30_000;
@@ -272,7 +328,9 @@ export function useChat({
         if (sseTimeoutId !== null) clearTimeout(sseTimeoutId);
         sseTimeoutId = setTimeout(() => {
           console.warn("[SSE] Inactivity timeout — forcing stream completion");
-          setIsLoading(false);
+          if (!isStaleGeneration()) {
+            setIsLoading(false);
+          }
         }, SSE_INACTIVITY_TIMEOUT_MS);
       };
       resetSseTimeout();
@@ -291,6 +349,9 @@ export function useChat({
           if (line.startsWith("data: ")) {
             try {
               const data = JSON.parse(line.slice(6));
+              if (isStaleGeneration()) {
+                continue;
+              }
 
               if (data.error && data.errorType === "ai_error_response") {
                 console.error(
@@ -299,60 +360,39 @@ export function useChat({
                 );
                 const errorContent = `⚠️ **Error:** ${data.message}\n\n${data.details || ""}`;
                 aiMessageContent = errorContent;
-                setMessages((prev) => {
-                  const filtered = prev.filter(
-                    (m) => !m.id.startsWith("temp-ai-")
-                  );
-                  return [
-                    ...filtered,
-                    {
-                      id: `temp-ai-${Date.now()}`,
-                      chatId: chatId,
-                      role: "ai",
-                      content: aiMessageContent,
-                      createdAt: new Date().toISOString(),
-                    } as unknown as Message,
-                  ];
-                });
+                setMessages((prev) =>
+                  upsertTempAIMessage(
+                    prev,
+                    tempAIMessageId,
+                    chatId,
+                    aiMessageContent
+                  )
+                );
                 continue;
               }
 
               if (data.text) {
                 aiMessageContent += data.text;
-                setMessages((prev) => {
-                  const filtered = prev.filter(
-                    (m) => !m.id.startsWith("temp-ai-")
-                  );
-                  return [
-                    ...filtered,
-                    {
-                      id: `temp-ai-${Date.now()}`,
-                      chatId: chatId,
-                      role: "ai",
-                      content: aiMessageContent,
-                      createdAt: new Date().toISOString(),
-                    } as unknown as Message,
-                  ];
-                });
+                setMessages((prev) =>
+                  upsertTempAIMessage(
+                    prev,
+                    tempAIMessageId,
+                    chatId,
+                    aiMessageContent
+                  )
+                );
               }
 
               if (data.finalContent !== undefined) {
                 aiMessageContent = data.finalContent;
-                setMessages((prev) => {
-                  const filtered = prev.filter(
-                    (m) => !m.id.startsWith("temp-ai-")
-                  );
-                  return [
-                    ...filtered,
-                    {
-                      id: `temp-ai-${Date.now()}`,
-                      chatId: chatId,
-                      role: "ai",
-                      content: aiMessageContent,
-                      createdAt: new Date().toISOString(),
-                    } as unknown as Message,
-                  ];
-                });
+                setMessages((prev) =>
+                  upsertTempAIMessage(
+                    prev,
+                    tempAIMessageId,
+                    chatId,
+                    aiMessageContent
+                  )
+                );
               }
 
               if (data.speech) {
@@ -392,16 +432,21 @@ export function useChat({
                     mimeType: speechData.mimeType || "audio/mpeg",
                     utterance: speechData.utterance || "",
                   });
-                  playNextInQueue();
+                  void playNextInQueue();
                 } else if (
                   speechData.audioGenerated === false &&
-                  speechData.utterance
+                  speechData.utterance &&
+                  !isStaleGeneration()
                 ) {
                   console.log(
                     "[TTS] say tool reported audioGenerated:false, using browser TTS fallback"
                   );
                   speak(speechData.utterance);
-                } else if (browserTTSPermitted && speechData.utterance) {
+                } else if (
+                  browserTTSPermitted &&
+                  speechData.utterance &&
+                  !isStaleGeneration()
+                ) {
                   console.log(
                     "[TTS] Falling back to browser TTS for this speech event"
                   );
@@ -514,24 +559,20 @@ export function useChat({
                 }
 
                 setMessages((prev) => {
-                  const filtered = prev.filter(
-                    (m) => !m.id.startsWith("temp-ai-")
+                  return upsertTempAIMessage(
+                    prev,
+                    tempAIMessageId,
+                    chatId,
+                    aiMessageContent,
+                    streamMetadata
                   );
-                  return [
-                    ...filtered,
-                    {
-                      id: `temp-ai-${Date.now()}`,
-                      chatId: chatId,
-                      role: "ai",
-                      content: aiMessageContent,
-                      createdAt: new Date(),
-                      metadata: streamMetadata,
-                    } as unknown as Message & { metadata?: any },
-                  ];
                 });
               }
 
               if (data.done) {
+                if (isStaleGeneration()) {
+                  continue;
+                }
                 console.log("[SSE] Done event received");
                 if (sseTimeoutId !== null) {
                   clearTimeout(sseTimeoutId);
@@ -581,7 +622,7 @@ export function useChat({
                   );
                   setMessages((prev) => {
                     const filtered = prev.filter(
-                      (m) => !m.id.startsWith("temp-ai-")
+                      (m) => m.id !== tempAIMessageId
                     );
                     return [
                       ...filtered,
@@ -623,6 +664,12 @@ export function useChat({
           }
         }
       }
+      if (
+        abortControllerRef.current &&
+        abortControllerRef.current.signal === abortController.signal
+      ) {
+        abortControllerRef.current = null;
+      }
       if (sseTimeoutId !== null) {
         clearTimeout(sseTimeoutId);
         sseTimeoutId = null;
@@ -633,11 +680,21 @@ export function useChat({
       } else {
         console.error("[handleSendMessage] Failed to send message:", error);
       }
-      setIsLoading(false);
-      abortControllerRef.current = null;
+      if (
+        abortControllerRef.current &&
+        abortControllerRef.current.signal.aborted
+      ) {
+        abortControllerRef.current = null;
+      }
+      if (!isStaleGeneration()) {
+        setIsLoading(false);
+      }
     } finally {
       setTimeout(() => {
         setIsLoading((current) => {
+          if (isStaleGeneration()) {
+            return current;
+          }
           if (current) {
             console.warn(
               "[handleSendMessage] Force clearing loading state after timeout"
@@ -652,11 +709,13 @@ export function useChat({
 
   const handleStopGeneration = () => {
     console.log("[handleStopGeneration] Stop button clicked");
+    activeGenerationIdRef.current += 1;
+    stopSpeaking();
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
       abortControllerRef.current = null;
-      setIsLoading(false);
     }
+    setIsLoading(false);
   };
 
   const pollForAutoexecResult = async (
